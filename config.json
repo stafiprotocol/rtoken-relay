@@ -1,0 +1,19 @@
+{
+  "main": {
+    "name": "Stafi",
+    "endpoint": "ws://127.0.0.1:9944",
+    "from": "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov",
+    "keystorePath": "/Users/fwj/Go/stafi/rtoken-bridge/keys",
+    "opts": {
+      "startBlock": "1"
+    }
+  },
+  "others": [
+    {
+      "name": "polkadot",
+      "type": "substrate",
+      "endpoint": "ws://127.0.0.1:9944",
+      "rsymbol": "RDOT"
+    }
+  ]
+}

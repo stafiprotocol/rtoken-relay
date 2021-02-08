@@ -1,0 +1,85 @@
+{
+  "Weight": "u64",
+  "DispatchResult": {
+    "type": "enum",
+    "type_mapping": [
+      [
+        "Ok",
+        "Null"
+      ],
+      [
+        "Error",
+        "DispatchError"
+      ]
+    ]
+  },
+  "Address": "GenericAddress",
+  "LookupSource": "GenericAddress",
+  "Keys": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "grandpa",
+        "AccountId"
+      ],
+      [
+        "babe",
+        "AccountId"
+      ],
+      [
+        "im_online",
+        "AccountId"
+      ],
+      [
+        "authority_discovery",
+        "AccountId"
+      ]
+    ]
+  },
+  "ChainId": "u8",
+  "ResourceId": "[u8; 32]",
+  "DepositNonce": "u64",
+  "U256": "H256",
+  "RSymbol": {
+    "type": "enum",
+    "value_list": [
+      "RFIS"
+    ]
+  },
+  "RateType": "u64",
+  "AccountRData": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "free",
+        "u128"
+      ]
+    ]
+  },
+  "ProposalStatus": {
+    "type": "enum",
+    "value_list": [
+      "Active",
+      "Passed",
+      "Expired",
+      "Executed"
+    ]
+  },
+  "ProposalVotes": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "voted",
+        "Vec<AccountId>"
+      ],
+      [
+        "status",
+        "ProposalStatus"
+      ],
+      [
+        "expiry",
+        "BlockNumber"
+      ]
+    ]
+  }
+}
