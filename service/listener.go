@@ -7,15 +7,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/rtoken-relay/config"
-	"github.com/stafiprotocol/rtoken-relay/conn"
-	"github.com/stafiprotocol/rtoken-relay/substrate"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"math/big"
 	"strings"
 	"time"
 
+	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
+	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/conn"
+	"github.com/stafiprotocol/rtoken-relay/substrate"
 )
 
 type listener struct {
@@ -139,28 +141,180 @@ func (l *listener) processEvents(blockNum uint64) error {
 		l.log.Debug("processEvents", "blockNum", blockNum)
 	}
 
-	evts, err := l.sarpc.GetEventsByModuleIdAndEventId(blockNum, config.LiquidityBondModuleId, config.LiquidityBondEventId)
+	allEvts, err := l.sarpc.GetEvents(blockNum)
 	if err != nil {
 		return err
 	}
 
-	l.log.Trace("block", "LiquidityEventNum", len(evts), "blockNum", blockNum)
+	lbes := filterEvts(allEvts, config.LiquidityBondModuleId, config.LiquidityBondEventId)
+	l.log.Trace("processEvents", "LiquidityBondEventNum", len(lbes), "blockNum", blockNum)
+	if err := l.processLiquidityBondEvents(lbes); err != nil {
+		l.log.Error("processLiquidityBondEvent", "error", err)
+		return err
+	}
 
+	return nil
+}
+
+func filterEvts(evts []*substrate.ChainEvent, moduleId, eventId string) []*substrate.ChainEvent {
+	wanted := make([]*substrate.ChainEvent, 0)
+
+	for _, evt := range evts {
+		if evt.ModuleId != moduleId || evt.EventId != eventId {
+			continue
+		}
+
+		wanted = append(wanted, evt)
+	}
+	return wanted
+}
+
+func (l *listener) processLiquidityBondEvents(evts []*substrate.ChainEvent) error {
 	for _, evt := range evts {
 		err := l.processLiquidityBondEvent(evt)
 		if err != nil {
-			l.log.Error("processLiquidityBondEvent", "error", err)
+			return err
 		}
-	}
-
-	for _, evt := range evts {
-		l.log.Info("LiquidityBondEvents", "evt", evt)
 	}
 
 	return nil
 }
 
 func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) error {
-	fmt.Println(evt)
+	lb, err := liquidityBondEventData(evt)
+	if err != nil {
+		return err
+	}
+
+	bondKey := lb.bondKey()
+	bk, err := types.EncodeToBytes(bondKey)
+	if err != nil {
+		return err
+	}
+
+	br := new(conn.BondRecord)
+	re, err := l.gsrpc.QueryStorage(config.LiquidityBondModuleId, config.StorageBondRecords, bk, nil, br)
+	if err != nil {
+		return err
+	}
+
+	if !re {
+		return fmt.Errorf("unable to get bondrecord by bondkey: %+v", lb)
+	}
+
+	if br.Bonder != lb.accountId {
+		return fmt.Errorf("bonder not matched: %s, %s", hexutil.Encode(br.Bonder[:]), hexutil.Encode(lb.accountId[:]))
+	}
+
+	val, ok := l.validators[br.Symbol]
+	if !ok {
+		return fmt.Errorf("no validator for symbol: %s", br.Symbol)
+	}
+
+	reason, err := val.TransferVerify(br)
+	if err != nil {
+		return err
+	}
+
+	brp, err := l.bondProposal(bondKey, reason)
+	if err != nil {
+		return err
+	}
+
+	result := l.resolveBondProposal(brp)
+	l.log.Info("processLiquidityBondEvent", "result", result)
+
 	return nil
+}
+
+func (l *listener) bondProposal(key *conn.BondKey, reason conn.BondReason) (*conn.BondRecordProposal, error) {
+	meta, err := l.gsrpc.GetLatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+
+	call, err := types.NewCall(
+		meta,
+		config.ExecuteBondRecord,
+		key,
+		reason,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	prop := &conn.Proposal{call, key}
+	return &conn.BondRecordProposal{prop, reason}, nil
+}
+
+func (l *listener) resolveBondProposal(p *conn.BondRecordProposal) bool {
+	for i := 0; i < BlockRetryLimit; i++ {
+		// Ensure we only submit a vote if status of the proposal is Initiated
+		valid, reason, err := l.proposalValid(p.Prop)
+		l.log.Info("ResolveBondProposal proposalValid", "valid", valid, "reason", reason)
+		if err != nil {
+			l.log.Error("Failed to assert proposal state", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+
+		if !valid {
+			l.log.Debug("Ignoring proposal", "reason", reason)
+			return true
+		}
+
+		l.log.Info("Acknowledging proposal on chain...")
+		//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
+		inFavour := p.Reason == conn.Pass
+		ext, err := l.gsrpc.NewUnsignedExtrinsic(config.RacknowledgeProposal, p.Prop.Key.Symbol, p.Prop.Key.BondId, inFavour, p.Prop.Call)
+		err = l.gsrpc.SignAndSubmitTx(ext)
+		if err != nil {
+			if err.Error() == substrate.TerminatedError.Error() {
+				l.log.Error("Acknowledging proposal met TerminatedError")
+				return false
+			}
+			l.log.Error("Acknowledging proposal error", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+		return true
+	}
+	return true
+}
+
+func (l *listener) proposalValid(prop *conn.Proposal) (bool, string, error) {
+	var state conn.VoteState
+
+	symBz, err := types.EncodeToBytes(prop.Key.Symbol)
+	if err != nil {
+		return false, "", err
+	}
+
+	propBz, err := prop.Encode()
+	if err != nil {
+		return false, "", err
+	}
+
+	exists, err := l.gsrpc.QueryStorage(config.RtokenVoteModuleId, config.StorageVotes, symBz, propBz, &state)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !exists {
+		return true, "", nil
+	}
+
+	if state.Status != conn.Initiated {
+		return false, fmt.Sprintf("CurrentVoteStatus: %s", state.Status), nil
+	}
+
+	if containsVote(state.VotesFor, types.NewAccountID(l.gsrpc.PublicKey())) {
+		return false, "already voted for", nil
+	}
+
+	if containsVote(state.VotesAgainst, types.NewAccountID(l.gsrpc.PublicKey())) {
+		return false, "already voted against", nil
+	}
+
+	return true, "", nil
 }

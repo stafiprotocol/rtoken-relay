@@ -43,7 +43,8 @@
   "RSymbol": {
     "type": "enum",
     "value_list": [
-      "RFIS"
+      "RFIS",
+      "RDOT"
     ]
   },
   "RateType": "u64",
@@ -75,6 +76,93 @@
       [
         "status",
         "ProposalStatus"
+      ],
+      [
+        "expiry",
+        "BlockNumber"
+      ]
+    ]
+  },
+  "BondKey": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "symbol",
+        "RSymbol"
+      ],
+      [
+        "bond_id",
+        "H256"
+      ]
+    ]
+  },
+  "BondRecord": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "bonder",
+        "AccountId"
+      ],
+      [
+        "symbol",
+        "RSymbol"
+      ],
+      [
+        "pubkey",
+        "Vec<u8>"
+      ],
+      [
+        "pool",
+        "Vec<u8>"
+      ],
+      [
+        "blockhash",
+        "Vec<u8>"
+      ],
+      [
+        "txhash",
+        "Vec<u8>"
+      ],
+      [
+        "amount",
+        "u128"
+      ]
+    ]
+  },
+  "BondReason": {
+    "type": "enum",
+    "value_list": [
+      "Pass",
+      "BlockhashUnmatch",
+      "TxhashUnmatch",
+      "PubkeyUnmatch",
+      "PoolUnmatch",
+      "AmountUnmatch"
+    ]
+  },
+  "RproposalStatus": {
+    "type": "enum",
+    "value_list": [
+      "Initiated",
+      "Approved",
+      "Rejected",
+      "Expired"
+    ]
+  },
+  "RproposalVotes": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "votes_for",
+        "Vec<AccountId>"
+      ],
+      [
+        "votes_against",
+        "Vec<AccountId>"
+      ],
+      [
+        "status",
+        "RproposalStatus"
       ],
       [
         "expiry",

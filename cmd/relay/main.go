@@ -95,8 +95,7 @@ func run(ctx *cli.Context) error {
 		return err
 	}
 
-	log := log.Root().New("rtoken")
-	service.Start(cfg, log)
+	service.Start(cfg, log.Root())
 
 	return nil
 }

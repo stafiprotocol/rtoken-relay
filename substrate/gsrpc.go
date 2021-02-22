@@ -153,7 +153,7 @@ func (gc *GsrpcClient) watchSubmission(sub *author.ExtrinsicStatusSubscription) 
 	for {
 		select {
 		case <-gc.ctx.Done():
-			return errors.New("terminated")
+			return TerminatedError
 		case status := <-sub.Chan():
 			switch {
 			case status.IsInBlock:
@@ -200,4 +200,8 @@ func (gc *GsrpcClient) signExtrinsic(ext *types.Extrinsic) error {
 	}
 
 	return nil
+}
+
+func (gc *GsrpcClient) PublicKey() []byte {
+	return gc.key.PublicKey
 }

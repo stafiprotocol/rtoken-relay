@@ -22,19 +22,22 @@ type Config struct {
 }
 
 type MainConfig struct {
-	Name         string            `json:"name"`
-	Endpoint     string            `json:"endpoint"`
-	From         string            `json:"from"`
-	KeystorePath string            `json:"keystorePath"`
-	Opts         map[string]string `json:"opts"`
+	Name           string            `json:"name"`
+	Endpoint       string            `json:"endpoint"`
+	From           string            `json:"from"`
+	KeystorePath   string            `json:"keystorePath"`
+	BlockstorePath string            `json:"blockstorePath"`
+	TypesPath      string            `json:"typesPath"`
+	Opts           map[string]string `json:"opts"`
 }
 
 // RawChainConfig is parsed directly from the config file and should be using to construct the core.ChainConfig
 type OtherConfig struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Endpoint string `json:"endpoint"`
-	Rsymbol  string `json:"rsymbol"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	TypesPath string `json:"typesPath"`
+	Endpoint  string `json:"endpoint"`
+	Symbol    string `json:"symbol"`
 }
 
 func GetConfig(ctx *cli.Context) (*Config, error) {

@@ -1,5 +1,5 @@
 package conn
 
 type Validator interface {
-	TransferVerify(record *BondRecord) (bool, OpposeReason)
+	TransferVerify(record *BondRecord) (BondReason, error)
 }

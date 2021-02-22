@@ -3,17 +3,20 @@
     "name": "Stafi",
     "endpoint": "ws://127.0.0.1:9944",
     "from": "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov",
-    "keystorePath": "/Users/fwj/Go/stafi/rtoken-bridge/keys",
+    "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys",
+    "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+    "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
     "opts": {
-      "startBlock": "1"
+      "startBlock": "450"
     }
   },
   "others": [
     {
       "name": "polkadot",
       "type": "substrate",
+      "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
       "endpoint": "ws://127.0.0.1:9944",
-      "rsymbol": "RDOT"
+      "symbol": "RDOT"
     }
   ]
 }

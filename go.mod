@@ -12,4 +12,5 @@ require (
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.2
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
+	gotest.tools v2.2.0+incompatible
 )

@@ -6,16 +6,14 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 )
 
-type BondVoteStatus string
+type RSymbol string
 
 const (
-	VoteStatusInitiated = BondVoteStatus("Initiated")
-	VoteStatusApproved  = BondVoteStatus("Approved")
-	VoteStatusRejected  = BondVoteStatus("Rejected")
-	VoteStatusExpired   = BondVoteStatus("Expired")
+	RFIS = RSymbol("RFIS")
+	RDOT = RSymbol("RDOT")
 )
 
-func (bvs *BondVoteStatus) Decode(decoder scale.Decoder) error {
+func (r *RSymbol) Decode(decoder scale.Decoder) error {
 	b, err := decoder.ReadOneByte()
 	if err != nil {
 		return err
@@ -23,71 +21,140 @@ func (bvs *BondVoteStatus) Decode(decoder scale.Decoder) error {
 
 	switch b {
 	case 0:
-		*bvs = VoteStatusInitiated
+		//*r = RFIS
+		return fmt.Errorf("RSymbol decode error: %d", b)
 	case 1:
-		*bvs = VoteStatusApproved
-	case 2:
-		*bvs = VoteStatusRejected
-	case 3:
-		*bvs = VoteStatusExpired
+		*r = RDOT
 	default:
-		return fmt.Errorf("VoteStatus decode error: %d", b)
+		return fmt.Errorf("RSymbol decode error: %d", b)
 	}
 
 	return nil
 }
 
-type RSymbol uint
+func (r RSymbol) Encode(encoder scale.Encoder) error {
+	switch r {
+	case RFIS:
+		//return encoder.PushByte(0)
+		return fmt.Errorf("RFIS not supported")
+	case RDOT:
+		return encoder.PushByte(1)
+	default:
+		return fmt.Errorf("%s not supported", r)
+	}
+}
 
-const (
-	RSymbolRdot = RSymbol(1)
-)
-
-//func (sym *RSymbol) Decode(decoder scale.Decoder) error {
-//	b, err := decoder.ReadOneByte()
-//	if err != nil {
-//		return err
-//	}
-//
-//	switch b {
-//	case 1:
-//		*sym = RSymbolRdot
-//	default:
-//		return fmt.Errorf("VoteStatus decode error: %d", b)
-//	}
-//
-//	return nil
-//}
+type BondKey struct {
+	Symbol RSymbol
+	BondId types.Hash
+}
 
 type BondRecord struct {
-	Bonder    types.AccountID `json:"bonder"`
-	Rsymbol   RSymbol         `json:"rsymbol"`
-	Pubkey    []byte          `json:"pubkey"`
-	Signature []byte          `json:"signature"`
-	Pool      []byte          `json:"pool"`
-	Blockhash []byte          `json:"blockhash"`
-	Txhash    []byte          `json:"txhash"`
-	Amount    types.U128      `json:"amount"`
+	Bonder    types.AccountID
+	Symbol    RSymbol
+	Pubkey    types.Bytes
+	Pool      types.Bytes
+	Blockhash types.Bytes
+	Txhash    types.Bytes
+	Amount    types.U128
 }
 
-type BondVote struct {
-	VotesFor     []types.AccountID
-	VotesAgainst []types.AccountID
-	Status       BondVoteStatus
-}
-
-type OpposeReason int
+type RproposalStatus string
 
 const (
-	BLOCKHASH = OpposeReason(0)
-	TXHASH    = OpposeReason(1)
-
-	NoReason = OpposeReason(99)
+	Initiated = RproposalStatus("Initiated")
+	Approved  = RproposalStatus("Approved")
+	Rejected  = RproposalStatus("Rejected")
+	Expired   = RproposalStatus("Expired")
 )
+
+func (r *RproposalStatus) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*r = Initiated
+	case 1:
+		*r = Approved
+	case 2:
+		*r = Rejected
+	case 3:
+		*r = Expired
+	default:
+		return fmt.Errorf("RproposalStatus decode error: %d", b)
+	}
+
+	return nil
+}
+
+type VoteState struct {
+	VotesFor     []types.AccountID
+	VotesAgainst []types.AccountID
+	Status       RproposalStatus
+}
+
+type BondReason string
+
+const (
+	Pass             = BondReason("Pass")
+	BlockhashUnmatch = BondReason("BlockhashUnmatch")
+	TxhashUnmatch    = BondReason("TxhashUnmatch")
+	PubkeyUnmatch    = BondReason("PubkeyUnmatch")
+	PoolUnmatch      = BondReason("PoolUnmatch")
+	AmountUnmatch    = BondReason("AmountUnmatch")
+)
+
+func (br *BondReason) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*br = Pass
+	case 1:
+		*br = BlockhashUnmatch
+	case 2:
+		*br = TxhashUnmatch
+	case 3:
+		*br = PubkeyUnmatch
+	case 4:
+		*br = PoolUnmatch
+	case 5:
+		*br = AmountUnmatch
+	default:
+		return fmt.Errorf("BondReason decode error: %d", b)
+	}
+
+	return nil
+}
 
 type EvLiquidityBondEvt struct {
 	Dest      types.AccountID
 	Blockhash []byte
 	Txhash    []byte
 	Pubkey    []byte
+}
+
+// execute bond proposal
+type BondRecordProposal struct {
+	Prop   *Proposal
+	Reason BondReason
+}
+
+type Proposal struct {
+	Call types.Call
+	Key  *BondKey
+}
+
+// encode takes only nonce and call and encodes them for storage queries
+func (p *Proposal) Encode() ([]byte, error) {
+	return types.EncodeToBytes(struct {
+		types.Hash
+		types.Call
+	}{p.Key.BondId, p.Call})
 }

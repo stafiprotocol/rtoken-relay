@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-func BlockstoreAndKeyring(from, keystorePath, startBlock string) (*signature.KeyringPair, *blockstore.Blockstore, uint64, error) {
+func BlockstoreAndKeyring(from, keystorePath, blockstorePath, startBlock string) (*signature.KeyringPair, *blockstore.Blockstore, uint64, error) {
 	kp, err := keystore.KeypairFromAddress(from, keystore.SubChain, keystorePath, false)
 	if err != nil {
 		return nil, nil, 0, err
@@ -18,7 +18,7 @@ func BlockstoreAndKeyring(from, keystorePath, startBlock string) (*signature.Key
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 
 	// Attempt to load latest block
-	bs, err := blockstore.NewBlockstore(keystorePath, msg.ChainId(6), kp.Address())
+	bs, err := blockstore.NewBlockstore(blockstorePath, msg.ChainId(1), kp.Address())
 	if err != nil {
 		return nil, nil, 0, err
 	}

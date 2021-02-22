@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/conn"
 	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 )
 
@@ -18,27 +18,22 @@ var (
 )
 
 func TestGsrpcClient_QueryStorage(t *testing.T) {
-	tlog := log15.Root()
-
-	gc, err := NewGsrpcClient(context.Background(), "wss://mainnet-rpc.stafi.io", AliceKey, tlog)
-	//gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog)
+	//gc, err := NewGsrpcClient(context.Background(), "wss://mainnet-rpc.stafi.io", AliceKey, tlog)
+	gc, err := NewGsrpcClient(context.Background(), "ws://127.0.0.1:9944", AliceKey, tlog)
 	assert.NoError(t, err)
 
-	era, err := types.EncodeToBytes(types.U32(545))
+	bondId, err := types.NewHashFromHexString("0x354f4c6ce7cd428336d7b93ed684a7c694a69818d338169dbad0312a7c15685d")
 	assert.NoError(t, err)
 
-	before := new(types.U128)
-	after := new(types.U128)
-	re, err := gc.QueryStorage("RFis", "TotalBondedBeforePayout", era, nil, before)
+	bk := &conn.BondKey{Symbol: conn.RDOT, BondId: bondId}
+
+	bondKey, err := types.EncodeToBytes(bk)
+	assert.NoError(t, err)
+
+	var br conn.BondRecord
+
+	re, err := gc.QueryStorage("RTokenSeries", "BondRecords", bondKey, nil, &br)
 	assert.NoError(t, err)
 	fmt.Println(re)
-	fmt.Println(before)
-
-	re1, err := gc.QueryStorage("RFis", "TotalBondedAfterPayout", era, nil, after)
-	assert.NoError(t, err)
-	fmt.Println(re1)
-	fmt.Println(after)
-
-	fmt.Println(before.Cmp(after.Int))
-
+	fmt.Println(br)
 }

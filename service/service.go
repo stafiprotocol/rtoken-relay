@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/conn"
 	"os"
 	"os/signal"
@@ -37,19 +38,19 @@ func Start(cfg *config.Config, log log15.Logger) {
 		if !ok {
 			sblk = "0"
 		}
-		krp, bs, blk, err := utils.BlockstoreAndKeyring(mc.From, mc.KeystorePath, sblk)
+		krp, bs, blk, err := utils.BlockstoreAndKeyring(mc.From, mc.KeystorePath, mc.BlockstorePath, sblk)
 		if err != nil {
 			sysErr <- fmt.Errorf("BlockstoreAndKeyring error: %s", err)
 			return
 		}
 
-		sc, err := substrate.NewSarpcClient(cfg.MainConf.Endpoint, log.New("Sarpc-"+cfg.MainConf.Name))
+		sc, err := substrate.NewSarpcClient(cfg.MainConf.Endpoint, cfg.MainConf.TypesPath, log.New("Sarpc", cfg.MainConf.Name))
 		if err != nil {
 			sysErr <- fmt.Errorf("NewSarpcClient error: %s", err)
 			return
 		}
 
-		gc, err := substrate.NewGsrpcClient(ctx, cfg.MainConf.Endpoint, krp, log.New("Gsrpc-"+cfg.MainConf.Name))
+		gc, err := substrate.NewGsrpcClient(ctx, cfg.MainConf.Endpoint, krp, log.New("Gsrpc", cfg.MainConf.Name))
 		if err != nil {
 			sysErr <- fmt.Errorf("NewGsrpcClient error: %s", err)
 			return
@@ -86,18 +87,24 @@ func Start(cfg *config.Config, log log15.Logger) {
 
 func Validators(cfg *config.Config, log log15.Logger) (map[conn.RSymbol]conn.Validator, error) {
 	vals := make(map[conn.RSymbol]conn.Validator)
-	//
-	//for _, chainConf := range cfg.OtherConfs {
-	//	ctype := ChainType(chainConf.Type)
-	//	switch ctype {
-	//	case sub:
-	//		sc, err := substrate.NewSarpcClient(chainConf.Endpoint, log.New(chainConf.Name))
-	//		if err != nil {
-	//			return nil, fmt.Errorf("NewSarpcClient error: %s for chain: %s", err, chainConf.Name)
-	//		}
-	//		vals[conn.RSymbol(chainConf.Rsymbol)] = sc
-	//	}
-	//}
+
+	for _, chainConf := range cfg.OtherConfs {
+		ctype := ChainType(chainConf.Type)
+		switch ctype {
+		case sub:
+			sc, err := substrate.NewSarpcClient(chainConf.Endpoint, chainConf.TypesPath, log.New("Sarpc", chainConf.Name))
+			if err != nil {
+				return nil, fmt.Errorf("NewSarpcClient error: %s for chain: %s", err, chainConf.Name)
+			}
+			sym := conn.RSymbol(chainConf.Symbol)
+			_, err = types.EncodeToHexString(sym)
+			if err != nil {
+				return nil, err
+			}
+
+			vals[sym] = sc
+		}
+	}
 
 	return vals, nil
 }

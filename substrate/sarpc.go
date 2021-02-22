@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 
 	"github.com/ChainSafe/log15"
 	scalecodec "github.com/itering/scale.go"
@@ -29,10 +30,7 @@ type SarpcClient struct {
 	metaDecoder        scalecodec.MetadataDecoder
 }
 
-const DefaultTypeFilePath = "../network/stafi.json"
-
-func NewSarpcClient(endpoint string, log log15.Logger) (*SarpcClient, error) {
-
+func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient, error) {
 	log.Info("Connecting to substrate chain with Sarpc", "Endpoint", endpoint)
 
 	sc := &SarpcClient{
@@ -44,7 +42,7 @@ func NewSarpcClient(endpoint string, log log15.Logger) (*SarpcClient, error) {
 	}
 	websocket.SetEndpoint(sc.endpoint)
 	types.RuntimeType{}.Reg()
-	content, err := ioutil.ReadFile(DefaultTypeFilePath)
+	content, err := ioutil.ReadFile(typesPath)
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +63,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	v := &rpc.JsonRpcResult{}
 	// runtime version
 	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
-		return fmt.Errorf("websocket get runtime version error: %v", err)
+		return err
 	}
 	r := v.ToRuntimeVersion()
 	if r == nil {
@@ -75,7 +73,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	// metadata raw
 	if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
 		if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
-			return fmt.Errorf("websocket get metadata error: %v", err)
+			return err
 		}
 		metaRaw, err := v.ToString()
 		if err != nil {
@@ -102,54 +100,47 @@ func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 	return &rpcBlock.Block, nil
 }
 
-func (sc *SarpcClient) GetExtrinsicHashs(blockHash string) ([]string, error) {
+func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*scalecodec.ExtrinsicDecoder, error) {
+	err := sc.UpdateMeta(blockHash)
+	if err != nil {
+		return nil, err
+	}
+
 	blk, err := sc.GetBlock(blockHash)
 	if err != nil {
 		return nil, err
 	}
 
-	ehs := make([]string, 0)
-	e := scalecodec.ExtrinsicDecoder{}
+	exts := make([]*scalecodec.ExtrinsicDecoder, 0)
+	e := new(scalecodec.ExtrinsicDecoder)
 	option := types.ScaleDecoderOption{Metadata: &sc.metaDecoder.Metadata, Spec: sc.currentSpecVersion}
 	for _, raw := range blk.Extrinsics {
-		fmt.Println("Raw:", raw)
 		e.Init(types.ScaleBytes{Data: util.HexToBytes(raw)}, &option)
 		e.Process()
 		if e.ExtrinsicHash != "" {
-			ehs = append(ehs, e.ExtrinsicHash)
+			exts = append(exts, e)
 			fmt.Println(e.Address)
 			fmt.Println(e.ContainsTransaction)
 			fmt.Println(e.CallIndex)
-			fmt.Println(e.Params)
-			//fmt.Println(e.CallModule)
+			fmt.Println(e.CallModule.Name)
+			fmt.Println(e.Call.Name)
+
+			for _, param := range e.Params {
+				fmt.Println("--------")
+				fmt.Println(param.Name)
+				fmt.Println(param.Value)
+				fmt.Println(param.Type)
+				fmt.Println(param.ValueRaw)
+				if param.Name == ParamDest && param.Type == ParamDestType {
+					v, ok := param.Value.(big.Int)
+					fmt.Println("is_ok: ", ok)
+					fmt.Println(v)
+				}
+			}
 		}
 	}
 
-	return ehs, nil
-}
-
-func (sc *SarpcClient) GetEventsByModuleIdAndEventId(blockNum uint64, moduleId, eventId string) ([]*ChainEvent, error) {
-	blockHash, err := sc.GetBlockHash(blockNum)
-	if err != nil {
-		return nil, nil
-	}
-
-	evts, err := sc.GetChainEvents(blockHash)
-	if err != nil {
-		return nil, nil
-	}
-
-	wanted := make([]*ChainEvent, 0)
-
-	for _, evt := range evts {
-		if evt.ModuleId != moduleId || evt.EventId != eventId {
-			continue
-		}
-
-		wanted = append(wanted, evt)
-	}
-
-	return wanted, nil
+	return exts, nil
 }
 
 func (sc *SarpcClient) IsConnected() bool {
@@ -210,3 +201,41 @@ func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*ChainEvent, error) {
 
 	return events, nil
 }
+
+func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*ChainEvent, error) {
+	blockHash, err := sc.GetBlockHash(blockNum)
+	if err != nil {
+		return nil, err
+	}
+
+	evts, err := sc.GetChainEvents(blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return evts, nil
+}
+
+//func (sc *SarpcClient) GetEventsByModuleIdAndEventId(blockNum uint64, moduleId, eventId string) ([]*ChainEvent, error) {
+//	blockHash, err := sc.GetBlockHash(blockNum)
+//	if err != nil {
+//		return nil, nil
+//	}
+//
+//	evts, err := sc.GetChainEvents(blockHash)
+//	if err != nil {
+//		return nil, nil
+//	}
+//
+//	wanted := make([]*ChainEvent, 0)
+//
+//	for _, evt := range evts {
+//		if evt.ModuleId != moduleId || evt.EventId != eventId {
+//			continue
+//		}
+//
+//		wanted = append(wanted, evt)
+//	}
+//
+//	return wanted, nil
+//}

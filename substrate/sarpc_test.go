@@ -11,25 +11,22 @@ var (
 	tlog = log15.Root()
 )
 
+const DefaultTypeFilePath = "../network/stafi.json"
+
 func TestSarpcClient_GetBlock(t *testing.T) {
-	bh := "0x6b2d076ea22c96accfd4afa2e6e4befdea35c77a73e256d2b76e66f884a6b996"
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", tlog)
+	bh := "0xeb2e9ba35b9009475d93def5e951173af8161f953d7f3a95417d582bf64986ac"
+	//gc, err := NewGsrpcClient(context.Background(), , AliceKey, tlog)
+	//sc, err := NewSarpcClient("ws://127.0.0.1:9944", DefaultTypeFilePath, tlog)
+	sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", DefaultTypeFilePath, tlog)
 	assert.NoError(t, err)
 	//blk, err := sc.GetBlock(bh)
 	//assert.NoError(t, err)
 	//fmt.Println(blk)
 
-	err = sc.UpdateMeta(bh)
-	assert.NoError(t, err)
-	fmt.Println(sc.currentSpecVersion)
-
-	ehs, err := sc.GetExtrinsicHashs(bh)
+	ehs, err := sc.GetExtrinsics(bh)
 	assert.NoError(t, err)
 	for _, eh := range ehs {
-		if eh == "" {
-			continue
-		}
-		fmt.Println(eh)
+		fmt.Println(eh.ExtrinsicHash)
 	}
 }
 
