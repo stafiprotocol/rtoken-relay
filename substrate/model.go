@@ -2,7 +2,9 @@ package substrate
 
 import (
 	"errors"
+
 	scalecodec "github.com/itering/scale.go"
+	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 )
 
 const (
@@ -25,3 +27,15 @@ type ChainEvent struct {
 	EventId  string                  `json:"event_id" `
 	Params   []scalecodec.EventParam `json:"params"`
 }
+
+type FullSubClient struct {
+	Sc         *SarpcClient
+	Gc         *GsrpcClient
+	Keys       []*signature.KeyringPair
+	SubClients map[*signature.KeyringPair]*GsrpcClient
+}
+
+/// Hex accountIds
+var (
+	Nominators = []string{}
+)

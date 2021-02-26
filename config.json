@@ -7,7 +7,7 @@
     "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
     "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
     "opts": {
-      "startBlock": "450"
+      "startBlock": "1"
     }
   },
   "others": [
@@ -16,7 +16,11 @@
       "type": "substrate",
       "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
       "endpoint": "ws://127.0.0.1:9944",
-      "symbol": "RDOT"
+      "symbol": "RDOT",
+      "accounts": [
+        "33RQ73d9XfPTaE2SV7dzdhQQ17YaeMQ4yzhzAQhhFVenxMuJ"
+      ],
+      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys"
     }
   ]
 }

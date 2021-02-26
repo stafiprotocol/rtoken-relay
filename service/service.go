@@ -3,15 +3,18 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/stafiprotocol/go-substrate-rpc-client/types"
-	"github.com/stafiprotocol/rtoken-relay/conn"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
 	"github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
+	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/conn"
 	"github.com/stafiprotocol/rtoken-relay/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
@@ -19,11 +22,7 @@ import (
 type ChainType string
 
 const (
-	sub = ChainType("substrate")
-)
-
-var (
-	validators map[conn.RSymbol]conn.Validator
+	Substrate = ChainType("substrate")
 )
 
 func Start(cfg *config.Config, log log15.Logger) {
@@ -56,13 +55,21 @@ func Start(cfg *config.Config, log log15.Logger) {
 			return
 		}
 
-		validators, err = Validators(cfg, log)
+		chainEras := make(map[conn.RSymbol]types.U32)
+		err = ChainEras(chainEras, gc, cfg, log)
 		if err != nil {
 			sysErr <- err
 			return
 		}
 
-		listener := NewListener(ctx, sc, gc, bs, blk, validators, sysErr, log)
+		chains := make(map[conn.RSymbol]conn.Chain)
+		err = ChainClient(ctx, gc, chains, cfg, log)
+		if err != nil {
+			sysErr <- err
+			return
+		}
+
+		listener := NewListener(ctx, sc, gc, bs, blk, chainEras, chains, sysErr, log)
 		err = listener.Start()
 		if err != nil {
 			sysErr <- fmt.Errorf("listener start error: %s", err)
@@ -85,26 +92,66 @@ func Start(cfg *config.Config, log log15.Logger) {
 	cancel()
 }
 
-func Validators(cfg *config.Config, log log15.Logger) (map[conn.RSymbol]conn.Validator, error) {
-	vals := make(map[conn.RSymbol]conn.Validator)
-
+func ChainClient(ctx context.Context, gc *substrate.GsrpcClient, chains map[conn.RSymbol]conn.Chain, cfg *config.Config, log log15.Logger) error {
 	for _, chainConf := range cfg.OtherConfs {
 		ctype := ChainType(chainConf.Type)
 		switch ctype {
-		case sub:
+		case Substrate:
+			//cc := new(substrate.ChainClient)
 			sc, err := substrate.NewSarpcClient(chainConf.Endpoint, chainConf.TypesPath, log.New("Sarpc", chainConf.Name))
 			if err != nil {
-				return nil, fmt.Errorf("NewSarpcClient error: %s for chain: %s", err, chainConf.Name)
+				return fmt.Errorf("NewSarpcClient error: %s for chain: %s", err, chainConf.Name)
 			}
 			sym := conn.RSymbol(chainConf.Symbol)
 			_, err = types.EncodeToHexString(sym)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			vals[sym] = sc
+			keys := make([]*signature.KeyringPair, 0)
+			cls := make(map[*signature.KeyringPair]*substrate.GsrpcClient)
+			for _, account := range chainConf.Accounts {
+				kp, err := keystore.KeypairFromAddress(account, keystore.SubChain, chainConf.KeystorePath, false)
+				if err != nil {
+					return err
+				}
+
+				krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+				gc, err := substrate.NewGsrpcClient(ctx, chainConf.Endpoint, krp, log.New("Gsrpc", chainConf.Name))
+				if err != nil {
+					return fmt.Errorf("ChainClient NewGsrpcClient error: %s", err)
+				}
+
+				keys = append(keys, krp)
+				cls[krp] = gc
+			}
+
+			chains[sym] = &substrate.FullSubClient{sc, gc, keys, cls}
 		}
 	}
 
-	return vals, nil
+	return nil
+}
+
+func ChainEras(chainEras map[conn.RSymbol]types.U32, gc *substrate.GsrpcClient, cfg *config.Config, log log15.Logger) error {
+	for _, chainConf := range cfg.OtherConfs {
+		sym := conn.RSymbol(chainConf.Symbol)
+		symBz, err := types.EncodeToBytes(sym)
+		if err != nil {
+			return err
+		}
+
+		var era types.U32
+		exists, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageChainEras, symBz, nil, &era)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			era = 0
+		}
+		chainEras[sym] = era
+	}
+
+	return nil
 }

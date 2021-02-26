@@ -40,7 +40,7 @@ func (r RSymbol) Encode(encoder scale.Encoder) error {
 	case RDOT:
 		return encoder.PushByte(1)
 	default:
-		return fmt.Errorf("%s not supported", r)
+		return fmt.Errorf("RSymbol %s not supported", r)
 	}
 }
 
@@ -107,6 +107,25 @@ const (
 	AmountUnmatch    = BondReason("AmountUnmatch")
 )
 
+func (br BondReason) Encode(encoder scale.Encoder) error {
+	switch br {
+	case Pass:
+		return encoder.PushByte(0)
+	case BlockhashUnmatch:
+		return encoder.PushByte(1)
+	case TxhashUnmatch:
+		return encoder.PushByte(2)
+	case PubkeyUnmatch:
+		return encoder.PushByte(3)
+	case PoolUnmatch:
+		return encoder.PushByte(4)
+	case AmountUnmatch:
+		return encoder.PushByte(5)
+	default:
+		return fmt.Errorf("BondReason %s not supported", br)
+	}
+}
+
 func (br *BondReason) Decode(decoder scale.Decoder) error {
 	b, err := decoder.ReadOneByte()
 	if err != nil {
@@ -133,19 +152,6 @@ func (br *BondReason) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
-type EvLiquidityBondEvt struct {
-	Dest      types.AccountID
-	Blockhash []byte
-	Txhash    []byte
-	Pubkey    []byte
-}
-
-// execute bond proposal
-type BondRecordProposal struct {
-	Prop   *Proposal
-	Reason BondReason
-}
-
 type Proposal struct {
 	Call types.Call
 	Key  *BondKey
@@ -157,4 +163,31 @@ func (p *Proposal) Encode() ([]byte, error) {
 		types.Hash
 		types.Call
 	}{p.Key.BondId, p.Call})
+}
+
+type PoolBondKey struct {
+	Symbol RSymbol
+	Pool   types.Bytes
+}
+
+type PoolSubAccountKey struct {
+	Pool       types.Bytes
+	SubAccount types.Bytes
+}
+
+type ChunkKey struct {
+	Symbol  RSymbol
+	LastEra types.U32
+}
+
+type LinkChunk struct {
+	Pool   types.Bytes
+	Bond   types.U128
+	Unbond types.U128
+}
+
+type StakingLedger struct {
+	Stash  types.AccountID
+	Total  types.UCompact
+	Active types.UCompact
 }

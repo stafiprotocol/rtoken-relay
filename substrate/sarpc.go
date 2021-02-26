@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 
 	"github.com/ChainSafe/log15"
 	scalecodec "github.com/itering/scale.go"
@@ -117,26 +116,8 @@ func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*scalecodec.ExtrinsicD
 	for _, raw := range blk.Extrinsics {
 		e.Init(types.ScaleBytes{Data: util.HexToBytes(raw)}, &option)
 		e.Process()
-		if e.ExtrinsicHash != "" {
+		if e.ExtrinsicHash != "" && e.ContainsTransaction {
 			exts = append(exts, e)
-			fmt.Println(e.Address)
-			fmt.Println(e.ContainsTransaction)
-			fmt.Println(e.CallIndex)
-			fmt.Println(e.CallModule.Name)
-			fmt.Println(e.Call.Name)
-
-			for _, param := range e.Params {
-				fmt.Println("--------")
-				fmt.Println(param.Name)
-				fmt.Println(param.Value)
-				fmt.Println(param.Type)
-				fmt.Println(param.ValueRaw)
-				if param.Name == ParamDest && param.Type == ParamDestType {
-					v, ok := param.Value.(big.Int)
-					fmt.Println("is_ok: ", ok)
-					fmt.Println(v)
-				}
-			}
 		}
 	}
 
@@ -215,27 +196,3 @@ func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*ChainEvent, error) {
 
 	return evts, nil
 }
-
-//func (sc *SarpcClient) GetEventsByModuleIdAndEventId(blockNum uint64, moduleId, eventId string) ([]*ChainEvent, error) {
-//	blockHash, err := sc.GetBlockHash(blockNum)
-//	if err != nil {
-//		return nil, nil
-//	}
-//
-//	evts, err := sc.GetChainEvents(blockHash)
-//	if err != nil {
-//		return nil, nil
-//	}
-//
-//	wanted := make([]*ChainEvent, 0)
-//
-//	for _, evt := range evts {
-//		if evt.ModuleId != moduleId || evt.EventId != eventId {
-//			continue
-//		}
-//
-//		wanted = append(wanted, evt)
-//	}
-//
-//	return wanted, nil
-//}

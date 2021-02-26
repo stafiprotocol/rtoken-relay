@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
 	"github.com/stafiprotocol/go-substrate-rpc-client/rpc/author"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/conn"
 )
 
 type GsrpcClient struct {
@@ -204,4 +207,56 @@ func (gc *GsrpcClient) signExtrinsic(ext *types.Extrinsic) error {
 
 func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
+}
+
+func (gc *GsrpcClient) TryToBondOrUnbond(lc *conn.LinkChunk) error {
+	bond := lc.Bond
+	unbond := lc.Unbond
+	if bond.Cmp(unbond.Int) < 0 {
+		diff := big.NewInt(0).Sub(unbond.Int, bond.Int)
+		realUnbond := types.NewU128(*diff)
+		err := gc.TryToUnbond(realUnbond)
+		if err != nil {
+			return err
+		}
+
+	} else if bond.Cmp(unbond.Int) > 0 {
+		diff := big.NewInt(0).Sub(bond.Int, unbond.Int)
+		realBond := types.NewU128(*diff)
+		err := gc.TryToBondExtra(realBond)
+		if err != nil {
+			return err
+		}
+	} else {
+		gc.log.Info("bond is equal to unbond, nothing need to do")
+	}
+
+	return nil
+}
+
+func (gc *GsrpcClient) TryToUnbond(value types.U128) error {
+	ext, err := gc.NewUnsignedExtrinsic(UnBondMethod, value)
+	err = gc.SignAndSubmitTx(ext)
+	if err != nil {
+		gc.log.Error("TryToBondExtra error", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (gc *GsrpcClient) TryToBondExtra(value types.U128) error {
+	ext, err := gc.NewUnsignedExtrinsic(BondExtraMethod, value)
+	err = gc.SignAndSubmitTx(ext)
+	if err != nil {
+		gc.log.Error("TryToBondExtra error", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (gc *GsrpcClient) TryToClaim(lc *conn.LinkChunk) error {
+	//for _, nom := range Nominators {
+	//}
+	//return nil
+	return nil
 }

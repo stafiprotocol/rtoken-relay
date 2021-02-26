@@ -29,11 +29,11 @@ var accountCommand = cli.Command{
 		"\tTo generate a ethereum keystore: chainbridge accounts geneth\n",
 	Subcommands: []*cli.Command{
 		{
-			Action: wrapHandler(handleGenerateEthCmd),
-			Name:   "geneth",
-			Usage:  "generate ethereum keystore",
+			Action: wrapHandler(handleGenerateSubCmd),
+			Name:   "gensub",
+			Usage:  "generate subsrate keystore",
 			Flags:  generateFlags,
-			Description: "The generate subcommand is used to generate the ethereum keystore.\n" +
+			Description: "The generate subcommand is used to generate the substrate keystore.\n" +
 				"\tkeystore path should be given.",
 		},
 	},

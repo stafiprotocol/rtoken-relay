@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const DefaultConfigPath = "../config.json"
+const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keys"
 
 type Config struct {
@@ -33,11 +33,13 @@ type MainConfig struct {
 
 // RawChainConfig is parsed directly from the config file and should be using to construct the core.ChainConfig
 type OtherConfig struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	TypesPath string `json:"typesPath"`
-	Endpoint  string `json:"endpoint"`
-	Symbol    string `json:"symbol"`
+	Name         string   `json:"name"`
+	Type         string   `json:"type"`
+	TypesPath    string   `json:"typesPath"`
+	Endpoint     string   `json:"endpoint"`
+	Symbol       string   `json:"symbol"`
+	Accounts     []string `json:"accounts"`
+	KeystorePath string   `json:"keystorePath"`
 }
 
 func GetConfig(ctx *cli.Context) (*Config, error) {

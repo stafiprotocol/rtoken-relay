@@ -9,8 +9,7 @@ import (
 	"path/filepath"
 
 	log "github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/chainbridge/utils/crypto"
-	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
+	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/urfave/cli/v2"
@@ -40,10 +39,10 @@ func wrapHandler(hdl func(*cli.Context, *dataHandler) error) cli.ActionFunc {
 	}
 }
 
-func handleGenerateEthCmd(ctx *cli.Context, dHandler *dataHandler) error {
-	log.Info("Generating ethereum keyfile by private key...")
+func handleGenerateSubCmd(ctx *cli.Context, dHandler *dataHandler) error {
+	log.Info("Generating substrate keyfile by rawseed...")
 	path := ctx.String(config.PathFlag.Name)
-	return generateKeyFileByPrivateKey(path)
+	return generateKeyFileByRawseed(path)
 }
 
 // getDataDir obtains the path to the keystore and returns it as a string
@@ -60,20 +59,12 @@ func getDataDir(ctx *cli.Context) (string, error) {
 	return "", fmt.Errorf("datadir flag not supplied")
 }
 
-func generateKeyFileByPrivateKey(keypath string) error {
-	var kp crypto.Keypair
-	var err error
-
-	key := keystore.GetPassword("Enter private key:")
-	skey := string(key)
-
-	if skey[0:2] == "0x" {
-		kp, err = secp256k1.NewKeypairFromString(skey[2:])
-	} else {
-		kp, err = secp256k1.NewKeypairFromString(skey)
-	}
+// keypath example: /Homepath/chainbridge/keys
+func generateKeyFileByRawseed(keypath string) error {
+	key := keystore.GetPassword("Enter mnemonic/rawseed:")
+	kp, err := sr25519.NewKeypairFromSeed(string(key), "stafi")
 	if err != nil {
-		return fmt.Errorf("could not generate secp256k1 keypair from given string: %s", err)
+		return err
 	}
 
 	fp, err := filepath.Abs(keypath + "/" + kp.Address() + ".key")
@@ -99,6 +90,6 @@ func generateKeyFileByPrivateKey(keypath string) error {
 		return fmt.Errorf("could not write key to file: %s", err)
 	}
 
-	log.Info("key generated", "address", kp.Address(), "type", "file", fp)
+	log.Info("key generated", "address", kp.Address(), "type", "sub", "file", fp)
 	return nil
 }
