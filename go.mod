@@ -8,9 +8,11 @@ require (
 	github.com/ethereum/go-ethereum v1.9.25
 	github.com/itering/scale.go v0.7.0
 	github.com/itering/substrate-api-rpc v0.2.0
+	github.com/spf13/cobra v1.1.1
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.2
 	github.com/stretchr/testify v1.7.0
+	github.com/tendermint/tendermint v0.34.7
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	gotest.tools v2.2.0+incompatible
