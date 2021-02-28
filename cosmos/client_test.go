@@ -1,6 +1,8 @@
 package cosmos_test
 
 import (
+	"errors"
+	"fmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stafiprotocol/rtoken-relay/cosmos"
@@ -28,14 +30,14 @@ func init() {
 }
 
 func TestClient_SendTo(t *testing.T) {
-	err := client.SendTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin("stake", 100)))
+	err := client.TransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin("stake", 100)))
 	assert.NoError(t, err)
 }
 
 func TestClient_GenRawTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 	t.Log(string(rawTx))
 }
@@ -43,7 +45,7 @@ func TestClient_GenRawTx(t *testing.T) {
 func TestClient_SignRawTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 
 	signature, err := client.SignRawTx(rawTx, "key1")
@@ -54,7 +56,7 @@ func TestClient_SignRawTx(t *testing.T) {
 func TestClient_CreateMultiSigTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignRawTx(rawTx, "key1")
@@ -67,4 +69,30 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 
 	err = client.BroadcastTx(tx)
 	assert.NoError(t, err)
+}
+
+func TestClient_BroadcastTx(t *testing.T) {
+	err := client.SetFromKey("multiSign1")
+	assert.NoError(t, err)
+	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	assert.NoError(t, err)
+
+	signature1, err := client.SignRawTx(rawTx, "key1")
+	assert.NoError(t, err)
+
+	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1})
+	assert.NoError(t, err)
+
+	err = client.BroadcastTx(tx)
+	assert.ErrorIs(t, err, errors.New(fmt.Sprintf("Boradcast err with res.code: %d", 4)))
+}
+
+func TestClient_QueryTxByHash(t *testing.T) {
+	res,err:=client.QueryTxByHash("6C017062FD3F48F13B640E5FEDD59EB050B148E67EF12EC0A511442D32BD4C88")
+	assert.NoError(t,err)
+	for _,msg:=range res.GetTx().GetMsgs(){
+		t.Log(msg.String())
+		t.Log(msg.Type())
+		t.Log(msg.Route())
+	}
 }
