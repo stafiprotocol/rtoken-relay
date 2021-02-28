@@ -1,7 +1,6 @@
 package cosmos
 
 import (
-	"errors"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"

@@ -37,7 +37,7 @@ func TestClient_SendTo(t *testing.T) {
 func TestClient_GenRawTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 	t.Log(string(rawTx))
 }
@@ -45,10 +45,10 @@ func TestClient_GenRawTx(t *testing.T) {
 func TestClient_SignRawTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 
-	signature, err := client.SignRawTx(rawTx, "key1")
+	signature, err := client.SignMultiSigRawTx(rawTx, "key1")
 	assert.NoError(t, err)
 	t.Log(string(signature))
 }
@@ -56,41 +56,41 @@ func TestClient_SignRawTx(t *testing.T) {
 func TestClient_CreateMultiSigTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 
-	signature1, err := client.SignRawTx(rawTx, "key1")
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
 	assert.NoError(t, err)
-	signature2, err := client.SignRawTx(rawTx, "key2")
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
 	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
-	err = client.BroadcastTx(tx)
+	_, err = client.BroadcastTx(tx)
 	assert.NoError(t, err)
 }
 
 func TestClient_BroadcastTx(t *testing.T) {
 	err := client.SetFromKey("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
 	assert.NoError(t, err)
 
-	signature1, err := client.SignRawTx(rawTx, "key1")
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
 	assert.NoError(t, err)
 
 	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1})
 	assert.NoError(t, err)
 
-	err = client.BroadcastTx(tx)
+	_, err = client.BroadcastTx(tx)
 	assert.ErrorIs(t, err, errors.New(fmt.Sprintf("Boradcast err with res.code: %d", 4)))
 }
 
 func TestClient_QueryTxByHash(t *testing.T) {
-	res,err:=client.QueryTxByHash("6C017062FD3F48F13B640E5FEDD59EB050B148E67EF12EC0A511442D32BD4C88")
-	assert.NoError(t,err)
-	for _,msg:=range res.GetTx().GetMsgs(){
+	res, err := client.QueryTxByHash("6C017062FD3F48F13B640E5FEDD59EB050B148E67EF12EC0A511442D32BD4C88")
+	assert.NoError(t, err)
+	for _, msg := range res.GetTx().GetMsgs() {
 		t.Log(msg.String())
 		t.Log(msg.Type())
 		t.Log(msg.Route())
