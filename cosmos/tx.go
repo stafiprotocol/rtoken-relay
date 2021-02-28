@@ -1,12 +1,14 @@
 package cosmos
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/types"
 	xAuthClient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/spf13/cobra"
 )
 
@@ -29,4 +31,20 @@ func (c *Client) BroadcastTx(tx []byte) (string, error) {
 		return "", errors.New(fmt.Sprintf("Boradcast err with res.code: %d", res.Code))
 	}
 	return res.TxHash, nil
+}
+
+func (c *Client) QueryDelegationRewards(delegatorAddr types.AccAddress, validatorAddr types.ValAddress) (*xDistriTypes.QueryDelegationRewardsResponse, error) {
+	queryClient := xDistriTypes.NewQueryClient(c.clientCtx)
+	return queryClient.DelegationRewards(
+		context.Background(),
+		&xDistriTypes.QueryDelegationRewardsRequest{DelegatorAddress: delegatorAddr.String(), ValidatorAddress: validatorAddr.String()},
+	)
+}
+
+func (c *Client) QueryDelegationTotalRewards(delegatorAddr types.AccAddress) (*xDistriTypes.QueryDelegationTotalRewardsResponse, error) {
+	queryClient := xDistriTypes.NewQueryClient(c.clientCtx)
+	return queryClient.DelegationTotalRewards(
+		context.Background(),
+		&xDistriTypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr.String()},
+	)
 }

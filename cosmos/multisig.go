@@ -3,28 +3,67 @@ package cosmos
 import (
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
 	kMultiSig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
+	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xAuthClient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	xStakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/spf13/cobra"
 )
 
+//c.clientCtx.FromAddress must be multi sig address
 func (c *Client) GenMultiSigRawTransferTx(toAddr types.AccAddress, amount types.Coins) ([]byte, error) {
+	msg := xBankTypes.NewMsgSend(c.clientCtx.GetFromAddress(), toAddr, amount)
+	return c.GenMultiSigRawTx(msg)
+}
+
+func (c *Client) GenMultiSigRawDelegateTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
+	msg := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
+	return c.GenMultiSigRawTx(msg)
+}
+
+func (c *Client) GenMultiSigRawReDelegateTx(delAddr types.AccAddress, valSrcAddr, valDstAddr types.ValAddress, amount types.Coin) ([]byte, error) {
+	msg := xStakingTypes.NewMsgBeginRedelegate(delAddr, valSrcAddr, valDstAddr, amount)
+	return c.GenMultiSigRawTx(msg)
+}
+
+func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
+	msg := xStakingTypes.NewMsgUndelegate(delAddr, valAddr, amount)
+	return c.GenMultiSigRawTx(msg)
+}
+
+func (c *Client) GenMultiSigRawWithdrawDeleRewardTx(delAddr types.AccAddress, valAddr types.ValAddress) ([]byte, error) {
+	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
+	return c.GenMultiSigRawTx(msg)
+}
+
+func (c *Client) GenMultiSigRawCreateValidator(valAddr types.ValAddress, pubKey cryptoTypes.PubKey, //nolint:interfacer
+	selfDelegation types.Coin, description xStakingTypes.Description, commission xStakingTypes.CommissionRates, minSelfDelegation types.Int) ([]byte, error) {
+	msg, err := xStakingTypes.NewMsgCreateValidator(
+		valAddr, pubKey, selfDelegation, description, commission, minSelfDelegation,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return c.GenMultiSigRawTx(msg)
+}
+
+//c.clientCtx.FromAddress must be multi sig address
+func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
 		return nil, err
 	}
-
-	msg := xBankTypes.NewMsgSend(c.clientCtx.GetFromAddress(), toAddr, amount)
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
 	txf = txf.WithSequence(account.GetSequence()).
 		WithAccountNumber(account.GetAccountNumber()).
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON) //multi sig need this mod
 
-	txBuilderRaw, err := clientTx.BuildUnsignedTx(txf, msg)
+	txBuilderRaw, err := clientTx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {
 		return nil, err
 	}
