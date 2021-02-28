@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/cosmos/cosmos-sdk/x/capability"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	"github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/ibc/applications/transfer"
 	"github.com/cosmos/cosmos-sdk/x/params"
@@ -31,12 +32,13 @@ func MakeEncodingConfig() EncodingConfig {
 	encodingConfig := makeEncodingConfig()
 	std.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	std.RegisterInterfaces(encodingConfig.InterfaceRegistry)
-	moduleBasics := module.NewBasicManager(
+	moduleBasics := module.NewBasicManager( //codec need
 		auth.AppModuleBasic{},
 		genutil.AppModuleBasic{},
 		bank.AppModuleBasic{},
 		capability.AppModuleBasic{},
 		staking.AppModuleBasic{},
+		distribution.AppModuleBasic{},
 
 		params.AppModuleBasic{},
 		crisis.AppModuleBasic{},

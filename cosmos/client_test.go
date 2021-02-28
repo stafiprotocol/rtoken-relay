@@ -100,9 +100,9 @@ func TestClient_QueryTxByHash(t *testing.T) {
 }
 
 func TestClient_QueryDelegationRewards(t *testing.T) {
-	res, err := client.QueryDelegationRewards(addrReceive, addrValidator)
+	res, err := client.QueryDelegationRewards(addrMultiSig1, addrValidator)
 	assert.NoError(t, err)
-	t.Log(res.String())
+	t.Log(res.GetRewards().AmountOf("stake"))
 }
 
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
@@ -112,6 +112,24 @@ func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
+	assert.NoError(t, err)
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
+	assert.NoError(t, err)
+
+	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	assert.NoError(t, err)
+
+	_, err = client.BroadcastTx(tx)
+	assert.NoError(t, err)
+}
+
+func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
+	err := client.SetFromName("multiSign1")
+	assert.NoError(t, err)
+	rawTx, err := client.GenMultiSigRawWithdrawDeleRewardTx(addrMultiSig1, addrValidator)
+	assert.NoError(t, err)
+
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
 	assert.NoError(t, err)
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
