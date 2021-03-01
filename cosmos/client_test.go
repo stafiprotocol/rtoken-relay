@@ -28,6 +28,7 @@ func init() {
 	}
 
 	client = cosmos.NewClient(rpcClient, key, "my-test-chain", "validator")
+	client.SetGasPrice("0.0001stake")
 }
 
 func TestClient_SendTo(t *testing.T) {

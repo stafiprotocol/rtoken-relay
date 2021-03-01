@@ -66,7 +66,9 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
 	txf = txf.WithSequence(account.GetSequence()).
 		WithAccountNumber(account.GetAccountNumber()).
-		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON) //multi sig need this mod
+		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON). //multi sig need this mod
+		WithGasAdjustment(1.5).
+		WithGasPrices(c.gasPrice)
 
 	txBuilderRaw, err := clientTx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {

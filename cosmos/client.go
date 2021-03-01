@@ -14,6 +14,7 @@ import (
 type Client struct {
 	clientCtx client.Context
 	rpcClient rpcClient.Client
+	gasPrice  string
 }
 
 func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName string) *Client {
@@ -52,5 +53,10 @@ func (c *Client) SetFromName(fromName string) error {
 	}
 
 	c.clientCtx = c.clientCtx.WithFromName(fromName).WithFromAddress(info.GetAddress())
+	return nil
+}
+
+func (c *Client) SetGasPrice(gasPrice string) error {
+	c.gasPrice = gasPrice
 	return nil
 }
