@@ -68,8 +68,9 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
-	_, err = client.BroadcastTx(tx)
+	txHash, err := client.BroadcastTx(tx)
 	assert.NoError(t, err)
+	t.Log(txHash)
 }
 
 func TestClient_BroadcastTx(t *testing.T) {
@@ -127,6 +128,24 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawWithdrawDeleRewardTx(addrMultiSig1, addrValidator)
+	assert.NoError(t, err)
+
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
+	assert.NoError(t, err)
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
+	assert.NoError(t, err)
+
+	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	assert.NoError(t, err)
+
+	_, err = client.BroadcastTx(tx)
+	assert.NoError(t, err)
+}
+
+func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
+	err := client.SetFromName("multiSign1")
+	assert.NoError(t, err)
+	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, addrValidator, types.NewCoin("stake", types.NewInt(100)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")

@@ -20,26 +20,31 @@ func (c *Client) GenMultiSigRawTransferTx(toAddr types.AccAddress, amount types.
 	return c.GenMultiSigRawTx(msg)
 }
 
+//generate unsigned delegate tx
 func (c *Client) GenMultiSigRawDelegateTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
 	return c.GenMultiSigRawTx(msg)
 }
 
+//generate unsigned reDelegate tx
 func (c *Client) GenMultiSigRawReDelegateTx(delAddr types.AccAddress, valSrcAddr, valDstAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xStakingTypes.NewMsgBeginRedelegate(delAddr, valSrcAddr, valDstAddr, amount)
 	return c.GenMultiSigRawTx(msg)
 }
 
+//generate unsigned unDelegate tx
 func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xStakingTypes.NewMsgUndelegate(delAddr, valAddr, amount)
 	return c.GenMultiSigRawTx(msg)
 }
 
+////generate unsigned withdraw delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawDeleRewardTx(delAddr types.AccAddress, valAddr types.ValAddress) ([]byte, error) {
 	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
 	return c.GenMultiSigRawTx(msg)
 }
 
+//generate unsigned create validator tx
 func (c *Client) GenMultiSigRawCreateValidator(valAddr types.ValAddress, pubKey cryptoTypes.PubKey, //nolint:interfacer
 	selfDelegation types.Coin, description xStakingTypes.Description, commission xStakingTypes.CommissionRates, minSelfDelegation types.Int) ([]byte, error) {
 	msg, err := xStakingTypes.NewMsgCreateValidator(
