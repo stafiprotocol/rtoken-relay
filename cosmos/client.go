@@ -66,3 +66,7 @@ func (c *Client) SetGasPrice(gasPrice string) error {
 func (c *Client) SetDenom(denom string) {
 	c.denom = denom
 }
+
+func (c *Client) GetDenom() string {
+	return c.denom
+}

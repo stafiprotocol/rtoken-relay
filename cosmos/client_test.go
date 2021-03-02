@@ -31,17 +31,18 @@ func init() {
 
 	client = cosmos.NewClient(rpcClient, key, "my-test-chain", "validator")
 	client.SetGasPrice("0.000001stake")
+	client.SetDenom("stake")
 }
 
 func TestClient_SendTo(t *testing.T) {
-	err := client.TransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin("stake", 1000)))
+	err := client.TransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 1000)))
 	assert.NoError(t, err)
 }
 
 func TestClient_GenRawTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
 	assert.NoError(t, err)
 	t.Log(string(rawTx))
 }
@@ -49,7 +50,7 @@ func TestClient_GenRawTx(t *testing.T) {
 func TestClient_SignRawTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
 	assert.NoError(t, err)
 
 	signature, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -60,7 +61,7 @@ func TestClient_SignRawTx(t *testing.T) {
 func TestClient_CreateMultiSigTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -79,7 +80,7 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 func TestClient_BroadcastTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin("stake", 10)))
+	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -106,13 +107,13 @@ func TestClient_QueryTxByHash(t *testing.T) {
 func TestClient_QueryDelegationRewards(t *testing.T) {
 	res, err := client.QueryDelegationRewards(addrMultiSig1, addrValidator)
 	assert.NoError(t, err)
-	t.Log(res.GetRewards().AmountOf("stake"))
+	t.Log(res.GetRewards().AmountOf(client.GetDenom()))
 }
 
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, addrValidator, types.NewCoin("stake", types.NewInt(1000)))
+	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, addrValidator, types.NewCoin(client.GetDenom(), types.NewInt(1000)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -148,7 +149,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, addrValidator, types.NewCoin("stake", types.NewInt(100)))
+	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, addrValidator, types.NewCoin(client.GetDenom(), types.NewInt(100)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
@@ -168,11 +169,11 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 	assert.NoError(t, err)
 	out1 := xBankTypes.Output{
 		Address: addrReceive.String(),
-		Coins:   types.NewCoins(types.NewCoin("stake", types.NewInt(10))),
+		Coins:   types.NewCoins(types.NewCoin(client.GetDenom(), types.NewInt(10))),
 	}
 	out2 := xBankTypes.Output{
 		Address: addrKey1.String(),
-		Coins:   types.NewCoins(types.NewCoin("stake", types.NewInt(10))),
+		Coins:   types.NewCoins(types.NewCoin(client.GetDenom(), types.NewInt(10))),
 	}
 
 	rawTx, err := client.GenMultiSigRawBatchTransferTx([]xBankTypes.Output{out1, out2})
