@@ -1,9 +1,12 @@
 package conn
 
-import "github.com/stafiprotocol/go-substrate-rpc-client/types"
+import (
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"math/big"
+)
 
 type Chain interface {
 	TransferVerify(record *BondRecord) (BondReason, error)
 	CurrentEra() (types.U32, error)
-	BondWork([]*PoolLinkChunk) error
+	BondWork(evtData *EvtEraPoolUpdated) (*big.Int, error)
 }

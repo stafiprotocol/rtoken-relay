@@ -155,7 +155,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 	}
 
 	eraUpdatedEvts := filterEvts(allEvts, config.RTokenLedgerModuleId, config.EraUpdatedEventId)
-	err = l.processEraUpdatedEvts(eraUpdatedEvts)
+	err = l.processEraPoolUpdatedEvts(eraUpdatedEvts)
 	if err != nil {
 		return err
 	}

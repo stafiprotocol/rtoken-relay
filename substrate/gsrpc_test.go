@@ -3,6 +3,7 @@ package substrate
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
@@ -91,28 +92,7 @@ func TestGsrpcClient1(t *testing.T) {
 		Symbol: conn.RDOT,
 		BondId: bId,
 	}
-	//
-	//fmt.Println(bondKey)
-	//
-	//bk, err := types.EncodeToBytes(bondKey)
-	//assert.NoError(t, err)
 
-	//br := new(conn.BondRecord)
-	//exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondRecords, bk, nil, br)
-	//assert.NoError(t, err)
-	//fmt.Println("exist:", exist)
-
-	//meta, err := gc.GetLatestMetadata()
-	//assert.NoError(t, err)
-	//
-	//call, err := types.NewCall(
-	//	meta,
-	//	config.ExecuteBondRecord,
-	//	bondKey.Symbol,
-	//	bondKey.BondId[:],
-	//	conn.Pass,
-	//)
-	//assert.NoError(t, err)
 
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
@@ -121,18 +101,23 @@ func TestGsrpcClient1(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-//amount := uint64(1000000000000 * 10)
-////// Create a call, transferring 12345 units to wen
-//wen, err := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
-//if err != nil {
-//	panic(err)
-//}
-//
-//ext, err := gc.NewUnsignedExtrinsic("Balances.transfer", wen, types.NewUCompactFromUInt(amount))
-//
-//err = gc.SignAndSubmitTx(ext)
-//if err != nil {
-//	t.Fatal(err)
-//}
-//x, _ := ext.MarshalJSON()
-//fmt.Println(hex.EncodeToString(x))
+func TestGsrpcClient_StakingActive(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+	gc, err := NewGsrpcClient(context.Background(), "ws://127.0.0.1:9944", krp, tlog)
+	assert.NoError(t, err)
+
+	b, _ := hexutil.Decode("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+
+	jun := types.NewAddressFromAccountID(b)
+	s, err := gc.StakingActive(jun.AsAccountID)
+	fmt.Println(s.Active)
+}

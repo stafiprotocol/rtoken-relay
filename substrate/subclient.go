@@ -1,7 +1,6 @@
 package substrate
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -17,9 +16,9 @@ import (
 const (
 	StakingModuleId  = "Staking"
 	StorageActiveEra = "ActiveEra"
-	BondExtraMethod  = "bond_extra"
-	UnBondMethod     = "unbond"
-	StorageLedger    = "Ledger"
+	StorageLegder    = "Ledger"
+	MethodUnbond     = "Staking.unbond"
+	MethodBondExtra  = "Staking.bond_extra"
 )
 
 func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error) {
@@ -84,61 +83,23 @@ func (fsc *FullSubClient) CurrentEra() (types.U32, error) {
 	return index, nil
 }
 
-func (fsc *FullSubClient) BondWork(plcs []*conn.PoolLinkChunk) error {
-	if len(fsc.SubClients) == 0 {
-		return errors.New("FullSubClient BondWork has no subclient")
+func (fsc *FullSubClient) BondWork(e *conn.EvtEraPoolUpdated) (*big.Int, error) {
+	key := fsc.foundKey(e.Pool)
+	if key == nil {
+		fsc.Gc.log.Info("no key for pool", "pool", hexutil.Encode(e.Pool))
+		return nil, nil
 	}
 
-	calls := make([]types.Call, 0)
-	var meta *types.Metadata
-	for _, plc := range plcs {
-		bond := plc.Bond.Int
-		unbond := plc.Unbond.Int
-
-		zero := big.NewInt(0)
-		if bond.Cmp(zero) == 0 && unbond.Cmp(zero) == 0 {
-			continue
-		}
-
-		key := fsc.foundKey(plc.Pool)
-		if key == nil {
-			continue
-		}
-
-		gc := fsc.SubClients[key]
-		if meta == nil {
-			latestMeta, err := gc.GetLatestMetadata()
-			if err != nil {
-				return err
-			}
-			meta = latestMeta
-		}
-
-		if bond.Cmp(unbond) < 0 {
-			diff := big.NewInt(0).Sub(unbond, bond)
-			realUnbond := types.NewU128(*diff)
-			call, err := types.NewCall(meta, StakingModuleId, UnBondMethod, realUnbond)
-			if err != nil {
-				return err
-			}
-			calls = append(calls, call)
-			continue
-		} else if bond.Cmp(unbond) > 0 {
-			diff := big.NewInt(0).Sub(bond, unbond)
-			realBond := types.NewU128(*diff)
-			call, err := types.NewCall(meta, StakingModuleId, BondExtraMethod, realBond)
-			if err != nil {
-				return err
-			}
-			calls = append(calls, call)
-			continue
-		} else {
-			gc.log.Info("BondWork: bond is equal to unbond", "bond", bond, "unbond", unbond)
-		}
+	gc := fsc.SubClients[key]
+	err := gc.BondOrUnbond(e.Bond.Int, e.Unbond.Int)
+	if err != nil {
+		return nil, err
 	}
 
+	addr := types.NewAddressFromAccountID(e.Pool)
+	s, err := gc.StakingActive(addr.AsAccountID)
 
-	return nil
+	return (*big.Int)(&s.Active), nil
 }
 
 func (fsc *FullSubClient) foundKey(pool types.Bytes) *signature.KeyringPair {

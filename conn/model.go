@@ -175,14 +175,7 @@ type PoolSubAccountKey struct {
 	SubAccount types.Bytes
 }
 
-type PoolLinkChunk struct {
-	Pool   types.Bytes
-	Bond   types.U128
-	Unbond types.U128
-}
-
-type StakingLedger struct {
-	Stash  types.AccountID
-	Total  types.UCompact
-	Active types.UCompact
-}
+//type PoolStakingActive struct {
+//	Pool   types.Bytes
+//	Active types.U128
+//}

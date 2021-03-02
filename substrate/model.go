@@ -2,6 +2,7 @@ package substrate
 
 import (
 	"errors"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 
 	scalecodec "github.com/itering/scale.go"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
@@ -33,6 +34,12 @@ type FullSubClient struct {
 	Gc         *GsrpcClient
 	Keys       []*signature.KeyringPair
 	SubClients map[*signature.KeyringPair]*GsrpcClient
+}
+
+type StakingLedger struct {
+	Stash  types.AccountID
+	Total  types.UCompact
+	Active types.UCompact
 }
 
 /// Hex accountIds

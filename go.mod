@@ -13,5 +13,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	google.golang.org/protobuf v1.23.0
 	gotest.tools v2.2.0+incompatible
 )

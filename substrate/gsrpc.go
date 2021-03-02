@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
 	"github.com/stafiprotocol/go-substrate-rpc-client/rpc/author"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"math/big"
 )
 
 type GsrpcClient struct {
@@ -204,4 +206,62 @@ func (gc *GsrpcClient) signExtrinsic(ext *types.Extrinsic) error {
 
 func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
+}
+
+func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) error {
+	zero := big.NewInt(0)
+	if bond.Cmp(zero) == 0 && unbond.Cmp(zero) == 0 {
+		gc.log.Info("BondWork: bond and unbond are both zero")
+		return nil
+	}
+
+	if bond.Cmp(unbond) < 0 {
+		diff := big.NewInt(0).Sub(unbond, bond)
+		err := gc.unbond(types.NewU128(*diff))
+		if err != nil {
+			return err
+		}
+	} else if bond.Cmp(unbond) > 0 {
+		diff := big.NewInt(0).Sub(bond, unbond)
+		err := gc.bond(types.NewU128(*diff))
+		if err != nil {
+			return err
+		}
+	} else {
+		gc.log.Info("EvtEraPoolUpdated: bond is equal to unbond")
+	}
+
+	return nil
+}
+
+
+
+func (gc *GsrpcClient) unbond(val types.U128) error {
+	ext, err := gc.NewUnsignedExtrinsic(MethodUnbond, val)
+	if err != nil {
+		return err
+	}
+	return gc.SignAndSubmitTx(ext)
+}
+
+func (gc *GsrpcClient) bond(val types.U128) error {
+	ext, err := gc.NewUnsignedExtrinsic(MethodBondExtra, val)
+	if err != nil {
+		return err
+	}
+	return gc.SignAndSubmitTx(ext)
+}
+
+func (gc *GsrpcClient) StakingActive(ac types.AccountID) (*StakingLedger, error) {
+	s := new(StakingLedger)
+	exist, err := gc.QueryStorage(StakingModuleId, StorageLegder, ac[:], nil, s)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("can not get active for account: %s", hexutil.Encode(ac[:]))
+	}
+
+	return s, nil
 }

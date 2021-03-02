@@ -18,10 +18,9 @@ func (lb *evtLiquidityBond) bondKey() *conn.BondKey {
 	}
 }
 
-type evtEraUpdated struct {
-	symbol conn.RSymbol
-	oldEra types.U32
-	newEra types.U32
+type Era struct {
+	Type  string `json:"type"`
+	Value uint32 `json:"value"`
 }
 
 //type evtPoolSubAccountAdded struct {

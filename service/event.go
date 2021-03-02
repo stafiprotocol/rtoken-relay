@@ -73,9 +73,9 @@ func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) error {
 	return nil
 }
 
-func (l *listener) processEraUpdatedEvts(evts []*substrate.ChainEvent) error {
+func (l *listener) processEraPoolUpdatedEvts(evts []*substrate.ChainEvent) error {
 	for _, evt := range evts {
-		err := l.processEraUpdatedEvt(evt)
+		err := l.processEraPoolUpdatedEvt(evt)
 		if err != nil {
 			return err
 		}
@@ -84,104 +84,28 @@ func (l *listener) processEraUpdatedEvts(evts []*substrate.ChainEvent) error {
 	return nil
 }
 
-func (l *listener) processEraUpdatedEvt(evt *substrate.ChainEvent) error {
-	eu, err := eraUpdatedEventData(evt)
+func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) error {
+	data, err := eraPoolUpdatedData(evt)
 	if err != nil {
 		return err
 	}
 
-	symBz, err := types.EncodeToBytes(eu.symbol)
-	if err != nil {
-		return err
-	}
+	l.log.Info("processEraPoolUpdatedEvt", "data", data)
 
-	plcs := make([]*conn.PoolLinkChunk, 0)
-	exist, err := l.gsrpc.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondFaucets, symBz, nil, plcs)
-	if err != nil {
-		return err
-	}
-
-	if !exist {
-		l.log.Warn("get era updated event, but there were no pool link chunks", "evt", eu)
-	}
-
-	chain, ok := l.chains[eu.symbol]
+	chain, ok := l.chains[data.Symbol]
 	if !ok {
-		return fmt.Errorf("no validator for symbol: %s", eu.symbol)
+		return fmt.Errorf("no validator for symbol: %s", data.Symbol)
 	}
 
-	err = chain.BondWork(plcs)
+	active, err := chain.BondWork(data)
 	if err != nil {
 		return err
+	}
+
+	if active == nil {
+		l.log.Info("no need to bond")
+		return nil
 	}
 
 	return nil
-
-	//key, err := types.EncodeToBytes(eu)
-	//if err != nil {
-	//	return err
-	//}
-
-	//lc := new(conn.LinkChunk)
-	//exist, err := l.gsrpc.QueryStorage(config.LiquidityBondModuleId, config.StorageTotalBonding, bk, nil, br)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if !exist {
-	//	return fmt.Errorf("unable to get bondrecord by bondkey: %+v", lb)
-	//}
-
 }
-
-//func (l *listener) processPoolSubAccountAddedEvents(evts []*substrate.ChainEvent) error {
-//	for _, evt := range evts {
-//		err := l.processPoolSubAccountAddedEvent(evt)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//
-//	return nil
-//}
-
-//func (l *listener) processPoolSubAccountAddedEvent(evt *substrate.ChainEvent) error {
-//	evtData, err := poolSubAccountAddedEventData(evt)
-//	if err != nil {
-//		return err
-//	}
-//	l.log.Trace("processPoolSubAccountAddedEvent", "evtData", evtData)
-//
-//	var bondFlag bool
-//	pk := evtData.poolKey()
-//	pkbz, err := types.EncodeToBytes(pk)
-//	if err != nil {
-//		return err
-//	}
-//
-//	exist, err := l.gsrpc.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolBonded, pkbz, nil, &bondFlag)
-//	if err != nil {
-//		return err
-//	}
-//
-//	if !exist {
-//		return fmt.Errorf("unable to get PoolBonded by poolkey: %+v", evtData)
-//	}
-//
-//	if bondFlag {
-//		l.log.Info("PoolAlreadyBonded", "poolkey", pk)
-//		return nil
-//	}
-//
-//	chain, ok := l.chains[pk.Symbol]
-//	if !ok {
-//		return fmt.Errorf("no validator for symbol: %s", pk.Symbol)
-//	}
-//
-//	err = chain.TryToBondForPool(pk.Pool)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
