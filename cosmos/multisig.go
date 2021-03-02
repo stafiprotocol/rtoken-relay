@@ -30,7 +30,7 @@ func (c *Client) GenMultiSigRawBatchTransferTx(outs []xBankTypes.Output) ([]byte
 	}
 	input := xBankTypes.Input{
 		Address: c.clientCtx.GetFromAddress().String(),
-		Coins:   types.NewCoins(types.NewCoin("stake", totalAmount))}
+		Coins:   types.NewCoins(types.NewCoin(c.denom, totalAmount))}
 
 	msg := xBankTypes.NewMsgMultiSend([]xBankTypes.Input{input}, outs)
 	return c.GenMultiSigRawTx(msg)
