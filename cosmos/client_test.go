@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
+	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stafiprotocol/rtoken-relay/cosmos"
 	"github.com/stretchr/testify/assert"
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
@@ -16,6 +17,7 @@ var client *cosmos.Client
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu")
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
 var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z7rwu9kcdm4kc7uc4e5y5a2r")
+var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
 
 func init() {
 	rpcClient, err := rpcHttp.New("http://127.0.0.1:26657", "/websocket")
@@ -28,7 +30,7 @@ func init() {
 	}
 
 	client = cosmos.NewClient(rpcClient, key, "my-test-chain", "validator")
-	client.SetGasPrice("0.0001stake")
+	client.SetGasPrice("0.000001stake")
 }
 
 func TestClient_SendTo(t *testing.T) {
@@ -159,4 +161,32 @@ func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 
 	_, err = client.BroadcastTx(tx)
 	assert.NoError(t, err)
+}
+
+func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
+	err := client.SetFromName("multiSign1")
+	assert.NoError(t, err)
+	out1 := xBankTypes.Output{
+		Address: addrReceive.String(),
+		Coins:   types.NewCoins(types.NewCoin("stake", types.NewInt(10))),
+	}
+	out2 := xBankTypes.Output{
+		Address: addrKey1.String(),
+		Coins:   types.NewCoins(types.NewCoin("stake", types.NewInt(10))),
+	}
+
+	rawTx, err := client.GenMultiSigRawBatchTransferTx([]xBankTypes.Output{out1, out2})
+	assert.NoError(t, err)
+
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
+	assert.NoError(t, err)
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
+	assert.NoError(t, err)
+
+	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	assert.NoError(t, err)
+
+	txHash, err := client.BroadcastTx(tx)
+	assert.NoError(t, err)
+	t.Log(txHash)
 }

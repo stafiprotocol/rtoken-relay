@@ -20,6 +20,22 @@ func (c *Client) GenMultiSigRawTransferTx(toAddr types.AccAddress, amount types.
 	return c.GenMultiSigRawTx(msg)
 }
 
+//only support one type coin
+func (c *Client) GenMultiSigRawBatchTransferTx(outs []xBankTypes.Output) ([]byte, error) {
+	totalAmount := types.NewInt(0)
+	for _, out := range outs {
+		for _, coin := range out.Coins {
+			totalAmount = totalAmount.Add(coin.Amount)
+		}
+	}
+	input := xBankTypes.Input{
+		Address: c.clientCtx.GetFromAddress().String(),
+		Coins:   types.NewCoins(types.NewCoin("stake", totalAmount))}
+
+	msg := xBankTypes.NewMsgMultiSend([]xBankTypes.Input{input}, outs)
+	return c.GenMultiSigRawTx(msg)
+}
+
 //generate unsigned delegate tx
 func (c *Client) GenMultiSigRawDelegateTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
