@@ -15,5 +15,6 @@ const (
 	//PoolSubAccountAddedEventId = "PoolSubAccountAdded"
 	//StoragePoolBonded          = "PoolBonded"
 	//StoragePoolSubAccountFlag  = "PoolSubAccountFlag"
-	StorageTotalLinking        = "TotalBonding"
+	StorageTotalLinking        = "TotalLinking"
+	StorageBondFaucets = "BondFaucets"
 )

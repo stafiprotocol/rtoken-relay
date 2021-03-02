@@ -90,12 +90,27 @@ func (l *listener) processEraUpdatedEvt(evt *substrate.ChainEvent) error {
 		return err
 	}
 
+	symBz, err := types.EncodeToBytes(eu.symbol)
+	if err != nil {
+		return err
+	}
+
+	plcs := make([]*conn.PoolLinkChunk, 0)
+	exist, err := l.gsrpc.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondFaucets, symBz, nil, plcs)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		l.log.Warn("get era updated event, but there were no pool link chunks", "evt", eu)
+	}
+
 	chain, ok := l.chains[eu.symbol]
 	if !ok {
 		return fmt.Errorf("no validator for symbol: %s", eu.symbol)
 	}
 
-	err = chain.BondWork(eu.chunkKey())
+	err = chain.BondWork(plcs)
 	if err != nil {
 		return err
 	}

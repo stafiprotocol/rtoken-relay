@@ -3,13 +3,13 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
-	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/conn"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
@@ -18,7 +18,7 @@ const (
 	StakingModuleId  = "Staking"
 	StorageActiveEra = "ActiveEra"
 	BondExtraMethod  = "bond_extra"
-	UnBondMethod     = "bond_extra"
+	UnBondMethod     = "unbond"
 	StorageLedger    = "Ledger"
 )
 
@@ -84,45 +84,60 @@ func (fsc *FullSubClient) CurrentEra() (types.U32, error) {
 	return index, nil
 }
 
-func (fsc *FullSubClient) BondWork(ck *conn.ChunkKey) error {
+func (fsc *FullSubClient) BondWork(plcs []*conn.PoolLinkChunk) error {
 	if len(fsc.SubClients) == 0 {
 		return errors.New("FullSubClient BondWork has no subclient")
 	}
 
-	ckbz, err := types.EncodeToBytes(ck)
-	if err != nil {
-		fsc.Gc.log.Error("FullSubClient BondWork", "EncodeToBytes error", err)
-		return err
-	}
+	calls := make([]types.Call, 0)
+	var meta *types.Metadata
+	for _, plc := range plcs {
+		bond := plc.Bond.Int
+		unbond := plc.Unbond.Int
 
-	lcs := make([]*conn.LinkChunk, 0)
-	exist, err := fsc.Gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageTotalLinking, ckbz, nil, lcs)
-	if err != nil {
-		return fmt.Errorf("BondWork QueryStorage error: %s", err)
-	}
+		zero := big.NewInt(0)
+		if bond.Cmp(zero) == 0 && unbond.Cmp(zero) == 0 {
+			continue
+		}
 
-	if !exist {
-		fsc.Gc.log.Info("FullSubClient BondWork Nothing to bond")
-		return nil
-	}
-
-	for _, lc := range lcs {
-		key := fsc.foundKey(lc.Pool)
+		key := fsc.foundKey(plc.Pool)
 		if key == nil {
 			continue
 		}
 
 		gc := fsc.SubClients[key]
-		err := gc.TryToBondOrUnbond(lc)
-		if err != nil {
-			return err
+		if meta == nil {
+			latestMeta, err := gc.GetLatestMetadata()
+			if err != nil {
+				return err
+			}
+			meta = latestMeta
 		}
 
-		err = gc.TryToClaim(lc)
-		if err != nil {
-			return err
+		if bond.Cmp(unbond) < 0 {
+			diff := big.NewInt(0).Sub(unbond, bond)
+			realUnbond := types.NewU128(*diff)
+			call, err := types.NewCall(meta, StakingModuleId, UnBondMethod, realUnbond)
+			if err != nil {
+				return err
+			}
+			calls = append(calls, call)
+			continue
+		} else if bond.Cmp(unbond) > 0 {
+			diff := big.NewInt(0).Sub(bond, unbond)
+			realBond := types.NewU128(*diff)
+			call, err := types.NewCall(meta, StakingModuleId, BondExtraMethod, realBond)
+			if err != nil {
+				return err
+			}
+			calls = append(calls, call)
+			continue
+		} else {
+			gc.log.Info("BondWork: bond is equal to unbond", "bond", bond, "unbond", unbond)
 		}
 	}
+
+
 	return nil
 }
 

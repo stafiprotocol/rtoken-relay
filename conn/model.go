@@ -175,12 +175,7 @@ type PoolSubAccountKey struct {
 	SubAccount types.Bytes
 }
 
-type ChunkKey struct {
-	Symbol  RSymbol
-	LastEra types.U32
-}
-
-type LinkChunk struct {
+type PoolLinkChunk struct {
 	Pool   types.Bytes
 	Bond   types.U128
 	Unbond types.U128

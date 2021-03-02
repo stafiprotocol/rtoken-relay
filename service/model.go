@@ -24,13 +24,6 @@ type evtEraUpdated struct {
 	newEra types.U32
 }
 
-func (eu *evtEraUpdated) chunkKey() *conn.ChunkKey {
-	return &conn.ChunkKey{
-		Symbol:  eu.symbol,
-		LastEra: eu.oldEra,
-	}
-}
-
 //type evtPoolSubAccountAdded struct {
 //	symbol     conn.RSymbol
 //	pool       types.Bytes
