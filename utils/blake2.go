@@ -1,25 +1,20 @@
 package utils
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
+	"encoding/json"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"golang.org/x/crypto/blake2b"
 )
 
-func Blake2Hash(num types.U32) (types.Hash, error) {
-	defaultHash := types.NewHash([]byte(""))
-
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, num)
+func Blake2Hash(dest interface{}) (types.Hash, error) {
+	bz, err := json.Marshal(dest)
 	if err != nil {
-		return defaultHash, fmt.Errorf("binary.Write failed: %s", err)
+		return types.NewHash([]byte{}), err
 	}
 
-	h, err := blake2b.New256(buf.Bytes())
+	h, err := blake2b.New256(bz)
 	if err != nil {
-
+		return types.NewHash([]byte{}), err
 	}
 
 	return types.NewHash(h.Sum([]byte(""))), nil

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -106,6 +107,20 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) error {
 		l.log.Info("no need to bond")
 		return nil
 	}
+
+	h, err := utils.Blake2Hash(active)
+	if err != nil {
+		return err
+	}
+
+	bk := &conn.BondKey{data.Symbol, h}
+	prop, err := l.newSetPoolActiveProposal(bk, data.Symbol, data.NewEra, data.Pool, types.NewU128(*active))
+	if err != nil {
+		return err
+	}
+
+	result := l.resolveProposal(prop, true)
+	l.log.Info("processEraPoolUpdatedEvt", "result", result)
 
 	return nil
 }

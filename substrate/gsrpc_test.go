@@ -9,6 +9,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/conn"
 	"github.com/stretchr/testify/assert"
+	"math/big"
 	"os"
 	"testing"
 
@@ -18,6 +19,7 @@ import (
 var (
 	AliceKey     = keystore.TestKeyRing.SubstrateKeys[keystore.AliceKey].AsKeyringPair()
 	From         = "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+	From1 = "31d96Cq9idWQqPq3Ch5BFY84zrThVE3r98M7vG4xYaSWHwsX"
 	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
 )
 
@@ -93,7 +95,6 @@ func TestGsrpcClient1(t *testing.T) {
 		BondId: bId,
 	}
 
-
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
 	ext, err := gc.NewUnsignedExtrinsic("RTokenSeries.add_hashes", bondKey, conn.Pass)
@@ -120,4 +121,30 @@ func TestGsrpcClient_StakingActive(t *testing.T) {
 	jun := types.NewAddressFromAccountID(b)
 	s, err := gc.StakingActive(jun.AsAccountID)
 	fmt.Println(s.Active)
+}
+
+func TestGsrpcClient_Bond(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From1, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+	gc, err := NewGsrpcClient(context.Background(), "ws://127.0.0.1:9944", krp, tlog)
+	assert.NoError(t, err)
+
+	err = gc.bond(big.NewInt(10000000000000))
+	assert.NoError(t, err)
+
+	//bob, err := types.NewAddressFromHexAccountID("0xf6241901b8e0048421427ef6cd3513865c2b6d2ad3ca2c3d95d28dfca2b4f722")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//amount := uint64(1000000000000 * 10)
+	//ext, err := gc.NewUnsignedExtrinsic("Balances.transfer", bob, types.NewUCompactFromUInt(amount))
 }

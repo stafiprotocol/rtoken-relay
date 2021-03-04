@@ -153,5 +153,7 @@ func ChainEras(chainEras map[conn.RSymbol]types.U32, gc *substrate.GsrpcClient, 
 		chainEras[sym] = era
 	}
 
+	log.Info("ChainEras initial", "chainEras", chainEras)
+
 	return nil
 }

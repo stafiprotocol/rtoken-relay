@@ -215,15 +215,16 @@ func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) error {
 		return nil
 	}
 
+	gc.log.Info("BondOrUnbond", "bond", bond, "unbond", unbond)
 	if bond.Cmp(unbond) < 0 {
 		diff := big.NewInt(0).Sub(unbond, bond)
-		err := gc.unbond(types.NewU128(*diff))
+		err := gc.unbond(diff)
 		if err != nil {
 			return err
 		}
 	} else if bond.Cmp(unbond) > 0 {
 		diff := big.NewInt(0).Sub(bond, unbond)
-		err := gc.bond(types.NewU128(*diff))
+		err := gc.bond(diff)
 		if err != nil {
 			return err
 		}
@@ -234,18 +235,16 @@ func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) error {
 	return nil
 }
 
-
-
-func (gc *GsrpcClient) unbond(val types.U128) error {
-	ext, err := gc.NewUnsignedExtrinsic(MethodUnbond, val)
+func (gc *GsrpcClient) unbond(val *big.Int) error {
+	ext, err := gc.NewUnsignedExtrinsic(MethodUnbond, types.NewUCompact(val))
 	if err != nil {
 		return err
 	}
 	return gc.SignAndSubmitTx(ext)
 }
 
-func (gc *GsrpcClient) bond(val types.U128) error {
-	ext, err := gc.NewUnsignedExtrinsic(MethodBondExtra, val)
+func (gc *GsrpcClient) bond(val *big.Int) error {
+	ext, err := gc.NewUnsignedExtrinsic(MethodBondExtra, types.NewUCompact(val))
 	if err != nil {
 		return err
 	}

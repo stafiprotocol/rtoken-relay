@@ -12,6 +12,7 @@ const (
 	EraUpdatedEventId     = "EraPoolUpdated"
 	StorageChainEras      = "ChainEras"
 	SetChainEra           = "RTokenLedger.set_chain_era"
+	SetPoolActive         = "RTokenLedger.set_pool_active"
 	//PoolSubAccountAddedEventId = "PoolSubAccountAdded"
 	//StoragePoolBonded          = "PoolBonded"
 	//StoragePoolSubAccountFlag  = "PoolSubAccountFlag"

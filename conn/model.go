@@ -153,8 +153,9 @@ func (br *BondReason) Decode(decoder scale.Decoder) error {
 }
 
 type Proposal struct {
-	Call types.Call
-	Key  *BondKey
+	Call       types.Call
+	Key        *BondKey
+	MethodName string
 }
 
 // encode takes only nonce and call and encodes them for storage queries
