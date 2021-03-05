@@ -65,9 +65,9 @@ func (l *listener) Start() error {
 		return fmt.Errorf("starting block (%d) is greater than latest known block (%d)", l.startBlock, header.Number)
 	}
 
-	//for sym, chain := range l.chains {
-	//	go l.updateEra(sym, chain)
-	//}
+	for sym, chain := range l.chains {
+		go l.updateEra(sym, chain)
+	}
 
 	go func() {
 		err := l.pollBlocks()
@@ -155,7 +155,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 	}
 
 	eraUpdatedEvts := filterEvts(allEvts, config.RTokenLedgerModuleId, config.EraUpdatedEventId)
-	err = l.processEraUpdatedEvts(eraUpdatedEvts)
+	err = l.processEraPoolUpdatedEvts(eraUpdatedEvts)
 	if err != nil {
 		return err
 	}
@@ -196,17 +196,20 @@ func (l *listener) updateEra(sym conn.RSymbol, chain conn.Chain) {
 				l.sysErr <- fmt.Errorf("chainEra not found for symbol: %s", sym)
 				return
 			}
+			l.log.Info("updateEra")
+
 			foreign, err := chain.CurrentEra()
 			if !ok {
 				l.sysErr <- fmt.Errorf("get current era error %s for %s", err, sym)
 				return
 			}
+			l.log.Info("updateEra", "local", local, "foreign", foreign)
 
 			if foreign < local {
-				l.sysErr <- fmt.Errorf("new era %d is smaller than old %d", foreign, local)
-				return
+				//l.sysErr <- fmt.Errorf("new era %d is smaller than old %d", foreign, local)
+				time.Sleep(1 * time.Minute)
+				continue
 			} else if foreign > local {
-				//eraProp, err := l.eraProposal(bondKey, reason)
 				h, err := utils.Blake2Hash(foreign)
 				if err != nil {
 					l.sysErr <- fmt.Errorf("Blake2Hash error %s for %d, %s", err, foreign, sym)
@@ -223,10 +226,11 @@ func (l *listener) updateEra(sym conn.RSymbol, chain conn.Chain) {
 				result := l.resolveProposal(prop, true)
 				l.log.Info("updateEra", "symbol", sym, "era", foreign, "result", result)
 				if result {
-					time.Sleep(15 * time.Minute)
+					l.chainEras[sym] = foreign
+					time.Sleep(1 * time.Minute)
 				}
 			} else {
-				time.Sleep(15 * time.Minute)
+				time.Sleep(1 * time.Minute)
 			}
 
 		}

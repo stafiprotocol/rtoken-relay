@@ -153,8 +153,9 @@ func (br *BondReason) Decode(decoder scale.Decoder) error {
 }
 
 type Proposal struct {
-	Call types.Call
-	Key  *BondKey
+	Call       types.Call
+	Key        *BondKey
+	MethodName string
 }
 
 // encode takes only nonce and call and encodes them for storage queries
@@ -175,19 +176,7 @@ type PoolSubAccountKey struct {
 	SubAccount types.Bytes
 }
 
-type ChunkKey struct {
-	Symbol  RSymbol
-	LastEra types.U32
-}
-
-type LinkChunk struct {
-	Pool   types.Bytes
-	Bond   types.U128
-	Unbond types.U128
-}
-
-type StakingLedger struct {
-	Stash  types.AccountID
-	Total  types.UCompact
-	Active types.UCompact
-}
+//type PoolStakingActive struct {
+//	Pool   types.Bytes
+//	Active types.U128
+//}

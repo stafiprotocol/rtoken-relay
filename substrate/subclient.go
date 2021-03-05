@@ -1,25 +1,23 @@
 package substrate
 
 import (
-	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
-	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/conn"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 const (
 	StakingModuleId  = "Staking"
 	StorageActiveEra = "ActiveEra"
-	BondExtraMethod  = "bond_extra"
-	UnBondMethod     = "bond_extra"
-	StorageLedger    = "Ledger"
+	StorageLegder    = "Ledger"
+	MethodUnbond     = "Staking.unbond"
+	MethodBondExtra  = "Staking.bond_extra"
 )
 
 func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error) {
@@ -45,22 +43,19 @@ func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, e
 
 		for _, param := range ext.Params {
 			if param.Name == ParamDest && param.Type == ParamDestType {
-				if hexutil.Encode(r.Pool) != utiles.AddHex(param.ValueRaw) {
+				dest, _ := param.Value.(string)
+				fsc.Gc.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", param.Value)
+				if hexutil.Encode(r.Pool) != utiles.AddHex(dest) {
 					return conn.PoolUnmatch, nil
 				}
 			} else if param.Name == ParamValue && param.Type == ParamValueType {
-				v, ok := utils.FromString(param.ValueRaw)
-				if !ok {
+				fsc.Gc.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", param.Value)
+				if fmt.Sprint(r.Amount) != fmt.Sprint(param.Value) {
 					return conn.AmountUnmatch, nil
 				}
-				if r.Amount.Cmp(v) != 0 {
-					return conn.AmountUnmatch, nil
-				}
-			} else {
-				return conn.BondReason(""), fmt.Errorf("got unexpected param: %+v", param)
 			}
 		}
-
+		return conn.Pass, nil
 	}
 
 	return conn.TxhashUnmatch, nil
@@ -84,46 +79,26 @@ func (fsc *FullSubClient) CurrentEra() (types.U32, error) {
 	return index, nil
 }
 
-func (fsc *FullSubClient) BondWork(ck *conn.ChunkKey) error {
-	if len(fsc.SubClients) == 0 {
-		return errors.New("FullSubClient BondWork has no subclient")
+func (fsc *FullSubClient) BondWork(e *conn.EvtEraPoolUpdated) (*big.Int, error) {
+	key := fsc.foundKey(e.Pool)
+	if key == nil {
+		fsc.Gc.log.Info("no key for pool", "pool", hexutil.Encode(e.Pool))
+		return nil, nil
 	}
 
-	ckbz, err := types.EncodeToBytes(ck)
+	gc := fsc.SubClients[key]
+	err := gc.BondOrUnbond(e.Bond.Int, e.Unbond.Int)
 	if err != nil {
-		fsc.Gc.log.Error("FullSubClient BondWork", "EncodeToBytes error", err)
-		return err
+		return nil, err
 	}
 
-	lcs := make([]*conn.LinkChunk, 0)
-	exist, err := fsc.Gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageTotalLinking, ckbz, nil, lcs)
+	addr := types.NewAddressFromAccountID(e.Pool)
+	s, err := gc.StakingActive(addr.AsAccountID)
 	if err != nil {
-		return fmt.Errorf("BondWork QueryStorage error: %s", err)
+		return nil, err
 	}
 
-	if !exist {
-		fsc.Gc.log.Info("FullSubClient BondWork Nothing to bond")
-		return nil
-	}
-
-	for _, lc := range lcs {
-		key := fsc.foundKey(lc.Pool)
-		if key == nil {
-			continue
-		}
-
-		gc := fsc.SubClients[key]
-		err := gc.TryToBondOrUnbond(lc)
-		if err != nil {
-			return err
-		}
-
-		err = gc.TryToClaim(lc)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return (*big.Int)(&s.Active), nil
 }
 
 func (fsc *FullSubClient) foundKey(pool types.Bytes) *signature.KeyringPair {

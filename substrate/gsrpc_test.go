@@ -3,11 +3,13 @@ package substrate
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/conn"
 	"github.com/stretchr/testify/assert"
+	"math/big"
 	"os"
 	"testing"
 
@@ -17,6 +19,7 @@ import (
 var (
 	AliceKey     = keystore.TestKeyRing.SubstrateKeys[keystore.AliceKey].AsKeyringPair()
 	From         = "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+	From1 = "31d96Cq9idWQqPq3Ch5BFY84zrThVE3r98M7vG4xYaSWHwsX"
 	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
 )
 
@@ -91,28 +94,6 @@ func TestGsrpcClient1(t *testing.T) {
 		Symbol: conn.RDOT,
 		BondId: bId,
 	}
-	//
-	//fmt.Println(bondKey)
-	//
-	//bk, err := types.EncodeToBytes(bondKey)
-	//assert.NoError(t, err)
-
-	//br := new(conn.BondRecord)
-	//exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondRecords, bk, nil, br)
-	//assert.NoError(t, err)
-	//fmt.Println("exist:", exist)
-
-	//meta, err := gc.GetLatestMetadata()
-	//assert.NoError(t, err)
-	//
-	//call, err := types.NewCall(
-	//	meta,
-	//	config.ExecuteBondRecord,
-	//	bondKey.Symbol,
-	//	bondKey.BondId[:],
-	//	conn.Pass,
-	//)
-	//assert.NoError(t, err)
 
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
@@ -121,18 +102,49 @@ func TestGsrpcClient1(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-//amount := uint64(1000000000000 * 10)
-////// Create a call, transferring 12345 units to wen
-//wen, err := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
-//if err != nil {
-//	panic(err)
-//}
-//
-//ext, err := gc.NewUnsignedExtrinsic("Balances.transfer", wen, types.NewUCompactFromUInt(amount))
-//
-//err = gc.SignAndSubmitTx(ext)
-//if err != nil {
-//	t.Fatal(err)
-//}
-//x, _ := ext.MarshalJSON()
-//fmt.Println(hex.EncodeToString(x))
+func TestGsrpcClient_StakingActive(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+	gc, err := NewGsrpcClient(context.Background(), "ws://127.0.0.1:9944", krp, tlog)
+	assert.NoError(t, err)
+
+	b, _ := hexutil.Decode("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+
+	jun := types.NewAddressFromAccountID(b)
+	s, err := gc.StakingActive(jun.AsAccountID)
+	fmt.Println(s.Active)
+}
+
+func TestGsrpcClient_Bond(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From1, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+	gc, err := NewGsrpcClient(context.Background(), "ws://127.0.0.1:9944", krp, tlog)
+	assert.NoError(t, err)
+
+	err = gc.bond(big.NewInt(10000000000000))
+	assert.NoError(t, err)
+
+	//bob, err := types.NewAddressFromHexAccountID("0xf6241901b8e0048421427ef6cd3513865c2b6d2ad3ca2c3d95d28dfca2b4f722")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//amount := uint64(1000000000000 * 10)
+	//ext, err := gc.NewUnsignedExtrinsic("Balances.transfer", bob, types.NewUCompactFromUInt(amount))
+}

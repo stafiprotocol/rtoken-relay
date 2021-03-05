@@ -2,13 +2,14 @@ package service
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/conn"
 	"github.com/stafiprotocol/rtoken-relay/substrate"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 func liquidityBondEventData(evt *substrate.ChainEvent) (*evtLiquidityBond, error) {
@@ -40,24 +41,44 @@ func liquidityBondEventData(evt *substrate.ChainEvent) (*evtLiquidityBond, error
 	return lb, nil
 }
 
-func eraUpdatedEventData(evt *substrate.ChainEvent) (*evtEraUpdated, error) {
-	//eu := new(evtEraUpdated)
+func eraPoolUpdatedData(evt *substrate.ChainEvent) (*conn.EvtEraPoolUpdated, error) {
 	sym, ok := evt.Params[0].Value.(string)
 	if !ok {
-		return nil, errors.New("eraUpdatedEventData symbol error")
+		return nil, errors.New("eraPoolUpdatedData symbol error")
 	}
 
-	oldEra, ok := evt.Params[1].Value.(uint32)
+	era := new(Era)
+	x, _ := json.Marshal(evt.Params[1])
+	err := json.Unmarshal(x, &era)
+	if err != nil {
+		return nil, err
+	}
+
+	poolStr := utiles.AddHex(evt.Params[2].Value.(string))
+	pool, err := hexutil.Decode(poolStr)
+	if err != nil {
+		return nil, err
+	}
+
+	bondStr, _ := evt.Params[3].Value.(string)
+	bond, ok := utils.FromString(bondStr)
 	if !ok {
-		return nil, errors.New("eraUpdatedEventData oldEra error")
+		return nil, errors.New("eraPoolUpdatedData bond error")
 	}
 
-	newEra, ok := evt.Params[2].Value.(uint32)
+	unbondStr, _ := evt.Params[4].Value.(string)
+	unbond, ok := utils.FromString(unbondStr)
 	if !ok {
-		return nil, errors.New("eraUpdatedEventData newEra error")
+		return nil, errors.New("eraPoolUpdatedData bond error")
 	}
 
-	return &evtEraUpdated{conn.RSymbol(sym), types.NewU32(oldEra), types.NewU32(newEra)}, nil
+	return &conn.EvtEraPoolUpdated{
+		Symbol: conn.RSymbol(sym),
+		NewEra: types.NewU32(era.Value),
+		Pool:   types.NewBytes(pool),
+		Bond:   types.NewU128(*bond),
+		Unbond: types.NewU128(*unbond),
+	}, nil
 }
 
 //

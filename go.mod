@@ -15,6 +15,7 @@ require (
 	github.com/tendermint/tendermint v0.34.7
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+	google.golang.org/protobuf v1.25.0
 	gotest.tools v2.2.0+incompatible
 )
 

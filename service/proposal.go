@@ -14,7 +14,7 @@ func (l *listener) resolveProposal(prop *conn.Proposal, inFavour bool) bool {
 	for i := 0; i < BlockRetryLimit; i++ {
 		// Ensure we only submit a vote if status of the proposal is Initiated
 		valid, reason, err := l.proposalValid(prop)
-		l.log.Info("ResolveBondProposal proposalValid", "valid", valid, "reason", reason)
+		l.log.Info("ResolveProposal proposalValid", "valid", valid, "reason", reason, "method", prop.MethodName)
 		if err != nil {
 			l.log.Error("Failed to assert proposal state", "err", err)
 			time.Sleep(BlockRetryInterval)
@@ -86,10 +86,11 @@ func (l *listener) newLiquidityBondProposal(key *conn.BondKey, reason conn.BondR
 	if err != nil {
 		return nil, err
 	}
+	method := config.ExecuteBondRecord
 
 	call, err := types.NewCall(
 		meta,
-		config.ExecuteBondRecord,
+		method,
 		key,
 		reason,
 	)
@@ -97,7 +98,7 @@ func (l *listener) newLiquidityBondProposal(key *conn.BondKey, reason conn.BondR
 		return nil, err
 	}
 
-	return &conn.Proposal{call, key}, nil
+	return &conn.Proposal{call, key, method}, nil
 }
 
 func (l *listener) newUpdateEraProposal(key *conn.BondKey, newEra types.U32) (*conn.Proposal, error) {
@@ -105,10 +106,11 @@ func (l *listener) newUpdateEraProposal(key *conn.BondKey, newEra types.U32) (*c
 	if err != nil {
 		return nil, err
 	}
+	method := config.SetChainEra
 
 	call, err := types.NewCall(
 		meta,
-		config.SetChainEra,
+		method,
 		key.Symbol,
 		newEra,
 	)
@@ -116,5 +118,28 @@ func (l *listener) newUpdateEraProposal(key *conn.BondKey, newEra types.U32) (*c
 		return nil, err
 	}
 
-	return &conn.Proposal{call, key}, nil
+	return &conn.Proposal{call, key, method}, nil
+}
+
+func (l *listener) newSetPoolActiveProposal(key *conn.BondKey, symbol conn.RSymbol, newEra types.U32,
+	pool types.Bytes, active types.U128) (*conn.Proposal, error) {
+	meta, err := l.gsrpc.GetLatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.SetPoolActive
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		symbol,
+		newEra,
+		pool,
+		active,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &conn.Proposal{call, key, method}, nil
 }

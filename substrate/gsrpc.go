@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
 	"github.com/stafiprotocol/go-substrate-rpc-client/rpc/author"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
-	"github.com/stafiprotocol/rtoken-relay/conn"
+	"math/big"
 )
 
 type GsrpcClient struct {
@@ -209,54 +208,59 @@ func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
 }
 
-func (gc *GsrpcClient) TryToBondOrUnbond(lc *conn.LinkChunk) error {
-	bond := lc.Bond
-	unbond := lc.Unbond
-	if bond.Cmp(unbond.Int) < 0 {
-		diff := big.NewInt(0).Sub(unbond.Int, bond.Int)
-		realUnbond := types.NewU128(*diff)
-		err := gc.TryToUnbond(realUnbond)
+func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) error {
+	zero := big.NewInt(0)
+	if bond.Cmp(zero) == 0 && unbond.Cmp(zero) == 0 {
+		gc.log.Info("BondWork: bond and unbond are both zero")
+		return nil
+	}
+
+	gc.log.Info("BondOrUnbond", "bond", bond, "unbond", unbond)
+	if bond.Cmp(unbond) < 0 {
+		diff := big.NewInt(0).Sub(unbond, bond)
+		err := gc.unbond(diff)
 		if err != nil {
 			return err
 		}
-
-	} else if bond.Cmp(unbond.Int) > 0 {
-		diff := big.NewInt(0).Sub(bond.Int, unbond.Int)
-		realBond := types.NewU128(*diff)
-		err := gc.TryToBondExtra(realBond)
+	} else if bond.Cmp(unbond) > 0 {
+		diff := big.NewInt(0).Sub(bond, unbond)
+		err := gc.bond(diff)
 		if err != nil {
 			return err
 		}
 	} else {
-		gc.log.Info("bond is equal to unbond, nothing need to do")
+		gc.log.Info("EvtEraPoolUpdated: bond is equal to unbond")
 	}
 
 	return nil
 }
 
-func (gc *GsrpcClient) TryToUnbond(value types.U128) error {
-	ext, err := gc.NewUnsignedExtrinsic(UnBondMethod, value)
-	err = gc.SignAndSubmitTx(ext)
+func (gc *GsrpcClient) unbond(val *big.Int) error {
+	ext, err := gc.NewUnsignedExtrinsic(MethodUnbond, types.NewUCompact(val))
 	if err != nil {
-		gc.log.Error("TryToBondExtra error", "err", err)
 		return err
 	}
-	return nil
+	return gc.SignAndSubmitTx(ext)
 }
 
-func (gc *GsrpcClient) TryToBondExtra(value types.U128) error {
-	ext, err := gc.NewUnsignedExtrinsic(BondExtraMethod, value)
-	err = gc.SignAndSubmitTx(ext)
+func (gc *GsrpcClient) bond(val *big.Int) error {
+	ext, err := gc.NewUnsignedExtrinsic(MethodBondExtra, types.NewUCompact(val))
 	if err != nil {
-		gc.log.Error("TryToBondExtra error", "err", err)
 		return err
 	}
-	return nil
+	return gc.SignAndSubmitTx(ext)
 }
 
-func (gc *GsrpcClient) TryToClaim(lc *conn.LinkChunk) error {
-	//for _, nom := range Nominators {
-	//}
-	//return nil
-	return nil
+func (gc *GsrpcClient) StakingActive(ac types.AccountID) (*StakingLedger, error) {
+	s := new(StakingLedger)
+	exist, err := gc.QueryStorage(StakingModuleId, StorageLegder, ac[:], nil, s)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("can not get active for account: %s", hexutil.Encode(ac[:]))
+	}
+
+	return s, nil
 }
