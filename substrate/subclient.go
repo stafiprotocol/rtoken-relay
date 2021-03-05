@@ -62,18 +62,19 @@ func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, e
 }
 
 func (fsc *FullSubClient) CurrentEra() (types.U32, error) {
-	var index types.U32
-	if len(fsc.SubClients) == 0 {
-		return 0, fmt.Errorf("no subclients")
+	if len(fsc.Keys) == 0 || len(fsc.SubClients) == 0 {
+		return 0, fmt.Errorf("no keys, no subclients, no current era")
 	}
 
-	exist, err := fsc.Gc.QueryStorage(StakingModuleId, StorageActiveEra, nil, nil, &index)
+	gc := fsc.SubClients[fsc.Keys[0]]
+	var index types.U32
+	exist, err := gc.QueryStorage(StakingModuleId, StorageActiveEra, nil, nil, &index)
 	if err != nil {
 		return 0, err
 	}
 
 	if !exist {
-		return 0, fmt.Errorf("unable to get activeEraInfo")
+		return 0, fmt.Errorf("unable to get activeEraInfo for: %s", gc.endpoint)
 	}
 
 	return index, nil
