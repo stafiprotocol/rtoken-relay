@@ -44,7 +44,8 @@
     "type": "enum",
     "value_list": [
       "RFIS",
-      "RDOT"
+      "RDOT",
+      "RKSM"
     ]
   },
   "RateType": "u64",
@@ -183,20 +184,15 @@
       ]
     ]
   },
-  "ChainEra": "u32",
   "LinkChunk": {
     "type": "struct",
     "type_mapping": [
       [
-        "pool",
-        "Vec<u8>"
-      ],
-      [
-        "bond_value",
+        "bond",
         "u128"
       ],
       [
-        "unbond_value",
+        "unbond",
         "u128"
       ]
     ]
