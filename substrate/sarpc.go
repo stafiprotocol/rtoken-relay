@@ -3,8 +3,6 @@ package substrate
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-
 	"github.com/ChainSafe/log15"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/source"
@@ -13,6 +11,7 @@ import (
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/itering/substrate-api-rpc/util"
 	"github.com/itering/substrate-api-rpc/websocket"
+	"io/ioutil"
 )
 
 const (
@@ -25,6 +24,7 @@ type SarpcClient struct {
 	wsconn             websocket.WsConn
 	log                log15.Logger
 	metaRaw            string
+	typesPath          string
 	currentSpecVersion int
 	metaDecoder        scalecodec.MetadataDecoder
 }
@@ -36,16 +36,18 @@ func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient,
 		endpoint:           endpoint,
 		log:                log,
 		metaRaw:            "",
+		typesPath:          typesPath,
 		currentSpecVersion: 0,
 		metaDecoder:        scalecodec.MetadataDecoder{},
 	}
 	websocket.SetEndpoint(sc.endpoint)
-	types.RuntimeType{}.Reg()
-	content, err := ioutil.ReadFile(typesPath)
-	if err != nil {
-		panic(err)
-	}
-	types.RegCustomTypes(source.LoadTypeRegistry(content))
+	var err error
+	//types.RuntimeType{}.Reg()
+	//content, err := ioutil.ReadFile(typesPath)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//types.RegCustomTypes(source.LoadTypeRegistry(content))
 
 	var pool *websocket.PoolConn
 	if pool, err = websocket.Init(); err == nil {
@@ -70,22 +72,30 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	}
 
 	// metadata raw
-	if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
-		if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
-			return err
-		}
-		metaRaw, err := v.ToString()
-		if err != nil {
-			return err
-		}
-		sc.metaRaw = metaRaw
-		sc.metaDecoder.Init(utiles.HexToBytes(metaRaw))
-		err = sc.metaDecoder.Process()
-		if err != nil {
-			return err
-		}
-		sc.currentSpecVersion = r.SpecVersion
+	//if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
+	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
+		return err
 	}
+	metaRaw, err := v.ToString()
+	if err != nil {
+		return err
+	}
+	sc.metaRaw = metaRaw
+	sc.metaDecoder.Init(utiles.HexToBytes(metaRaw))
+	err = sc.metaDecoder.Process()
+
+	types.RuntimeType{}.Reg()
+	content, err := ioutil.ReadFile(sc.typesPath)
+	if err != nil {
+		panic(err)
+	}
+	types.RegCustomTypes(source.LoadTypeRegistry(content))
+
+	if err != nil {
+		return err
+	}
+	sc.currentSpecVersion = r.SpecVersion
+	//}
 
 	return nil
 }

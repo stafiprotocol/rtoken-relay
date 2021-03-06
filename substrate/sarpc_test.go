@@ -17,7 +17,7 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", DefaultTypeFilePath, tlog)
 	assert.NoError(t, err)
 
-	evts, err := sc.GetEvents(966183)
+	evts, err := sc.GetEvents(973215)
 	assert.NoError(t, err)
 	for _, evt := range evts {
 		fmt.Println(evt.ModuleId)
