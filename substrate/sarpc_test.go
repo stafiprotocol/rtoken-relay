@@ -13,25 +13,15 @@ var (
 
 const DefaultTypeFilePath = "../network/stafi.json"
 
-func TestSarpcClient_GetBlock(t *testing.T) {
-	bh := "0xeb2e9ba35b9009475d93def5e951173af8161f953d7f3a95417d582bf64986ac"
-	//gc, err := NewGsrpcClient(context.Background(), , AliceKey, tlog)
-	//sc, err := NewSarpcClient("ws://127.0.0.1:9944", DefaultTypeFilePath, tlog)
-	sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", DefaultTypeFilePath, tlog)
+func TestSarpcClient_GetChainEvents(t *testing.T) {
+	sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", DefaultTypeFilePath, tlog)
 	assert.NoError(t, err)
-	//blk, err := sc.GetBlock(bh)
-	//assert.NoError(t, err)
-	//fmt.Println(blk)
 
-	ehs, err := sc.GetExtrinsics(bh)
+	evts, err := sc.GetEvents(966183)
 	assert.NoError(t, err)
-	for _, eh := range ehs {
-		fmt.Println(eh.ExtrinsicHash)
+	for _, evt := range evts {
+		fmt.Println(evt.ModuleId)
+		fmt.Println(evt.EventId)
+		fmt.Println(evt.Params)
 	}
 }
-
-//func TestSarpcClient_GetChainEvents(t *testing.T) {
-//	sc, err := NewSarpcClient("ws://127.0.0.1:9944", tlog)
-//	assert.NoError(t, err)
-//	//sc.GetEventsByModuleIdAndEventId()
-//}
