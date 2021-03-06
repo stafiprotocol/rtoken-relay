@@ -1,7 +1,9 @@
 package cosmos
 
 import (
+	"fmt"
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	kMultiSig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
@@ -84,7 +86,17 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 		WithAccountNumber(account.GetAccountNumber()).
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON). //multi sig need this mod
 		WithGasAdjustment(1.5).
-		WithGasPrices(c.gasPrice)
+		WithGasPrices(c.gasPrice).
+		WithGas(300000).
+		WithSimulateAndExecute(true)
+
+
+	//todo fix auto cal gas
+	//_, adjusted, err := clientTx.CalculateGas(c.clientCtx.QueryWithData, txf, msgs...)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//txf = txf.WithGas(adjusted)
 
 	txBuilderRaw, err := clientTx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {
@@ -121,12 +133,22 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 	return marshalSignatureJSON(c.clientCtx.TxConfig, txBuilder, true)
 }
 
+//create multiSig tx bytes for broadcast
 func (c *Client) CreateMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []byte, err error) {
 	accountMultiSign, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
 		return nil, err
 	}
-	legacyPubkey := accountMultiSign.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
+
+	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
+	if err != nil {
+		return
+	}
+	if multisigInfo.GetType() != keyring.TypeMulti {
+		return nil, fmt.Errorf("%q must be of type %s: %s", c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
+	}
+
+	multiSigPub := multisigInfo.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
 
 	willUseSigs := make([]signing.SignatureV2, 0)
 	for _, s := range signatures {
@@ -137,15 +159,15 @@ func (c *Client) CreateMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []by
 		willUseSigs = append(willUseSigs, ss...)
 	}
 
-	multiSigData := multisig.NewMultisig(len(legacyPubkey.PubKeys))
+	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
 	for _, sig := range willUseSigs {
-		if err := multisig.AddSignatureV2(multiSigData, sig, legacyPubkey.GetPubKeys()); err != nil {
+		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
 			return nil, err
 		}
 	}
 
 	sigV2 := signing.SignatureV2{
-		PubKey:   legacyPubkey,
+		PubKey:   multiSigPub,
 		Data:     multiSigData,
 		Sequence: accountMultiSign.GetSequence(),
 	}

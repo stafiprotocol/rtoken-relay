@@ -18,6 +18,10 @@ var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78p
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
 var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z7rwu9kcdm4kc7uc4e5y5a2r")
 var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
+var addrValidatorTestnet, _ = types.ValAddressFromBech32("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc")
+var addrValidatorTestnet2, _ = types.ValAddressFromBech32("cosmosvaloper19xczxvvdg8h67sk3cccrvxlj0ruyw3360rctfa")
+var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
+var addrValidatorTestnetStation, _ = types.ValAddressFromBech32("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu")
 
 func init() {
 	rpcClient, err := rpcHttp.New("http://127.0.0.1:26657", "/websocket")
@@ -29,14 +33,21 @@ func init() {
 		panic(err)
 	}
 
-	client = cosmos.NewClient(rpcClient, key, "my-test-chain", "validator")
-	client.SetGasPrice("0.000001stake")
-	client.SetDenom("stake")
+	client = cosmos.NewClient(rpcClient, key, "stargate-final", "recipient")
+	client.SetGasPrice("0.000001umuon")
+	client.SetDenom("umuon")
 }
 
 func TestClient_SendTo(t *testing.T) {
-	err := client.TransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 1000)))
+	err := client.SingleTransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 1000)))
 	assert.NoError(t, err)
+}
+
+func TestClient_ReDelegate(t *testing.T) {
+	h, err := client.SingleReDelegate(addrValidatorTestnetAteam, addrValidatorTestnetStation,
+		types.NewCoin(client.GetDenom(), types.NewInt(10)))
+	assert.NoError(t, err)
+	t.Log("hash", h)
 }
 
 func TestClient_GenRawTx(t *testing.T) {
@@ -113,19 +124,44 @@ func TestClient_QueryDelegationRewards(t *testing.T) {
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, addrValidator, types.NewCoin(client.GetDenom(), types.NewInt(1000)))
+	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, addrValidatorTestnetAteam, types.NewCoin(client.GetDenom(), types.NewInt(100)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
 	assert.NoError(t, err)
-	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key2")
+	assert.NoError(t, err)
+	signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
 	assert.NoError(t, err)
+}
+
+func TestClient_GenMultiSigRawReDelegateTx(t *testing.T) {
+	err := client.SetFromName("multiSign1")
+
+	assert.NoError(t, err)
+	rawTx, err := client.GenMultiSigRawReDelegateTx(addrMultiSig1, addrValidatorTestnetAteam, addrValidatorTestnetStation,
+		types.NewCoin(client.GetDenom(), types.NewInt(10)))
+	assert.NoError(t, err)
+
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
+	assert.NoError(t, err)
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key2")
+	assert.NoError(t, err)
+	//signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
+	//assert.NoError(t, err)
+
+	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	assert.NoError(t, err)
+
+	txHash, err := client.BroadcastTx(tx)
+	assert.NoError(t, err)
+	t.Log(txHash)
 }
 
 func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
