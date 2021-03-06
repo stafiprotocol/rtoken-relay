@@ -9,7 +9,7 @@ const (
 	StorageVotes          = "Votes"
 	RacknowledgeProposal  = "RTokenVotes.acknowledge_proposal"
 	RTokenLedgerModuleId  = "RTokenLedger"
-	EraUpdatedEventId     = "EraPoolUpdated"
+	EraPoolUpdatedEventId = "EraPoolUpdated"
 	StorageChainEras      = "ChainEras"
 	SetChainEra           = "RTokenLedger.set_chain_era"
 	SetPoolActive         = "RTokenLedger.set_pool_active"

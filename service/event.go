@@ -76,6 +76,8 @@ func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) error {
 
 func (l *listener) processEraPoolUpdatedEvts(evts []*substrate.ChainEvent) error {
 	for _, evt := range evts {
+
+
 		err := l.processEraPoolUpdatedEvt(evt)
 		if err != nil {
 			return err
@@ -89,6 +91,12 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) error {
 	data, err := eraPoolUpdatedData(evt)
 	if err != nil {
 		return err
+	}
+
+	if data.NewEra < l.chainEras[data.Symbol] {
+		l.log.Info("era_pool_updated_event of past era, ignored", "current",
+			l.chainEras[data.Symbol], "eventEra", data.NewEra, "symbol", data.Symbol)
+		return nil
 	}
 
 	l.log.Info("processEraPoolUpdatedEvt", "data", data)

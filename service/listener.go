@@ -154,13 +154,28 @@ func (l *listener) processEvents(blockNum uint64) error {
 		return err
 	}
 
-	eraUpdatedEvts := filterEvts(allEvts, config.RTokenLedgerModuleId, config.EraUpdatedEventId)
-	err = l.processEraPoolUpdatedEvts(eraUpdatedEvts)
-	if err != nil {
-		return err
+	eraUpdatedEvts := make([]*substrate.ChainEvent, 0)
+	bondEvts := make([]*substrate.ChainEvent, 0)
+
+	for _, evt := range allEvts {
+		if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId {
+			eraUpdatedEvts = append(eraUpdatedEvts, evt)
+			continue
+		}
+
+		if evt.ModuleId == config.LiquidityBondModuleId && evt.EventId == config.LiquidityBondEventId {
+			bondEvts = append(bondEvts, evt)
+		}
 	}
 
-	bondEvts := filterEvts(allEvts, config.LiquidityBondModuleId, config.LiquidityBondEventId)
+	if len(eraUpdatedEvts) > 0 {
+		l.log.Trace("processEvents", "EraPoolUpdatedEventNum", len(eraUpdatedEvts), "blockNum", blockNum)
+		err = l.processEraPoolUpdatedEvts(eraUpdatedEvts)
+		if err != nil {
+			return err
+		}
+	}
+
 	if len(bondEvts) > 0 {
 		l.log.Trace("processEvents", "LiquidityBondEventNum", len(bondEvts), "blockNum", blockNum)
 		if err := l.processLiquidityBondEvents(bondEvts); err != nil {
@@ -170,19 +185,6 @@ func (l *listener) processEvents(blockNum uint64) error {
 	}
 
 	return nil
-}
-
-func filterEvts(evts []*substrate.ChainEvent, moduleId, eventId string) []*substrate.ChainEvent {
-	wanted := make([]*substrate.ChainEvent, 0)
-
-	for _, evt := range evts {
-		if evt.ModuleId != moduleId || evt.EventId != eventId {
-			continue
-		}
-
-		wanted = append(wanted, evt)
-	}
-	return wanted
 }
 
 func (l *listener) updateEra(sym conn.RSymbol, chain conn.Chain) {

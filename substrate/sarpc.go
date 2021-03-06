@@ -72,30 +72,30 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	}
 
 	// metadata raw
-	//if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
-	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
-		return err
-	}
-	metaRaw, err := v.ToString()
-	if err != nil {
-		return err
-	}
-	sc.metaRaw = metaRaw
-	sc.metaDecoder.Init(utiles.HexToBytes(metaRaw))
-	err = sc.metaDecoder.Process()
+	if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
+		if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
+			return err
+		}
+		metaRaw, err := v.ToString()
+		if err != nil {
+			return err
+		}
+		sc.metaRaw = metaRaw
+		sc.metaDecoder.Init(utiles.HexToBytes(metaRaw))
+		err = sc.metaDecoder.Process()
 
-	types.RuntimeType{}.Reg()
-	content, err := ioutil.ReadFile(sc.typesPath)
-	if err != nil {
-		panic(err)
-	}
-	types.RegCustomTypes(source.LoadTypeRegistry(content))
+		types.RuntimeType{}.Reg()
+		content, err := ioutil.ReadFile(sc.typesPath)
+		if err != nil {
+			panic(err)
+		}
+		types.RegCustomTypes(source.LoadTypeRegistry(content))
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		sc.currentSpecVersion = r.SpecVersion
 	}
-	sc.currentSpecVersion = r.SpecVersion
-	//}
 
 	return nil
 }
