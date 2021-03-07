@@ -42,12 +42,12 @@ func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient,
 	}
 	websocket.SetEndpoint(sc.endpoint)
 	var err error
-	//types.RuntimeType{}.Reg()
-	//content, err := ioutil.ReadFile(typesPath)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//types.RegCustomTypes(source.LoadTypeRegistry(content))
+	types.RuntimeType{}.Reg()
+	content, err := ioutil.ReadFile(typesPath)
+	if err != nil {
+		panic(err)
+	}
+	types.RegCustomTypes(source.LoadTypeRegistry(content))
 
 	var pool *websocket.PoolConn
 	if pool, err = websocket.Init(); err == nil {
