@@ -5,7 +5,6 @@ import (
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	kMultiSig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
-	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -62,18 +61,6 @@ func (c *Client) GenMultiSigRawWithdrawDeleRewardTx(delAddr types.AccAddress, va
 	return c.GenMultiSigRawTx(msg)
 }
 
-//generate unsigned create validator tx
-func (c *Client) GenMultiSigRawCreateValidator(valAddr types.ValAddress, pubKey cryptoTypes.PubKey, //nolint:interfacer
-	selfDelegation types.Coin, description xStakingTypes.Description, commission xStakingTypes.CommissionRates, minSelfDelegation types.Int) ([]byte, error) {
-	msg, err := xStakingTypes.NewMsgCreateValidator(
-		valAddr, pubKey, selfDelegation, description, commission, minSelfDelegation,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return c.GenMultiSigRawTx(msg)
-}
-
 //c.clientCtx.FromAddress must be multi sig address
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
@@ -89,7 +76,6 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 		WithGasPrices(c.gasPrice).
 		WithGas(300000).
 		WithSimulateAndExecute(true)
-
 
 	//todo fix auto cal gas
 	//_, adjusted, err := clientTx.CalculateGas(c.clientCtx.QueryWithData, txf, msgs...)
@@ -133,8 +119,8 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 	return marshalSignatureJSON(c.clientCtx.TxConfig, txBuilder, true)
 }
 
-//create multiSig tx bytes for broadcast
-func (c *Client) CreateMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []byte, err error) {
+//assemble multiSig tx bytes for broadcast
+func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []byte, err error) {
 	accountMultiSign, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
 		return nil, err
@@ -160,6 +146,7 @@ func (c *Client) CreateMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []by
 	}
 
 	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
+	//todo check sig
 	for _, sig := range willUseSigs {
 		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
 			return nil, err

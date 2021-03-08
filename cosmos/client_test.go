@@ -80,7 +80,7 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	txHash, err := client.BroadcastTx(tx)
@@ -97,7 +97,7 @@ func TestClient_BroadcastTx(t *testing.T) {
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -134,7 +134,7 @@ func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -156,7 +156,7 @@ func TestClient_GenMultiSigRawReDelegateTx(t *testing.T) {
 	//signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
 	//assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	txHash, err := client.BroadcastTx(tx)
@@ -175,7 +175,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -193,7 +193,7 @@ func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -220,7 +220,7 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.CreateMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	txHash, err := client.BroadcastTx(tx)

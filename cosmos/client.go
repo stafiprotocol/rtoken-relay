@@ -18,8 +18,6 @@ type Client struct {
 	denom     string
 }
 
-
-
 func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName string) *Client {
 	encodingConfig := MakeEncodingConfig()
 	info, err := k.Key(fromName)
