@@ -11,6 +11,7 @@ import (
 const (
 	TransferModuleName = "Balances"
 	TransferKeepAlive  = "transfer_keep_alive"
+	Transfer = "transfer"
 
 	ParamDest     = "dest"
 	ParamDestType = "Address"

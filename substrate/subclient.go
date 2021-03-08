@@ -22,6 +22,7 @@ const (
 
 func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error) {
 	bh := hexutil.Encode(r.Blockhash)
+
 	exts, err := fsc.Sc.GetExtrinsics(bh)
 	if err != nil {
 		if strings.Contains(err.Error(), "websocket send error") {
@@ -32,27 +33,61 @@ func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, e
 
 	th := hexutil.Encode(r.Txhash)
 	for _, ext := range exts {
-		if th != utiles.AddHex(ext.ExtrinsicHash) || ext.CallModule.Name != TransferModuleName ||
-			ext.Call.Name != TransferKeepAlive {
+		if th != utiles.AddHex(ext.ExtrinsicHash) {
 			continue
 		}
 
-		if hexutil.Encode(r.Pubkey) != utiles.AddHex(ext.Address) {
+		if ext.CallModule.Name != TransferModuleName || (ext.Call.Name != TransferKeepAlive && ext.Call.Name != Transfer) {
+			return conn.TxhashUnmatch, nil
+		}
+
+		addr, ok := ext.Address.(string)
+		if !ok {
+			fsc.Sc.log.Error("TransferVerify: address not string", "address", ext.Address)
 			return conn.PubkeyUnmatch, nil
 		}
 
-		for _, param := range ext.Params {
-			if param.Name == ParamDest && param.Type == ParamDestType {
-				dest, _ := param.Value.(string)
-				fsc.Gc.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", param.Value)
-				if hexutil.Encode(r.Pool) != utiles.AddHex(dest) {
-					return conn.PoolUnmatch, nil
+		if hexutil.Encode(r.Pubkey) != utiles.AddHex(addr) {
+			return conn.PubkeyUnmatch, nil
+		}
+
+		for _, p := range ext.Params {
+			if p.Name == ParamDest && p.Type == ParamDestType {
+				fsc.Sc.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", p.Value)
+
+				dest, ok := p.Value.(string)
+				if !ok {
+					dest, ok := p.Value.(map[string]interface{})
+					if !ok {
+						return conn.PoolUnmatch, nil
+					}
+
+					destId, ok := dest["Id"]
+					if !ok {
+						return conn.PoolUnmatch, nil
+					}
+
+					d, ok := destId.(string)
+					if !ok {
+						return conn.PoolUnmatch, nil
+					}
+
+					if hexutil.Encode(r.Pool) != utiles.AddHex(d) {
+						return conn.PoolUnmatch, nil
+					}
+				} else {
+					if hexutil.Encode(r.Pool) != utiles.AddHex(dest) {
+						return conn.PoolUnmatch, nil
+					}
 				}
-			} else if param.Name == ParamValue && param.Type == ParamValueType {
-				fsc.Gc.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", param.Value)
-				if fmt.Sprint(r.Amount) != fmt.Sprint(param.Value) {
+			} else if p.Name == ParamValue && p.Type == ParamValueType {
+				fsc.Sc.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", p.Value)
+				if fmt.Sprint(r.Amount) != fmt.Sprint(p.Value) {
 					return conn.AmountUnmatch, nil
 				}
+			} else {
+				fsc.Sc.log.Error("TransferVerify unexpected param", "name", p.Name, "value", p.Value, "type", p.Type)
+				return conn.TxhashUnmatch, nil
 			}
 		}
 		return conn.Pass, nil
