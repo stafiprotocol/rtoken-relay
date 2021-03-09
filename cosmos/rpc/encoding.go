@@ -1,4 +1,4 @@
-package cosmos
+package rpc
 
 import (
 	"github.com/cosmos/cosmos-sdk/client"

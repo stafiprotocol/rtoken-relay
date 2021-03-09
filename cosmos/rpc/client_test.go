@@ -1,4 +1,4 @@
-package cosmos_test
+package rpc_test
 
 import (
 	"errors"
@@ -6,14 +6,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stafiprotocol/rtoken-relay/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/cosmos/rpc"
 	"github.com/stretchr/testify/assert"
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
 	"strings"
 	"testing"
 )
 
-var client *cosmos.Client
+var client *rpc.Client
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu")
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
 var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z7rwu9kcdm4kc7uc4e5y5a2r")
@@ -33,7 +33,7 @@ func init() {
 		panic(err)
 	}
 
-	client = cosmos.NewClient(rpcClient, key, "stargate-final", "recipient")
+	client = rpc.NewClient(rpcClient, key, "stargate-final", "recipient")
 	client.SetGasPrice("0.000001umuon")
 	client.SetDenom("umuon")
 }

@@ -1,4 +1,4 @@
-package cosmos
+package rpc
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	xStakeTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/spf13/cobra"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func (c *Client) SingleTransferTo(toAddr types.AccAddress, amount types.Coins) error {
@@ -85,4 +86,16 @@ func (c *Client) QueryDelegationTotalRewards(delegatorAddr types.AccAddress) (*x
 		context.Background(),
 		&xDistriTypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr.String()},
 	)
+}
+
+func (c *Client) QueryBlock(height int64) (*ctypes.ResultBlock, error) {
+	node, err := c.clientCtx.GetNode()
+	if err != nil {
+		return nil, err
+	}
+
+	// header -> BlockchainInfo
+	// header, tx -> Block
+	// results -> BlockResults
+	return node.Block(context.Background(), &height)
 }

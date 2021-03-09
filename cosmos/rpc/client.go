@@ -1,9 +1,10 @@
-package cosmos
+package rpc
 
 import (
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	xAuthTypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	rpcClient "github.com/tendermint/tendermint/rpc/client"
@@ -69,4 +70,12 @@ func (c *Client) SetDenom(denom string) {
 
 func (c *Client) GetDenom() string {
 	return c.denom
+}
+
+func (c *Client) GetTxConfig() client.TxConfig {
+	return c.clientCtx.TxConfig
+}
+
+func (c *Client) GetLegacyAmino() *codec.LegacyAmino {
+	return c.clientCtx.LegacyAmino
 }
