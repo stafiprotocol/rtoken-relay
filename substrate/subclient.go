@@ -3,7 +3,6 @@ package substrate
 import (
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
@@ -22,12 +21,16 @@ const (
 
 func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error) {
 	bh := hexutil.Encode(r.Blockhash)
+	sc := fsc.Sc
 
-	exts, err := fsc.Sc.GetExtrinsics(bh)
-	if err != nil {
-		if strings.Contains(err.Error(), "websocket send error") {
-			return conn.BondReason(""), err
+	if !sc.IsConnected() {
+		if err := sc.WebsocketReconnect(); err != nil {
+			panic(err)
 		}
+	}
+
+	exts, err := sc.GetExtrinsics(bh)
+	if err != nil {
 		return conn.BlockhashUnmatch, nil
 	}
 
@@ -43,7 +46,7 @@ func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, e
 
 		addr, ok := ext.Address.(string)
 		if !ok {
-			fsc.Sc.log.Error("TransferVerify: address not string", "address", ext.Address)
+			sc.log.Error("TransferVerify: address not string", "address", ext.Address)
 			return conn.PubkeyUnmatch, nil
 		}
 
@@ -53,7 +56,7 @@ func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, e
 
 		for _, p := range ext.Params {
 			if p.Name == ParamDest && p.Type == ParamDestType {
-				fsc.Sc.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", p.Value)
+				sc.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", p.Value)
 
 				dest, ok := p.Value.(string)
 				if !ok {
@@ -81,12 +84,12 @@ func (fsc *FullSubClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, e
 					}
 				}
 			} else if p.Name == ParamValue && p.Type == ParamValueType {
-				fsc.Sc.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", p.Value)
+				sc.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", p.Value)
 				if fmt.Sprint(r.Amount) != fmt.Sprint(p.Value) {
 					return conn.AmountUnmatch, nil
 				}
 			} else {
-				fsc.Sc.log.Error("TransferVerify unexpected param", "name", p.Name, "value", p.Value, "type", p.Type)
+				sc.log.Error("TransferVerify unexpected param", "name", p.Name, "value", p.Value, "type", p.Type)
 				return conn.TxhashUnmatch, nil
 			}
 		}

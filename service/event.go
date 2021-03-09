@@ -77,7 +77,6 @@ func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) error {
 func (l *listener) processEraPoolUpdatedEvts(evts []*substrate.ChainEvent) error {
 	for _, evt := range evts {
 
-
 		err := l.processEraPoolUpdatedEvt(evt)
 		if err != nil {
 			return err

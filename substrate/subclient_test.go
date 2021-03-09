@@ -2,6 +2,7 @@ package substrate
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -26,6 +27,12 @@ func TestFullSubClient_TransferVerify(t *testing.T) {
 	exist, err := gc.QueryStorage(config.LiquidityBondModuleId, config.StorageBondRecords, bk, nil, br)
 	assert.NoError(t, err)
 	assert.True(t, exist)
+
+	sc1, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+	evts, err := sc1.GetEvents(973215)
+	assert.NoError(t, err)
+	fmt.Println(len(evts))
 
 	sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	assert.NoError(t, err)

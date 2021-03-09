@@ -2,16 +2,16 @@ package substrate
 
 import (
 	"errors"
-	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 
 	scalecodec "github.com/itering/scale.go"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 )
 
 const (
 	TransferModuleName = "Balances"
 	TransferKeepAlive  = "transfer_keep_alive"
-	Transfer = "transfer"
+	Transfer           = "transfer"
 
 	ParamDest     = "dest"
 	ParamDestType = "Address"

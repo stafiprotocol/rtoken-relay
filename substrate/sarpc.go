@@ -3,15 +3,19 @@ package substrate
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"time"
+
 	"github.com/ChainSafe/log15"
+	"github.com/gorilla/websocket"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/source"
 	"github.com/itering/scale.go/types"
 	"github.com/itering/scale.go/utiles"
+	"github.com/itering/substrate-api-rpc/pkg/recws"
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/itering/substrate-api-rpc/util"
-	"github.com/itering/substrate-api-rpc/websocket"
-	"io/ioutil"
+	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
 )
 
 const (
@@ -21,51 +25,69 @@ const (
 
 type SarpcClient struct {
 	endpoint           string
-	wsconn             websocket.WsConn
+	rec                *recws.RecConn
 	log                log15.Logger
 	metaRaw            string
 	typesPath          string
 	currentSpecVersion int
-	metaDecoder        scalecodec.MetadataDecoder
+	metaDecoder        *scalecodec.MetadataDecoder
 }
 
 func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient, error) {
-	log.Info("Connecting to substrate chain with Sarpc", "Endpoint", endpoint)
+	api, err := gsrpc.NewSubstrateAPI(endpoint)
+	if err != nil {
+		return nil, err
+	}
 
+	latestHash, err := api.RPC.Chain.GetFinalizedHead()
+	if err != nil {
+		return nil, err
+	}
+	log.Info("NewSarpcClient", "latestHash", latestHash.Hex())
+
+	rec := &recws.RecConn{KeepAliveTimeout: 10 * time.Second}
+	rec.Dial(endpoint, nil)
 	sc := &SarpcClient{
 		endpoint:           endpoint,
+		rec:                rec,
 		log:                log,
 		metaRaw:            "",
 		typesPath:          typesPath,
 		currentSpecVersion: 0,
-		metaDecoder:        scalecodec.MetadataDecoder{},
+		metaDecoder:        &scalecodec.MetadataDecoder{},
 	}
-	websocket.SetEndpoint(sc.endpoint)
-	var err error
-	types.RuntimeType{}.Reg()
-	content, err := ioutil.ReadFile(typesPath)
-	if err != nil {
-		panic(err)
-	}
-	types.RegCustomTypes(source.LoadTypeRegistry(content))
 
-	var pool *websocket.PoolConn
-	if pool, err = websocket.Init(); err == nil {
-		defer pool.Close()
-		sc.wsconn = pool.Conn
-	} else {
-		return nil, fmt.Errorf("websocket init error: %s", err)
+	err = sc.UpdateMeta(latestHash.Hex())
+	if err != nil {
+		return nil, err
 	}
 
 	return sc, nil
 }
 
+func (sc *SarpcClient) SendWsRequest(v interface{}, action []byte) (err error) {
+	if err = sc.rec.WriteMessage(websocket.TextMessage, action); err != nil {
+		if sc.rec != nil {
+			sc.rec.MarkUnusable()
+		}
+		return fmt.Errorf("websocket send error: %v", err)
+	}
+	if err = sc.rec.ReadJSON(v); err != nil {
+		if sc.rec != nil {
+			sc.rec.MarkUnusable()
+		}
+		return
+	}
+	return nil
+}
+
 func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	v := &rpc.JsonRpcResult{}
 	// runtime version
-	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
+	if err := sc.SendWsRequest(v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
 		return err
 	}
+
 	r := v.ToRuntimeVersion()
 	if r == nil {
 		return fmt.Errorf("runtime version nil")
@@ -73,7 +95,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 
 	// metadata raw
 	if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
-		if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
+		if err := sc.SendWsRequest(v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
 			return err
 		}
 		metaRaw, err := v.ToString()
@@ -83,6 +105,9 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 		sc.metaRaw = metaRaw
 		sc.metaDecoder.Init(utiles.HexToBytes(metaRaw))
 		err = sc.metaDecoder.Process()
+		if err != nil {
+			return err
+		}
 
 		types.RuntimeType{}.Reg()
 		content, err := ioutil.ReadFile(sc.typesPath)
@@ -102,7 +127,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 
 func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 	v := &rpc.JsonRpcResult{}
-	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
+	if err := sc.SendWsRequest(v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
 		return nil, err
 	}
 	rpcBlock := v.ToBlock()
@@ -135,11 +160,11 @@ func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*scalecodec.ExtrinsicD
 }
 
 func (sc *SarpcClient) IsConnected() bool {
-	return sc.wsconn.IsConnected()
+	return sc.rec.IsConnected()
 }
 
 func (sc *SarpcClient) WebsocketReconnect() error {
-	if _, _, err := sc.wsconn.ReadMessage(); err != nil {
+	if _, _, err := sc.rec.ReadMessage(); err != nil {
 		return fmt.Errorf("websocket reconnect error: %s", err)
 	}
 	return nil
@@ -147,7 +172,7 @@ func (sc *SarpcClient) WebsocketReconnect() error {
 
 func (sc *SarpcClient) GetBlockHash(blockNum uint64) (string, error) {
 	v := &rpc.JsonRpcResult{}
-	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.ChainGetBlockHash(wsId, int(blockNum))); err != nil {
+	if err := sc.SendWsRequest(v, rpc.ChainGetBlockHash(wsId, int(blockNum))); err != nil {
 		return "", fmt.Errorf("websocket get block hash error: %v", err)
 	}
 
@@ -160,8 +185,13 @@ func (sc *SarpcClient) GetBlockHash(blockNum uint64) (string, error) {
 }
 
 func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*ChainEvent, error) {
+	err := sc.UpdateMeta(blockHash)
+	if err != nil {
+		return nil, err
+	}
+
 	v := &rpc.JsonRpcResult{}
-	if err := websocket.SendWsRequest(sc.wsconn, v, rpc.StateGetStorage(wsId, storageKey, blockHash)); err != nil {
+	if err := sc.SendWsRequest(v, rpc.StateGetStorage(wsId, storageKey, blockHash)); err != nil {
 		return nil, fmt.Errorf("websocket get event raw error: %v", err)
 	}
 	eventRaw, err := v.ToString()
@@ -169,10 +199,12 @@ func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*ChainEvent, error) {
 		return nil, err
 	}
 
-	err = sc.UpdateMeta(blockHash)
+	types.RuntimeType{}.Reg()
+	content, err := ioutil.ReadFile(sc.typesPath)
 	if err != nil {
-		return nil, nil
+		panic(err)
 	}
+	types.RegCustomTypes(source.LoadTypeRegistry(content))
 
 	// parse event raw into []ChainEvent
 	e := scalecodec.EventsDecoder{}

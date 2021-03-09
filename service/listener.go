@@ -34,10 +34,10 @@ type listener struct {
 
 // Frequency of polling for a new block
 var (
-	BlockRetryInterval = time.Second * 5
-	BlockRetryLimit = 5
-	TerminatedError = errors.New("terminated")
-	BlockDelay uint64 = 5
+	BlockRetryInterval        = time.Second * 5
+	BlockRetryLimit           = 5
+	TerminatedError           = errors.New("terminated")
+	BlockDelay         uint64 = 5
 )
 
 func NewListener(ctx context.Context, sarpc *substrate.SarpcClient, gsrpc *substrate.GsrpcClient, bs blockstore.Blockstorer,
@@ -118,7 +118,7 @@ func (l *listener) pollBlocks() error {
 			}
 
 			// Sleep if the block we want comes after the most recently finalized block
-			if currentBlock + BlockDelay > uint64(finalizedHeader.Number) {
+			if currentBlock+BlockDelay > uint64(finalizedHeader.Number) {
 				l.log.Trace("Block not yet finalized", "target", currentBlock, "latest", finalizedHeader.Number)
 				time.Sleep(BlockRetryInterval)
 				continue

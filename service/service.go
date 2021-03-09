@@ -97,8 +97,7 @@ func ChainClient(ctx context.Context, gc *substrate.GsrpcClient, chains map[conn
 		ctype := ChainType(chainConf.Type)
 		switch ctype {
 		case Substrate:
-			//cc := new(substrate.ChainClient)
-			sc, err := substrate.NewSarpcClient(chainConf.Endpoint, chainConf.TypesPath, log.New("Sarpc", chainConf.Name))
+			sc, err := substrate.NewSarpcClient(chainConf.Endpoint, chainConf.TypesPath, log.New("Sarpc", chainConf.Name, "endpoint", chainConf.Endpoint))
 			if err != nil {
 				return fmt.Errorf("NewSarpcClient error: %s for chain: %s", err, chainConf.Name)
 			}
