@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/client"
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -98,4 +99,8 @@ func (c *Client) QueryBlock(height int64) (*ctypes.ResultBlock, error) {
 	// header, tx -> Block
 	// results -> BlockResults
 	return node.Block(context.Background(), &height)
+}
+
+func (c *Client) QueryAccount(addr types.AccAddress) (client.Account, error) {
+	return c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
 }
