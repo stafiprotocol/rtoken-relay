@@ -141,6 +141,14 @@
       "AmountUnmatch"
     ]
   },
+  "BondState": {
+    "type": "enum",
+    "value_list": [
+      "Dealing",
+      "Fail",
+      "Success"
+    ]
+  },
   "RproposalStatus": {
     "type": "enum",
     "value_list": [

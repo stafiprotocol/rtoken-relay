@@ -20,6 +20,7 @@ var (
 	AliceKey     = keystore.TestKeyRing.SubstrateKeys[keystore.AliceKey].AsKeyringPair()
 	From         = "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
 	From1        = "31d96Cq9idWQqPq3Ch5BFY84zrThVE3r98M7vG4xYaSWHwsX"
+	From2 = "1TgYb5x8xjsZRyL5bwvxUoAWBn36psr4viSMHbRXA8bkB2h"
 	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
 )
 
@@ -139,12 +140,22 @@ func TestGsrpcClient_Bond(t *testing.T) {
 
 	err = gc.bond(big.NewInt(10000000000000))
 	assert.NoError(t, err)
+}
 
-	//bob, err := types.NewAddressFromHexAccountID("0xf6241901b8e0048421427ef6cd3513865c2b6d2ad3ca2c3d95d28dfca2b4f722")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//amount := uint64(1000000000000 * 10)
-	//ext, err := gc.NewUnsignedExtrinsic("Balances.transfer", bob, types.NewUCompactFromUInt(amount))
+func TestGsrpcClient_Bond1(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From2, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+	gc, err := NewGsrpcClient(context.Background(), "wss://polkadot-test-rpc.stafi.io", krp, tlog)
+	assert.NoError(t, err)
+
+	err = gc.bond(big.NewInt(10000000000000))
+	assert.NoError(t, err)
 }
