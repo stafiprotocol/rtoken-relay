@@ -57,3 +57,9 @@ func TestFullClient_TransferVerify(t *testing.T) {
 	assert.NoError(t, err)
 	t.Log(reason)
 }
+
+func TestFullClient_CurrentEra(t *testing.T) {
+	era,err:=fullClient.CurrentEra()
+	assert.NoError(t,err)
+	t.Log(era)
+}

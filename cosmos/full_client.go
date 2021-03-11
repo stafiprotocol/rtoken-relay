@@ -14,6 +14,7 @@ import (
 )
 
 var _ conn.Chain = &FullClient{}
+var eraBlockNumber = int64(3600) //6hours 6*60*60/6
 
 //FullClient implement conn.Chain interface
 type FullClient struct {
@@ -94,9 +95,19 @@ func (fc *FullClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error
 }
 
 func (fc *FullClient) CurrentEra() (subClientTypes.U32, error) {
-	return 0, nil
+	if len(fc.SubClients) == 0 || len(fc.Keys) == 0 {
+		return 0, fmt.Errorf("no subClient")
+	}
+	client := fc.SubClients[fc.Keys[0]]
+	status, err := client.GetStatus()
+	if err != nil {
+		return 0, err
+	}
+	era := status.SyncInfo.LatestBlockHeight / eraBlockNumber
+	return subClientTypes.NewU32(uint32(era)), nil
 }
 
 func (fc *FullClient) BondWork(e *conn.EvtEraPoolUpdated) (*big.Int, error) {
+
 	return nil, nil
 }
