@@ -4,22 +4,25 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	subClientTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/conn"
-	"github.com/stafiprotocol/rtoken-relay/cosmos/rpc"
 	"math/big"
 )
 
 var _ conn.Chain = &FullClient{}
-var eraBlockNumber = int64(3600) //6hours 6*60*60/6
+
+const eraBlockNumber = int64(3600) //6hours 6*60*60/6
 
 //FullClient implement conn.Chain interface
 type FullClient struct {
 	Keys       []keyring.Info
-	SubClients map[keyring.Info]*rpc.Client
+	SubClients map[keyring.Info]*SubClient
+	Log        log15.Logger
 }
 
 func (fc *FullClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error) {
@@ -30,7 +33,7 @@ func (fc *FullClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error
 	client := fc.SubClients[fc.Keys[0]]
 
 	//check tx hash
-	res, err := client.QueryTxByHash(hashStr)
+	res, err := client.RpcClient.QueryTxByHash(hashStr)
 	if err != nil {
 		return conn.TxhashUnmatch, err
 	}
@@ -39,7 +42,7 @@ func (fc *FullClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error
 	}
 
 	//check block hash
-	blockRes, err := client.QueryBlock(res.Height)
+	blockRes, err := client.RpcClient.QueryBlock(res.Height)
 	if err != nil {
 		return conn.BlockhashUnmatch, err
 	}
@@ -60,7 +63,7 @@ func (fc *FullClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error
 				if err == nil {
 					//amount and pool address must in one message
 					if bytes.Equal(toAddr.Bytes(), r.Pool) &&
-						sendMsg.Amount.AmountOf(client.GetDenom()).Equal(types.NewIntFromBigInt(r.Amount.Int)) {
+						sendMsg.Amount.AmountOf(client.RpcClient.GetDenom()).Equal(types.NewIntFromBigInt(r.Amount.Int)) {
 						poolIsMatch = true
 						amountIsMatch = true
 						fromAddressStr = sendMsg.FromAddress
@@ -83,7 +86,7 @@ func (fc *FullClient) TransferVerify(r *conn.BondRecord) (conn.BondReason, error
 	if err != nil {
 		return conn.PubkeyUnmatch, err
 	}
-	accountRes, err := client.QueryAccount(fromAddress)
+	accountRes, err := client.RpcClient.QueryAccount(fromAddress)
 	if err != nil {
 		return conn.PubkeyUnmatch, err
 	}
@@ -99,7 +102,7 @@ func (fc *FullClient) CurrentEra() (subClientTypes.U32, error) {
 		return 0, fmt.Errorf("no subClient")
 	}
 	client := fc.SubClients[fc.Keys[0]]
-	status, err := client.GetStatus()
+	status, err := client.RpcClient.GetStatus()
 	if err != nil {
 		return 0, err
 	}
@@ -108,6 +111,47 @@ func (fc *FullClient) CurrentEra() (subClientTypes.U32, error) {
 }
 
 func (fc *FullClient) BondWork(e *conn.EvtEraPoolUpdated) (*big.Int, error) {
+	zero := big.NewInt(0)
+	bond := e.Bond.Int
+	unbond := e.Unbond.Int
 
+	key := fc.foundKey(e.Pool)
+	if key == nil {
+		fc.Log.Info("no key for pool", "pool", hexutil.Encode(e.Pool))
+		return nil, nil
+	}
+
+	if bond.Cmp(zero) == 0 && unbond.Cmp(zero) == 0 {
+		fc.Log.Info("BondWork: bond and unbond are both zero")
+		return nil, nil
+	}
+
+	subClient := fc.SubClients[key]
+
+	fc.Log.Info("BondOrUnbond", "bond", bond, "unbond", unbond)
+	if bond.Cmp(unbond) < 0 {
+		diff := big.NewInt(0).Sub(unbond, bond)
+		err := subClient.unbond(diff)
+		if err != nil {
+			return nil, err
+		}
+	} else if bond.Cmp(unbond) > 0 {
+		diff := big.NewInt(0).Sub(bond, unbond)
+		err := subClient.bond(diff)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		fc.Log.Info("EvtEraPoolUpdated: bond is equal to unbond")
+	}
 	return nil, nil
+}
+
+func (fc *FullClient) foundKey(pool subClientTypes.Bytes) keyring.Info {
+	for _, key := range fc.Keys {
+		if bytes.Equal(key.GetAddress().Bytes(), pool) {
+			return key
+		}
+	}
+	return nil
 }

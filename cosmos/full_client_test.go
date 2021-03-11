@@ -2,6 +2,7 @@ package cosmos_test
 
 import (
 	"encoding/hex"
+	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	subClientTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -18,6 +19,7 @@ import (
 var client *rpc.Client
 var fullClient cosmos.FullClient
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu")
+var tlog = log15.Root()
 
 func init() {
 	rpcClient, err := rpcHttp.New("http://127.0.0.1:26657", "/websocket")
@@ -37,9 +39,14 @@ func init() {
 		panic(err)
 	}
 
-	fullClient = cosmos.FullClient{Keys: []keyring.Info{keyInfo}, SubClients: map[keyring.Info]*rpc.Client{keyInfo: client}}
+	fullClient = cosmos.FullClient{
+		Log:  tlog,
+		Keys: []keyring.Info{keyInfo},
+		SubClients: map[keyring.Info]*cosmos.SubClient{
+			keyInfo: &cosmos.SubClient{RpcClient: *client, Log: tlog},
+		},
+	}
 }
-
 func TestFullClient_TransferVerify(t *testing.T) {
 
 	pubkey, err := types.GetPubKeyFromBech32(types.Bech32PubKeyTypeAccPub, "cosmospub1addwnpepqtnhzz60w9ruzzkepksxk6wj66u073ncdm6450c73zwr8h3t7z6pvxhuhtr")
@@ -59,7 +66,7 @@ func TestFullClient_TransferVerify(t *testing.T) {
 }
 
 func TestFullClient_CurrentEra(t *testing.T) {
-	era,err:=fullClient.CurrentEra()
-	assert.NoError(t,err)
+	era, err := fullClient.CurrentEra()
+	assert.NoError(t, err)
 	t.Log(era)
 }
