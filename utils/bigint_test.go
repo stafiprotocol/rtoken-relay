@@ -11,7 +11,7 @@ var oneEth = big.NewInt(1000000000000000000)
 
 func TestFromString(t *testing.T) {
 	a := "32000000000000000000"
-	b, ok := FromString(a)
+	b, ok := StringToBigint(a)
 	assert.Equal(t, true, ok)
 
 	x := big.NewInt(32)

@@ -1,4 +1,4 @@
-package conn
+package core
 
 import (
 	"gotest.tools/assert"

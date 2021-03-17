@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/itering/scale.go v1.0.8
 	github.com/itering/substrate-api-rpc v0.3.5
+	github.com/prometheus/client_golang v1.4.1
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.2
 	github.com/stretchr/testify v1.7.0

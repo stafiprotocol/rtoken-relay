@@ -1,17 +1,16 @@
 package substrate
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
 	"github.com/stafiprotocol/go-substrate-rpc-client/rpc/author"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/config"
+	"math/big"
 )
 
 type GsrpcClient struct {
@@ -19,11 +18,11 @@ type GsrpcClient struct {
 	api         *gsrpc.SubstrateAPI
 	key         *signature.KeyringPair
 	genesisHash types.Hash
-	ctx         context.Context
+	stop        <-chan int
 	log         log15.Logger
 }
 
-func NewGsrpcClient(ctx context.Context, endpoint string, key *signature.KeyringPair, log log15.Logger) (*GsrpcClient, error) {
+func NewGsrpcClient(endpoint string, key *signature.KeyringPair, log log15.Logger, stop <-chan int) (*GsrpcClient, error) {
 	log.Info("Connecting to substrate chain with Gsrpc", "endpoint", endpoint)
 
 	api, err := gsrpc.NewSubstrateAPI(endpoint)
@@ -41,9 +40,36 @@ func NewGsrpcClient(ctx context.Context, endpoint string, key *signature.Keyring
 		api:         api,
 		key:         key,
 		genesisHash: genesisHash,
-		ctx:         ctx,
+		stop:        stop,
 		log:         log,
 	}, nil
+}
+
+func (gc *GsrpcClient) Address() string {
+	return gc.key.Address
+}
+
+func (gc *GsrpcClient) GetLatestBlockNumber() (uint64, error) {
+	h, err := gc.GetHeaderLatest()
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(h.Number), nil
+}
+
+func (gc *GsrpcClient) GetFinalizedBlockNumber() (uint64, error) {
+	hash, err := gc.GetFinalizedHead()
+	if err != nil {
+		return 0, err
+	}
+
+	header, err := gc.GetHeader(hash)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(header.Number), nil
 }
 
 func (gc *GsrpcClient) GetHeaderLatest() (*types.Header, error) {
@@ -155,7 +181,7 @@ func (gc *GsrpcClient) SignAndSubmitTx(ext *types.Extrinsic) error {
 func (gc *GsrpcClient) watchSubmission(sub *author.ExtrinsicStatusSubscription) error {
 	for {
 		select {
-		case <-gc.ctx.Done():
+		case <-gc.stop:
 			return TerminatedError
 		case status := <-sub.Chan():
 			switch {
@@ -209,52 +235,62 @@ func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
 }
 
-func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) error {
-	zero := big.NewInt(0)
-	if bond.Cmp(zero) == 0 && unbond.Cmp(zero) == 0 {
-		gc.log.Info("BondWork: bond and unbond are both zero")
-		return nil
-	}
-
+func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) ([]byte, error) {
 	gc.log.Info("BondOrUnbond", "bond", bond, "unbond", unbond)
+
 	if bond.Cmp(unbond) < 0 {
 		diff := big.NewInt(0).Sub(unbond, bond)
-		err := gc.unbond(diff)
-		if err != nil {
-			return err
-		}
+		return gc.NewUnBondOpaqueCall(diff)
 	} else if bond.Cmp(unbond) > 0 {
 		diff := big.NewInt(0).Sub(bond, unbond)
-		err := gc.bond(diff)
-		if err != nil {
-			return err
-		}
+		return gc.NewBondOpaqueCall(diff)
 	} else {
 		gc.log.Info("EvtEraPoolUpdated: bond is equal to unbond")
+		return nil, BondEqualToUnbondError
 	}
-
-	return nil
 }
 
-func (gc *GsrpcClient) unbond(val *big.Int) error {
-	ext, err := gc.NewUnsignedExtrinsic(MethodUnbond, types.NewUCompact(val))
+func (gc *GsrpcClient) NewBondOpaqueCall(amount *big.Int) ([]byte, error) {
+	meta, err := gc.GetLatestMetadata()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return gc.SignAndSubmitTx(ext)
+
+	call, err := types.NewCall(meta, config.MethodBondExtra, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	opaque, err := types.EncodeToBytes(call)
+	if err != nil {
+		return nil, err
+	}
+
+	return opaque, nil
 }
 
-func (gc *GsrpcClient) bond(val *big.Int) error {
-	ext, err := gc.NewUnsignedExtrinsic(MethodBondExtra, types.NewUCompact(val))
+func (gc *GsrpcClient) NewUnBondOpaqueCall(amount *big.Int) ([]byte, error) {
+	meta, err := gc.GetLatestMetadata()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return gc.SignAndSubmitTx(ext)
+
+	call, err := types.NewCall(meta, config.MethodUnbond, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	opaque, err := types.EncodeToBytes(call)
+	if err != nil {
+		return nil, err
+	}
+
+	return opaque, nil
 }
 
 func (gc *GsrpcClient) StakingActive(ac types.AccountID) (*StakingLedger, error) {
 	s := new(StakingLedger)
-	exist, err := gc.QueryStorage(StakingModuleId, StorageLegder, ac[:], nil, s)
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLegder, ac[:], nil, s)
 	if err != nil {
 		return nil, err
 	}

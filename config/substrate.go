@@ -1,0 +1,24 @@
+package config
+
+const (
+	TransferModuleId  = "Balances"
+	TransferKeepAlive = "transfer_keep_alive"
+	Transfer          = "transfer"
+
+	StakingModuleId  = "Staking"
+	StorageActiveEra = "ActiveEra"
+
+	StorageLegder   = "Ledger"
+	MethodUnbond    = "Staking.unbond"
+	MethodBondExtra = "Staking.bond_extra"
+
+	MultisigModuleId        = "Multisig"
+	NewMultisigEventId      = "NewMultisig"
+	MultisigExecutedEventId = "MultisigExecuted"
+
+	ParamDest     = "dest"
+	ParamDestType = "Address"
+
+	ParamValue     = "value"
+	ParamValueType = "Compact<Balance>"
+)

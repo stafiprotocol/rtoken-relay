@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,7 +53,7 @@ func TestSarpcClient_GetExtrinsics(t *testing.T) {
 		fmt.Println("address", ext.Address)
 		fmt.Println(ext.Params)
 		for _, p := range ext.Params {
-			if p.Name == ParamDest && p.Type == ParamDestType {
+			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
 				dest, ok := p.Value.(string)
 				fmt.Println("ok", ok)
 				fmt.Println(dest)
@@ -96,7 +97,7 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 		fmt.Println("address", ext.Address)
 		fmt.Println(ext.Params)
 		for _, p := range ext.Params {
-			if p.Name == ParamDest && p.Type == ParamDestType {
+			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
 				//dest, ok := p.Value.(string)
 				//fmt.Println("ok", ok)
 				//fmt.Println(dest)
@@ -109,6 +110,32 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 				val, ok := v.(string)
 				fmt.Println("ok2", ok)
 				fmt.Println(val)
+			}
+
+			fmt.Println("name", p.Name, "value", p.Value, "type", p.Type)
+		}
+	}
+}
+
+func TestSarpcClient_GetExtrinsics2(t *testing.T) {
+	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	/// stafi transfer_keep_alive
+	exts, err := sc.GetExtrinsics("0xb39cc51509f579344d6e634ce885555871be4a5e4bccae129b3e7b348e5e55b9")
+
+	assert.NoError(t, err)
+	for _, ext := range exts {
+		fmt.Println("exthash", ext.ExtrinsicHash)
+		fmt.Println("moduleName", ext.CallModule.Name)
+		fmt.Println("methodName", ext.Call.Name)
+		fmt.Println("address", ext.Address)
+		fmt.Println(ext.Params)
+		for _, p := range ext.Params {
+			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
+				dest, ok := p.Value.(string)
+				fmt.Println("ok", ok)
+				fmt.Println(dest)
 			}
 
 			fmt.Println("name", p.Name, "value", p.Value, "type", p.Type)

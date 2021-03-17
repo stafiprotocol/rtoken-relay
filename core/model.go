@@ -1,10 +1,38 @@
-package conn
+package core
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 )
+
+type EvtLiquidityBond struct {
+	AccountId types.AccountID
+	Rsymbol   RSymbol
+	BondId    types.Hash
+}
+
+type BondFlow struct {
+	Key    *BondKey
+	Record *BondRecord
+	Reason BondReason
+}
+
+type BondKey struct {
+	Rsymbol RSymbol
+	BondId  types.Hash
+}
+
+type BondRecord struct {
+	Bonder    types.AccountID
+	Rsymbol   RSymbol
+	Pubkey    types.Bytes
+	Pool      types.Bytes
+	Blockhash types.Bytes
+	Txhash    types.Bytes
+	Amount    types.U128
+}
 
 type RSymbol string
 
@@ -49,67 +77,16 @@ func (r RSymbol) Encode(encoder scale.Encoder) error {
 	}
 }
 
-type BondKey struct {
-	Symbol RSymbol
-	BondId types.Hash
-}
-
-type BondRecord struct {
-	Bonder    types.AccountID
-	Symbol    RSymbol
-	Pubkey    types.Bytes
-	Pool      types.Bytes
-	Blockhash types.Bytes
-	Txhash    types.Bytes
-	Amount    types.U128
-}
-
-type RproposalStatus string
-
-const (
-	Initiated = RproposalStatus("Initiated")
-	Approved  = RproposalStatus("Approved")
-	Rejected  = RproposalStatus("Rejected")
-	Expired   = RproposalStatus("Expired")
-)
-
-func (r *RproposalStatus) Decode(decoder scale.Decoder) error {
-	b, err := decoder.ReadOneByte()
-	if err != nil {
-		return err
-	}
-
-	switch b {
-	case 0:
-		*r = Initiated
-	case 1:
-		*r = Approved
-	case 2:
-		*r = Rejected
-	case 3:
-		*r = Expired
-	default:
-		return fmt.Errorf("RproposalStatus decode error: %d", b)
-	}
-
-	return nil
-}
-
-type VoteState struct {
-	VotesFor     []types.AccountID
-	VotesAgainst []types.AccountID
-	Status       RproposalStatus
-}
-
 type BondReason string
 
 const (
-	Pass             = BondReason("Pass")
-	BlockhashUnmatch = BondReason("BlockhashUnmatch")
-	TxhashUnmatch    = BondReason("TxhashUnmatch")
-	PubkeyUnmatch    = BondReason("PubkeyUnmatch")
-	PoolUnmatch      = BondReason("PoolUnmatch")
-	AmountUnmatch    = BondReason("AmountUnmatch")
+	BondReasonDefault = BondReason("Default")
+	Pass              = BondReason("Pass")
+	BlockhashUnmatch  = BondReason("BlockhashUnmatch")
+	TxhashUnmatch     = BondReason("TxhashUnmatch")
+	PubkeyUnmatch     = BondReason("PubkeyUnmatch")
+	PoolUnmatch       = BondReason("PoolUnmatch")
+	AmountUnmatch     = BondReason("AmountUnmatch")
 )
 
 func (br BondReason) Encode(encoder scale.Encoder) error {
@@ -157,6 +134,43 @@ func (br *BondReason) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+type RproposalStatus string
+
+const (
+	Initiated = RproposalStatus("Initiated")
+	Approved  = RproposalStatus("Approved")
+	Rejected  = RproposalStatus("Rejected")
+	Expired   = RproposalStatus("Expired")
+)
+
+func (r *RproposalStatus) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*r = Initiated
+	case 1:
+		*r = Approved
+	case 2:
+		*r = Rejected
+	case 3:
+		*r = Expired
+	default:
+		return fmt.Errorf("RproposalStatus decode error: %d", b)
+	}
+
+	return nil
+}
+
+type VoteState struct {
+	VotesFor     []types.AccountID
+	VotesAgainst []types.AccountID
+	Status       RproposalStatus
+}
+
 type Proposal struct {
 	Call       types.Call
 	Key        *BondKey
@@ -171,17 +185,29 @@ func (p *Proposal) Encode() ([]byte, error) {
 	}{p.Key.BondId, p.Call})
 }
 
-type PoolBondKey struct {
-	Symbol RSymbol
-	Pool   types.Bytes
+type PoolKey struct {
+	Rsymbol RSymbol
+	Pool    types.Bytes
 }
 
-type PoolSubAccountKey struct {
-	Pool       types.Bytes
-	SubAccount types.Bytes
+type EraPoolUpdatedFlow struct {
+	Evt           *EvtEraPoolUpdated
+	LastVoterFlag bool
+	Threshold     uint16
+	SubAccounts   []types.Bytes
+	NewMul        *types.EventMultisigNewMultisig
+	MulExecute    *types.EventMultisigExecuted
 }
 
-//type PoolStakingActive struct {
-//	Pool   types.Bytes
-//	Active types.U128
-//}
+type EvtEraPoolUpdated struct {
+	Rsymbol   RSymbol
+	NewEra    uint32
+	Pool      types.Bytes
+	Bond      types.U128
+	Unbond    types.U128
+	LastVoter types.Bytes
+}
+
+func (e *EvtEraPoolUpdated) PoolStr() string {
+	return hexutil.Encode(e.Pool)
+}

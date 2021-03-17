@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -17,29 +17,25 @@ const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keys"
 
 type Config struct {
-	MainConf   MainConfig    `json:"main"`
-	OtherConfs []OtherConfig `json:"others"`
-}
-
-type MainConfig struct {
-	Name           string            `json:"name"`
-	Endpoint       string            `json:"endpoint"`
-	From           string            `json:"from"`
-	KeystorePath   string            `json:"keystorePath"`
-	BlockstorePath string            `json:"blockstorePath"`
-	TypesPath      string            `json:"typesPath"`
-	Opts           map[string]string `json:"opts"`
+	Chains []RawChainConfig `json:"chains"`
 }
 
 // RawChainConfig is parsed directly from the config file and should be using to construct the core.ChainConfig
-type OtherConfig struct {
-	Name         string   `json:"name"`
-	Type         string   `json:"type"`
-	TypesPath    string   `json:"typesPath"`
-	Endpoint     string   `json:"endpoint"`
-	Symbol       string   `json:"symbol"`
-	Accounts     []string `json:"accounts"`
-	KeystorePath string   `json:"keystorePath"`
+type RawChainConfig struct {
+	Name            string                 `json:"name"`
+	Type            string                 `json:"type"`
+	Rsymbol         string                 `json:"rsymbol"`
+	Endpoint        string                 `json:"endpoint"` // url for rpc endpoint
+	KeystorePath    string                 `json:"keystorePath"`
+	Accounts        []string               `json:"from"` // address of key to use
+	LatestBlockFlag bool                   `json:"latestBlockFlag"`
+	Opts            map[string]interface{} `json:"opts"`
+}
+
+func NewConfig() *Config {
+	return &Config{
+		Chains: []RawChainConfig{},
+	}
 }
 
 func GetConfig(ctx *cli.Context) (*Config, error) {
@@ -54,7 +50,6 @@ func GetConfig(ctx *cli.Context) (*Config, error) {
 		return &fig, err
 	}
 	log.Debug("Loaded config", "path", path)
-
 	return &fig, nil
 }
 

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"strconv"
 
 	log "github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/rtoken-relay/chains/substrate"
 	"github.com/stafiprotocol/rtoken-relay/config"
-	"github.com/stafiprotocol/rtoken-relay/service"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/urfave/cli/v2"
 )
 
@@ -95,7 +97,37 @@ func run(ctx *cli.Context) error {
 		return err
 	}
 
-	service.Start(cfg, log.Root())
+	// Used to signal core shutdown due to fatal error
+	sysErr := make(chan error)
+	c := core.NewCore(sysErr)
+
+	for _, chain := range cfg.Chains {
+		chainConfig := &core.ChainConfig{
+			Name:           chain.Name,
+			Endpoint:       chain.Endpoint,
+			Symbol:         core.RSymbol(chain.Rsymbol),
+			Accounts:       chain.Accounts,
+			Insecure:       false,
+			BlockstorePath: ctx.String(config.BlockstorePathFlag.Name),
+			Opts:           chain.Opts,
+		}
+		var newChain core.Chain
+
+		logger := log.Root().New("chain", chainConfig.Name)
+
+		if chain.Type == "substrate" {
+			newChain, err = substrate.InitializeChain(chainConfig, logger, sysErr)
+		} else {
+			return errors.New("unrecognized Chain Type")
+		}
+
+		if err != nil {
+			return err
+		}
+		c.AddChain(newChain)
+	}
+
+	c.Start()
 
 	return nil
 }
