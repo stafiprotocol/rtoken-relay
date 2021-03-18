@@ -34,7 +34,7 @@ func init() {
 		panic(err)
 	}
 
-	client = rpc.NewClient(rpcClient, key, "stargate-final", "recipient")
+	client, _ = rpc.NewClient(rpcClient, key, "stargate-final", "recipient")
 	client.SetGasPrice("0.000001umuon")
 	client.SetDenom("umuon")
 }

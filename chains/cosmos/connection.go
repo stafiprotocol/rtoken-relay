@@ -1,7 +1,9 @@
 package cosmos
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -15,25 +17,26 @@ import (
 type Connection struct {
 	url        string
 	symbol     core.RSymbol
-	poolKeys   []keyring.Info
-	subClients map[keyring.Info]*cosmos.SubClient
+	poolKeys   []string //hex string
+	subClients map[string]*cosmos.SubClient
 	log        log15.Logger
 	stop       <-chan int
 }
 
-type subKeys map[string][]string
-
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
-
-	subKeyMap, ok := cfg.Opts["subKeys"].(subKeys)
-	//todo check number
-	if !ok {
-		return nil, errors.New("no subKeys")
+	subKeys := make(map[string]string)
+	for _, account := range cfg.Accounts {
+		subKey, ok := cfg.Opts[account].(string)
+		if !ok || len(subKey) == 0 {
+			return nil, errors.New(fmt.Sprintf("account %s has no subKeys", account))
+		}
+		subKeys[account] = subKey
 	}
 
-	subClients := make(map[keyring.Info]*cosmos.SubClient)
-	keys := make([]keyring.Info, 0)
+	subClients := make(map[string]*cosmos.SubClient)
+	keys := make([]string, 0)
 
+	fmt.Printf("Will open cosmos wallet from <%s>. Please ", cfg.KeystorePath)
 	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, cfg.KeystorePath, os.Stdin)
 	if err != nil {
 		return nil, err
@@ -44,15 +47,19 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		if err != nil {
 			panic(err)
 		}
-		client := rpc.NewClient(rpcClient, key, "stargate-final", account)
+		client, err := rpc.NewClient(rpcClient, key, "stargate-final", account)
+		if err != nil {
+			return nil, err
+		}
 		client.SetGasPrice("0.000001umuon")
 		client.SetDenom("umuon")
 		keyInfo, err := key.Key(account)
 		if err != nil {
 			return nil, err
 		}
-		subClients[keyInfo] = cosmos.NewSubClient(log, client, subKeyMap[account])
-		keys = append(keys, keyInfo)
+		addrHexStr := hex.EncodeToString(keyInfo.GetAddress().Bytes())
+		subClients[addrHexStr] = cosmos.NewSubClient(log, client, subKeys[account])
+		keys = append(keys, addrHexStr)
 	}
 
 	if len(keys) == 0 {

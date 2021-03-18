@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
 	"os"
 	"strconv"
 
@@ -109,16 +110,21 @@ func run(ctx *cli.Context) error {
 			Accounts:       chain.Accounts,
 			Insecure:       false,
 			BlockstorePath: ctx.String(config.BlockstorePathFlag.Name),
+			KeystorePath:   chain.KeystorePath,
 			Opts:           chain.Opts,
 		}
 		var newChain core.Chain
 
 		logger := log.Root().New("chain", chainConfig.Name)
 
-		if chain.Type == "substrate" {
+		switch chain.Type {
+		case "substrate":
 			newChain, err = substrate.InitializeChain(chainConfig, logger, sysErr)
-		} else {
+		case "cosmos":
+			newChain, err = cosmos.InitializeChain(chainConfig, logger, sysErr)
+		default:
 			return errors.New("unrecognized Chain Type")
+
 		}
 
 		if err != nil {

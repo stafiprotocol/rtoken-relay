@@ -22,11 +22,11 @@ type Client struct {
 	denom     string
 }
 
-func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName string) *Client {
+func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName string) (*Client, error) {
 	encodingConfig := MakeEncodingConfig()
 	info, err := k.Key(fromName)
 	if err != nil {
-		panic(fmt.Sprintf("keyring get address from fromKeyname err: %s", err))
+		return nil, fmt.Errorf("keyring get address from name:%s err: %s", fromName, err)
 	}
 
 	initClientCtx := client.Context{}.
@@ -47,7 +47,7 @@ func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName 
 	return &Client{
 		clientCtx: initClientCtx,
 		rpcClient: rpcClient,
-	}
+	}, nil
 }
 
 //update clientCtx.FromName and clientCtx.FromAddress

@@ -10,11 +10,11 @@ import (
 type SubClient struct {
 	log       log15.Logger
 	rpcClient *rpc.Client
-	subKeys   []string
+	subKey    string
 }
 
-func NewSubClient(log log15.Logger, rpcClient *rpc.Client, subKeys []string) *SubClient {
-	return &SubClient{log: log, rpcClient: rpcClient, subKeys: subKeys}
+func NewSubClient(log log15.Logger, rpcClient *rpc.Client, subKey string) *SubClient {
+	return &SubClient{log: log, rpcClient: rpcClient, subKey: subKey}
 }
 
 func (sc *SubClient) GetRpcClient() *rpc.Client {

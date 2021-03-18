@@ -15,6 +15,7 @@ var (
 	BlockRetryInterval = time.Second * 5
 	BlockRetryLimit    = 5
 )
+
 //listen event from cosmos
 type listener struct {
 	name       string
@@ -79,6 +80,7 @@ func (l *listener) pollBlocks() error {
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
+			time.Sleep(BlockRetryInterval)
 			retry = BlockRetryLimit
 		}
 	}

@@ -22,6 +22,7 @@ func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer 
 		sysErr: sysErr,
 	}
 }
+
 func (w *writer) start() error {
 	return nil
 }
@@ -44,4 +45,5 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
 	}
+	return true
 }
