@@ -65,7 +65,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.Er
 	}
 
 	subs := make([]types.Bytes, 0)
-	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, pkBz, nil, subs)
+	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, pkBz, nil, &subs)
 	if err != nil {
 		return nil, err
 	}

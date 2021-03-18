@@ -8,7 +8,10 @@ const (
 	StakingModuleId  = "Staking"
 	StorageActiveEra = "ActiveEra"
 
-	StorageLegder   = "Ledger"
+	StorageLegder        = "Ledger"
+	MethodAsMulti        = "Multisig.as_multi"
+	MethodApproveAsMulti = "Multisig.approve_as_multi"
+
 	MethodUnbond    = "Staking.unbond"
 	MethodBondExtra = "Staking.bond_extra"
 

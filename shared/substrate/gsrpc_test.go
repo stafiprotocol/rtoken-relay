@@ -2,6 +2,8 @@ package substrate
 
 import (
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/utils"
+	"math/big"
 	"os"
 	"testing"
 
@@ -142,4 +144,98 @@ func TestGsrpcClient_QueryStorage(t *testing.T) {
 	for _, ac := range subAcs {
 		fmt.Println(hexutil.Encode(ac))
 	}
+}
+
+func TestGsrpcClient_Multisig(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	assert.NoError(t, err)
+
+	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
+	assert.NoError(t, err)
+
+	pk := &core.PoolKey{core.RDOT, pool}
+	pkBz, err := types.EncodeToBytes(pk)
+	assert.NoError(t, err)
+
+	var threshold uint16
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, pkBz, nil, &threshold)
+	assert.NoError(t, err)
+	assert.True(t, exist)
+	fmt.Println(threshold)
+
+	subs := make([]types.Bytes, 0)
+	exist, err = gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, pkBz, nil, &subs)
+	assert.NoError(t, err)
+	assert.True(t, exist)
+	fmt.Println(subs)
+
+	var others []types.Bytes
+	for i, ac := range subs {
+		if hexutil.Encode(gc.PublicKey()) == hexutil.Encode(ac) {
+			others = append(subs[:i], subs[i+1:]...)
+		}
+	}
+
+	for _, oth := range others {
+		fmt.Println(hexutil.Encode(oth))
+	}
+
+	bond, _ := utils.StringToBigint("10000000000000")
+	unbond := big.NewInt(0)
+
+	extStr, opaque, err := gc.BondOrUnbondCall(bond, unbond)
+	assert.NoError(t, err)
+	fmt.Println(extStr)
+	fmt.Println(hexutil.Encode(opaque))
+
+	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	info, err := sc.GetPaymentQueryInfo(extStr)
+	assert.NoError(t, err)
+	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
+
+	tp := types.TimePoint{3010, 2}
+	callHash, _ := types.NewHashFromHexString("0xba6c8ec1798285f8f312523e2353ebe8468fab4b55afe1a788a64a65f8bcc72c")
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodApproveAsMulti, threshold, others, tp, callHash, types.Weight(uint64(info.Weight)))
+
+	//fmt.Println(opaque)
+	//ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, types.NewNull(), types.Bytes(opaque), false, types.Weight(uint64(info.Weight)))
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
+}
+
+func TestEncodedExtrinsic(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	bond, _ := utils.StringToBigint("10000000000000")
+	unbond := big.NewInt(0)
+
+	extStr, opaque, err := gc.BondOrUnbondCall(bond, unbond)
+	assert.NoError(t, err)
+
+	//e, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, types.NewUCompact(bond))
+	//assert.NoError(t, err)
+	//bz, err := types.EncodeToBytes(e)
+	//assert.NoError(t, err)
+
+	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	info, err := sc.GetPaymentQueryInfo(extStr)
+	assert.NoError(t, err)
+	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
+	fmt.Println(opaque)
 }

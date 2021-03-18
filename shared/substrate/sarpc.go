@@ -238,3 +238,16 @@ func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*ChainEvent, error) {
 
 	return evts, nil
 }
+
+func (sc *SarpcClient) GetPaymentQueryInfo(encodedExtrinsic string) (paymentInfo *rpc.PaymentQueryInfo, err error) {
+	v := &rpc.JsonRpcResult{}
+	if err = sc.SendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
+		return
+	}
+
+	paymentInfo = v.ToPaymentQueryInfo()
+	if paymentInfo == nil {
+		return nil, fmt.Errorf("get PaymentQueryInfo error")
+	}
+	return
+}
