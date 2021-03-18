@@ -96,14 +96,14 @@ func (l *listener) updateEra() error {
 	if err != nil {
 		return err
 	}
-	era := status.SyncInfo.LatestBlockHeight / eraBlockNumber
+	era := uint32(status.SyncInfo.LatestBlockHeight / eraBlockNumber)
 
-	if uint32(era) <= l.currentEra {
+	if era <= l.currentEra {
 		return nil
 	}
 
 	l.log.Info("get a new era, prepare to send message", "symbol", l.symbol, "currentEra", l.currentEra, "newEra", era)
-	l.currentEra = uint32(era)
+	l.currentEra = era
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)
 	return nil

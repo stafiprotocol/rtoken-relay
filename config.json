@@ -1,7 +1,22 @@
 {
   "chains": [
     {
-      "name": "ratom",
+      "name": "stafi",
+      "type": "substrate",
+      "endpoint": "ws://127.0.0.1:9944",
+      "rsymbol": "RFIS",
+      "from": [
+        "34c2gTujY9tnNVo3YurpQ68q2F34JQsQukvhPAmS7fGKFXhn"
+      ],
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
+      "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
+      "opts": {
+        "startBlock": "1",
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json"
+      }
+    },
+    {
+      "name": "stargate",
       "type": "cosmos",
       "endpoint": "http://127.0.0.1:26657",
       "rsymbol": "RATOM",
