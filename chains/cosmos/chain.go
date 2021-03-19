@@ -43,6 +43,7 @@ func (c *Chain) Start() error {
 
 func (c *Chain) SetRouter(r *core.Router) {
 	r.Listen(c.Rsymbol(), c.writer)
+
 	c.listener.setRouter(r)
 	c.writer.setRouter(r)
 }

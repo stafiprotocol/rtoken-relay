@@ -61,6 +61,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 		return false
 	}
 
+
 	bondReason, err := w.conn.TransferVerify(flow.Record)
 	if err != nil {
 		w.log.Error("TransferVerify error", "err", err, "bondId", flow.Key.BondId.Hex())

@@ -46,6 +46,7 @@
       "RFIS",
       "RDOT",
       "RKSM"
+      "RATOM"
     ]
   },
   "RateType": "u64",
@@ -211,5 +212,14 @@
     "pool": "Vec<u8>",
     "recipient": "Vec<u8>",
     "value": "u128"
+  },
+  "OriginalTxType": {
+    "_enum": [
+      "Transfer",
+      "Bond",
+      "Unbond",
+      "WithdrawUnbond",
+      "ClaimRewards"
+    ]
   }
 }
