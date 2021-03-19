@@ -15,6 +15,7 @@ import (
 )
 
 var client *rpc.Client
+
 //eda331e37bf66b2393c4c271e384dfaa2bfcdd35
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu")
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
@@ -260,4 +261,14 @@ func TestClient_Sign(t *testing.T) {
 	//4c6902bda88424923c62f95b3e3ead40769edab4ec794108d1c18994fac90d490087815823bd1a8af3d6a0271538cef4622b4b500a6253d2bd4c80d38e95aa6d
 	t.Log(hex.EncodeToString(pubkey.Bytes()))
 	//02e7710b4f7147c10ad90da06b69d2d6b8ff46786ef55a3f1e889c33de2bf0b416
+}
+
+func TestAddress(t *testing.T) {
+	addrKey1, _ := types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
+	addrKey2, _ := types.AccAddressFromBech32("cosmos1ztquzhpkve7szl99jkugq4l8jtpnhln76aetam")
+	addrKey3, _ := types.AccAddressFromBech32("cosmos12zz2hm02sxe9f4pwt7y5q9wjhcu98vnuwmjz4x")
+	types.AccAddressFromHex()
+	t.Log(hex.EncodeToString(addrKey1.Bytes()))
+	t.Log(hex.EncodeToString(addrKey2.Bytes()))
+	t.Log(hex.EncodeToString(addrKey3.Bytes()))
 }

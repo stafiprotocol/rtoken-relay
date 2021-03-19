@@ -45,7 +45,7 @@
     "value_list": [
       "RFIS",
       "RDOT",
-      "RKSM"
+      "RKSM",
       "RATOM"
     ]
   },
@@ -208,13 +208,28 @@
   },
   "WithdrawChunk": {
     "type": "struct",
-    "who": "AccountId",
-    "pool": "Vec<u8>",
-    "recipient": "Vec<u8>",
-    "value": "u128"
+    "type_mapping": [
+      [
+        "who",
+        "AccountId"
+      ],
+      [
+        "pool",
+        "Vec<u8>"
+      ],
+      [
+        "recipient",
+        "Vec<u8>"
+      ],
+      [
+        "value",
+        "u128"
+      ]
+    ]
   },
   "OriginalTxType": {
-    "_enum": [
+    "type": "enum",
+    "value_list": [
       "Transfer",
       "Bond",
       "Unbond",

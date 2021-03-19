@@ -191,6 +191,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 	}
 
 	for _, evt := range evts {
+		l.log.Trace("event info:", "moduleId:", evt.ModuleId, "eventId:", evt.EventId)
 		switch l.symbol {
 		case core.RFIS:
 			if evt.ModuleId == config.LiquidityBondModuleId && evt.EventId == config.LiquidityBondEventId {
