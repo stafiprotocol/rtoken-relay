@@ -8,42 +8,30 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
-type eventId struct {
-	symbol core.RSymbol
-	name   eventName
-}
-
 type eventName string
 type eventHandler func(interface{}, log15.Logger) (*core.Message, error)
 
-var (
-	LiquidityBond = &eventId{
-		symbol: core.RFIS,
-		name:   eventName(config.LiquidityBondEventId),
-	}
+type eventHandlerSubscriptions struct {
+	name    eventName
+	handler eventHandler
+}
 
-	EraPoolUpdated = &eventId{
-		symbol: core.RFIS,
-		name:   eventName(config.EraPoolUpdatedEventId),
-	}
+const (
+	LiquidityBond  = eventName(config.LiquidityBondEventId)
+	EraPoolUpdated = eventName(config.EraPoolUpdatedEventId)
 
-	NewMultisig = &eventId{
-		symbol: core.RDOT,
-		name:   eventName(config.NewMultisigEventId),
-	}
-
-	MultisigExecuted = &eventId{
-		symbol: core.RFIS,
-		name:   eventName(config.EraPoolUpdatedEventId),
-	}
+	NewMultisig      = eventName(config.NewMultisigEventId)
+	MultisigExecuted = eventName(config.MultisigExecutedEventId)
 )
 
-var Subscriptions = []struct {
-	eId     *eventId
-	handler eventHandler
-}{
+var MainSubscriptions = []eventHandlerSubscriptions{
 	{LiquidityBond, liquidityBondHandler},
 	{EraPoolUpdated, eraPoolUpdatedHandler},
+}
+
+var OtherSubscriptions = []eventHandlerSubscriptions{
+	{NewMultisig, newMultisigHandler},
+	{MultisigExecuted, multisigExecutedHandler},
 }
 
 func liquidityBondHandler(data interface{}, log log15.Logger) (*core.Message, error) {
@@ -62,4 +50,22 @@ func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, e
 	}
 
 	return &core.Message{Destination: d.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+}
+
+func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, error) {
+	d, ok := data.(*core.EventNewMultisig)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast bondflow")
+	}
+
+	return &core.Message{Reason: core.NewMultisig, Content: d}, nil
+}
+
+func multisigExecutedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
+	d, ok := data.(*core.EventNewMultisig)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast bondflow")
+	}
+
+	return &core.Message{Reason: core.NewMultisig, Content: d}, nil
 }

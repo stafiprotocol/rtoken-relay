@@ -22,3 +22,8 @@ type StakingLedger struct {
 	Total  types.UCompact
 	Active types.UCompact
 }
+
+type Era struct {
+	Type  string `json:"type"`
+	Value uint32 `json:"value"`
+}

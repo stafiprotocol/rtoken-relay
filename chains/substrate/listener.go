@@ -18,11 +18,11 @@ import (
 
 type listener struct {
 	name          string
-	symbol        core.RSymbol
+	rsymbol       core.RSymbol
 	startBlock    uint64
 	blockstore    blockstore.Blockstorer
 	conn          *Connection
-	subscriptions map[*eventId]eventHandler // Handlers for specific events
+	subscriptions map[eventName]eventHandler // Handlers for specific events
 	router        chains.Router
 	log           log15.Logger
 	stop          <-chan int
@@ -39,11 +39,11 @@ var (
 func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	return &listener{
 		name:          name,
-		symbol:        symbol,
+		rsymbol:       symbol,
 		startBlock:    startBlock,
 		blockstore:    bs,
 		conn:          conn,
-		subscriptions: make(map[*eventId]eventHandler),
+		subscriptions: make(map[eventName]eventHandler),
 		log:           log,
 		stop:          stop,
 		sysErr:        sysErr,
@@ -66,14 +66,19 @@ func (l *listener) start() error {
 		return fmt.Errorf("starting block (%d) is greater than latest known block (%d)", l.startBlock, latestBlk)
 	}
 
-	for _, sub := range Subscriptions {
-		if sub.eId.symbol != l.symbol {
-			continue
+	if l.rsymbol == core.RFIS {
+		for _, sub := range MainSubscriptions {
+			err := l.registerEventHandler(sub.name, sub.handler)
+			if err != nil {
+				return err
+			}
 		}
-
-		err := l.registerEventHandler(sub.eId, sub.handler)
-		if err != nil {
-			return err
+	} else {
+		for _, sub := range OtherSubscriptions {
+			err := l.registerEventHandler(sub.name, sub.handler)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -88,11 +93,11 @@ func (l *listener) start() error {
 }
 
 // registerEventHandler enables a handler for a given event. This cannot be used after Start is called.
-func (l *listener) registerEventHandler(id *eventId, handler eventHandler) error {
-	if l.subscriptions[id] != nil {
-		return fmt.Errorf("event %s, %s already registered", id.symbol, id.name)
+func (l *listener) registerEventHandler(name eventName, handler eventHandler) error {
+	if l.subscriptions[name] != nil {
+		return fmt.Errorf("event %s already registered", name)
 	}
-	l.subscriptions[id] = handler
+	l.subscriptions[name] = handler
 	return nil
 }
 
@@ -109,10 +114,10 @@ func (l *listener) pollBlocks() error {
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
-				if l.symbol == "Default" {
-					l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.symbol)
+				if l.rsymbol == "Default" {
+					l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.rsymbol)
 				} else {
-					l.log.Error("pollBlocks error", "symbol", l.symbol)
+					l.log.Error("pollBlocks error", "rsymbol", l.rsymbol)
 				}
 
 				return nil
@@ -133,7 +138,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if l.symbol != core.RFIS {
+			if l.rsymbol != core.RFIS {
 				err = l.processEra()
 			}
 
@@ -172,7 +177,7 @@ func (l *listener) processEra() error {
 		return nil
 	}
 
-	l.log.Info("get a new era, prepare to send message", "symbol", l.symbol, "currentEra", l.currentEra, "newEra", era)
+	l.log.Info("get a new era, prepare to send message", "rsymbol", l.rsymbol, "currentEra", l.currentEra, "newEra", era)
 	l.currentEra = era
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)
@@ -191,7 +196,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 	}
 
 	for _, evt := range evts {
-		switch l.symbol {
+		switch l.rsymbol {
 		case core.RFIS:
 			if evt.ModuleId == config.LiquidityBondModuleId && evt.EventId == config.LiquidityBondEventId {
 				l.log.Trace("Handling LiquidityBondEvent event")
@@ -215,12 +220,21 @@ func (l *listener) processEvents(blockNum uint64) error {
 		case core.RDOT:
 			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {
 				l.log.Trace("Handling NewMultisigEvent event")
-
+				flow, err := l.processNewMultisigEvt(evt)
+				if err != nil {
+					if err.Error() == multiEndError.Error() {
+						l.log.Info("listener received an eneded NewMultisig event, ignored")
+						continue
+					}
+					return err
+				}
+				if l.subscriptions[NewMultisig] != nil {
+					l.submitMessage(l.subscriptions[NewMultisig](flow, l.log))
+				}
 			} else if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.MultisigExecutedEventId {
-
 			}
 		default:
-			l.log.Error("process event unsupport rsymbol", "rsymbol", l.symbol)
+			l.log.Error("process event unsupport rsymbol", "rsymbol", l.rsymbol)
 		}
 	}
 
@@ -233,7 +247,10 @@ func (l *listener) submitMessage(m *core.Message, err error) {
 		l.log.Error("Critical error before sending message", "err", err)
 		return
 	}
-	m.Source = l.symbol
+	m.Source = l.rsymbol
+	if m.Destination == "" {
+		m.Destination = m.Source
+	}
 	err = l.router.Send(m)
 	if err != nil {
 		l.log.Error("failed to send message", "err", err)
@@ -241,7 +258,7 @@ func (l *listener) submitMessage(m *core.Message, err error) {
 }
 
 func (l *listener) blockDelay() uint64 {
-	switch l.symbol {
+	switch l.rsymbol {
 	case core.RFIS:
 		return 5
 	default:

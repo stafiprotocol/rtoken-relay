@@ -5,27 +5,30 @@ package substrate
 
 import (
 	"fmt"
+
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 type writer struct {
-	conn                *Connection
-	router              chains.Router
-	log                 log15.Logger
-	sysErr              chan<- error
-	eraPoolUpdatedFlows map[string]*core.EraPoolUpdatedFlow
+	conn          *Connection
+	router        chains.Router
+	log           log15.Logger
+	sysErr        chan<- error
+	MultisigFlows map[string]*core.MultisigFlow // CallHash => flow
 }
 
 func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
 	return &writer{
-		conn:   conn,
-		log:    log,
-		sysErr: sysErr,
+		conn:          conn,
+		log:           log,
+		sysErr:        sysErr,
+		MultisigFlows: make(map[string]*core.MultisigFlow),
 	}
 }
 
@@ -121,7 +124,7 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	}
 
 	if neew <= old {
-		w.log.Warn("symbol era is smaller than the storage one")
+		w.log.Warn("rsymbol era is smaller than the storage one")
 		return false
 	}
 
@@ -131,12 +134,12 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	bk := &core.BondKey{Rsymbol: m.Source, BondId: bondId}
 	prop, err := w.conn.newUpdateEraProposal(bk, newEra)
 	result := w.conn.resolveProposal(prop, true)
-	w.log.Info("processNewEra", "symbol", m.Source, "era", newEra, "result", result)
+	w.log.Info("processNewEra", "rsymbol", m.Source, "era", newEra, "result", result)
 	return result
 }
 
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
-	flow, ok := m.Content.(*core.EraPoolUpdatedFlow)
+	flow, ok := m.Content.(*core.MultisigFlow)
 	if !ok {
 		w.printContentError(m)
 		return false
@@ -148,15 +151,16 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	if flow.Evt.NewEra != era {
-		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", flow.Evt.NewEra, "rsymbol", flow.Evt.Rsymbol)
+	evt := flow.EvtEraPoolUpdated
+	if evt.NewEra != era {
+		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", evt.NewEra, "rsymbol", evt.Rsymbol)
 		return true
 	}
 
 	key, others := w.conn.FoundFirstSubAccount(flow.SubAccounts)
 	if key == nil {
 		if flow.LastVoterFlag {
-			w.sysErr <- fmt.Errorf("the last voter relay does not have key for Multisig, pool: %s, rsymbol: %s", hexutil.Encode(flow.Evt.Pool), flow.Evt.Rsymbol)
+			w.sysErr <- fmt.Errorf("the last voter relay does not have key for Multisig, pool: %s, rsymbol: %s", hexutil.Encode(evt.Pool), evt.Rsymbol)
 			return false
 		}
 
@@ -164,20 +168,100 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
+	flow.Key = key
 	flow.Others = others
-	if flow.LastVoterFlag {
-		err := w.conn.NewMultisig(key, flow)
-		if err != nil {
-			w.log.Error("NewMultisig error", "err", err)
-			return false
+	err = w.conn.SetCallHash(flow)
+	if err != nil {
+		if err.Error() == substrate.BondEqualToUnbondError.Error() {
+			w.log.Info("No need to send any call", "callhash", flow.CallHash)
+			return true
 		}
+		w.log.Error("SetCallHash error", "err", err)
+		return false
 	}
 
-	return false
+	oldFlow := w.MultisigFlows[flow.CallHash]
+	if oldFlow != nil {
+		if oldFlow.MulExecute != nil {
+			w.log.Info("already executed", "callhash", flow.CallHash)
+			delete(w.MultisigFlows, flow.CallHash)
+			return true
+		}
+
+		if oldFlow.NewMul == nil {
+			w.sysErr <- fmt.Errorf("found old flow, but its NewMul is nil, callhash: %s", flow.CallHash)
+			return false
+		}
+
+		approvals := oldFlow.Multisig.Approvals
+		ac := hexutil.Encode(key.PublicKey)
+		for _, apv := range approvals {
+			if ac == hexutil.Encode(apv[:]) {
+				w.log.Info("already approved", "approver", ac, "callhash", flow.CallHash)
+				delete(w.MultisigFlows, flow.CallHash)
+				return true
+			}
+		}
+
+		flow.NewMul = oldFlow.NewMul
+		flow.TimePoint = oldFlow.TimePoint
+		flow.Multisig = oldFlow.Multisig
+		err = w.conn.AsMulti(flow)
+		if err != nil {
+			w.log.Error("AsMulti error", "err", err, "callhash", flow.CallHash)
+			return false
+		}
+
+		w.log.Error("AsMulti success", "callhash", flow.CallHash)
+		return true
+	}
+
+	w.MultisigFlows[flow.CallHash] = flow
+
+	if !flow.LastVoterFlag {
+		w.log.Info("not last voter, wait for NewMultisigEvent")
+		return true
+	}
+
+	err = w.conn.AsMulti(flow)
+	if err != nil {
+		w.log.Error("AsMulti error", "err", err, "callhash", flow.CallHash)
+		return false
+	}
+
+	w.log.Error("AsMulti success", "callhash", flow.CallHash)
+	return true
 }
 
 func (w *writer) processNewMultisig(m *core.Message) bool {
-	return false
+	flow, ok := m.Content.(*core.MultisigFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+	oldFlow := w.MultisigFlows[flow.CallHash]
+	if oldFlow == nil {
+		w.log.Info("receive a newMultisig, wait for more flow data")
+		w.MultisigFlows[flow.CallHash] = flow
+		return true
+	}
+
+	if flow.EvtEraPoolUpdated == nil {
+		w.sysErr <- fmt.Errorf("found old flow, but its eraPoolUpdated is nil, callhash: %s", flow.CallHash)
+		return false
+	}
+
+	oldFlow.NewMul = flow.NewMul
+	oldFlow.TimePoint = flow.TimePoint
+	oldFlow.Multisig = flow.Multisig
+	err := w.conn.AsMulti(flow)
+	if err != nil {
+		w.log.Error("AsMulti error", "err", err, "callhash", flow.CallHash)
+		return false
+	}
+
+	w.log.Error("AsMulti success", "callhash", flow.CallHash)
+	return true
 }
 
 func (w *writer) printContentError(m *core.Message) {

@@ -18,6 +18,7 @@ const (
 	MultisigModuleId        = "Multisig"
 	NewMultisigEventId      = "NewMultisig"
 	MultisigExecutedEventId = "MultisigExecuted"
+	StorageMultisigs        = "Multisigs"
 
 	ParamDest     = "dest"
 	ParamDestType = "Address"

@@ -179,15 +179,18 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	assert.True(t, exist)
 	fmt.Println(subs)
 
-	var others []types.Bytes
+	others := make([]types.AccountID, 0)
 	for i, ac := range subs {
 		if hexutil.Encode(gc.PublicKey()) == hexutil.Encode(ac) {
-			others = append(subs[:i], subs[i+1:]...)
+			bzs := append(subs[:i], subs[i+1:]...)
+			for _, bz := range bzs {
+				others = append(others, types.NewAccountID(bz))
+			}
 		}
 	}
 
 	for _, oth := range others {
-		fmt.Println(hexutil.Encode(oth))
+		fmt.Println(hexutil.Encode(oth[:]))
 	}
 
 	bond, _ := utils.StringToBigint("10000000000000")
@@ -197,6 +200,8 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(extStr)
 	fmt.Println(hexutil.Encode(opaque))
+	h := utils.BlakeTwo256(opaque)
+	fmt.Println("callHash", hexutil.Encode(h[:]))
 
 	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
@@ -205,12 +210,14 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
 
-	tp := types.TimePoint{3010, 2}
-	callHash, _ := types.NewHashFromHexString("0xba6c8ec1798285f8f312523e2353ebe8468fab4b55afe1a788a64a65f8bcc72c")
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodApproveAsMulti, threshold, others, tp, callHash, types.Weight(uint64(info.Weight)))
+	//tp := types.TimePoint{3010, 2}
+	//callHash, _ := types.NewHashFromHexString("0xba6c8ec1798285f8f312523e2353ebe8468fab4b55afe1a788a64a65f8bcc72c")
+	//ext, err := gc.NewUnsignedExtrinsic(config.MethodApproveAsMulti, threshold, others, tp, callHash, types.Weight(uint64(info.Weight)))
 
 	//fmt.Println(opaque)
-	//ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, types.NewNull(), types.Bytes(opaque), false, types.Weight(uint64(info.Weight)))
+
+	tp := core.NewOptionTimePointEmpty()
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, opaque, false, info.Weight)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }

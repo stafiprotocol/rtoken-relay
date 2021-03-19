@@ -2,9 +2,12 @@ package substrate
 
 import (
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"testing"
 
 	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -140,5 +143,48 @@ func TestSarpcClient_GetExtrinsics2(t *testing.T) {
 
 			fmt.Println("name", p.Name, "value", p.Value, "type", p.Type)
 		}
+	}
+}
+
+func TestEncode(t *testing.T) {
+	s := "0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965"
+	a, _ := hexutil.Decode(s)
+	b := types.NewAccountID(a)
+	c, err := types.EncodeToBytes(b)
+	assert.NoError(t, err)
+	assert.Equal(t, s, hexutil.Encode(c))
+
+}
+
+func TestEventNewMultisig(t *testing.T) {
+	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	evts, err := sc.GetEvents(906)
+	assert.NoError(t, err)
+	for _, evt := range evts {
+		//fmt.Println(i)
+		//fmt.Println(evt.ModuleId)
+		//fmt.Println(evt.EventId)
+		//fmt.Println(evt.Params)
+		if evt.ModuleId != config.MultisigModuleId || evt.EventId != config.NewMultisigEventId {
+			continue
+		}
+
+		d, err := EventNewMultisig(evt)
+		assert.NoError(t, err)
+		fmt.Println("who", hexutil.Encode(d.Who[:]))
+		fmt.Println("id", hexutil.Encode(d.ID[:]))
+		fmt.Println("hash", hexutil.Encode(d.CallHash[:]))
+
+		mul := new(core.Multisig)
+		exist, err := gc.QueryStorage(config.MultisigModuleId, config.StorageMultisigs, d.ID[:], d.CallHash[:], mul)
+		assert.NoError(t, err)
+		assert.True(t, exist)
+		fmt.Println(mul)
 	}
 }

@@ -15,6 +15,6 @@ const (
 
 	NewEra           = Reason("NewEra")
 	EraPoolUpdated   = Reason("EraPoolUpdated")
-	NewMultisig      = Reason("NewMultisig")
+	NewMultisig      = Reason("AsMulti")
 	MultisigExecuted = Reason("MultisigExecuted")
 )
