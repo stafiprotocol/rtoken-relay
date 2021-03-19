@@ -5,10 +5,8 @@ package substrate
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
-
 	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -166,16 +164,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	call, err := w.conn.OpaqueCall(flow)
-	if err != nil {
-		if err.Error() == substrate.BondEqualToUnbondError.Error() {
-			// todo
-			return true
-		}
-	}
-
+	flow.Others = others
 	if flow.LastVoterFlag {
-		err := w.conn.NewMultisig(key, flow.Threshold, others, nil, call)
+		err := w.conn.NewMultisig(key, flow)
 		if err != nil {
 			w.log.Error("NewMultisig error", "err", err)
 			return false

@@ -243,16 +243,8 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
-func (c *Connection) OpaqueCall(data interface{}) ([]byte, error) {
-	flow, ok := data.(core.EraPoolUpdatedFlow)
-	if ok {
-		return c.gc.BondOrUnbond(flow.Evt.Bond.Int, flow.Evt.Unbond.Int)
-	} else {
-		return nil, errors.New("OpaqueCall unsupported")
-	}
-}
+func (c *Connection) NewMultisig(key *signature.KeyringPair, flow *core.EraPoolUpdatedFlow) error {
 
-func (c *Connection) NewMultisig(key *signature.KeyringPair, threshold uint16, others []types.Bytes, point *types.TimePoint, call []byte) error {
 	// todo
 	return nil
 }

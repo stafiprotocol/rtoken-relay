@@ -200,6 +200,7 @@ type EraPoolUpdatedFlow struct {
 	LastVoterFlag bool
 	Threshold     uint16
 	SubAccounts   []types.Bytes
+	Others        []types.Bytes
 	NewMul        *types.EventMultisigNewMultisig
 	MulExecute    *types.EventMultisigExecuted
 }

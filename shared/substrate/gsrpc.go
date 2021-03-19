@@ -235,58 +235,83 @@ func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
 }
 
-func (gc *GsrpcClient) BondOrUnbond(bond, unbond *big.Int) ([]byte, error) {
-	gc.log.Info("BondOrUnbond", "bond", bond, "unbond", unbond)
+func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (extStr string, opaque []byte, err error) {
+	gc.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
+	var ext *types.Extrinsic
+	var bz []byte
+	var method string
+	var val types.UCompact
 
 	if bond.Cmp(unbond) < 0 {
 		diff := big.NewInt(0).Sub(unbond, bond)
-		return gc.NewUnBondOpaqueCall(diff)
+		method = config.MethodUnbond
+		val = types.NewUCompact(diff)
 	} else if bond.Cmp(unbond) > 0 {
 		diff := big.NewInt(0).Sub(bond, unbond)
-		return gc.NewBondOpaqueCall(diff)
+		method = config.MethodBondExtra
+		val = types.NewUCompact(diff)
 	} else {
 		gc.log.Info("EvtEraPoolUpdated: bond is equal to unbond")
-		return nil, BondEqualToUnbondError
+		err = BondEqualToUnbondError
+		return
 	}
+
+	ext, err = gc.NewUnsignedExtrinsic(method, val)
+	if err != nil {
+		return
+	}
+
+	opaque, err = types.EncodeToBytes(ext.Method)
+	if err != nil {
+		return
+	}
+
+	bz, err = types.EncodeToBytes(ext)
+	if err != nil {
+		return
+	}
+
+	extStr = hexutil.Encode(bz)
+	return
 }
 
-func (gc *GsrpcClient) NewBondOpaqueCall(amount *big.Int) ([]byte, error) {
-	meta, err := gc.GetLatestMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	call, err := types.NewCall(meta, config.MethodBondExtra, amount)
-	if err != nil {
-		return nil, err
-	}
-
-	opaque, err := types.EncodeToBytes(call)
-	if err != nil {
-		return nil, err
-	}
-
-	return opaque, nil
-}
-
-func (gc *GsrpcClient) NewUnBondOpaqueCall(amount *big.Int) ([]byte, error) {
-	meta, err := gc.GetLatestMetadata()
-	if err != nil {
-		return nil, err
-	}
-
-	call, err := types.NewCall(meta, config.MethodUnbond, amount)
-	if err != nil {
-		return nil, err
-	}
-
-	opaque, err := types.EncodeToBytes(call)
-	if err != nil {
-		return nil, err
-	}
-
-	return opaque, nil
-}
+//func (gc *GsrpcClient) NewBondOpaqueCall(amount *big.Int) ([]byte, error) {
+//	meta, err := gc.GetLatestMetadata()
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	call, err := types.NewCall(meta, config.MethodBondExtra, amount)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	opaque, err := types.EncodeToBytes(call)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return opaque, nil
+//}
+//
+//func (gc *GsrpcClient) NewUnBondOpaqueCall(amount *big.Int) ([]byte, error) {
+//	meta, err := gc.GetLatestMetadata()
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	call, err := types.NewCall(meta, config.MethodUnbond, amount)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	opaque, err := types.EncodeToBytes(call)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return opaque, nil
+//}
 
 func (gc *GsrpcClient) StakingActive(ac types.AccountID) (*StakingLedger, error) {
 	s := new(StakingLedger)
