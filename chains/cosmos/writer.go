@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
+	utils "github.com/stafiprotocol/chainbridge/shared/ethereum"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -12,11 +13,12 @@ import (
 
 //write to cosmos
 type writer struct {
-	conn          *Connection
-	router        chains.Router
-	log           log15.Logger
-	sysErr        chan<- error
-	multisigFlows map[string]*core.MultisigFlow
+	conn             *Connection
+	router           chains.Router
+	log              log15.Logger
+	sysErr           chan<- error
+	multisigFlows    map[string]*core.MultisigFlow
+	cachedUnsignedTx map[string][]byte
 }
 
 func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
@@ -127,13 +129,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Info("processEraPoolUpdated gen unsigned Tx", "tx", string(unSignedTx))
+	proposalId := utils.Hash(unSignedTx)
+	w.log.Info("processEraPoolUpdated gen unsigned Tx", "txhash", hex.EncodeToString(proposalId[:]))
+	w.cachedUnsignedTx[hex.EncodeToString(proposalId[:])] = unSignedTx
 	param := core.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(e.NewEra),
 		Pool:       substrateTypes.NewBytes(e.Pool),
 		TxType:     core.OriginalTx(core.Bond),
-		ProposalId: substrateTypes.NewBytes(unSignedTx),
+		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
@@ -164,7 +168,13 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		signatures = append(signatures, sig)
 	}
 
-	txHash, txBts, err := client.AssembleMultiSigTx(sigs.ProposalId, signatures)
+	unSignedTx, exist := w.cachedUnsignedTx[hex.EncodeToString(sigs.ProposalId)]
+	if !exist {
+		w.log.Debug("processSignatureEnough tx not exist")
+		w.printContentError(m)
+		return false
+	}
+	txHash, txBts, err := client.AssembleMultiSigTx(unSignedTx, signatures)
 	if err != nil {
 		w.log.Debug("processSignatureEnough AssembleMultiSigTx", "err", err)
 		w.printContentError(m)
