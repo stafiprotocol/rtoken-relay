@@ -84,6 +84,13 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 	e := mFlow.EvtEraPoolUpdated
+
+	//todo for test
+	if e.Bond.Int.Cmp(e.Unbond.Int) == 0 {
+		w.log.Debug("EvtEraPoolUpdated bond=unbond")
+		return true
+	}
+
 	poolAddrHexStr := hex.EncodeToString(e.Pool)
 
 	subClient, exist := w.conn.subClients[poolAddrHexStr]
