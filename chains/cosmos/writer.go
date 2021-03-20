@@ -1,19 +1,20 @@
 package cosmos
 
 import (
-	"fmt"
+	"encoding/hex"
 	"github.com/ChainSafe/log15"
+	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
 //write to cosmos
 type writer struct {
-	conn                *Connection
-	router              chains.Router
-	log                 log15.Logger
-	sysErr              chan<- error
-	eraPoolUpdatedFlows map[string]*core.EraPoolUpdatedFlow
+	conn          *Connection
+	router        chains.Router
+	log           log15.Logger
+	sysErr        chan<- error
+	multisigFlows map[string]*core.MultisigFlow
 }
 
 func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
@@ -61,7 +62,6 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 		return false
 	}
 
-
 	bondReason, err := w.conn.TransferVerify(flow.Record)
 	if err != nil {
 		w.log.Error("TransferVerify error", "err", err, "bondId", flow.Key.BondId.Hex())
@@ -75,12 +75,40 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 }
 
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
-	flow, ok := m.Content.(*core.EraPoolUpdatedFlow)
+	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
+	e, ok := m.Content.(core.EvtEraPoolUpdated)
 	if !ok {
+		w.log.Debug("EvtEraPoolUpdated cast err", "msg", m)
 		w.printContentError(m)
 		return false
 	}
-	fmt.Sprintf("processEraPoolUpdated %v", flow)
+	poolAddrHexStr := hex.EncodeToString(e.Pool)
+	subClient, exist := w.conn.subClients[poolAddrHexStr]
+	if !exist {
+		w.log.Debug("processEraPoolUpdated pool not exist")
+		w.printContentError(m)
+		return false
+	}
+	var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
+	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
+	if err != nil {
+		w.log.Debug("accAddressFromHex", "err", err)
+		w.printContentError(m)
+		return false
+	}
+	client := subClient.GetRpcClient()
+
+	unSignedTx, err := client.GenMultiSigRawDelegateTx(
+		poolAddr,
+		addrValidatorTestnetAteam,
+		types.NewCoin(client.GetDenom(), types.NewInt(100)))
+
+	if err != nil {
+		w.log.Debug("GenMultiSigRawDelegateTx", "err", err)
+		w.printContentError(m)
+		return false
+	}
+
 	return true
 }
 

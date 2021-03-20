@@ -6,6 +6,7 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -21,14 +22,14 @@ import (
 )
 
 type Connection struct {
-	url    string
-	symbol core.RSymbol
-	sc     *substrate.SarpcClient
-	gc     *substrate.GsrpcClient
-	keys   []*signature.KeyringPair
-	gcs    map[*signature.KeyringPair]*substrate.GsrpcClient
-	log    log15.Logger
-	stop   <-chan int
+	url     string
+	rsymbol core.RSymbol
+	sc      *substrate.SarpcClient
+	gc      *substrate.GsrpcClient
+	keys    []*signature.KeyringPair
+	gcs     map[*signature.KeyringPair]*substrate.GsrpcClient
+	log     log15.Logger
+	stop    <-chan int
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -65,14 +66,14 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:    cfg.Endpoint,
-		symbol: cfg.Symbol,
-		log:    log,
-		stop:   stop,
-		sc:     sc,
-		gc:     gcs[keys[0]],
-		keys:   keys,
-		gcs:    gcs,
+		url:     cfg.Endpoint,
+		rsymbol: cfg.Symbol,
+		log:     log,
+		stop:    stop,
+		sc:      sc,
+		gc:      gcs[keys[0]],
+		keys:    keys,
+		gcs:     gcs,
 	}, nil
 }
 
@@ -201,7 +202,7 @@ func (c *Connection) CurrentEra() (uint32, error) {
 	}
 
 	if !exist {
-		return 0, fmt.Errorf("unable to get activeEraInfo for: %s", c.symbol)
+		return 0, fmt.Errorf("unable to get activeEraInfo for: %s", c.rsymbol)
 	}
 
 	return index, nil
@@ -220,7 +221,7 @@ func (c *Connection) CurrentRsymbolEra(sym core.RSymbol) (uint32, error) {
 	}
 
 	if !exists {
-		return 0, fmt.Errorf("era of symbol %s not exist", sym)
+		return 0, fmt.Errorf("era of rsymbol %s not exist", sym)
 	}
 
 	return era, nil
@@ -230,11 +231,15 @@ func (c *Connection) IsLastVoter(voter types.Bytes) bool {
 	return hexutil.Encode(c.gc.PublicKey()) == hexutil.Encode(voter)
 }
 
-func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.KeyringPair, []types.Bytes) {
+func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.KeyringPair, []types.AccountID) {
+	others := make([]types.AccountID, 0)
 	for i, ac := range accounts {
 		for _, key := range c.keys {
 			if hexutil.Encode(key.PublicKey) == hexutil.Encode(ac) {
-				others := append(accounts[:i], accounts[i+1:]...)
+				bzs := append(accounts[:i], accounts[i+1:]...)
+				for _, bz := range bzs {
+					others = append(others, types.NewAccountID(bz))
+				}
 				return key, others
 			}
 		}
@@ -243,8 +248,33 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
-func (c *Connection) NewMultisig(key *signature.KeyringPair, flow *core.EraPoolUpdatedFlow) error {
+func (c *Connection) SetCallHash(flow *core.MultisigFlow) error {
+	evt := flow.EvtEraPoolUpdated
+	encodeExtrinsic, opaque, err := c.gc.BondOrUnbondCall(evt.Bond.Int, evt.Unbond.Int)
+	if err != nil {
+		return err
+	}
 
-	// todo
+	flow.Opaque = opaque
+	flow.EncodeExtrinsic = encodeExtrinsic
+	callhash := utils.BlakeTwo256(opaque)
+	flow.CallHash = hexutil.Encode(callhash[:])
+	c.log.Info("SetCallHash", "encodeExtrinsic", encodeExtrinsic, "opaque", hexutil.Encode(opaque), "callhash", flow.CallHash)
 	return nil
+}
+
+func (c *Connection) AsMulti(flow *core.MultisigFlow) error {
+	info, err := c.sc.GetPaymentQueryInfo(flow.EncodeExtrinsic)
+	if err != nil {
+		return err
+	}
+	c.log.Info("PaymentQueryInfo", "callhash", flow.CallHash, "class", info.Class, "fee", info.PartialFee, "weight", info.Weight)
+
+	gc := c.gcs[flow.Key]
+	if gc == nil {
+		panic(fmt.Sprintf("key disappear: %s, rsymbol: %s, callhash: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol, flow.CallHash))
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, flow.TimePoint, flow.Opaque, false, info.Weight)
+	return gc.SignAndSubmitTx(ext)
 }

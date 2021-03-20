@@ -8,11 +8,10 @@ import (
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
-func liquidityBondEventData(evt *substrate.ChainEvent) (*core.EvtLiquidityBond, error) {
+func LiquidityBondEventData(evt *ChainEvent) (*core.EvtLiquidityBond, error) {
 	lb := new(core.EvtLiquidityBond)
 	for _, p := range evt.Params {
 		switch p.Type {
@@ -41,10 +40,10 @@ func liquidityBondEventData(evt *substrate.ChainEvent) (*core.EvtLiquidityBond, 
 	return lb, nil
 }
 
-func eraPoolUpdatedData(evt *substrate.ChainEvent) (*core.EvtEraPoolUpdated, error) {
+func EraPoolUpdatedData(evt *ChainEvent) (*core.EvtEraPoolUpdated, error) {
 	sym, ok := evt.Params[0].Value.(string)
 	if !ok {
-		return nil, errors.New("eraPoolUpdatedData symbol error")
+		return nil, errors.New("EraPoolUpdatedData rsymbol error")
 	}
 
 	era := new(Era)
@@ -63,13 +62,13 @@ func eraPoolUpdatedData(evt *substrate.ChainEvent) (*core.EvtEraPoolUpdated, err
 	bondStr, _ := evt.Params[3].Value.(string)
 	bond, ok := utils.StringToBigint(bondStr)
 	if !ok {
-		return nil, errors.New("eraPoolUpdatedData bond error")
+		return nil, errors.New("EraPoolUpdatedData bond error")
 	}
 
 	unbondStr, _ := evt.Params[4].Value.(string)
 	unbond, ok := utils.StringToBigint(unbondStr)
 	if !ok {
-		return nil, errors.New("eraPoolUpdatedData bond error")
+		return nil, errors.New("EraPoolUpdatedData bond error")
 	}
 
 	voterStr, _ := evt.Params[5].Value.(string)
@@ -85,5 +84,40 @@ func eraPoolUpdatedData(evt *substrate.ChainEvent) (*core.EvtEraPoolUpdated, err
 		Bond:      types.NewU128(*bond),
 		Unbond:    types.NewU128(*unbond),
 		LastVoter: voter,
+	}, nil
+}
+
+func EventNewMultisig(evt *ChainEvent) (*core.EventNewMultisig, error) {
+	s, ok := evt.Params[0].Value.(string)
+	if !ok {
+		return nil, errors.New("EventNewMultisig params[0] -> who error")
+	}
+	who, err := hexutil.Decode(utiles.AddHex(s))
+	if err != nil {
+		return nil, err
+	}
+
+	s, ok = evt.Params[1].Value.(string)
+	if !ok {
+		return nil, errors.New("EventNewMultisig params[1] -> id error")
+	}
+	id, err := hexutil.Decode(utiles.AddHex(s))
+	if err != nil {
+		return nil, err
+	}
+
+	s, ok = evt.Params[2].Value.(string)
+	if !ok {
+		return nil, errors.New("EventNewMultisig params[2] -> hash error")
+	}
+	hash, err := types.NewHashFromHexString(utiles.AddHex(s))
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.EventNewMultisig{
+		Who:      types.NewAccountID(who),
+		ID:       types.NewAccountID(id),
+		CallHash: hash,
 	}, nil
 }

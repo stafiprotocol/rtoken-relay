@@ -47,7 +47,7 @@ func (c *Connection) resolveProposal(prop *core.Proposal, inFavour bool) bool {
 		}
 
 		c.log.Info("Acknowledging proposal on chain...")
-		//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
+		//rsymbol: RSymbol, prop_id: T::Hash, in_favour: bool
 		ext, err := c.gc.NewUnsignedExtrinsic(config.RacknowledgeProposal, prop.Key.Rsymbol, prop.Key.BondId, inFavour, prop.Call)
 		err = c.gc.SignAndSubmitTx(ext)
 		if err != nil {
@@ -122,7 +122,7 @@ func (c *Connection) newUpdateEraProposal(key *core.BondKey, newEra types.U32) (
 }
 
 //
-//func (l *listener) newSetPoolActiveProposal(key *conn.BondKey, symbol conn.RSymbol, newEra types.U32,
+//func (l *listener) newSetPoolActiveProposal(key *conn.BondKey, rsymbol conn.RSymbol, newEra types.U32,
 //	pool types.Bytes, active types.U128) (*conn.Proposal, error) {
 //	meta, err := l.gsrpc.GetLatestMetadata()
 //	if err != nil {
@@ -133,7 +133,7 @@ func (c *Connection) newUpdateEraProposal(key *core.BondKey, newEra types.U32) (
 //	call, err := types.NewCall(
 //		meta,
 //		method,
-//		symbol,
+//		rsymbol,
 //		newEra,
 //		pool,
 //		active,

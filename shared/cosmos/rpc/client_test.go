@@ -86,7 +86,7 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	txHash, err := client.BroadcastTx(tx)
@@ -103,7 +103,7 @@ func TestClient_BroadcastTx(t *testing.T) {
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
 	assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -140,7 +140,7 @@ func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -162,7 +162,7 @@ func TestClient_GenMultiSigRawReDelegateTx(t *testing.T) {
 	//signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
 	//assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	txHash, err := client.BroadcastTx(tx)
@@ -181,7 +181,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	_, err = client.BroadcastTx(tx)
@@ -191,7 +191,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, addrValidator, types.NewCoin(client.GetDenom(), types.NewInt(100)))
+	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, addrValidatorTestnetAteam, types.NewCoin(client.GetDenom(), types.NewInt(15)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
@@ -199,10 +199,11 @@ func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	hash, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
-
-	_, err = client.BroadcastTx(tx)
+	t.Log("hash", hex.EncodeToString(hash))
+	hash2, err := client.BroadcastTx(tx)
+	t.Log("hash2", hash2)
 	assert.NoError(t, err)
 }
 
@@ -226,7 +227,7 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
 	assert.NoError(t, err)
 
-	tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
 
 	txHash, err := client.BroadcastTx(tx)
@@ -267,7 +268,6 @@ func TestAddress(t *testing.T) {
 	addrKey1, _ := types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
 	addrKey2, _ := types.AccAddressFromBech32("cosmos1ztquzhpkve7szl99jkugq4l8jtpnhln76aetam")
 	addrKey3, _ := types.AccAddressFromBech32("cosmos12zz2hm02sxe9f4pwt7y5q9wjhcu98vnuwmjz4x")
-	types.AccAddressFromHex()
 	t.Log(hex.EncodeToString(addrKey1.Bytes()))
 	t.Log(hex.EncodeToString(addrKey2.Bytes()))
 	t.Log(hex.EncodeToString(addrKey3.Bytes()))

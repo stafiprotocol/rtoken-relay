@@ -19,7 +19,7 @@ import (
 type Connection struct {
 	url        string
 	symbol     core.RSymbol
-	poolKeys   []string //hex string
+	poolKeys   []string //pool addr hex string
 	subClients map[string]*cosmos.SubClient
 	log        log15.Logger
 	stop       <-chan int

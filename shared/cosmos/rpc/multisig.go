@@ -13,6 +13,7 @@ import (
 	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	xStakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/spf13/cobra"
+	tendermintTypes "github.com/tendermint/tendermint/types"
 )
 
 //c.clientCtx.FromAddress must be multi sig address
@@ -120,10 +121,10 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 }
 
 //assemble multiSig tx bytes for broadcast
-func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []byte, err error) {
+func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, txBts []byte, err error) {
 	accountMultiSign, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
@@ -131,7 +132,7 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []
 		return
 	}
 	if multisigInfo.GetType() != keyring.TypeMulti {
-		return nil, fmt.Errorf("%q must be of type %s: %s", c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
+		return nil, nil, fmt.Errorf("%q must be of type %s: %s", c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
 	}
 
 	multiSigPub := multisigInfo.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
@@ -140,7 +141,7 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []
 	for _, s := range signatures {
 		ss, err := c.clientCtx.TxConfig.UnmarshalSignatureJSON(s)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		willUseSigs = append(willUseSigs, ss...)
 	}
@@ -149,7 +150,7 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []
 	//todo check sig
 	for _, sig := range willUseSigs {
 		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -161,12 +162,19 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txBts []
 
 	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	txBuilder, err := c.clientCtx.TxConfig.WrapTxBuilder(tx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	txBuilder.SetSignatures(sigV2)
-	return c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
+	txBuilder.GetTx()
+	txbts, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
+	if err != nil {
+		return nil, nil, err
+	}
+	tendermintTx := tendermintTypes.Tx(txbts)
+
+	return tendermintTx.Hash(), tendermintTx, nil
 }

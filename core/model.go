@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
+	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 )
 
@@ -195,14 +195,20 @@ type PoolKey struct {
 	Pool    types.Bytes
 }
 
-type EraPoolUpdatedFlow struct {
-	Evt           *EvtEraPoolUpdated
-	LastVoterFlag bool
-	Threshold     uint16
-	SubAccounts   []types.Bytes
-	Others        []types.Bytes
-	NewMul        *types.EventMultisigNewMultisig
-	MulExecute    *types.EventMultisigExecuted
+type MultisigFlow struct {
+	EvtEraPoolUpdated *EvtEraPoolUpdated
+	LastVoterFlag     bool
+	Threshold         uint16
+	SubAccounts       []types.Bytes
+	Key               *signature.KeyringPair
+	Others            []types.AccountID
+	TimePoint         *OptionTimePoint
+	Opaque            []byte
+	EncodeExtrinsic   string
+	CallHash          string
+	NewMul            *EventNewMultisig
+	Multisig          *Multisig
+	MulExecute        *EventMultisigExecuted
 }
 
 type EvtEraPoolUpdated struct {
@@ -214,6 +220,27 @@ type EvtEraPoolUpdated struct {
 	LastVoter types.Bytes
 }
 
-func (e *EvtEraPoolUpdated) PoolStr() string {
-	return hexutil.Encode(e.Pool)
+//type MultisigEventAndData struct {
+//	Evt *EventNewMultisig
+//	Mul *Multisig
+//}
+
+type EventNewMultisig struct {
+	Who, ID  types.AccountID
+	CallHash types.Hash
+}
+
+type Multisig struct {
+	When      types.TimePoint
+	Deposit   types.U128
+	Depositor types.AccountID
+	Approvals []types.AccountID
+}
+
+type EventMultisigExecuted struct {
+	Who       types.AccountID
+	TimePoint types.TimePoint
+	ID        types.AccountID
+	CallHash  types.Hash
+	Result    types.DispatchResult
 }

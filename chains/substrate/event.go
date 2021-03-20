@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -10,8 +11,10 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 )
 
+var multiEndError = errors.New("multiEnd")
+
 func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) (*core.BondFlow, error) {
-	evtData, err := liquidityBondEventData(evt)
+	evtData, err := substrate.LiquidityBondEventData(evt)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +46,8 @@ func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) (*core.B
 	return &core.BondFlow{Key: bondKey, Record: br, Reason: core.BondReasonDefault}, nil
 }
 
-func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.EraPoolUpdatedFlow, error) {
-	data, err := eraPoolUpdatedData(evt)
+func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.MultisigFlow, error) {
+	data, err := substrate.EraPoolUpdatedData(evt)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +76,34 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.Er
 		return nil, fmt.Errorf("unable to get subAccounts of pool: %s, rsymbol: %s", pk.Rsymbol, hexutil.Encode(pk.Pool))
 	}
 
-	return &core.EraPoolUpdatedFlow{
-		Evt:           data,
-		LastVoterFlag: l.conn.IsLastVoter(data.LastVoter),
-		Threshold:     threshold,
-		SubAccounts:   subs,
+	return &core.MultisigFlow{
+		EvtEraPoolUpdated: data,
+		LastVoterFlag:     l.conn.IsLastVoter(data.LastVoter),
+		Threshold:         threshold,
+		SubAccounts:       subs,
+	}, nil
+}
+
+func (l *listener) processNewMultisigEvt(evt *substrate.ChainEvent) (*core.MultisigFlow, error) {
+	data, err := substrate.EventNewMultisig(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	mul := new(core.Multisig)
+	exist, err := l.conn.QueryStorage(config.MultisigModuleId, config.StorageMultisigs, data.ID[:], data.CallHash[:], mul)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, multiEndError
+	}
+
+	return &core.MultisigFlow{
+		TimePoint: core.NewOptionTimePoint(mul.When),
+		CallHash:  hexutil.Encode(data.CallHash[:]),
+		NewMul:    data,
+		Multisig:  mul,
 	}, nil
 }
