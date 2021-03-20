@@ -44,16 +44,16 @@ func liquidityBondHandler(data interface{}, log log15.Logger) (*core.Message, er
 }
 
 func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.EvtEraPoolUpdated)
+	d, ok := data.(*core.MultisigFlow)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast era pool updated")
 	}
 
-	return &core.Message{Destination: d.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+	return &core.Message{Destination: d.EvtEraPoolUpdated.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
 }
 
 func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.EventNewMultisig)
+	d, ok := data.(*core.MultisigFlow)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast bondflow")
 	}
@@ -62,7 +62,7 @@ func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, erro
 }
 
 func multisigExecutedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.EventNewMultisig)
+	d, ok := data.(*core.MultisigFlow)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast bondflow")
 	}
