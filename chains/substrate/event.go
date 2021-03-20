@@ -103,7 +103,7 @@ func (l *listener) processSignatureEnoughEvt(evt *substrate.ChainEvent) (*core.S
 	}
 
 	var sigs []types.Bytes
-	exist, err := l.conn.QueryStorage(config.SignaturesEnoughEventId, config.StorageSignatures, pkBz, nil, &sigs)
+	exist, err := l.conn.QueryStorage(config.SubmitSignaturesModuleId, config.StorageSignatures, pkBz, nil, &sigs)
 	if err != nil {
 		return nil, err
 	}

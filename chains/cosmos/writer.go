@@ -23,9 +23,10 @@ type writer struct {
 
 func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
 	return &writer{
-		conn:   conn,
-		log:    log,
-		sysErr: sysErr,
+		conn:             conn,
+		log:              log,
+		sysErr:           sysErr,
+		cachedUnsignedTx: make(map[string][]byte),
 	}
 }
 
@@ -45,7 +46,7 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 	case core.EraPoolUpdated:
 		return w.processEraPoolUpdated(m)
 	case core.SignatureEnough:
-
+		return w.processSignatureEnough(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -122,7 +123,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	sigBts, err := client.SignMultiSigRawTx(unSignedTx, client.GetFromName())
+	sigBts, err := client.SignMultiSigRawTx(unSignedTx, subClient.GetSubkey())
 	if err != nil {
 		w.log.Debug("SignMultiSigRawTx", "err", err)
 		w.printContentError(m)

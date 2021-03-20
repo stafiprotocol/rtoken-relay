@@ -21,6 +21,11 @@ func (sc *SubClient) GetRpcClient() *rpc.Client {
 	return sc.rpcClient
 }
 
+func (sc *SubClient) GetSubkey() string {
+	return sc.subKey
+}
+
+
 func (sc *SubClient) bond(val *big.Int) error {
 	return nil
 }
