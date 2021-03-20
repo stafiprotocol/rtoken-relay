@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"testing"
@@ -186,5 +187,54 @@ func TestEventNewMultisig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, exist)
 		fmt.Println(mul)
+	}
+}
+
+func TestEventMultisigExecuted(t *testing.T) {
+	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	evts, err := sc.GetEvents(119)
+	assert.NoError(t, err)
+	for _, evt := range evts {
+		if evt.ModuleId != config.MultisigModuleId || evt.EventId != config.MultisigExecutedEventId {
+			continue
+		}
+		p := evt.Params[1].Value
+		fmt.Println(p)
+		bz, _ := json.Marshal(p)
+		tp := new(types.TimePoint)
+		json.Unmarshal(bz, tp)
+		fmt.Println(tp)
+
+		fmt.Println(evt.Params[4].Type)
+		re := evt.Params[4].Value
+		result, ok := re.(map[string]interface{})
+		fmt.Println(ok)
+		_, ok = result["Ok"]
+		fmt.Println(ok)
+
+		//
+		//json.Unmarshal(bz, result)
+		//fmt.Println(result)
+	}
+}
+
+func TestEraPoolUpdated(t *testing.T) {
+	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	evts, err := sc.GetEvents(113)
+	assert.NoError(t, err)
+	for _, evt := range evts {
+		if evt.ModuleId != config.RTokenLedgerModuleId || evt.EventId != config.EraPoolUpdatedEventId {
+			continue
+		}
+		fmt.Println(evt.ModuleId)
+		fmt.Println(evt.EventId)
+		fmt.Println(evt.Params)
+		a, err := EraPoolUpdatedData(evt)
+		assert.NoError(t, err)
+		fmt.Println(a)
 	}
 }

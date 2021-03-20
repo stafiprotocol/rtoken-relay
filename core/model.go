@@ -209,16 +209,11 @@ type MultisigFlow struct {
 type EvtEraPoolUpdated struct {
 	Rsymbol   RSymbol
 	NewEra    uint32
-	Pool      types.Bytes
+	Pool      []byte
 	Bond      types.U128
 	Unbond    types.U128
-	LastVoter types.Bytes
+	LastVoter []byte
 }
-
-//type MultisigEventAndData struct {
-//	Evt *EventNewMultisig
-//	Mul *Multisig
-//}
 
 type EventNewMultisig struct {
 	Who, ID  types.AccountID
@@ -237,5 +232,5 @@ type EventMultisigExecuted struct {
 	TimePoint types.TimePoint
 	ID        types.AccountID
 	CallHash  types.Hash
-	Result    types.DispatchResult
+	Result    bool
 }

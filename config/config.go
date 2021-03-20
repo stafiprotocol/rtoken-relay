@@ -27,7 +27,7 @@ type RawChainConfig struct {
 	Rsymbol         string                 `json:"rsymbol"`
 	Endpoint        string                 `json:"endpoint"` // url for rpc endpoint
 	KeystorePath    string                 `json:"keystorePath"`
-	Accounts        []string               `json:"from"` // address of key to use
+	Accounts        []string               `json:"accounts"` // address of key to use
 	LatestBlockFlag bool                   `json:"latestBlockFlag"`
 	Opts            map[string]interface{} `json:"opts"`
 }

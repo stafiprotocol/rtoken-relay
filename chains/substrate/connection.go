@@ -33,6 +33,8 @@ type Connection struct {
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
+	log.Info("NewConnection", "KeystorePath", cfg.KeystorePath)
+
 	typesPath := cfg.Opts["typesPath"]
 	types, ok := typesPath.(string)
 	if !ok {

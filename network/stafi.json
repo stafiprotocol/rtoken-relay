@@ -211,5 +211,15 @@
     "pool": "Vec<u8>",
     "recipient": "Vec<u8>",
     "value": "u128"
+  },
+  "OriginalTxType": {
+    "type": "enum",
+    "value_list": [
+      "Transfer",
+      "Bond",
+      "Unbond",
+      "WithdrawUnbond",
+      "ClaimRewards"
+    ]
   }
 }

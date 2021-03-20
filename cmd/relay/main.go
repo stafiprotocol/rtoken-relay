@@ -105,6 +105,7 @@ func run(ctx *cli.Context) error {
 		chainConfig := &core.ChainConfig{
 			Name:           chain.Name,
 			Endpoint:       chain.Endpoint,
+			KeystorePath:   chain.KeystorePath,
 			Symbol:         core.RSymbol(chain.Rsymbol),
 			Accounts:       chain.Accounts,
 			Insecure:       false,
