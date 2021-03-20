@@ -5,7 +5,7 @@
       "type": "substrate",
       "endpoint": "ws://127.0.0.1:9944",
       "rsymbol": "RFIS",
-      "from": [
+      "accounts": [
         "34c2gTujY9tnNVo3YurpQ68q2F34JQsQukvhPAmS7fGKFXhn"
       ],
       "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/keys",
@@ -19,7 +19,7 @@
       "type": "cosmos",
       "endpoint": "http://127.0.0.1:26657",
       "rsymbol": "RATOM",
-      "from": [
+      "accounts": [
         "multiSign1"
       ],
       "keystorePath": "/Users/tpkeeper/.gaia",

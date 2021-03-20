@@ -76,7 +76,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
-	e, ok := m.Content.(core.EvtEraPoolUpdated)
+	e, ok := m.Content.(*core.EvtEraPoolUpdated)
 	if !ok {
 		w.log.Debug("EvtEraPoolUpdated cast err", "msg", m)
 		w.printContentError(m)
