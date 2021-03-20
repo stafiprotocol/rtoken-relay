@@ -3,12 +3,21 @@ package substrate
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	scalecodec "github.com/itering/scale.go"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/utils"
+)
+
+var (
+	ValueNotStringError = errors.New("value not string")
+	ValueNotMapError    = errors.New("value not map")
+	ValueNotU32         = errors.New("value not u32")
 )
 
 func LiquidityBondEventData(evt *ChainEvent) (*core.EvtLiquidityBond, error) {
@@ -41,46 +50,44 @@ func LiquidityBondEventData(evt *ChainEvent) (*core.EvtLiquidityBond, error) {
 }
 
 func EraPoolUpdatedData(evt *ChainEvent) (*core.EvtEraPoolUpdated, error) {
-	sym, ok := evt.Params[0].Value.(string)
-	if !ok {
-		return nil, errors.New("EraPoolUpdatedData rsymbol error")
+	if len(evt.Params) != 6 {
+		return nil, fmt.Errorf("params number not right: %d, expected: 6", len(evt.Params))
 	}
 
-	era := new(Era)
-	x, _ := json.Marshal(evt.Params[1])
-	err := json.Unmarshal(x, &era)
+	sym, err := parseRsymbol(evt.Params[0].Value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("EraPoolUpdatedData params[0] -> rsymbol error: %s", err)
 	}
 
-	poolStr := utiles.AddHex(evt.Params[2].Value.(string))
-	pool, err := hexutil.Decode(poolStr)
+	era, err := parseEra(evt.Params[1])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("EraPoolUpdatedData params[1] -> era error: %s", err)
 	}
 
-	bondStr, _ := evt.Params[3].Value.(string)
-	bond, ok := utils.StringToBigint(bondStr)
-	if !ok {
-		return nil, errors.New("EraPoolUpdatedData bond error")
-	}
-
-	unbondStr, _ := evt.Params[4].Value.(string)
-	unbond, ok := utils.StringToBigint(unbondStr)
-	if !ok {
-		return nil, errors.New("EraPoolUpdatedData bond error")
-	}
-
-	voterStr, _ := evt.Params[5].Value.(string)
-	voter, err := hexutil.Decode(utiles.AddHex(voterStr))
+	pool, err := parseBytes(evt.Params[2].Value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("EraPoolUpdatedData params[2] -> pool error: %s", err)
+	}
+
+	bond, err := parseBigint(evt.Params[3].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[3] -> bond error: %s", err)
+	}
+
+	unbond, err := parseBigint(evt.Params[4].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[4] -> unbond error: %s", err)
+	}
+
+	voter, err := parseBytes(evt.Params[5].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[5] -> lastVoter error: %s", err)
 	}
 
 	return &core.EvtEraPoolUpdated{
-		Rsymbol:   core.RSymbol(sym),
+		Rsymbol:   sym,
 		NewEra:    era.Value,
-		Pool:      types.NewBytes(pool),
+		Pool:      pool,
 		Bond:      types.NewU128(*bond),
 		Unbond:    types.NewU128(*unbond),
 		LastVoter: voter,
@@ -88,36 +95,162 @@ func EraPoolUpdatedData(evt *ChainEvent) (*core.EvtEraPoolUpdated, error) {
 }
 
 func EventNewMultisig(evt *ChainEvent) (*core.EventNewMultisig, error) {
-	s, ok := evt.Params[0].Value.(string)
-	if !ok {
-		return nil, errors.New("EventNewMultisig params[0] -> who error")
-	}
-	who, err := hexutil.Decode(utiles.AddHex(s))
+	who, err := parseAccountId(evt.Params[0].Value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("EventNewMultisig params[0] -> who error: %s", err)
 	}
 
-	s, ok = evt.Params[1].Value.(string)
-	if !ok {
-		return nil, errors.New("EventNewMultisig params[1] -> id error")
-	}
-	id, err := hexutil.Decode(utiles.AddHex(s))
+	id, err := parseAccountId(evt.Params[1].Value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("EventNewMultisig params[1] -> id error: %s", err)
 	}
 
-	s, ok = evt.Params[2].Value.(string)
-	if !ok {
-		return nil, errors.New("EventNewMultisig params[2] -> hash error")
-	}
-	hash, err := types.NewHashFromHexString(utiles.AddHex(s))
+	hash, err := parseHash(evt.Params[2].Value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("EventNewMultisig params[2] -> hash error: %s", err)
 	}
 
 	return &core.EventNewMultisig{
-		Who:      types.NewAccountID(who),
-		ID:       types.NewAccountID(id),
+		Who:      who,
+		ID:       id,
 		CallHash: hash,
 	}, nil
+}
+
+func EventMultisigExecuted(evt *ChainEvent) (*core.EventMultisigExecuted, error) {
+	approving, err := parseAccountId(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventMultisigExecuted params[0] -> approving error: %s", err)
+	}
+
+	tp, err := parseTimePoint(evt.Params[1].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventMultisigExecuted params[1] -> timepoint error: %s", err)
+	}
+
+	id, err := parseAccountId(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventMultisigExecuted params[2] -> id error: %s", err)
+	}
+
+	hash, err := parseHash(evt.Params[3].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventMultisigExecuted params[3] -> hash error: %s", err)
+	}
+
+	ok, err := parseDispatchResult(evt.Params[4].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventMultisigExecuted params[4] -> dispatchresult error: %s", err)
+	}
+
+	return &core.EventMultisigExecuted{
+		Who:       approving,
+		TimePoint: tp,
+		ID:        id,
+		CallHash:  hash,
+		Result:    ok,
+	}, nil
+}
+
+func parseRsymbol(value interface{}) (core.RSymbol, error) {
+	sym, ok := value.(string)
+	if !ok {
+		return core.RSymbol(""), ValueNotStringError
+	}
+
+	return core.RSymbol(sym), nil
+}
+
+func parseEra(param scalecodec.EventParam) (*Era, error) {
+	bz, err := json.Marshal(param)
+	if err != nil {
+		return nil, err
+	}
+
+	era := new(Era)
+	err = json.Unmarshal(bz, era)
+	if err != nil {
+		return nil, err
+	}
+
+	return era, nil
+}
+
+func parseBytes(value interface{}) ([]byte, error) {
+	val, ok := value.(string)
+	if !ok {
+		return nil, ValueNotStringError
+	}
+
+	bz, err := hexutil.Decode(utiles.AddHex(val))
+	if err != nil {
+		return nil, err
+	}
+
+	return bz, nil
+}
+
+func parseBigint(value interface{}) (*big.Int, error) {
+	val, ok := value.(string)
+	if !ok {
+		return nil, ValueNotStringError
+	}
+
+	i, ok := utils.StringToBigint(val)
+	if !ok {
+		return nil, fmt.Errorf("string to bigint error: %s", val)
+	}
+
+	return i, nil
+}
+
+func parseAccountId(value interface{}) (types.AccountID, error) {
+	val, ok := value.(string)
+	if !ok {
+		return types.NewAccountID([]byte{}), ValueNotStringError
+	}
+	ac, err := hexutil.Decode(utiles.AddHex(val))
+	if err != nil {
+		return types.NewAccountID([]byte{}), err
+	}
+
+	return types.NewAccountID(ac), nil
+}
+
+func parseHash(value interface{}) (types.Hash, error) {
+	val, ok := value.(string)
+	if !ok {
+		return types.NewHash([]byte{}), ValueNotStringError
+	}
+
+	hash, err := types.NewHashFromHexString(utiles.AddHex(val))
+	if err != nil {
+		return types.NewHash([]byte{}), err
+	}
+
+	return hash, err
+}
+
+func parseTimePoint(value interface{}) (types.TimePoint, error) {
+	bz, err := json.Marshal(value)
+	if err != nil {
+		return types.TimePoint{}, err
+	}
+
+	var tp types.TimePoint
+	err = json.Unmarshal(bz, &tp)
+	if err != nil {
+		return types.TimePoint{}, err
+	}
+
+	return tp, nil
+}
+
+func parseDispatchResult(value interface{}) (bool, error) {
+	result, ok := value.(map[string]interface{})
+	if !ok {
+		return false, ValueNotMapError
+	}
+	_, ok = result["Ok"]
+	return ok, nil
 }

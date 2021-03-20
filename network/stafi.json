@@ -208,24 +208,10 @@
   },
   "WithdrawChunk": {
     "type": "struct",
-    "type_mapping": [
-      [
-        "who",
-        "AccountId"
-      ],
-      [
-        "pool",
-        "Vec<u8>"
-      ],
-      [
-        "recipient",
-        "Vec<u8>"
-      ],
-      [
-        "value",
-        "u128"
-      ]
-    ]
+    "who": "AccountId",
+    "pool": "Vec<u8>",
+    "recipient": "Vec<u8>",
+    "value": "u128"
   },
   "OriginalTxType": {
     "type": "enum",

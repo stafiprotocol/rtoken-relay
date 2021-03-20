@@ -232,6 +232,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[NewMultisig](flow, l.log))
 				}
 			} else if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.MultisigExecutedEventId {
+
 			}
 		default:
 			l.log.Error("process event unsupport rsymbol", "rsymbol", l.rsymbol)

@@ -108,6 +108,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		w.printContentError(m)
 		return false
 	}
+	w.log.Info("usingedTx", "tx", string(unSignedTx))
 
 	return true
 }

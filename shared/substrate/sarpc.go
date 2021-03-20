@@ -199,13 +199,6 @@ func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*ChainEvent, error) {
 		return nil, err
 	}
 
-	types.RuntimeType{}.Reg()
-	content, err := ioutil.ReadFile(sc.typesPath)
-	if err != nil {
-		panic(err)
-	}
-	types.RegCustomTypes(source.LoadTypeRegistry(content))
-
 	// parse event raw into []ChainEvent
 	e := scalecodec.EventsDecoder{}
 	option := types.ScaleDecoderOption{Metadata: &sc.metaDecoder.Metadata}
