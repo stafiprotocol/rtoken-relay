@@ -61,6 +61,10 @@ func (c *Client) SetFromName(fromName string) error {
 	return nil
 }
 
+func (c *Client) GetFromName() string {
+	return c.clientCtx.FromName
+}
+
 func (c *Client) SetGasPrice(gasPrice string) error {
 	//todo check value
 	c.gasPrice = gasPrice

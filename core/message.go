@@ -17,4 +17,7 @@ const (
 	EraPoolUpdated   = Reason("EraPoolUpdated")
 	NewMultisig      = Reason("AsMulti")
 	MultisigExecuted = Reason("MultisigExecuted")
+
+	SubmitSignature = Reason("SubmitSignature")
+	SignatureEnough = Reason("SignatureEnough")
 )

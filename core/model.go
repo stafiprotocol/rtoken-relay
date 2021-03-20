@@ -195,6 +195,14 @@ type PoolKey struct {
 	Pool    types.Bytes
 }
 
+type SignaturesKey struct {
+	RSymbol    RSymbol
+	Era        uint32
+	Pool       []byte
+	TxType     OriginalTx
+	ProposalId []byte
+}
+
 type MultisigFlow struct {
 	EvtEraPoolUpdated *EvtEraPoolUpdated
 	LastVoterFlag     bool
@@ -211,6 +219,7 @@ type MultisigFlow struct {
 	MulExecute        *EventMultisigExecuted
 }
 
+//EraPoolUpdated(RSymbol, u32, Vec<u8>, u128, u128, AccountId),
 type EvtEraPoolUpdated struct {
 	Rsymbol   RSymbol
 	NewEra    uint32
@@ -218,6 +227,15 @@ type EvtEraPoolUpdated struct {
 	Bond      types.U128
 	Unbond    types.U128
 	LastVoter []byte
+}
+
+//SignaturesEnough(RSymbol, u32, Vec<u8>, OriginalTxType, Vec<u8>),
+type EvtSignatureEnough struct {
+	RSymbol    RSymbol
+	Era        uint32
+	Pool       []byte
+	TxType     OriginalTx
+	ProposalId []byte
 }
 
 type EventNewMultisig struct {
@@ -238,4 +256,73 @@ type EventMultisigExecuted struct {
 	ID        types.AccountID
 	CallHash  types.Hash
 	Result    bool
+}
+
+type OriginalTx string
+
+const (
+	Transfer       = "Transfer"
+	Bond           = "Bond"
+	Unbond         = "Unbond"
+	WithdrawUnbond = "WithdrawUnbond"
+	ClaimRewards   = "ClaimRewards"
+)
+
+func (r *OriginalTx) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*r = Transfer
+	case 1:
+		*r = Bond
+	case 2:
+		*r = Unbond
+	case 3:
+		*r = WithdrawUnbond
+	case 4:
+		*r = ClaimRewards
+	default:
+		return fmt.Errorf("OriginalTx decode error: %d", b)
+	}
+
+	return nil
+}
+
+func (r OriginalTx) Encode(encoder scale.Encoder) error {
+	switch r {
+	case Transfer:
+		return encoder.PushByte(0)
+	case Bond:
+		return encoder.PushByte(1)
+	case Unbond:
+		return encoder.PushByte(2)
+	case WithdrawUnbond:
+		return encoder.PushByte(3)
+	case ClaimRewards:
+		return encoder.PushByte(4)
+	default:
+		return fmt.Errorf("OriginalTx %s not supported", r)
+	}
+}
+
+type SubmitSignatureParams struct {
+	Symbol     RSymbol
+	Era        types.U32
+	Pool       types.Bytes
+	TxType     OriginalTx
+	ProposalId types.Bytes
+	Signature  types.Bytes
+}
+
+type SubmitSignatures struct {
+	Symbol     RSymbol
+	Era        types.U32
+	Pool       types.Bytes
+	TxType     OriginalTx
+	ProposalId types.Bytes
+	Signature  []types.Bytes
 }

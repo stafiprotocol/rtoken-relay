@@ -94,6 +94,45 @@ func EraPoolUpdatedData(evt *ChainEvent) (*core.EvtEraPoolUpdated, error) {
 	}, nil
 }
 
+func SignatureEnoughData(evt *ChainEvent) (*core.EvtSignatureEnough, error) {
+	if len(evt.Params) != 5 {
+		return nil, fmt.Errorf("params number not right: %d, expected: 6", len(evt.Params))
+	}
+
+	sym, err := parseRsymbol(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[0] -> rsymbol error: %s", err)
+	}
+
+	era, err := parseEra(evt.Params[1])
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[1] -> era error: %s", err)
+	}
+
+	pool, err := parseBytes(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[2] -> pool error: %s", err)
+	}
+
+	tx, err := parseOriginTx(evt.Params[3].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[3] -> bond error: %s", err)
+	}
+
+	proposalId, err := parseBytes(evt.Params[4].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[4] -> unbond error: %s", err)
+	}
+
+	return &core.EvtSignatureEnough{
+		RSymbol:    sym,
+		Era:        era.Value,
+		Pool:       pool,
+		TxType:     tx,
+		ProposalId: proposalId,
+	}, nil
+}
+
 func EventNewMultisig(evt *ChainEvent) (*core.EventNewMultisig, error) {
 	who, err := parseAccountId(evt.Params[0].Value)
 	if err != nil {
@@ -159,6 +198,15 @@ func parseRsymbol(value interface{}) (core.RSymbol, error) {
 	}
 
 	return core.RSymbol(sym), nil
+}
+
+func parseOriginTx(value interface{}) (core.OriginalTx, error) {
+	sym, ok := value.(string)
+	if !ok {
+		return core.OriginalTx(""), ValueNotStringError
+	}
+
+	return core.OriginalTx(sym), nil
 }
 
 func parseEra(param scalecodec.EventParam) (*Era, error) {

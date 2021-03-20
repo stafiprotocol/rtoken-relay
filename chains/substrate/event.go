@@ -84,6 +84,44 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.Mu
 	}, nil
 }
 
+func (l *listener) processSignatureEnoughEvt(evt *substrate.ChainEvent) (*core.SubmitSignatures, error) {
+	data, err := substrate.SignatureEnoughData(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	sk := core.SignaturesKey{
+		RSymbol:    data.RSymbol,
+		Era:        data.Era,
+		Pool:       data.Pool,
+		TxType:     data.TxType,
+		ProposalId: data.ProposalId,
+	}
+	pkBz, err := types.EncodeToBytes(sk)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigs []types.Bytes
+	exist, err := l.conn.QueryStorage(config.SignaturesEnoughEventId, config.StorageSignatures, pkBz, nil, &sigs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("unable to get signatures: signature key %+v ", sk)
+	}
+
+	return &core.SubmitSignatures{
+		Symbol:     data.RSymbol,
+		Era:        types.NewU32(data.Era),
+		Pool:       data.Pool,
+		TxType:     data.TxType,
+		ProposalId: data.ProposalId,
+		Signature:  sigs,
+	}, nil
+}
+
 func (l *listener) processNewMultisigEvt(evt *substrate.ChainEvent) (*core.MultisigFlow, error) {
 	data, err := substrate.EventNewMultisig(evt)
 	if err != nil {

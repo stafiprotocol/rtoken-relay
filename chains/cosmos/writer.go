@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
+	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"time"
 )
 
 //write to cosmos
@@ -40,9 +42,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processLiquidityBond(m)
 	case core.EraPoolUpdated:
 		return w.processEraPoolUpdated(m)
-	case core.NewMultisig:
-	case core.MultisigExecuted:
-		return true
+	case core.SignatureEnough:
+
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -76,13 +77,15 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
-	e, ok := m.Content.(*core.EvtEraPoolUpdated)
+	mFlow, ok := m.Content.(*core.MultisigFlow)
 	if !ok {
 		w.log.Debug("EvtEraPoolUpdated cast err", "msg", m)
 		w.printContentError(m)
 		return false
 	}
+	e := mFlow.EvtEraPoolUpdated
 	poolAddrHexStr := hex.EncodeToString(e.Pool)
+
 	subClient, exist := w.conn.subClients[poolAddrHexStr]
 	if !exist {
 		w.log.Debug("processEraPoolUpdated pool not exist")
@@ -96,6 +99,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		w.printContentError(m)
 		return false
 	}
+
 	client := subClient.GetRpcClient()
 
 	unSignedTx, err := client.GenMultiSigRawDelegateTx(
@@ -108,9 +112,85 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		w.printContentError(m)
 		return false
 	}
-	w.log.Info("usingedTx", "tx", string(unSignedTx))
 
-	return true
+	sigBts, err := client.SignMultiSigRawTx(unSignedTx, client.GetFromName())
+	if err != nil {
+		w.log.Debug("SignMultiSigRawTx", "err", err)
+		w.printContentError(m)
+		return false
+	}
+
+	w.log.Info("processEraPoolUpdated gen unsigned Tx", "tx", string(unSignedTx))
+	param := core.SubmitSignatureParams{
+		Symbol:     w.conn.symbol,
+		Era:        substrateTypes.NewU32(e.NewEra),
+		Pool:       substrateTypes.NewBytes(e.Pool),
+		TxType:     core.OriginalTx(core.Bond),
+		ProposalId: substrateTypes.NewBytes(unSignedTx),
+		Signature:  substrateTypes.NewBytes(sigBts),
+	}
+
+	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
+	return w.submitMessage(result)
+}
+
+func (w *writer) processSignatureEnough(m *core.Message) bool {
+	w.log.Trace("processSignatureEnough", "source", m.Source, "dest", m.Destination, "content", m.Content)
+	sigs, ok := m.Content.(*core.SubmitSignatures)
+	if !ok {
+		w.log.Debug("SubmitSignatures cast err", "msg", m)
+		w.printContentError(m)
+		return false
+	}
+
+	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
+	subClient, exist := w.conn.subClients[poolAddrHexStr]
+	if !exist {
+		w.log.Debug("processSignatureEnough pool not exist")
+		w.printContentError(m)
+		return false
+	}
+
+	client := subClient.GetRpcClient()
+	signatures := make([][]byte, 0)
+	for _, sig := range sigs.Signature {
+		signatures = append(signatures, sig)
+	}
+
+	txHash, txBts, err := client.AssembleMultiSigTx(sigs.ProposalId, signatures)
+	if err != nil {
+		w.log.Debug("processSignatureEnough AssembleMultiSigTx", "err", err)
+		w.printContentError(m)
+		return false
+	}
+
+	retry := BlockRetryLimit
+	txHashHexStr := hex.EncodeToString(txHash)
+	for {
+		if retry <= 0 {
+			w.log.Error("processSignatureEnough broadcast tx reach retry limit")
+			break
+		}
+		//check on chain
+		res, err := client.QueryTxByHash(txHashHexStr)
+		if err != nil || res.Empty() {
+			w.log.Debug("processSignatureEnough QueryTxByHash", "err or res.empty", err)
+		} else {
+			w.log.Info("processSignatureEnough success", "txHash", txHashHexStr)
+			//return true only check on chain
+			return true
+		}
+
+		//broadcast if not on chain
+		_, err = client.BroadcastTx(txBts)
+		if err != nil {
+			w.log.Debug("processSignatureEnough BroadcastTx", "err", err)
+		}
+
+		time.Sleep(BlockRetryInterval)
+	}
+
+	return false
 }
 
 func (w *writer) printContentError(m *core.Message) {

@@ -216,6 +216,16 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if l.subscriptions[EraPoolUpdated] != nil {
 					l.submitMessage(l.subscriptions[EraPoolUpdated](flow, l.log))
 				}
+			} else if evt.ModuleId == config.SubmitSignaturesModuleId && evt.EventId == config.SignaturesEnoughEventId {
+				l.log.Trace("Handling SignaturesEnoughEventId event")
+				sigs, err := l.processSignatureEnoughEvt(evt)
+				if err != nil {
+					return err
+				}
+				if l.subscriptions[SignatureEnough] != nil {
+					l.submitMessage(l.subscriptions[SignatureEnough](sigs, l.log))
+				}
+
 			}
 		case core.RDOT:
 			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {

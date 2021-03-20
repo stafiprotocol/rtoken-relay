@@ -19,4 +19,9 @@ const (
 	//StoragePoolSubAccountFlag  = "PoolSubAccountFlag"
 	StorageTotalLinking = "TotalLinking"
 	StorageBondFaucets  = "BondFaucets"
+
+	SubmitSignatures         = "RTokenSeries.submit_signatures"
+	SubmitSignaturesModuleId = "RTokenSeries"
+	SignaturesEnoughEventId  = "SignaturesEnough"
+	StorageSignatures        = "Signatures"
 )

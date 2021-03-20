@@ -5,7 +5,6 @@ package substrate
 
 import (
 	"fmt"
-
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -55,6 +54,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 	case core.MultisigExecuted:
 		// todo
 		return true
+	case core.SubmitSignature:
+		return w.processSubmitSignature(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -262,6 +263,36 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	w.log.Error("AsMulti success", "callhash", flow.CallHash)
 	return true
+}
+
+func (w *writer) processSubmitSignature(m *core.Message) bool {
+	param, ok := m.Content.(core.SubmitSignatureParams)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	//old, err := w.conn.CurrentRsymbolEra(m.Source)
+	//if err != nil {
+	//	w.sysErr <- err
+	//	return false
+	//}
+	//
+	//if param.Era <= old {
+	//	w.log.Warn("rsymbol era is smaller than the storage one")
+	//	return false
+	//}
+
+	//newEra := types.U32(neew)
+	//eraBz, _ := types.EncodeToBytes(newEra)
+	//bondId := types.Hash(utils.BlakeTwo256(eraBz))
+	//bk := &core.BondKey{Rsymbol: m.Source, BondId: bondId}
+	//prop, err := w.conn.newUpdateEraProposal(bk, newEra)
+	//
+	//param:=core.SubmitSignatureParams{}
+	result := w.conn.submitSignature(&param)
+	w.log.Info("submitSignature", "rsymbol", m.Source, "result", result)
+	return result
 }
 
 func (w *writer) printContentError(m *core.Message) {

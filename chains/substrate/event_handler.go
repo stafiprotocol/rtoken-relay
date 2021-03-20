@@ -22,11 +22,14 @@ const (
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
+
+	SignatureEnough = eventName(config.SignaturesEnoughEventId)
 )
 
 var MainSubscriptions = []eventHandlerSubscriptions{
 	{LiquidityBond, liquidityBondHandler},
 	{EraPoolUpdated, eraPoolUpdatedHandler},
+	{SignatureEnough, signatureEnoughHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -44,13 +47,21 @@ func liquidityBondHandler(data interface{}, log log15.Logger) (*core.Message, er
 }
 
 func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-
 	d, ok := data.(*core.MultisigFlow)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast era pool updated")
 	}
 
 	return &core.Message{Destination: d.EvtEraPoolUpdated.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+}
+
+func signatureEnoughHandler(data interface{}, log log15.Logger) (*core.Message, error) {
+	d, ok := data.(*core.SubmitSignatures)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast submitSignatures")
+	}
+
+	return &core.Message{Destination: d.Symbol, Reason: core.SignatureEnough, Content: d}, nil
 }
 
 func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, error) {
