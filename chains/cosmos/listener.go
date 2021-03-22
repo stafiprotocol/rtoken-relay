@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-const eraBlockNumber = int64(20) //6hours 6*60*60/6
+//todo test only will update this on release
+const eraBlockNumber = int64(30) //6hours 6*60*60/6
 // Frequency of polling for a new block
 var (
 	BlockRetryInterval = time.Second * 5
