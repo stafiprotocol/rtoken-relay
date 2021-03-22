@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
+	errType "github.com/cosmos/cosmos-sdk/types/errors"
 	chainBridgeUtils "github.com/stafiprotocol/chainbridge/shared/ethereum"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
@@ -216,20 +217,23 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		//check on chain
 		res, err := client.QueryTxByHash(txHashHexStr)
 		if err != nil || res.Empty() {
-			w.log.Warn(fmt.Sprintf("processSignatureEnough QueryTxByHash failed will retry after %d second", BlockRetryInterval),
+			w.log.Warn(fmt.Sprintf("processSignatureEnough QueryTxByHash failed will retry after %f second",
+				BlockRetryInterval.Seconds()),
 				"err or res.empty", err)
 		} else {
 			w.log.Info("processSignatureEnough success",
 				"pool hex address", poolAddrHexStr,
 				"txHash", txHashHexStr)
 			//return true only check on chain
+			//todo rm cached tx
 			return true
 		}
 
 		//broadcast if not on chain
 		_, err = client.BroadcastTx(txBts)
-		if err != nil {
-			w.log.Warn(fmt.Sprintf("processSignatureEnough BroadcastTx failed, will retry after %d second", BlockRetryLimit),
+		if err != nil && err != errType.ErrTxInMempoolCache {
+			w.log.Warn(fmt.Sprintf("processSignatureEnough BroadcastTx failed, will retry after %f second",
+				BlockRetryInterval.Seconds()),
 				"err", err)
 		}
 		time.Sleep(BlockRetryInterval)
