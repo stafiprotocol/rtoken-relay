@@ -79,7 +79,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 }
 
 func (fc *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error) {
-	//todo test only
+	//todo test only,must rm on release
 	return core.Pass, nil
 	if len(fc.subClients) == 0 || len(fc.poolKeys) == 0 {
 		return "", fmt.Errorf("no subClient")

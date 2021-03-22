@@ -32,8 +32,8 @@ type listener struct {
 
 // Frequency of polling for a new block
 var (
-	BlockRetryInterval = time.Second * 1
-	BlockRetryLimit    = 1
+	BlockRetryInterval = time.Second * 5
+	BlockRetryLimit    = 5
 )
 
 func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
@@ -120,7 +120,7 @@ func (l *listener) pollBlocks() error {
 					l.log.Error("pollBlocks error", "rsymbol", l.rsymbol)
 				}
 
-				//return nil
+				return nil
 			}
 
 			finalBlk, err := l.conn.FinalizedBlockNumber()
@@ -152,7 +152,6 @@ func (l *listener) pollBlocks() error {
 					}
 				}
 				retry--
-				currentBlock++
 				continue
 			}
 
@@ -219,8 +218,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				}
 			} else if evt.ModuleId == config.SubmitSignaturesModuleId && evt.EventId == config.SignaturesEnoughEventId {
 				l.log.Trace("Handling SignaturesEnoughEventId event")
-				sigs, err := l.processSignatureEnoughEvt(evt)
-				if err != nil {
+				sigs,err:=l.processSignatureEnoughEvt(evt)
+				if err!=nil{
 					return err
 				}
 				if l.subscriptions[SignatureEnough] != nil {

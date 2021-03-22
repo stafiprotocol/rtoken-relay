@@ -2,6 +2,8 @@ package cosmos
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	utils "github.com/stafiprotocol/chainbridge/shared/ethereum"
@@ -51,13 +53,15 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
 	}
-	return true
 }
 
+//process LiquidityBond event from stafi
+//1 check liquidityBond data  on cosmos chain
+//2 return check result to stafi
 func (w *writer) processLiquidityBond(m *core.Message) bool {
 	flow, ok := m.Content.(*core.BondFlow)
 	if !ok {
-		w.printContentError(m)
+		w.printContentError(m, errors.New("msg cast to BondFlow not ok"))
 		return false
 	}
 
@@ -78,60 +82,70 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
+//process eraPoolUpdate event
+//1 gen bond/unbond multiSig unsigned tx and sign it with subKey
+//2 send signature to stafi
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
 	mFlow, ok := m.Content.(*core.MultisigFlow)
 	if !ok {
-		w.log.Debug("EvtEraPoolUpdated cast err", "msg", m)
-		w.printContentError(m)
+		w.printContentError(m, errors.New("msg cast to MultisigFlow not ok"))
 		return false
 	}
+
 	e := mFlow.EvtEraPoolUpdated
 
-	//todo for test
+	//check bond/unbond is needed
 	if e.Bond.Int.Cmp(e.Unbond.Int) == 0 {
-		w.log.Debug("EvtEraPoolUpdated bond=unbond")
+		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
 		return true
 	}
 
+	//get subClient of this pool address
 	poolAddrHexStr := hex.EncodeToString(e.Pool)
-
 	subClient, exist := w.conn.subClients[poolAddrHexStr]
 	if !exist {
-		w.log.Debug("processEraPoolUpdated pool not exist")
-		w.printContentError(m)
+		w.log.Error("EraPoolUpdated pool failed",
+			"pool hex address", poolAddrHexStr,
+			"err", "subClient of this pool not exist")
 		return false
 	}
-	var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
 	if err != nil {
-		w.log.Debug("accAddressFromHex", "err", err)
-		w.printContentError(m)
+		w.log.Error("hexPoolAddr cast to cosmos AccAddress failed", "pool hex address", poolAddrHexStr, "err", err)
 		return false
 	}
 
+	//todo cosmos validator just for test,will got from stafi or cosmos
+	var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 	client := subClient.GetRpcClient()
+	//just for test
+	coin := types.NewCoin(client.GetDenom(), types.NewInt(100))
 
 	unSignedTx, err := client.GenMultiSigRawDelegateTx(
 		poolAddr,
 		addrValidatorTestnetAteam,
-		types.NewCoin(client.GetDenom(), types.NewInt(100)))
+		coin)
 
 	if err != nil {
-		w.log.Debug("GenMultiSigRawDelegateTx", "err", err)
-		w.printContentError(m)
+		w.log.Error("GenMultiSigRawDelegateTx failed",
+			"pool address", poolAddr.String(),
+			"validator address", addrValidatorTestnetAteam.String(),
+			"err", err)
 		return false
 	}
 
 	sigBts, err := client.SignMultiSigRawTx(unSignedTx, subClient.GetSubkey())
 	if err != nil {
-		w.log.Debug("SignMultiSigRawTx", "err", err)
-		w.printContentError(m)
+		w.log.Error("SignMultiSigRawTx failed",
+			"pool address", poolAddr.String(),
+			"validator address", addrValidatorTestnetAteam.String(),
+			"err", err)
 		return false
 	}
 
+	//cache unSignedTx
 	proposalId := utils.Hash(unSignedTx)
-	w.log.Info("processEraPoolUpdated gen unsigned Tx", "txhash", hex.EncodeToString(proposalId[:]))
 	w.cachedUnsignedTx[hex.EncodeToString(proposalId[:])] = unSignedTx
 	param := core.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
@@ -142,24 +156,31 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
+	w.log.Info("processEraPoolUpdated gen unsigned Tx",
+		"pool address", poolAddr.String(),
+		"tx hash", hex.EncodeToString(proposalId[:]))
+
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
 }
 
+//process SignatureEnough event
+//1 assemble unsigned tx and signatures
+//2 send tx to cosmos until it is confirmed or reach the retry limit
 func (w *writer) processSignatureEnough(m *core.Message) bool {
 	w.log.Trace("processSignatureEnough", "source", m.Source, "dest", m.Destination, "content", m.Content)
 	sigs, ok := m.Content.(*core.SubmitSignatures)
 	if !ok {
-		w.log.Debug("SubmitSignatures cast err", "msg", m)
-		w.printContentError(m)
+		w.printContentError(m, errors.New("msg cast to SubmitSignatures not ok"))
 		return false
 	}
 
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
 	subClient, exist := w.conn.subClients[poolAddrHexStr]
 	if !exist {
-		w.log.Debug("processSignatureEnough pool not exist")
-		w.printContentError(m)
+		w.log.Error("processSignatureEnough failed",
+			"pool hex address", poolAddrHexStr,
+			"error", "subClient of this pool not exist")
 		return false
 	}
 
@@ -171,14 +192,16 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 
 	unSignedTx, exist := w.cachedUnsignedTx[hex.EncodeToString(sigs.ProposalId)]
 	if !exist {
-		w.log.Debug("processSignatureEnough tx not exist")
-		w.printContentError(m)
+		w.log.Error("processSignatureEnough failed",
+			"proposalId", hex.EncodeToString(sigs.ProposalId),
+			"err", "can`t find unsignedTx in cachedTx")
 		return false
 	}
 	txHash, txBts, err := client.AssembleMultiSigTx(unSignedTx, signatures)
 	if err != nil {
-		w.log.Debug("processSignatureEnough AssembleMultiSigTx", "err", err)
-		w.printContentError(m)
+		w.log.Error("processSignatureEnough AssembleMultiSigTx failed",
+			"pool hex address ", poolAddrHexStr,
+			"err", err)
 		return false
 	}
 
@@ -186,15 +209,19 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	txHashHexStr := hex.EncodeToString(txHash)
 	for {
 		if retry <= 0 {
-			w.log.Error("processSignatureEnough broadcast tx reach retry limit")
+			w.log.Error("processSignatureEnough broadcast tx reach retry limit",
+				"pool hex address", poolAddrHexStr)
 			break
 		}
 		//check on chain
 		res, err := client.QueryTxByHash(txHashHexStr)
 		if err != nil || res.Empty() {
-			w.log.Debug("processSignatureEnough QueryTxByHash", "err or res.empty", err)
+			w.log.Warn(fmt.Sprintf("processSignatureEnough QueryTxByHash failed will retry after %d second", BlockRetryInterval),
+				"err or res.empty", err)
 		} else {
-			w.log.Info("processSignatureEnough success", "txHash", txHashHexStr)
+			w.log.Info("processSignatureEnough success",
+				"pool hex address", poolAddrHexStr,
+				"txHash", txHashHexStr)
 			//return true only check on chain
 			return true
 		}
@@ -202,17 +229,17 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		//broadcast if not on chain
 		_, err = client.BroadcastTx(txBts)
 		if err != nil {
-			w.log.Debug("processSignatureEnough BroadcastTx", "err", err)
+			w.log.Warn(fmt.Sprintf("processSignatureEnough BroadcastTx failed, will retry after %d second", BlockRetryLimit),
+				"err", err)
 		}
-
 		time.Sleep(BlockRetryInterval)
 	}
 
 	return false
 }
 
-func (w *writer) printContentError(m *core.Message) {
-	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason)
+func (w *writer) printContentError(m *core.Message, err error) {
+	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)
 }
 
 // submitMessage inserts the chainId into the msg and sends it to the router
