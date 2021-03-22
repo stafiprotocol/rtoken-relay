@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
-	utils "github.com/stafiprotocol/chainbridge/shared/ethereum"
+	chainBridgeUtils "github.com/stafiprotocol/chainbridge/shared/ethereum"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -15,19 +15,17 @@ import (
 
 //write to cosmos
 type writer struct {
-	conn             *Connection
-	router           chains.Router
-	log              log15.Logger
-	sysErr           chan<- error
-	cachedUnsignedTx map[string][]byte
+	conn   *Connection
+	router chains.Router
+	log    log15.Logger
+	sysErr chan<- error
 }
 
 func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
 	return &writer{
-		conn:             conn,
-		log:              log,
-		sysErr:           sysErr,
-		cachedUnsignedTx: make(map[string][]byte),
+		conn:   conn,
+		log:    log,
+		sysErr: sysErr,
 	}
 }
 
@@ -145,8 +143,10 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := utils.Hash(unSignedTx)
-	w.cachedUnsignedTx[hex.EncodeToString(proposalId[:])] = unSignedTx
+	proposalId := chainBridgeUtils.Hash(unSignedTx)
+	proposalIdHexStr := hex.EncodeToString(proposalId[:])
+	subClient.CacheUnsignedTx(proposalIdHexStr, unSignedTx)
+
 	param := core.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(e.NewEra),
@@ -176,7 +176,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	}
 
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
-	subClient, err := w.conn.GetPoolClient(poolAddrHexStr)
+	poolClient, err := w.conn.GetPoolClient(poolAddrHexStr)
 	if err != nil {
 		w.log.Error("processSignatureEnough failed",
 			"pool hex address", poolAddrHexStr,
@@ -184,17 +184,17 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return false
 	}
 
-	client := subClient.GetRpcClient()
+	client := poolClient.GetRpcClient()
 	signatures := make([][]byte, 0)
 	for _, sig := range sigs.Signature {
 		signatures = append(signatures, sig)
 	}
 
-	unSignedTx, exist := w.cachedUnsignedTx[hex.EncodeToString(sigs.ProposalId)]
-	if !exist {
+	unSignedTx, err := poolClient.GetUnsignedTx(hex.EncodeToString(sigs.ProposalId))
+	if err != nil {
 		w.log.Error("processSignatureEnough failed",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
-			"err", "can`t find unsignedTx in cachedTx")
+			"err", err)
 		return false
 	}
 	txHash, txBts, err := client.AssembleMultiSigTx(unSignedTx, signatures)

@@ -43,6 +43,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, err
 	}
 
+	//todo some params just for test
 	for _, account := range cfg.Accounts {
 		rpcClient, err := rpcHttp.New(cfg.Endpoint, "/websocket")
 		if err != nil {
