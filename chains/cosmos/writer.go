@@ -19,7 +19,6 @@ type writer struct {
 	router           chains.Router
 	log              log15.Logger
 	sysErr           chan<- error
-	multisigFlows    map[string]*core.MultisigFlow
 	cachedUnsignedTx map[string][]byte
 }
 
@@ -103,13 +102,14 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 	//get subClient of this pool address
 	poolAddrHexStr := hex.EncodeToString(e.Pool)
-	subClient, exist := w.conn.subClients[poolAddrHexStr]
-	if !exist {
+	subClient, err := w.conn.GetPoolClient(poolAddrHexStr)
+	if err != nil {
 		w.log.Error("EraPoolUpdated pool failed",
 			"pool hex address", poolAddrHexStr,
-			"err", "subClient of this pool not exist")
+			"err", err)
 		return false
 	}
+
 	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
 	if err != nil {
 		w.log.Error("hexPoolAddr cast to cosmos AccAddress failed", "pool hex address", poolAddrHexStr, "err", err)
@@ -135,7 +135,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	sigBts, err := client.SignMultiSigRawTx(unSignedTx, subClient.GetSubkey())
+	sigBts, err := client.SignMultiSigRawTx(unSignedTx, subClient.GetSubKey())
 	if err != nil {
 		w.log.Error("SignMultiSigRawTx failed",
 			"pool address", poolAddr.String(),
@@ -176,11 +176,11 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	}
 
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
-	subClient, exist := w.conn.subClients[poolAddrHexStr]
-	if !exist {
+	subClient, err := w.conn.GetPoolClient(poolAddrHexStr)
+	if err != nil {
 		w.log.Error("processSignatureEnough failed",
 			"pool hex address", poolAddrHexStr,
-			"error", "subClient of this pool not exist")
+			"error", err)
 		return false
 	}
 

@@ -17,12 +17,11 @@ import (
 )
 
 type Connection struct {
-	url        string
-	symbol     core.RSymbol
-	poolKeys   []string //pool addr hex string
-	subClients map[string]*cosmos.SubClient
-	log        log15.Logger
-	stop       <-chan int
+	url         string
+	symbol      core.RSymbol
+	poolClients map[string]*cosmos.PoolClient //map[addressHexStr]subClient
+	log         log15.Logger
+	stop        <-chan int
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -35,7 +34,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		subKeys[account] = subKey
 	}
 
-	subClients := make(map[string]*cosmos.SubClient)
+	subClients := make(map[string]*cosmos.PoolClient)
 	keys := make([]string, 0)
 
 	fmt.Printf("Will open cosmos wallet from <%s>. Please ", cfg.KeystorePath)
@@ -69,24 +68,23 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:        cfg.Endpoint,
-		symbol:     cfg.Symbol,
-		log:        log,
-		stop:       stop,
-		poolKeys:   keys,
-		subClients: subClients,
+		url:         cfg.Endpoint,
+		symbol:      cfg.Symbol,
+		log:         log,
+		stop:        stop,
+		poolClients: subClients,
 	}, nil
 }
 
-func (fc *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error) {
+func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error) {
 	//todo test only,must rm on release
 	return core.Pass, nil
-	if len(fc.subClients) == 0 || len(fc.poolKeys) == 0 {
-		return "", fmt.Errorf("no subClient")
-	}
-	hashStr := hex.EncodeToString(r.Txhash)
-	client := fc.subClients[fc.poolKeys[0]]
 
+	hashStr := hex.EncodeToString(r.Txhash)
+	client, err := c.GetOnePoolClient()
+	if err != nil {
+		return core.BondReasonDefault, err
+	}
 	//check tx hash
 	res, err := client.GetRpcClient().QueryTxByHash(hashStr)
 	if err != nil {
@@ -150,4 +148,23 @@ func (fc *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error
 		return core.PubkeyUnmatch, nil
 	}
 	return core.Pass, nil
+}
+
+//fetch one for query
+func (c *Connection) GetOnePoolClient() (*cosmos.PoolClient, error) {
+	//todo check connect state
+	for _, sub := range c.poolClients {
+		if sub != nil {
+			return sub, nil
+		}
+	}
+	return nil, errors.New("no subClient")
+}
+
+func (c *Connection) GetPoolClient(poolAddrHexStr string) (*cosmos.PoolClient, error) {
+	//todo check connect state
+	if sub, exist := c.poolClients[poolAddrHexStr]; exist {
+		return sub, nil
+	}
+	return nil, errors.New("subClient of this pool not exist")
 }

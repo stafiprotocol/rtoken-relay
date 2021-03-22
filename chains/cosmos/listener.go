@@ -1,7 +1,6 @@
 package cosmos
 
 import (
-	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
@@ -87,10 +86,11 @@ func (l *listener) pollBlocks() error {
 }
 
 func (l *listener) updateEra() error {
-	if len(l.conn.subClients) == 0 || len(l.conn.poolKeys) == 0 {
-		return fmt.Errorf("no subClient")
+
+	client, err := l.conn.GetOnePoolClient()
+	if err != nil {
+		return err
 	}
-	client := l.conn.subClients[l.conn.poolKeys[0]]
 
 	status, err := client.GetRpcClient().GetStatus()
 	if err != nil {
