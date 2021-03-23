@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	scalecodec "github.com/itering/scale.go"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -50,46 +50,22 @@ func LiquidityBondEventData(evt *ChainEvent) (*core.EvtLiquidityBond, error) {
 }
 
 func EraPoolUpdatedData(evt *ChainEvent) (*core.EvtEraPoolUpdated, error) {
-	if len(evt.Params) != 6 {
-		return nil, fmt.Errorf("params number not right: %d, expected: 6", len(evt.Params))
+	if len(evt.Params) != 2 {
+		return nil, fmt.Errorf("EraPoolUpdatedData params number not right: %d, expected: 2", len(evt.Params))
 	}
 
-	sym, err := parseRsymbol(evt.Params[0].Value)
+	shot, err := parseHash(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[0] -> rsymbol error: %s", err)
+		return nil, fmt.Errorf("EraPoolUpdatedData params[0] -> shot_id error: %s", err)
 	}
 
-	era, err := parseEra(evt.Params[1])
+	voter, err := parseAccountId(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[1] -> era error: %s", err)
-	}
-
-	pool, err := parseBytes(evt.Params[2].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[2] -> pool error: %s", err)
-	}
-
-	bond, err := parseBigint(evt.Params[3].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[3] -> bond error: %s", err)
-	}
-
-	unbond, err := parseBigint(evt.Params[4].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[4] -> unbond error: %s", err)
-	}
-
-	voter, err := parseBytes(evt.Params[5].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[5] -> lastVoter error: %s", err)
+		return nil, fmt.Errorf("EraPoolUpdatedData params[1] -> lastVoter error: %s", err)
 	}
 
 	return &core.EvtEraPoolUpdated{
-		Rsymbol:   sym,
-		NewEra:    era.Value,
-		Pool:      pool,
-		Bond:      types.NewU128(*bond),
-		Unbond:    types.NewU128(*unbond),
+		ShotId:    shot,
 		LastVoter: voter,
 	}, nil
 }
@@ -118,6 +94,10 @@ func EventNewMultisig(evt *ChainEvent) (*core.EventNewMultisig, error) {
 }
 
 func EventMultisigExecuted(evt *ChainEvent) (*core.EventMultisigExecuted, error) {
+	if len(evt.Params) != 5 {
+		return nil, fmt.Errorf("EventMultisigExecuted params number not right: %d, expected: 5", len(evt.Params))
+	}
+
 	approving, err := parseAccountId(evt.Params[0].Value)
 	if err != nil {
 		return nil, fmt.Errorf("EventMultisigExecuted params[0] -> approving error: %s", err)
@@ -150,6 +130,46 @@ func EventMultisigExecuted(evt *ChainEvent) (*core.EventMultisigExecuted, error)
 		CallHash:  hash,
 		Result:    ok,
 	}, nil
+}
+
+func EventBondReport(evt *ChainEvent) (*core.BondReportFlow, error) {
+	if len(evt.Params) != 5 {
+		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
+	}
+
+	shot, err := parseHash(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventBondReport params[0] -> shot_id error: %s", err)
+	}
+
+	symbol, err := parseRsymbol(evt.Params[1].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventBondReport params[1] -> rsymbol error: %s", err)
+	}
+
+	pool, err := parseBytes(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventBondReport params[2] -> pool error: %s", err)
+	}
+
+	era, err := parseEra(evt.Params[3])
+	if err != nil {
+		return nil, fmt.Errorf("EventBondReport params[3] -> era error: %s", err)
+	}
+
+	voter, err := parseAccountId(evt.Params[4].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventBondReport params[4] -> lastVoter error: %s", err)
+	}
+
+	return &core.BondReportFlow{
+		ShotId:    shot,
+		Rsymbol:   symbol,
+		Pool:      pool,
+		Era:       era.Value,
+		LastVoter: voter,
+	}, nil
+
 }
 
 func parseRsymbol(value interface{}) (core.RSymbol, error) {

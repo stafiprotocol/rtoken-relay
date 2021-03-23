@@ -5,20 +5,25 @@ const (
 	TransferKeepAlive = "transfer_keep_alive"
 	Transfer          = "transfer"
 
-	StakingModuleId  = "Staking"
-	StorageActiveEra = "ActiveEra"
+	StakingModuleId         = "Staking"
+	StorageActiveEra        = "ActiveEra"
+	StorageNominators       = "Nominators"
+	StorageErasRewardPoints = "ErasRewardPoints"
+	StorageBonded           = "Bonded"
+	StorageLedger           = "Ledger"
+	MethodPayoutStakers     = "Staking.payout_stakers"
+	MethodUnbond            = "Staking.unbond"
+	MethodBondExtra         = "Staking.bond_extra"
 
-	StorageLegder        = "Ledger"
 	MethodAsMulti        = "Multisig.as_multi"
 	MethodApproveAsMulti = "Multisig.approve_as_multi"
-
-	MethodUnbond    = "Staking.unbond"
-	MethodBondExtra = "Staking.bond_extra"
 
 	MultisigModuleId        = "Multisig"
 	NewMultisigEventId      = "NewMultisig"
 	MultisigExecutedEventId = "MultisigExecuted"
 	StorageMultisigs        = "Multisigs"
+
+	MethodBatch = "Utility.batch"
 
 	ParamDest     = "dest"
 	ParamDestType = "Address"

@@ -23,7 +23,7 @@
       "endpoint": "ws://127.0.0.1:9944",
       "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys",
       "accounts": [
-        "33RQ73d9XfPTaE2SV7dzdhQQ17YaeMQ4yzhzAQhhFVenxMuJ"
+        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
       ],
       "latestBlockFlag": true,
       "opts": {

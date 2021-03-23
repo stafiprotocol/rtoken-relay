@@ -80,6 +80,11 @@ func (l *listener) start() error {
 				return err
 			}
 		}
+
+		if err := l.initLastVoter(); err != nil {
+			l.log.Error("init last voter", "error", err)
+			return err
+		}
 	}
 
 	go func() {
@@ -167,6 +172,13 @@ func (l *listener) pollBlocks() error {
 	}
 }
 
+func (l *listener) initLastVoter() error {
+	msg := &core.Message{Destination: core.RFIS, Reason: core.InitLastVoter}
+	l.submitMessage(msg, nil)
+
+	return nil
+}
+
 func (l *listener) processEra() error {
 	era, err := l.conn.CurrentEra()
 	if err != nil {
@@ -199,7 +211,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 		switch l.rsymbol {
 		case core.RFIS:
 			if evt.ModuleId == config.LiquidityBondModuleId && evt.EventId == config.LiquidityBondEventId {
-				l.log.Trace("Handling LiquidityBondEvent event")
+				l.log.Trace("Handling LiquidityBondEvent")
 				flow, err := l.processLiquidityBondEvent(evt)
 				if err != nil {
 					return err
@@ -208,7 +220,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[LiquidityBond](flow, l.log))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId {
-				l.log.Trace("Handling EraPoolUpdatedEvent event")
+				l.log.Trace("Handling EraPoolUpdatedEvent")
 				flow, err := l.processEraPoolUpdatedEvt(evt)
 				if err != nil {
 					return err
@@ -216,10 +228,19 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if l.subscriptions[EraPoolUpdated] != nil {
 					l.submitMessage(l.subscriptions[EraPoolUpdated](flow, l.log))
 				}
+			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportEventId {
+				l.log.Trace("Handling BondReportEvent")
+				flow, err := l.processBondReportEvt(evt)
+				if err != nil {
+					return err
+				}
+				if l.subscriptions[BondReport] != nil {
+					l.submitMessage(l.subscriptions[BondReport](flow, l.log))
+				}
 			}
 		case core.RDOT:
 			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {
-				l.log.Trace("Handling NewMultisigEvent event")
+				l.log.Trace("Handling NewMultisigEvent")
 				flow, err := l.processNewMultisigEvt(evt)
 				if err != nil {
 					if err.Error() == multiEndError.Error() {
@@ -232,7 +253,14 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[NewMultisig](flow, l.log))
 				}
 			} else if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.MultisigExecutedEventId {
-
+				l.log.Trace("Handling MultisigExecutedEvent")
+				flow, err := l.processMultisigExecutedEvt(evt)
+				if err != nil {
+					return err
+				}
+				if l.subscriptions[MultisigExecuted] != nil {
+					l.submitMessage(l.subscriptions[MultisigExecuted](flow, l.log))
+				}
 			}
 		default:
 			l.log.Error("process event unsupport rsymbol", "rsymbol", l.rsymbol)

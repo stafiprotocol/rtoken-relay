@@ -52,14 +52,25 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.Mu
 		return nil, err
 	}
 
-	pk := &core.PoolKey{Rsymbol: data.Rsymbol, Pool: data.Pool}
+	bz, err := types.EncodeToBytes(data.ShotId)
+	snap := new(core.BondSnapshot)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, bz, nil, snap)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("unable to get snap of shotId: %s", hexutil.Encode(data.ShotId[:]))
+	}
+
+	pk := &core.PoolKey{Rsymbol: snap.Rsymbol, Pool: snap.Pool}
 	pkBz, err := types.EncodeToBytes(pk)
 	if err != nil {
 		return nil, err
 	}
 
 	var threshold uint16
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, pkBz, nil, &threshold)
+	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, pkBz, nil, &threshold)
 	if err != nil {
 		return nil, err
 	}
@@ -77,10 +88,10 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.Mu
 	}
 
 	return &core.MultisigFlow{
-		EvtEraPoolUpdated: data,
-		LastVoterFlag:     l.conn.IsLastVoter(data.LastVoter),
-		Threshold:         threshold,
-		SubAccounts:       subs,
+		UpdatedData:   &core.PoolUpdatedData{Evt: data, Snap: snap},
+		LastVoterFlag: l.conn.IsLastVoter(data.LastVoter),
+		Threshold:     threshold,
+		SubAccounts:   subs,
 	}, nil
 }
 
@@ -106,4 +117,28 @@ func (l *listener) processNewMultisigEvt(evt *substrate.ChainEvent) (*core.Multi
 		NewMul:    data,
 		Multisig:  mul,
 	}, nil
+}
+
+func (l *listener) processMultisigExecutedEvt(evt *substrate.ChainEvent) (*core.MultisigFlow, error) {
+	data, err := substrate.EventMultisigExecuted(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.MultisigFlow{
+		CallHash:    hexutil.Encode(data.CallHash[:]),
+		MulExecuted: data,
+	}, nil
+}
+
+func (l *listener) processBondReportEvt(evt *substrate.ChainEvent) (*core.BondReportFlow, error) {
+	flow, err := substrate.EventBondReport(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	flow.LastEra = flow.Era - 1
+
+	return flow, nil
 }

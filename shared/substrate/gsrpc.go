@@ -277,9 +277,9 @@ func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (extStr string, o
 	return
 }
 
-func (gc *GsrpcClient) StakingActive(ac types.AccountID) (*StakingLedger, error) {
+func (gc *GsrpcClient) StakingLedger(ac types.AccountID) (*StakingLedger, error) {
 	s := new(StakingLedger)
-	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLegder, ac[:], nil, s)
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLedger, ac[:], nil, s)
 	if err != nil {
 		return nil, err
 	}

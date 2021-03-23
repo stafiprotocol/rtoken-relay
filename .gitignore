@@ -28,7 +28,10 @@ site/
 keys/
 
 config.toml
+config0.json
 config1.json
+config2.json
+config3.json
 *.block
 /cfgBuilder/*.toml
 relay_log*.json

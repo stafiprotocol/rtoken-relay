@@ -19,6 +19,5 @@ type ChainConfig struct {
 	KeystorePath    string                 // Location of key files
 	Insecure        bool                   // Indicated whether the test keyring should be used
 	LatestBlockFlag bool                   // If true, overrides blockstore or latest block in config and starts from current block
-	BlockstorePath  string                 // Location of blockstores
 	Opts            map[string]interface{} // Per chain options
 }

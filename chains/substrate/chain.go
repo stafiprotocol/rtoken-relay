@@ -37,7 +37,16 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 			return nil, err
 		}
 	} else {
-		bs, err = blockstore.NewBlockstore(cfg.BlockstorePath, 100, conn.Address())
+		bp := cfg.Opts["blockstorePath"]
+		if bp == nil {
+			return nil, errors.New("blockstorePath nil")
+		}
+
+		bsPath, ok := bp.(string)
+		if !ok {
+			return nil, errors.New("blockstorePath not string")
+		}
+		bs, err = blockstore.NewBlockstore(bsPath, 100, conn.Address())
 		if err != nil {
 			return nil, err
 		}

@@ -32,6 +32,10 @@ type Connection struct {
 	stop    <-chan int
 }
 
+var (
+	TargetNotExistError = errors.New("TargetNotExistError")
+)
+
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewConnection", "KeystorePath", cfg.KeystorePath)
 
@@ -229,8 +233,8 @@ func (c *Connection) CurrentRsymbolEra(sym core.RSymbol) (uint32, error) {
 	return era, nil
 }
 
-func (c *Connection) IsLastVoter(voter types.Bytes) bool {
-	return hexutil.Encode(c.gc.PublicKey()) == hexutil.Encode(voter)
+func (c *Connection) IsLastVoter(voter types.AccountID) bool {
+	return hexutil.Encode(c.gc.PublicKey()) == hexutil.Encode(voter[:])
 }
 
 func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.KeyringPair, []types.AccountID) {
@@ -251,8 +255,8 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 }
 
 func (c *Connection) SetCallHash(flow *core.MultisigFlow) error {
-	evt := flow.EvtEraPoolUpdated
-	encodeExtrinsic, opaque, err := c.gc.BondOrUnbondCall(evt.Bond.Int, evt.Unbond.Int)
+	snap := flow.UpdatedData.Snap
+	encodeExtrinsic, opaque, err := c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 	if err != nil {
 		return err
 	}
@@ -279,4 +283,116 @@ func (c *Connection) AsMulti(flow *core.MultisigFlow) error {
 
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, flow.TimePoint, flow.Opaque, false, info.Weight)
 	return gc.SignAndSubmitTx(ext)
+}
+
+func (c *Connection) SetToPayoutStashes(flow *core.BondReportFlow) error {
+	fullTargets := make([]types.AccountID, 0)
+	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageNominators, flow.Pool, nil, &fullTargets)
+	if err != nil {
+		return err
+	}
+	if !exist || len(fullTargets) == 0 {
+		return TargetNotExistError
+	}
+
+	bz, err := types.EncodeToBytes(flow.LastEra)
+	if err != nil {
+		return err
+	}
+
+	points := new(substrate.EraRewardPoints)
+	exist, err = c.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, points)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		return fmt.Errorf("earRewardPoints not exits for era: %d, rsymbol: %s", flow.LastEra, c.rsymbol)
+	}
+
+	pointedTargets := make([]types.AccountID, 0)
+	for _, tgt := range fullTargets {
+		for _, idv := range points.Individuals {
+			if hexutil.Encode(tgt[:]) == hexutil.Encode(idv.Validator[:]) {
+				pointedTargets = append(pointedTargets, tgt)
+			}
+		}
+	}
+
+	flow.Stashes = pointedTargets
+	return nil
+}
+
+func (c *Connection) TryPayout(flow *core.BondReportFlow) {
+	calls := make([]types.Call, 0)
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		c.log.Error("TryPayout LatestMetadata error", "error", err)
+	}
+	method := config.MethodPayoutStakers
+
+	for _, stash := range flow.Stashes {
+		stashStr := hexutil.Encode(stash[:])
+
+		var controller []byte
+		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageBonded, stash[:], nil, &controller)
+		if err != nil {
+			c.log.Error("TryPayout get controller error", "error", err, "stash", stashStr)
+			continue
+		}
+		if !exist {
+			c.log.Error("TryPayout get controller not exist", "stash", stashStr)
+			continue
+		}
+		controllerStr := hexutil.Encode(controller)
+
+		ledger := new(substrate.StakingLedger)
+		exist, err = c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller, nil, ledger)
+		if err != nil {
+			c.log.Error("TryPayout get ledger error", "error", err, "stash", stashStr)
+			continue
+		}
+		if !exist {
+			c.log.Error("TryPayout ledger not exist", "stash", stashStr, "controller", controllerStr)
+			continue
+		}
+
+		claimed := false
+		for _, claimedEra := range ledger.ClaimedRewards {
+			if flow.LastEra == claimedEra {
+				claimed = true
+				break
+			}
+		}
+		if claimed {
+			c.log.Info("TryPayout already claimed", "stash", stashStr)
+			continue
+		}
+
+		call, err := types.NewCall(
+			meta,
+			method,
+			stash,
+			flow.LastEra,
+		)
+
+		if err != nil {
+			c.log.Error("TryPayout NewCall error", "error", err, "stash", stashStr)
+			continue
+		}
+
+		calls = append(calls, call)
+	}
+
+	if len(calls) == 0 {
+		return
+	}
+
+	ext, err := c.gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	if err != nil {
+		c.log.Error("TryPayout NewUnsignedExtrinsic error", "error", err)
+		return
+	}
+
+	err = c.gc.SignAndSubmitTx(ext)
+	c.log.Info("TryPayout SignAndSubmitTx result", "err", err)
 }

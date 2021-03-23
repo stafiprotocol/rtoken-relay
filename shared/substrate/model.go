@@ -17,13 +17,41 @@ type ChainEvent struct {
 	Params   []scalecodec.EventParam `json:"params"`
 }
 
-type StakingLedger struct {
-	Stash  types.AccountID
-	Total  types.UCompact
-	Active types.UCompact
-}
-
 type Era struct {
 	Type  string `json:"type"`
 	Value uint32 `json:"value"`
+}
+
+type EraRewardPoints struct {
+	Total       uint32
+	Individuals []Individual
+}
+
+type Individual struct {
+	Validator   types.AccountID
+	RewardPoint uint32
+}
+
+type Exposure struct {
+	Total  types.U128
+	Own    types.U128
+	Others []*IndividualExposure
+}
+
+type IndividualExposure struct {
+	Who   types.AccountID
+	Value types.U128
+}
+
+type StakingLedger struct {
+	Stash          types.AccountID
+	Total          types.UCompact
+	Active         types.UCompact
+	Unlocking      []*UnlockChunk
+	ClaimedRewards []uint32
+}
+
+type UnlockChunk struct {
+	Value types.U128
+	Era   uint32
 }

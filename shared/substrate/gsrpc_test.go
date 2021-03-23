@@ -121,7 +121,7 @@ func TestGsrpcClient_StakingActive(t *testing.T) {
 	b, _ := hexutil.Decode("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
 
 	jun := types.NewAddressFromAccountID(b)
-	s, err := gc.StakingActive(jun.AsAccountID)
+	s, err := gc.StakingLedger(jun.AsAccountID)
 	fmt.Println(s.Active)
 }
 
@@ -245,4 +245,38 @@ func TestEncodedExtrinsic(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
 	fmt.Println(opaque)
+}
+
+func TestStorages(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	addr, err := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+	assert.NoError(t, err)
+
+	targets := make([]types.AccountID, 0)
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageNominators, addr.AsAccountID[:], nil, &targets)
+	assert.NoError(t, err)
+	fmt.Println(exist)
+	//fmt.Println(targets)
+	for _, t := range targets {
+		fmt.Println(hexutil.Encode(t[:]))
+	}
+
+	era := uint32(5)
+	bz, err := types.EncodeToBytes(era)
+	assert.NoError(t, err)
+
+	re := new(EraRewardPoints)
+	exist1, err := gc.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, re)
+	assert.NoError(t, err)
+	fmt.Println(exist1)
+	fmt.Println(re)
+
+	ledger := new(StakingLedger)
+	exist, err = gc.QueryStorage(config.StakingModuleId, config.StorageLedger, addr.AsAccountID[:], nil, ledger)
+	assert.NoError(t, err)
+	fmt.Println(exist)
+	fmt.Println(ledger)
 }
