@@ -47,6 +47,12 @@ func (pc *PoolClient) GetUnsignedTx(key string) ([]byte, error) {
 	return nil, errors.New("unsignedTx of this key not exist")
 }
 
+func (pc *PoolClient) RemoveUnsignedTx(key string) {
+	pc.mtx.Lock()
+	delete(pc.cachedUnsignedTx, key)
+	pc.mtx.Unlock()
+}
+
 func (pc *PoolClient) bond(val *big.Int) error {
 	return nil
 }

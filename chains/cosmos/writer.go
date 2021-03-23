@@ -190,8 +190,8 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	for _, sig := range sigs.Signature {
 		signatures = append(signatures, sig)
 	}
-
-	unSignedTx, err := poolClient.GetUnsignedTx(hex.EncodeToString(sigs.ProposalId))
+	proposalIdHexStr := hex.EncodeToString(sigs.ProposalId)
+	unSignedTx, err := poolClient.GetUnsignedTx(proposalIdHexStr)
 	if err != nil {
 		w.log.Error("processSignatureEnough failed",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
@@ -225,7 +225,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 				"pool hex address", poolAddrHexStr,
 				"txHash", txHashHexStr)
 			//return true only check on chain
-			//todo rm cached tx
+			poolClient.RemoveUnsignedTx(proposalIdHexStr)
 			return true
 		}
 
