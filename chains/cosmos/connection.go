@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
@@ -33,6 +34,18 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		}
 		subKeys[account] = subKey
 	}
+	chainId, ok := cfg.Opts[config.ChainId].(string)
+	if !ok || len(chainId) == 0 {
+		return nil, errors.New("config must has chainId")
+	}
+	denom, ok := cfg.Opts[config.Denom].(string)
+	if !ok || len(chainId) == 0 {
+		return nil, errors.New("config must has denom")
+	}
+	gasPrice, ok := cfg.Opts[config.GasPrice].(string)
+	if !ok || len(gasPrice) == 0 {
+		return nil, errors.New("config must has gasPrice")
+	}
 
 	subClients := make(map[string]*cosmos.PoolClient)
 	keys := make([]string, 0)
@@ -49,12 +62,12 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		if err != nil {
 			panic(err)
 		}
-		client, err := rpc.NewClient(rpcClient, key, "stargate-final", account)
+		client, err := rpc.NewClient(rpcClient, key, chainId, account)
 		if err != nil {
 			return nil, err
 		}
-		client.SetGasPrice("0.000001umuon")
-		client.SetDenom("umuon")
+		client.SetGasPrice(gasPrice)
+		client.SetDenom(denom)
 		keyInfo, err := key.Key(account)
 		if err != nil {
 			return nil, err

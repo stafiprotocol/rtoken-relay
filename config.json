@@ -24,7 +24,10 @@
       ],
       "keystorePath": "/Users/tpkeeper/.gaia",
       "opts": {
-        "multiSign1": "key1"
+        "multiSign1": "key1",
+        "chainId": "stargate-final",
+        "denom": "umuon",
+        "gasPrice": "0.000001umuon"
       }
     }
   ]
