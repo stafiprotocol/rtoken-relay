@@ -37,7 +37,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	subClients := make(map[string]*cosmos.PoolClient)
 	keys := make([]string, 0)
 
-	fmt.Printf("Will open cosmos wallet from <%s>. Please ", cfg.KeystorePath)
+	fmt.Printf("Will open cosmos wallet from <%s>. \nPlease ", cfg.KeystorePath)
 	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, cfg.KeystorePath, os.Stdin)
 	if err != nil {
 		return nil, err

@@ -30,6 +30,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "gencos",
 		Short: "tool to manage cosmos keys",
+		Long:  "Notice: The keyring supports os|file|test backends, but relay now only support the file backend",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 				return err

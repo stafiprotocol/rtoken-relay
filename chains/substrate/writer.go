@@ -272,24 +272,6 @@ func (w *writer) processSubmitSignature(m *core.Message) bool {
 		return false
 	}
 
-	//old, err := w.conn.CurrentRsymbolEra(m.Source)
-	//if err != nil {
-	//	w.sysErr <- err
-	//	return false
-	//}
-	//
-	//if param.Era <= old {
-	//	w.log.Warn("rsymbol era is smaller than the storage one")
-	//	return false
-	//}
-
-	//newEra := types.U32(neew)
-	//eraBz, _ := types.EncodeToBytes(newEra)
-	//bondId := types.Hash(utils.BlakeTwo256(eraBz))
-	//bk := &core.BondKey{Rsymbol: m.Source, BondId: bondId}
-	//prop, err := w.conn.newUpdateEraProposal(bk, newEra)
-	//
-	//param:=core.SubmitSignatureParams{}
 	result := w.conn.submitSignature(&param)
 	w.log.Info("submitSignature", "rsymbol", m.Source, "result", result)
 	return result
