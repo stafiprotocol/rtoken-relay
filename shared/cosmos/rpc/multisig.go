@@ -56,10 +56,17 @@ func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddr ty
 	return c.GenMultiSigRawTx(msg)
 }
 
-////generate unsigned withdraw delegate reward tx
+//generate unsigned withdraw delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawDeleRewardTx(delAddr types.AccAddress, valAddr types.ValAddress) ([]byte, error) {
 	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
 	return c.GenMultiSigRawTx(msg)
+}
+
+//generate unsigned withdraw delegate reward tx
+func (c *Client) GenMultiSigRawWithdrawRewardThenDeleTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
+	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
+	msg2 := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
+	return c.GenMultiSigRawTx(msg, msg2)
 }
 
 //c.clientCtx.FromAddress must be multi sig address

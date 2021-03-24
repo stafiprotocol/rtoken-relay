@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-//todo test only will update this on release
-const eraBlockNumber = int64(30) //6hours 6*60*60/6
 // Frequency of polling for a new block
 var (
 	BlockRetryInterval = time.Second * 5
@@ -93,12 +91,10 @@ func (l *listener) updateEra() error {
 		return err
 	}
 
-	status, err := client.GetRpcClient().GetStatus()
+	era, err := client.GetCurrentEra()
 	if err != nil {
 		return err
 	}
-	era := uint32(status.SyncInfo.LatestBlockHeight / eraBlockNumber)
-
 	if era <= l.currentEra {
 		return nil
 	}

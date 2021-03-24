@@ -7,6 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/types"
+	query "github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xAuthClient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -73,16 +74,29 @@ func (c *Client) BroadcastTx(tx []byte) (string, error) {
 	return res.TxHash, nil
 }
 
-func (c *Client) QueryDelegationRewards(delegatorAddr types.AccAddress, validatorAddr types.ValAddress) (*xDistriTypes.QueryDelegationRewardsResponse, error) {
-	queryClient := xDistriTypes.NewQueryClient(c.clientCtx)
+func (c *Client) QueryDelegations(delegatorAddr types.AccAddress, height int64) (*xStakeTypes.QueryDelegatorDelegationsResponse, error) {
+	client := c.clientCtx.WithHeight(height)
+	queryClient := xStakeTypes.NewQueryClient(client)
+	params := &xStakeTypes.QueryDelegatorDelegationsRequest{
+		DelegatorAddr: delegatorAddr.String(),
+		Pagination:    &query.PageRequest{},
+	}
+
+	return queryClient.DelegatorDelegations(context.Background(), params)
+}
+
+func (c *Client) QueryDelegationRewards(delegatorAddr types.AccAddress, validatorAddr types.ValAddress, height int64) (*xDistriTypes.QueryDelegationRewardsResponse, error) {
+	client := c.clientCtx.WithHeight(height)
+	queryClient := xDistriTypes.NewQueryClient(client)
 	return queryClient.DelegationRewards(
 		context.Background(),
 		&xDistriTypes.QueryDelegationRewardsRequest{DelegatorAddress: delegatorAddr.String(), ValidatorAddress: validatorAddr.String()},
 	)
 }
 
-func (c *Client) QueryDelegationTotalRewards(delegatorAddr types.AccAddress) (*xDistriTypes.QueryDelegationTotalRewardsResponse, error) {
-	queryClient := xDistriTypes.NewQueryClient(c.clientCtx)
+func (c *Client) QueryDelegationTotalRewards(delegatorAddr types.AccAddress, height int64) (*xDistriTypes.QueryDelegationTotalRewardsResponse, error) {
+	client := c.clientCtx.WithHeight(height)
+	queryClient := xDistriTypes.NewQueryClient(client)
 	return queryClient.DelegationTotalRewards(
 		context.Background(),
 		&xDistriTypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr.String()},
@@ -103,4 +117,12 @@ func (c *Client) QueryBlock(height int64) (*ctypes.ResultBlock, error) {
 
 func (c *Client) QueryAccount(addr types.AccAddress) (client.Account, error) {
 	return c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
+}
+
+func (c *Client) GetCurrentBLockHeight() (int64, error) {
+	status, err := c.GetStatus()
+	if err != nil {
+		return 0, err
+	}
+	return status.SyncInfo.LatestBlockHeight, nil
 }

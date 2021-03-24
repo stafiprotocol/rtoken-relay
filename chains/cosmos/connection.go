@@ -73,7 +73,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 		addrHexStr := hex.EncodeToString(keyInfo.GetAddress().Bytes())
-		subClients[addrHexStr] = cosmos.NewSubClient(log, client, subKeys[account])
+		subClients[addrHexStr] = cosmos.NewPoolClient(log, client, subKeys[account])
 		keys = append(keys, addrHexStr)
 	}
 
@@ -193,6 +193,6 @@ func (c *Connection) GetCurrentEra() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	era := uint32(status.SyncInfo.LatestBlockHeight / eraBlockNumber)
+	era := uint32(status.SyncInfo.LatestBlockHeight / cosmos.EraBlockNumber)
 	return era, nil
 }
