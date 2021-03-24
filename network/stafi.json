@@ -208,10 +208,24 @@
   },
   "WithdrawChunk": {
     "type": "struct",
-    "who": "AccountId",
-    "pool": "Vec<u8>",
-    "recipient": "Vec<u8>",
-    "value": "u128"
+    "type_mapping": [
+      [
+        "who",
+        "AccountId"
+      ],
+      [
+        "pool",
+        "Vec<u8>"
+      ],
+      [
+        "recipient",
+        "Vec<u8>"
+      ],
+      [
+        "value",
+        "u128"
+      ]
+    ]
   },
   "OriginalTxType": {
     "type": "enum",
@@ -221,6 +235,39 @@
       "Unbond",
       "WithdrawUnbond",
       "ClaimRewards"
+    ]
+  },
+  "BondSnapshot": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "symbol",
+        "RSymbol"
+      ],
+      [
+        "era",
+        "u32"
+      ],
+      [
+        "pool",
+        "Vec<u8>"
+      ],
+      [
+        "bond",
+        "u128"
+      ],
+      [
+        "unbond",
+        "u128"
+      ],
+      [
+        "active",
+        "u128"
+      ],
+      [
+        "last_voter",
+        "AccountId"
+      ]
     ]
   }
 }

@@ -1,9 +1,13 @@
 package utils
 
 import (
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/stretchr/testify/assert"
+	"errors"
+	"fmt"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBlakeTwo256(t *testing.T) {
@@ -23,4 +27,20 @@ func TestBlakeTwo256_1(t *testing.T) {
 
 	x := BlakeTwo256(b)
 	assert.Equal(t, hexutil.Encode(x[:]), "0xba6c8ec1798285f8f312523e2353ebe8468fab4b55afe1a788a64a65f8bcc72c")
+}
+
+func TestInterface(t *testing.T) {
+	a := []types.Bytes{[]byte("123"), []byte("456")}
+	b, err := Tran(a)
+	assert.NoError(t, err)
+	fmt.Println(b)
+}
+
+func Tran(val interface{}) ([]types.Bytes, error) {
+	x, ok := val.([]types.Bytes)
+	if !ok {
+		return nil, errors.New("Tran error")
+	}
+
+	return x, nil
 }

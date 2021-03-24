@@ -19,6 +19,7 @@ type eventHandlerSubscriptions struct {
 const (
 	LiquidityBond  = eventName(config.LiquidityBondEventId)
 	EraPoolUpdated = eventName(config.EraPoolUpdatedEventId)
+	BondReport     = eventName(config.BondReportEventId)
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
@@ -30,6 +31,7 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{LiquidityBond, liquidityBondHandler},
 	{EraPoolUpdated, eraPoolUpdatedHandler},
 	{SignatureEnough, signatureEnoughHandler},
+	{BondReport, bondReportHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -52,7 +54,16 @@ func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, e
 		return nil, fmt.Errorf("failed to cast era pool updated")
 	}
 
-	return &core.Message{Destination: d.EvtEraPoolUpdated.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+	return &core.Message{Destination: d.UpdatedData.Snap.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+}
+
+func bondReportHandler(data interface{}, log log15.Logger) (*core.Message, error) {
+	d, ok := data.(*core.BondReportFlow)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast bond report")
+	}
+
+	return &core.Message{Destination: d.Rsymbol, Reason: core.BondReportEvent, Content: d}, nil
 }
 
 func signatureEnoughHandler(data interface{}, log log15.Logger) (*core.Message, error) {
@@ -67,7 +78,7 @@ func signatureEnoughHandler(data interface{}, log log15.Logger) (*core.Message, 
 func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, error) {
 	d, ok := data.(*core.MultisigFlow)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast bondflow")
+		return nil, fmt.Errorf("failed to cast newMultisig")
 	}
 
 	return &core.Message{Reason: core.NewMultisig, Content: d}, nil
@@ -76,8 +87,8 @@ func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, erro
 func multisigExecutedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
 	d, ok := data.(*core.MultisigFlow)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast bondflow")
+		return nil, fmt.Errorf("failed to cast multisigExecuted")
 	}
 
-	return &core.Message{Reason: core.NewMultisig, Content: d}, nil
+	return &core.Message{Reason: core.MultisigExecuted, Content: d}, nil
 }

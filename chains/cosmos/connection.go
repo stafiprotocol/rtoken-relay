@@ -182,3 +182,17 @@ func (c *Connection) GetPoolClient(poolAddrHexStr string) (*cosmos.PoolClient, e
 	}
 	return nil, errors.New("subClient of this pool not exist")
 }
+
+func (c *Connection) GetCurrentEra() (uint32, error) {
+	client, err := c.GetOnePoolClient()
+	if err != nil {
+		return 0, err
+	}
+
+	status, err := client.GetRpcClient().GetStatus()
+	if err != nil {
+		return 0, err
+	}
+	era := uint32(status.SyncInfo.LatestBlockHeight / eraBlockNumber)
+	return era, nil
+}

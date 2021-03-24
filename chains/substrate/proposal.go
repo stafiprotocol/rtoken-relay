@@ -10,6 +10,24 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
+func (c *Connection) InitLastVoterProposal(key *core.BondKey) (*core.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.InitLastVoter
+
+	call, err := types.NewCall(
+		meta,
+		method,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.Proposal{call, key, method}, nil
+}
+
 func (c *Connection) LiquidityBondProposal(key *core.BondKey, reason core.BondReason) (*core.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
@@ -22,6 +40,45 @@ func (c *Connection) LiquidityBondProposal(key *core.BondKey, reason core.BondRe
 		method,
 		key,
 		reason,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.Proposal{call, key, method}, nil
+}
+
+func (c *Connection) BondReportProposal(key *core.BondKey, shotId types.Hash) (*core.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodBondReport
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		shotId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.Proposal{call, key, method}, nil
+}
+
+func (c *Connection) ActiveReportProposal(key *core.BondKey, shotId types.Hash, active types.UCompact) (*core.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodActiveReport
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		shotId,
+		active,
 	)
 	if err != nil {
 		return nil, err
@@ -120,30 +177,6 @@ func (c *Connection) newUpdateEraProposal(key *core.BondKey, newEra types.U32) (
 
 	return &core.Proposal{call, key, method}, nil
 }
-
-//
-//func (l *listener) newSetPoolActiveProposal(key *conn.BondKey, rsymbol conn.RSymbol, newEra types.U32,
-//	pool types.Bytes, active types.U128) (*conn.Proposal, error) {
-//	meta, err := l.gsrpc.GetLatestMetadata()
-//	if err != nil {
-//		return nil, err
-//	}
-//	method := config.SetPoolActive
-//
-//	call, err := types.NewCall(
-//		meta,
-//		method,
-//		rsymbol,
-//		newEra,
-//		pool,
-//		active,
-//	)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return &conn.Proposal{call, key, method}, nil
-//}
 
 func containsVote(votes []types.AccountID, voter types.AccountID) bool {
 	for _, v := range votes {

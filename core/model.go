@@ -204,29 +204,57 @@ type SignaturesKey struct {
 }
 
 type MultisigFlow struct {
-	EvtEraPoolUpdated *EvtEraPoolUpdated
-	LastVoterFlag     bool
-	Threshold         uint16
-	SubAccounts       []types.Bytes
-	Key               *signature.KeyringPair
-	Others            []types.AccountID
-	TimePoint         *OptionTimePoint
-	Opaque            []byte
-	EncodeExtrinsic   string
-	CallHash          string
-	NewMul            *EventNewMultisig
-	Multisig          *Multisig
-	MulExecute        *EventMultisigExecuted
+	UpdatedData     *PoolUpdatedData
+	LastVoterFlag   bool
+	Threshold       uint16
+	SubAccounts     []types.Bytes
+	Key             *signature.KeyringPair
+	Others          []types.AccountID
+	TimePoint       *OptionTimePoint
+	Opaque          []byte
+	EncodeExtrinsic string
+	CallHash        string
+	NewMul          *EventNewMultisig
+	Multisig        *Multisig
+	MulExecuted     *EventMultisigExecuted
+}
+
+type BondReportFlow struct {
+	ShotId        types.Hash
+	Rsymbol       RSymbol
+	Pool          []byte
+	Era           uint32
+	LastVoter     types.AccountID
+	LastEra       uint32
+	LastVoterFlag bool
+	Active        types.UCompact
+	Stashes       []types.AccountID
+}
+
+//type ToPayout struct {
+//	Stash      types.AccountID
+//	Era        uint32
+//}
+
+type PoolUpdatedData struct {
+	Evt  *EvtEraPoolUpdated
+	Snap *BondSnapshot
 }
 
 //EraPoolUpdated(RSymbol, u32, Vec<u8>, u128, u128, AccountId),
 type EvtEraPoolUpdated struct {
+	ShotId    types.Hash
+	LastVoter types.AccountID
+}
+
+type BondSnapshot struct {
 	Rsymbol   RSymbol
-	NewEra    uint32
+	Era       uint32
 	Pool      []byte
 	Bond      types.U128
 	Unbond    types.U128
-	LastVoter []byte
+	Active    types.U128
+	LastVoter types.AccountID
 }
 
 //SignaturesEnough(RSymbol, u32, Vec<u8>, OriginalTxType, Vec<u8>),

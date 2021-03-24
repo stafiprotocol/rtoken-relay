@@ -91,16 +91,28 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	e := mFlow.EvtEraPoolUpdated
+	era,err:=w.conn.GetCurrentEra()
+	if err!=nil{
+		w.log.Error("CurrentEra error", "rsymbol", m.Source)
+		return false
+	}
+	updateData := mFlow.UpdatedData
+	snap :=updateData.Snap
+
+	if snap.Era != era {
+		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", snap.Era, "rsymbol", snap.Rsymbol)
+		return true
+	}
+
 
 	//check bond/unbond is needed
-	if e.Bond.Int.Cmp(e.Unbond.Int) == 0 {
+	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
 		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
 		return true
 	}
 
 	//get subClient of this pool address
-	poolAddrHexStr := hex.EncodeToString(e.Pool)
+	poolAddrHexStr := hex.EncodeToString(snap.Pool)
 	subClient, err := w.conn.GetPoolClient(poolAddrHexStr)
 	if err != nil {
 		w.log.Error("EraPoolUpdated pool failed",
@@ -150,8 +162,8 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 	param := core.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
-		Era:        substrateTypes.NewU32(e.NewEra),
-		Pool:       substrateTypes.NewBytes(e.Pool),
+		Era:        substrateTypes.NewU32(snap.Era),
+		Pool:       substrateTypes.NewBytes(snap.Pool),
 		TxType:     core.OriginalTx(core.Bond),
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
