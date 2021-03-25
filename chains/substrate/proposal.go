@@ -15,7 +15,7 @@ func (c *Connection) InitLastVoterProposal(key *core.BondKey) (*core.Proposal, e
 	if err != nil {
 		return nil, err
 	}
-	method := config.InitLastVoter
+	method := config.MethodInitLastVoter
 
 	call, err := types.NewCall(
 		meta,
@@ -33,7 +33,7 @@ func (c *Connection) LiquidityBondProposal(key *core.BondKey, reason core.BondRe
 	if err != nil {
 		return nil, err
 	}
-	method := config.ExecuteBondRecord
+	method := config.MethodExecuteBondRecord
 
 	call, err := types.NewCall(
 		meta,
@@ -48,12 +48,12 @@ func (c *Connection) LiquidityBondProposal(key *core.BondKey, reason core.BondRe
 	return &core.Proposal{call, key, method}, nil
 }
 
-func (c *Connection) BondReportProposal(key *core.BondKey, shotId types.Hash) (*core.Proposal, error) {
+func (c *Connection) CommonReportProposal(method string, key *core.BondKey, shotId types.Hash) (*core.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodBondReport
+	//method := config.MethodBondReport
 
 	call, err := types.NewCall(
 		meta,
@@ -105,7 +105,7 @@ func (c *Connection) resolveProposal(prop *core.Proposal, inFavour bool) bool {
 
 		c.log.Info("Acknowledging proposal on chain...")
 		//rsymbol: RSymbol, prop_id: T::Hash, in_favour: bool
-		ext, err := c.gc.NewUnsignedExtrinsic(config.RacknowledgeProposal, prop.Key.Rsymbol, prop.Key.BondId, inFavour, prop.Call)
+		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Key.Rsymbol, prop.Key.BondId, inFavour, prop.Call)
 		err = c.gc.SignAndSubmitTx(ext)
 		if err != nil {
 			if err.Error() == TerminatedError.Error() {
@@ -163,7 +163,7 @@ func (c *Connection) newUpdateEraProposal(key *core.BondKey, newEra types.U32) (
 	if err != nil {
 		return nil, err
 	}
-	method := config.SetChainEra
+	method := config.MethodSetChainEra
 
 	call, err := types.NewCall(
 		meta,

@@ -68,12 +68,14 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processNewMultisig(m)
 	case core.MultisigExecuted:
 		return w.processMultisigExecuted(m)
-	case core.BondReport:
-		return w.processBondReport(m)
+	case core.InformChain:
+		return w.processInformChain(m)
 	case core.BondReportEvent:
 		return w.processBondReportEvent(m)
 	case core.ActiveReport:
 		return w.processActiveReport(m)
+	case core.WithdrawUnbond:
+		return w.processWithdrawUnbond(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -230,9 +232,15 @@ func (w *writer) processBondedPools(m *core.Message) bool {
 }
 
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
-	flow, ok := m.Content.(*core.MultisigFlow)
+	mf, ok := m.Content.(*core.MultisigFlow)
 	if !ok {
 		w.printContentError(m)
+		return false
+	}
+
+	flow, ok := mf.HeadFlow.(*core.EraPoolUpdatedFlow)
+	if !ok {
+		w.log.Error("processEraPoolUpdated HeadFlow is not EraPoolUpdatedFlow")
 		return false
 	}
 
@@ -242,16 +250,16 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	evt := flow.UpdatedData
-	if evt.Snap.Era != era {
-		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", evt.Snap.Era, "rsymbol", evt.Snap.Rsymbol)
+	snap := flow.Snap
+	if snap.Era != era {
+		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", snap.Era, "rsymbol", snap.Rsymbol)
 		return true
 	}
 
-	key, others := w.conn.FoundFirstSubAccount(flow.SubAccounts)
+	key, others := w.conn.FoundFirstSubAccount(mf.MulCall.SubAccounts)
 	if key == nil {
 		if flow.LastVoterFlag {
-			w.sysErr <- fmt.Errorf("the last voter relay does not have key for Multisig, pool: %s, rsymbol: %s", hexutil.Encode(evt.Snap.Pool), evt.Snap.Rsymbol)
+			w.sysErr <- fmt.Errorf("the last voter relay does not have key for Multisig, pool: %s, rsymbol: %s", hexutil.Encode(snap.Pool), snap.Rsymbol)
 			return false
 		}
 
@@ -259,28 +267,30 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	flow.Key = key
-	flow.Others = others
-	err = w.conn.SetCallHash(flow)
+	mf.MulCall.Key = key
+	mf.MulCall.Others = others
+	call, err := w.conn.BondOrUnbondCall(snap)
 	if err != nil {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
-			w.log.Info("No need to send any call", "callhash", flow.CallHash)
-			return w.bondReport(m.Destination, m.Source, flow)
+			w.log.Info("No need to send any call", "callhash", mf.MulCall.CallHash)
+			return w.informChain(m.Destination, m.Source, mf)
 		}
-		w.log.Error("SetCallHash error", "err", err)
+		w.log.Error("BondOrUnbondCall error", "err", err)
 		return false
 	}
+	mf.MulCall.Extrinsic, mf.MulCall.Opaque, mf.MulCall.CallHash = call.Extrinsic, call.Opaque, call.CallHash
 
-	oldFlow := w.multisigFlows[flow.CallHash]
+	callhash := mf.MulCall.CallHash
+	oldFlow := w.multisigFlows[callhash]
 	if oldFlow != nil {
 		if oldFlow.MulExecuted != nil {
-			w.log.Info("already executed", "callhash", flow.CallHash)
-			delete(w.multisigFlows, flow.CallHash)
+			w.log.Info("already executed", "callhash", callhash)
+			delete(w.multisigFlows, callhash)
 			return true
 		}
 
 		if oldFlow.NewMul == nil {
-			w.sysErr <- fmt.Errorf("found old flow, but its NewMul is nil, callhash: %s", flow.CallHash)
+			w.sysErr <- fmt.Errorf("found old flow, but its NewMul is nil, callhash: %s", callhash)
 			return false
 		}
 
@@ -288,40 +298,41 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		ac := hexutil.Encode(key.PublicKey)
 		for _, apv := range approvals {
 			if ac == hexutil.Encode(apv[:]) {
-				w.log.Info("already approved", "approver", ac, "callhash", flow.CallHash)
-				delete(w.multisigFlows, flow.CallHash)
+				w.log.Info("already approved", "approver", ac, "callhash", callhash)
+				delete(w.multisigFlows, callhash)
 				return true
 			}
 		}
 
-		flow.NewMul = oldFlow.NewMul
-		flow.TimePoint = oldFlow.TimePoint
-		flow.Multisig = oldFlow.Multisig
-		err = w.conn.AsMulti(flow)
+		mf.MulCall.TimePoint = oldFlow.MulCall.TimePoint
+		mf.NewMul = oldFlow.NewMul
+		mf.Multisig = oldFlow.Multisig
+		w.multisigFlows[callhash] = mf
+
+		err = w.conn.AsMulti(mf.MulCall)
 		if err != nil {
-			w.log.Error("AsMulti error", "err", err, "callhash", flow.CallHash)
+			w.log.Error("AsMulti error", "err", err, "callhash", callhash)
 			return false
 		}
 
-		w.log.Error("AsMulti success", "callhash", flow.CallHash)
+		w.log.Error("AsMulti success", "callhash", callhash)
 		return true
 	}
 
-	w.multisigFlows[flow.CallHash] = flow
-
+	w.multisigFlows[callhash] = mf
 	if !flow.LastVoterFlag {
 		w.log.Info("not last voter, wait for NewMultisigEvent")
 		return true
 	}
 
-	flow.TimePoint = core.NewOptionTimePointEmpty()
-	err = w.conn.AsMulti(flow)
+	mf.MulCall.TimePoint = core.NewOptionTimePointEmpty()
+	err = w.conn.AsMulti(mf.MulCall)
 	if err != nil {
-		w.log.Error("AsMulti error", "err", err, "callhash", flow.CallHash)
+		w.log.Error("AsMulti error", "err", err, "callhash", callhash)
 		return false
 	}
 
-	w.log.Error("AsMulti success", "callhash", flow.CallHash)
+	w.log.Error("AsMulti success", "callhash", callhash)
 	return true
 }
 
@@ -346,15 +357,15 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 	}
 
 	/// received multiExecuted first
-	if oldFlow.UpdatedData == nil {
-		w.log.Warn("NewMultisig found old flow, but its UpdatedData is nil", "callhash", flow.CallHash)
+	if oldFlow.HeadFlow == nil || oldFlow.MulCall == nil {
+		w.log.Warn("NewMultisig found old flow, but its HeadFlow/mulcall is nil", "callhash", flow.CallHash)
 		return false
 	}
 
 	oldFlow.NewMul = flow.NewMul
-	oldFlow.TimePoint = flow.TimePoint
+	oldFlow.MulCall.TimePoint = flow.MulCall.TimePoint
 	oldFlow.Multisig = flow.Multisig
-	err := w.conn.AsMulti(oldFlow)
+	err := w.conn.AsMulti(oldFlow.MulCall)
 	if err != nil {
 		w.log.Error("AsMulti error", "err", err, "callhash", flow.CallHash)
 		return false
@@ -384,12 +395,12 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 	}
 
 	/// received multiExecuted first
-	if oldFlow.UpdatedData == nil {
-		w.sysErr <- fmt.Errorf("MultisigExecuted found old flow, but its eraPoolUpdated is nil, callhash: %s", flow.CallHash)
+	if oldFlow.HeadFlow == nil || oldFlow.MulCall == nil {
+		w.sysErr <- fmt.Errorf("MultisigExecuted found old flow, but its HeadFlow/MulCall is nil, callhash: %s", flow.CallHash)
 		return false
 	}
 
-	result := w.bondReport(m.Destination, m.Source, oldFlow)
+	result := w.informChain(m.Destination, m.Source, oldFlow)
 	if result {
 		delete(w.multisigFlows, flow.CallHash)
 	}
@@ -397,15 +408,20 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 	return result
 }
 
-func (w *writer) bondReport(source, dest core.RSymbol, flow *core.MultisigFlow) bool {
-	msg := &core.Message{Source: source, Destination: dest, Reason: core.BondReport, Content: flow}
+func (w *writer) informChain(source, dest core.RSymbol, flow *core.MultisigFlow) bool {
+	msg := &core.Message{Source: source, Destination: dest, Reason: core.InformChain, Content: flow}
 	return w.submitMessage(msg)
 }
 
-func (w *writer) processBondReport(m *core.Message) bool {
+func (w *writer) processInformChain(m *core.Message) bool {
 	flow, ok := m.Content.(*core.MultisigFlow)
 	if !ok {
 		w.printContentError(m)
+		return false
+	}
+
+	if flow.HeadFlow == nil {
+		w.sysErr <- fmt.Errorf("the headflow is nil: %s", flow.CallHash)
 		return false
 	}
 
@@ -415,17 +431,43 @@ func (w *writer) processBondReport(m *core.Message) bool {
 		return false
 	}
 
+	hf := flow.HeadFlow
 	bk := &core.BondKey{Rsymbol: m.Source, BondId: bondId}
-	prop, err := w.conn.BondReportProposal(bk, flow.UpdatedData.Evt.ShotId)
-	if err != nil {
-		w.log.Error("BondReportProposal", "error", err)
-		return false
+
+	if data, ok := hf.(*core.EraPoolUpdatedFlow); ok {
+		prop, err := w.conn.CommonReportProposal(config.MethodBondReport, bk, data.ShotId)
+		if err != nil {
+			w.log.Error("MethodBondReportProposal", "error", err)
+			return false
+		}
+		result := w.conn.resolveProposal(prop, true)
+		w.log.Info("MethodBondReportProposal resolveProposal", "result", result)
+		return result
 	}
 
-	result := w.conn.resolveProposal(prop, true)
-	w.log.Info("BondReportProposal resolveProposal", "result", result)
+	if data, ok := hf.(*core.WithdrawUnbondFlow); ok {
+		prop, err := w.conn.CommonReportProposal(config.MethodWithdrawReport, bk, data.ShotId)
+		if err != nil {
+			w.log.Error("MethodWithdrawReportProposal", "error", err)
+			return false
+		}
+		result := w.conn.resolveProposal(prop, true)
+		w.log.Info("MethodWithdrawReportProposal resolveProposal", "result", result)
+		return result
+	}
 
-	return result
+	if data, ok := hf.(*core.TransferFlow); ok {
+		prop, err := w.conn.CommonReportProposal(config.MethodTransferReport, bk, data.ShotId)
+		if err != nil {
+			w.log.Error("MethodTransferReportProposal", "error", err)
+			return false
+		}
+		result := w.conn.resolveProposal(prop, true)
+		w.log.Info("MethodTransferReportProposal resolveProposal", "result", result)
+		return result
+	}
+
+	return false
 }
 
 func (w *writer) processBondReportEvent(m *core.Message) bool {
@@ -523,6 +565,107 @@ func (w *writer) processActiveReport(m *core.Message) bool {
 	w.log.Info("ActiveReportProposal resolveProposal", "result", result)
 
 	return result
+}
+
+func (w *writer) processWithdrawUnbond(m *core.Message) bool {
+	mf, ok := m.Content.(*core.MultisigFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	flow, ok := mf.HeadFlow.(*core.WithdrawUnbondFlow)
+	if !ok {
+		w.log.Error("processWithdrawUnbond HeadFlow is not WithdrawUnbondFlow")
+		return false
+	}
+
+	era, err := w.conn.CurrentEra()
+	if err != nil {
+		w.log.Error("CurrentEra error", "rsymbol", m.Source)
+		return false
+	}
+
+	if flow.Era != era {
+		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", flow.Era, "rsymbol", flow.Rsymbol)
+		return true
+	}
+
+	key, others := w.conn.FoundFirstSubAccount(mf.MulCall.SubAccounts)
+	if key == nil {
+		if flow.LastVoterFlag {
+			w.sysErr <- fmt.Errorf("the last voter relay does not have key for Multisig, pool: %s, rsymbol: %s", hexutil.Encode(flow.Pool), flow.Rsymbol)
+			return false
+		}
+
+		w.log.Warn("WithdrawUnbond ignored for no key")
+		return false
+	}
+
+	mf.MulCall.Key = key
+	mf.MulCall.Others = others
+	call, err := w.conn.WithdrawCall()
+	if err != nil {
+		w.log.Error("WithdrawCall error", "err", err)
+		return false
+	}
+	mf.MulCall.Extrinsic, mf.MulCall.Opaque, mf.MulCall.CallHash = call.Extrinsic, call.Opaque, call.CallHash
+
+
+	callhash := mf.MulCall.CallHash
+	oldFlow := w.multisigFlows[callhash]
+	if oldFlow != nil {
+		if oldFlow.MulExecuted != nil {
+			w.log.Info("already executed", "callhash", callhash)
+			delete(w.multisigFlows, callhash)
+			return true
+		}
+
+		if oldFlow.NewMul == nil {
+			w.sysErr <- fmt.Errorf("found old flow, but its NewMul is nil, callhash: %s", callhash)
+			return false
+		}
+
+		approvals := oldFlow.Multisig.Approvals
+		ac := hexutil.Encode(key.PublicKey)
+		for _, apv := range approvals {
+			if ac == hexutil.Encode(apv[:]) {
+				w.log.Info("already approved", "approver", ac, "callhash", callhash)
+				delete(w.multisigFlows, callhash)
+				return true
+			}
+		}
+
+		mf.MulCall.TimePoint = oldFlow.MulCall.TimePoint
+		mf.NewMul = oldFlow.NewMul
+		mf.Multisig = oldFlow.Multisig
+		w.multisigFlows[callhash] = mf
+
+		err = w.conn.AsMulti(mf.MulCall)
+		if err != nil {
+			w.log.Error("AsMulti error", "err", err, "callhash", callhash)
+			return false
+		}
+
+		w.log.Error("AsMulti success", "callhash", callhash)
+		return true
+	}
+
+	w.multisigFlows[callhash] = mf
+	if !flow.LastVoterFlag {
+		w.log.Info("not last voter, wait for NewMultisigEvent")
+		return true
+	}
+
+	mf.MulCall.TimePoint = core.NewOptionTimePointEmpty()
+	err = w.conn.AsMulti(mf.MulCall)
+	if err != nil {
+		w.log.Error("AsMulti error", "err", err, "callhash", callhash)
+		return false
+	}
+
+	w.log.Error("AsMulti success", "callhash", callhash)
+	return true
 }
 
 func (w *writer) printContentError(m *core.Message) {

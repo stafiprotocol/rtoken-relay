@@ -1,9 +1,10 @@
 package config
 
 const (
-	TransferModuleId  = "Balances"
-	TransferKeepAlive = "transfer_keep_alive"
-	Transfer          = "transfer"
+	TransferModuleId        = "Balances"
+	TransferKeepAlive       = "transfer_keep_alive"
+	Transfer                = "transfer"
+	MethodTransferKeepAlive = "Balances.transfer_keep_alive"
 
 	StakingModuleId         = "Staking"
 	StorageActiveEra        = "ActiveEra"
@@ -14,14 +15,13 @@ const (
 	MethodPayoutStakers     = "Staking.payout_stakers"
 	MethodUnbond            = "Staking.unbond"
 	MethodBondExtra         = "Staking.bond_extra"
-
-	MethodAsMulti        = "Multisig.as_multi"
-	MethodApproveAsMulti = "Multisig.approve_as_multi"
+	MethodWithdrawUnbonded  = "Staking.withdraw_unbonded"
 
 	MultisigModuleId        = "Multisig"
 	NewMultisigEventId      = "NewMultisig"
 	MultisigExecutedEventId = "MultisigExecuted"
 	StorageMultisigs        = "Multisigs"
+	MethodAsMulti           = "Multisig.as_multi"
 
 	MethodBatch = "Utility.batch"
 

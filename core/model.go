@@ -187,23 +187,7 @@ func (p *Proposal) Encode() ([]byte, error) {
 
 type PoolKey struct {
 	Rsymbol RSymbol
-	Pool    types.Bytes
-}
-
-type MultisigFlow struct {
-	UpdatedData     *PoolUpdatedData
-	LastVoterFlag   bool
-	Threshold       uint16
-	SubAccounts     []types.Bytes
-	Key             *signature.KeyringPair
-	Others          []types.AccountID
-	TimePoint       *OptionTimePoint
-	Opaque          []byte
-	EncodeExtrinsic string
-	CallHash        string
-	NewMul          *EventNewMultisig
-	Multisig        *Multisig
-	MulExecuted     *EventMultisigExecuted
+	Pool    []byte
 }
 
 type BondReportFlow struct {
@@ -218,22 +202,32 @@ type BondReportFlow struct {
 	Stashes       []types.AccountID
 }
 
-//type ToPayout struct {
-//	Stash      types.AccountID
-//	Era        uint32
-//}
-
-type PoolUpdatedData struct {
-	Evt  *EvtEraPoolUpdated
-	Snap *BondSnapshot
+type WithdrawUnbondFlow struct {
+	ShotId        types.Hash
+	Rsymbol       RSymbol
+	Pool          []byte
+	Era           uint32
+	LastVoter     types.AccountID
+	LastVoterFlag bool
 }
 
-type EvtEraPoolUpdated struct {
-	ShotId    types.Hash
-	LastVoter types.AccountID
+type TransferFlow struct {
+	ShotId        types.Hash
+	Rsymbol       RSymbol
+	Pool          []byte
+	Era           uint32
+	LastVoter     types.AccountID
+	LastVoterFlag bool
 }
 
-type BondSnapshot struct {
+type EraPoolUpdatedFlow struct {
+	ShotId        types.Hash
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+	Snap          *EraPoolSnapshot
+}
+
+type EraPoolSnapshot struct {
 	Rsymbol   RSymbol
 	Era       uint32
 	Pool      []byte
@@ -261,4 +255,24 @@ type EventMultisigExecuted struct {
 	ID        types.AccountID
 	CallHash  types.Hash
 	Result    bool
+}
+
+type MultisigFlow struct {
+	HeadFlow    interface{}
+	MulCall     *MultisigCall
+	CallHash    string
+	NewMul      *EventNewMultisig
+	Multisig    *Multisig
+	MulExecuted *EventMultisigExecuted
+}
+
+type MultisigCall struct {
+	Threshold   uint16
+	SubAccounts []types.Bytes
+	Key         *signature.KeyringPair
+	Others      []types.AccountID
+	TimePoint   *OptionTimePoint
+	Opaque      []byte
+	Extrinsic   string
+	CallHash    string
 }

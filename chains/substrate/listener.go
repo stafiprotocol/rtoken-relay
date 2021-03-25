@@ -237,6 +237,15 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if l.subscriptions[BondReport] != nil {
 					l.submitMessage(l.subscriptions[BondReport](flow, l.log))
 				}
+			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawUnbondEventId {
+				l.log.Trace("Handling BondReportEvent")
+				flow, err := l.processWithdrawUnbondEvt(evt)
+				if err != nil {
+					return err
+				}
+				if l.subscriptions[WithdrawUnbond] != nil {
+					l.submitMessage(l.subscriptions[WithdrawUnbond](flow, l.log))
+				}
 			}
 		case core.RDOT:
 			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {

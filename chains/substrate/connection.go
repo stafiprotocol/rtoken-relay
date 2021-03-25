@@ -6,8 +6,6 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/utils"
-
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	scalecodec "github.com/itering/scale.go"
@@ -250,38 +248,30 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 			}
 		}
 	}
-
 	return nil, nil
 }
 
-func (c *Connection) SetCallHash(flow *core.MultisigFlow) error {
-	snap := flow.UpdatedData.Snap
-	encodeExtrinsic, opaque, err := c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
-	if err != nil {
-		return err
-	}
-
-	flow.Opaque = opaque
-	flow.EncodeExtrinsic = encodeExtrinsic
-	callhash := utils.BlakeTwo256(opaque)
-	flow.CallHash = hexutil.Encode(callhash[:])
-	c.log.Info("SetCallHash", "encodeExtrinsic", encodeExtrinsic, "opaque", hexutil.Encode(opaque), "callhash", flow.CallHash)
-	return nil
+func (c *Connection) BondOrUnbondCall(snap *core.EraPoolSnapshot) (*substrate.MultiOpaqueCall, error) {
+	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
 
-func (c *Connection) AsMulti(flow *core.MultisigFlow) error {
-	info, err := c.sc.GetPaymentQueryInfo(flow.EncodeExtrinsic)
+func (c *Connection) WithdrawCall() (*substrate.MultiOpaqueCall, error) {
+	return c.gc.WithdrawCall()
+}
+
+func (c *Connection) AsMulti(mc *core.MultisigCall) error {
+	info, err := c.sc.GetPaymentQueryInfo(mc.Extrinsic)
 	if err != nil {
 		return err
 	}
-	c.log.Info("PaymentQueryInfo", "callhash", flow.CallHash, "class", info.Class, "fee", info.PartialFee, "weight", info.Weight)
+	c.log.Info("PaymentQueryInfo", "callhash", mc.CallHash, "class", info.Class, "fee", info.PartialFee, "weight", info.Weight)
 
-	gc := c.gcs[flow.Key]
+	gc := c.gcs[mc.Key]
 	if gc == nil {
-		panic(fmt.Sprintf("key disappear: %s, rsymbol: %s, callhash: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol, flow.CallHash))
+		panic(fmt.Sprintf("key disappear: %s, rsymbol: %s, callhash: %s", hexutil.Encode(mc.Key.PublicKey), c.rsymbol, mc.CallHash))
 	}
 
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, flow.TimePoint, flow.Opaque, false, info.Weight)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, mc.Threshold, mc.Others, mc.TimePoint, mc.Opaque, false, info.Weight)
 	return gc.SignAndSubmitTx(ext)
 }
 

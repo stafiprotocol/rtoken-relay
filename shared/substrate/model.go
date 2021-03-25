@@ -55,3 +55,9 @@ type UnlockChunk struct {
 	Value types.U128
 	Era   uint32
 }
+
+type MultiOpaqueCall struct {
+	Extrinsic string
+	Opaque    []byte
+	CallHash  string
+}
