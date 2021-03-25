@@ -258,8 +258,8 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		}
 		//check on chain
 		res, err := client.QueryTxByHash(txHashHexStr)
-		if err != nil || res.Empty() {
-			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt QueryTxByHash failed will rebroadcast after %f second",
+		if err != nil || res.Empty() || res.Code != 0 {
+			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt QueryTxByHash failed. will rebroadcast after %f second",
 				BlockRetryInterval.Seconds()),
 				"err or res.empty", err)
 		} else {
@@ -335,7 +335,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 
 //process bondReportEvent from stafi
 //1 query reward on era height
-//2 gen claim reward and delegate unsignedtx and cached
+//2 gen (claim reward && delegate) or (claim reward) unsigned tx and cached
 //3 send unsigned tx to stafi
 func (w *writer) processBondReportEvent(m *core.Message) bool {
 	flow, ok := m.Content.(*core.BondReportFlow)
@@ -358,12 +358,10 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	//todo cosmos validator just for test,will got from stafi or cosmos
-	var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
-
 	height := poolClient.GetHeightByEra(flow.Era)
 	client := poolClient.GetRpcClient()
 
+	//get reward
 	rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
 	if err != nil {
 		w.log.Error("QueryDelegationTotalRewards failed",
@@ -371,22 +369,34 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 			"error", err)
 		return false
 	}
-	rewardAmount := rewardRes.GetTotal().AmountOf(client.GetDenom())
+	rewardAmount := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 
-	realUseAmount := big.NewInt(0)
-	if !rewardAmount.IsNil() {
-		realUseAmount = rewardAmount.BigInt()
+	//get balanceAmount
+	balanceAmount, err := client.QueryBalance(poolAddr, client.GetDenom(), height)
+	if err != nil {
+		w.log.Error("QueryBalance failed",
+			"pool hex address", poolAddrHexStr,
+			"error", err)
+		return false
 	}
 
-	unSignedTx, err := client.GenMultiSigRawWithdrawRewardThenDeleTx(
-		poolAddr,
-		addrValidatorTestnetAteam,
-		types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(realUseAmount)))
-
+	//check balanceAmount and rewardAmount
+	//(1)if balanceAmount>rewardAmount gen withdraw and delegate tx
+	//(2)if balanceAmount<rewardAmount gen withdraw tx
+	var unSignedTx []byte
+	if balanceAmount.Balance.Amount.GT(rewardAmount) {
+		unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardThenDeleTx(
+			poolAddr,
+			height)
+	} else {
+		unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardTx(
+			poolAddr,
+			height)
+	}
 	if err != nil {
-		w.log.Error("GenMultiSigRawDelegateTx failed",
+		w.log.Error("GenMultiSigRawWithdrawAllRewardThenDeleTx failed",
 			"pool address", poolAddr.String(),
-			"validator address", addrValidatorTestnetAteam.String(),
+			"height", height,
 			"err", err)
 		return false
 	}
@@ -395,7 +405,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("SignMultiSigRawTx failed",
 			"pool address", poolAddr.String(),
-			"validator address", addrValidatorTestnetAteam.String(),
+			"unsignedTx", string(unSignedTx),
 			"err", err)
 		return false
 	}
@@ -421,7 +431,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	w.log.Info("processBondReportEvent gen unsigned Tx",
+	w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
 		"pool address", poolAddr.String(),
 		"tx hash", hex.EncodeToString(proposalId[:]))
 

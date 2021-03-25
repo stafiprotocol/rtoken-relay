@@ -104,7 +104,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	if err != nil {
 		return core.TxhashUnmatch, err
 	}
-	if res.Empty() {
+	if res.Empty() || res.Code != 0 {
 		return core.TxhashUnmatch, nil
 	}
 

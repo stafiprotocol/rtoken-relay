@@ -119,6 +119,13 @@ func (c *Client) QueryAccount(addr types.AccAddress) (client.Account, error) {
 	return c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
 }
 
+func (c *Client) QueryBalance(addr types.AccAddress, denom string, height int64) (*xBankTypes.QueryBalanceResponse, error) {
+	client := c.clientCtx.WithHeight(height)
+	queryClient := xBankTypes.NewQueryClient(client)
+	params := xBankTypes.NewQueryBalanceRequest(addr, denom)
+	return queryClient.Balance(context.Background(), params)
+}
+
 func (c *Client) GetCurrentBLockHeight() (int64, error) {
 	status, err := c.GetStatus()
 	if err != nil {

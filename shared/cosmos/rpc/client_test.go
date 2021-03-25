@@ -192,8 +192,9 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawWithdrawRewardThenDeleTx(addrMultiSig1, addrValidatorTestnetAteam, types.NewCoin(client.GetDenom(), types.NewInt(8)))
+	rawTx, err := client.GenMultiSigRawWithdrawAllRewardThenDeleTx(addrMultiSig1, 1035322)
 	assert.NoError(t, err)
+	t.Log(string(rawTx))
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
 	assert.NoError(t, err)
@@ -202,6 +203,28 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
 
 	h, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)
+	t.Log(string(tx))
+	t.Log(hex.EncodeToString(h))
+	hash, err := client.BroadcastTx(tx)
+	assert.NoError(t, err)
+	t.Log(hash)
+}
+
+func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
+	err := client.SetFromName("multiSign1")
+	assert.NoError(t, err)
+	rawTx, err := client.GenMultiSigRawWithdrawAllRewardTx(addrMultiSig1, 1035322)
+	assert.NoError(t, err)
+	t.Log(string(rawTx))
+
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
+	assert.NoError(t, err)
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
+	assert.NoError(t, err)
+
+	h, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	assert.NoError(t, err)
+	t.Log(string(tx))
 	t.Log(hex.EncodeToString(h))
 	hash, err := client.BroadcastTx(tx)
 	assert.NoError(t, err)
@@ -298,4 +321,16 @@ func TestClient_QueryDelegations(t *testing.T) {
 	res, err := client.QueryDelegations(addrMultiSig1, 0)
 	assert.NoError(t, err)
 	t.Log(res.String())
+}
+
+func TestClient_QueryBalance(t *testing.T) {
+	res, err := client.QueryBalance(addrMultiSig1, "umuon", 0)
+	assert.NoError(t, err)
+	t.Log(res.Balance.Amount)
+}
+
+func TestClient_QueryDelegationTotalRewards(t *testing.T) {
+	res, err := client.QueryDelegationTotalRewards(addrMultiSig1, 0)
+	assert.NoError(t, err)
+	t.Log(res.Total.AmountOf(client.GetDenom()).TruncateInt())
 }
