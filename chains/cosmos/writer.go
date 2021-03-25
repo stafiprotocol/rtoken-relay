@@ -13,6 +13,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 	"time"
 )
@@ -113,7 +114,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	//bond report if no need
 	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
 		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
-		mFlow.CallHash = hexutil.Encode([]byte{})
+		callHash := utils.BlakeTwo256([]byte{})
+		mFlow.CallHash = hexutil.Encode(callHash[:])
 		return w.bondReport(m.Destination, m.Source, mFlow)
 	}
 
@@ -266,11 +268,12 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 
 			switch wrappedUnSignedTx.Type {
 			case cosmos.BondUnbond:
+				callHash := utils.BlakeTwo256(sigs.Pool)
 				mflow := core.MultisigFlow{
 					UpdatedData: &core.PoolUpdatedData{
 						Evt: &core.EvtEraPoolUpdated{
 							ShotId: wrappedUnSignedTx.SnapshotId}},
-					CallHash: proposalIdHexStr}
+					CallHash: hexutil.Encode(callHash[:])}
 
 				poolClient.RemoveUnsignedTx(proposalIdHexStr)
 				return w.bondReport(m.Destination, m.Source, &mflow)
