@@ -11,7 +11,8 @@
       "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/keys",
       "opts": {
         "startBlock": "1",
-        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/network/stafi.json"
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/network/stafi.json",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/blockstore"
       }
     },
     {

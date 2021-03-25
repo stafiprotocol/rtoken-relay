@@ -7,6 +7,7 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	errType "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	chainBridgeUtils "github.com/stafiprotocol/chainbridge/shared/ethereum"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
@@ -112,6 +113,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	//bond report if no need
 	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
 		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
+		mFlow.CallHash = hexutil.Encode([]byte{})
 		return w.bondReport(m.Destination, m.Source, mFlow)
 	}
 
@@ -304,6 +306,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 					Era:     wrappedUnSignedTx.Era,
 					Rsymbol: sigs.Symbol,
 					Pool:    sigs.Pool,
+					ShotId:  wrappedUnSignedTx.SnapshotId,
 					Active:  substrateTypes.NewUCompact(total.BigInt())}
 
 				return w.activeReport(core.RATOM, core.RFIS, &f)
@@ -399,6 +402,8 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
 		Hash:       proposalIdHexStr,
+		SnapshotId: flow.ShotId,
+		Era:        flow.Era,
 		Type:       cosmos.ClaimThenDelegate}
 
 	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
