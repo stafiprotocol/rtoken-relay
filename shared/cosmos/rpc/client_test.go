@@ -213,7 +213,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
 func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawWithdrawAllRewardTx(addrMultiSig1, 1035322)
+	rawTx, err := client.GenMultiSigRawWithdrawAllRewardTx(addrMultiSig1, 1037755)
 	assert.NoError(t, err)
 	t.Log(string(rawTx))
 

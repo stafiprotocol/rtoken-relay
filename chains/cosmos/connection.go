@@ -104,6 +104,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	if err != nil {
 		return core.TxhashUnmatch, err
 	}
+	//todo maybe use another unmatch
 	if res.Empty() || res.Code != 0 {
 		return core.TxhashUnmatch, nil
 	}
@@ -130,7 +131,8 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 				if err == nil {
 					//amount and pool address must in one message
 					if bytes.Equal(toAddr.Bytes(), r.Pool) &&
-						sendMsg.Amount.AmountOf(client.GetRpcClient().GetDenom()).Equal(types.NewIntFromBigInt(r.Amount.Int)) {
+						sendMsg.Amount.AmountOf(client.GetRpcClient().GetDenom()).
+							Equal(types.NewIntFromBigInt(r.Amount.Int)) {
 						poolIsMatch = true
 						amountIsMatch = true
 						fromAddressStr = sendMsg.FromAddress
