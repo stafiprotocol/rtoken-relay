@@ -10,8 +10,8 @@ import (
 
 // Frequency of polling for a new block
 var (
-	BlockRetryInterval = time.Second * 5
-	BlockRetryLimit    = 5
+	BlockRetryInterval = time.Second * 6
+	BlockRetryLimit    = 10
 )
 
 //listen event from cosmos

@@ -53,6 +53,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processSignatureEnoughEvt(m)
 	case core.BondReportEvent:
 		return w.processBondReportEvent(m)
+	case core.BondedPools:
+		return w.processBondedPools(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -139,7 +141,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 	client := subClient.GetRpcClient()
 	//just for test
-	coin := types.NewCoin(client.GetDenom(), types.NewInt(100))
+	coin := types.NewCoin(client.GetDenom(), types.NewInt(10))
 
 	unSignedTx, err := client.GenMultiSigRawDelegateTx(
 		poolAddr,
@@ -257,7 +259,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		//check on chain
 		res, err := client.QueryTxByHash(txHashHexStr)
 		if err != nil || res.Empty() {
-			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt QueryTxByHash failed will retry after %f second",
+			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt QueryTxByHash failed will rebroadcast after %f second",
 				BlockRetryInterval.Seconds()),
 				"err or res.empty", err)
 		} else {
@@ -322,8 +324,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		//broadcast if not on chain
 		_, err = client.BroadcastTx(txBts)
 		if err != nil && err != errType.ErrTxInMempoolCache {
-			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt BroadcastTx failed, will retry after %f second",
-				BlockRetryInterval.Seconds()),
+			w.log.Warn("processSignatureEnoughEvt BroadcastTx failed",
 				"err", err)
 		}
 		time.Sleep(BlockRetryInterval)
@@ -451,4 +452,8 @@ func (w *writer) bondReport(source, dest core.RSymbol, flow *core.MultisigFlow) 
 func (w *writer) activeReport(source, dest core.RSymbol, flow *core.BondReportFlow) bool {
 	msg := &core.Message{Source: source, Destination: dest, Reason: core.ActiveReport, Content: flow}
 	return w.submitMessage(msg)
+}
+
+func (w *writer) processBondedPools(m *core.Message) bool {
+	return true
 }

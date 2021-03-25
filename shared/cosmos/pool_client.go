@@ -11,7 +11,7 @@ import (
 )
 
 //todo test only will update this on release
-const EraBlockNumber = int64(30) //6hours 6*60*60/6
+const EraBlockNumber = int64(10*60/6) //6hours 6*60*60/6
 
 //one pool address with one poolClient
 type PoolClient struct {
