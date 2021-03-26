@@ -308,11 +308,11 @@ type MultisigCall struct {
 type OriginalTx string
 
 const (
-	Transfer        = "Transfer"
-	Bond            = "Bond"
-	Unbond          = "Unbond"
-	WithdrawUnbondO = "WithdrawUnbond"
-	ClaimRewards    = "ClaimRewards"
+	OriginalTransfer       = "OriginalTransfer"
+	OriginalBond           = "OriginalBond"
+	OriginalUnbond         = "OriginalUnbond"
+	OriginalWithdrawUnbond = "OriginalWithdrawUnbond"
+	OriginalClaimRewards   = "OriginalClaimRewards"
 )
 
 func (r *OriginalTx) Decode(decoder scale.Decoder) error {
@@ -323,15 +323,15 @@ func (r *OriginalTx) Decode(decoder scale.Decoder) error {
 
 	switch b {
 	case 0:
-		*r = Transfer
+		*r = OriginalTransfer
 	case 1:
-		*r = Bond
+		*r = OriginalBond
 	case 2:
-		*r = Unbond
+		*r = OriginalUnbond
 	case 3:
-		*r = WithdrawUnbondO
+		*r = OriginalWithdrawUnbond
 	case 4:
-		*r = ClaimRewards
+		*r = OriginalClaimRewards
 	default:
 		return fmt.Errorf("OriginalTx decode error: %d", b)
 	}
@@ -341,15 +341,15 @@ func (r *OriginalTx) Decode(decoder scale.Decoder) error {
 
 func (r OriginalTx) Encode(encoder scale.Encoder) error {
 	switch r {
-	case Transfer:
+	case OriginalTransfer:
 		return encoder.PushByte(0)
-	case Bond:
+	case OriginalBond:
 		return encoder.PushByte(1)
-	case Unbond:
+	case OriginalUnbond:
 		return encoder.PushByte(2)
-	case WithdrawUnbondO:
+	case OriginalWithdrawUnbond:
 		return encoder.PushByte(3)
-	case ClaimRewards:
+	case OriginalClaimRewards:
 		return encoder.PushByte(4)
 	default:
 		return fmt.Errorf("OriginalTx %s not supported", r)

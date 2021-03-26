@@ -183,7 +183,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(snap.Era),
 		Pool:       substrateTypes.NewBytes(snap.Pool),
-		TxType:     core.OriginalTx(core.Bond),
+		TxType:     core.OriginalTx(core.OriginalBond),
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
@@ -429,7 +429,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(flow.Era),
 		Pool:       substrateTypes.NewBytes(flow.Pool),
-		TxType:     core.OriginalTx(core.ClaimRewards),
+		TxType:     core.OriginalTx(core.OriginalClaimRewards),
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
