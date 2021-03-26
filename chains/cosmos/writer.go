@@ -209,6 +209,18 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
+	era, err := w.conn.GetCurrentEra()
+	if err != nil {
+		w.log.Error("CurrentEra error", "rsymbol", m.Source)
+		return false
+	}
+
+	if uint32(sigs.Era) != era {
+		w.log.Warn("processSignatureEnoughEvt of past era, ignored", "current", era, "eventEra", sigs.Era,
+			"rsymbol", sigs.Symbol)
+		return true
+	}
+
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrHexStr)
 	if err != nil {
@@ -266,6 +278,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt QueryTxByHash failed. will rebroadcast after %f second",
 				BlockRetryInterval.Seconds()),
 				"err or res.empty", err)
+			retry--
 		} else {
 			w.log.Info("processSignatureEnoughEvt success",
 				"pool hex address", poolAddrHexStr,
@@ -317,7 +330,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 					ShotId:  wrappedUnSignedTx.SnapshotId,
 					Active:  substrateTypes.NewUCompact(total.BigInt())}
 
-				return w.activeReport(core.RATOM, core.RFIS, &f)
+				return w.activeReport(m.Destination, m.Source, &f)
 
 			default:
 				return true

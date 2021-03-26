@@ -561,6 +561,7 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 
 func (w *writer) processActiveReport(m *core.Message) bool {
 	flow, ok := m.Content.(*core.BondReportFlow)
+	w.log.Info("processActiveReport", "m", m, "flow", flow,"active",flow.Active)
 	if !ok {
 		w.printContentError(m)
 		return false
@@ -622,7 +623,6 @@ func (w *writer) processWithdrawUnbond(m *core.Message) bool {
 		return false
 	}
 	mf.MulCall.Extrinsic, mf.MulCall.Opaque, mf.MulCall.CallHash = call.Extrinsic, call.Opaque, call.CallHash
-
 
 	callhash := mf.MulCall.CallHash
 	oldFlow := w.multisigFlows[callhash]
