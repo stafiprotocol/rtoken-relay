@@ -190,14 +190,6 @@ func (p *Proposal) Encode() ([]byte, error) {
 	}{p.Key.BondId, p.Call})
 }
 
-type SignaturesKey struct {
-	RSymbol    RSymbol
-	Era        uint32
-	Pool       []byte
-	TxType     OriginalTx
-	ProposalId []byte
-}
-
 type PoolKey struct {
 	Rsymbol RSymbol
 	Pool    []byte
@@ -308,11 +300,11 @@ type MultisigCall struct {
 type OriginalTx string
 
 const (
-	OriginalTransfer       = OriginalTx("OriginalTransfer")
-	OriginalBond           = OriginalTx("OriginalBond")
-	OriginalUnbond         = OriginalTx("OriginalUnbond")
-	OriginalWithdrawUnbond = OriginalTx("OriginalWithdrawUnbond")
-	OriginalClaimRewards   = OriginalTx("OriginalClaimRewards")
+	OriginalTransfer       = OriginalTx("Transfer")
+	OriginalBond           = OriginalTx("Bond")
+	OriginalUnbond         = OriginalTx("Unbond")
+	OriginalWithdrawUnbond = OriginalTx("WithdrawUnbond")
+	OriginalClaimRewards   = OriginalTx("ClaimRewards")
 )
 
 func (r *OriginalTx) Decode(decoder scale.Decoder) error {
@@ -372,4 +364,12 @@ type SubmitSignatures struct {
 	TxType     OriginalTx
 	ProposalId types.Bytes
 	Signature  []types.Bytes
+}
+
+type SignaturesKey struct {
+	RSymbol    RSymbol
+	Era        uint32
+	Pool       []byte
+	TxType     OriginalTx
+	ProposalId []byte
 }

@@ -436,7 +436,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
 		"pool address", poolAddr.String(),
-		"tx hash", hex.EncodeToString(proposalId[:]))
+		"unsigned tx hash", hex.EncodeToString(proposalId[:]))
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
