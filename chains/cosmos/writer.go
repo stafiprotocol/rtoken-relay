@@ -176,14 +176,14 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		UnsignedTx: unSignedTx,
 		SnapshotId: flow.ShotId,
 		Hash:       proposalIdHexStr,
-		Type:       cosmos.BondUnbond}
+		Type:       core.OriginalBond}
 	subClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
 
 	param := core.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(snap.Era),
 		Pool:       substrateTypes.NewBytes(snap.Pool),
-		TxType:     core.OriginalTx(core.OriginalBond),
+		TxType:     core.OriginalBond,
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
@@ -237,7 +237,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 			"err", err)
 		return false
 	}
-	if wrappedUnSignedTx.Type != cosmos.BondUnbond && wrappedUnSignedTx.Type != cosmos.ClaimThenDelegate {
+	if wrappedUnSignedTx.Type != core.OriginalBond && wrappedUnSignedTx.Type != core.OriginalClaimRewards {
 		w.log.Error("processSignatureEnoughEvt failed,unknown unsigned tx type",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
 			"type", wrappedUnSignedTx.Type)
@@ -273,7 +273,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 			//return true only check on chain
 
 			switch wrappedUnSignedTx.Type {
-			case cosmos.BondUnbond:
+			case core.OriginalBond:
 				callHash := utils.BlakeTwo256(sigs.Pool)
 				mflow := core.MultisigFlow{
 					HeadFlow: &core.EraPoolUpdatedFlow{
@@ -282,7 +282,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 
 				poolClient.RemoveUnsignedTx(proposalIdHexStr)
 				return w.informChain(m.Destination, m.Source, &mflow)
-			case cosmos.ClaimThenDelegate:
+			case core.OriginalClaimRewards:
 				height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
 				delegationsRes, err := client.QueryDelegations(poolAddr, height)
 				if err != nil {
@@ -421,7 +421,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Hash:       proposalIdHexStr,
 		SnapshotId: flow.ShotId,
 		Era:        flow.Era,
-		Type:       cosmos.ClaimThenDelegate}
+		Type:       core.OriginalClaimRewards}
 
 	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
 
@@ -429,7 +429,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(flow.Era),
 		Pool:       substrateTypes.NewBytes(flow.Pool),
-		TxType:     core.OriginalTx(core.OriginalClaimRewards),
+		TxType:     core.OriginalClaimRewards,
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}

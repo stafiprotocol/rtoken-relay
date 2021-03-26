@@ -3,6 +3,7 @@ package cosmos
 import (
 	"errors"
 	subTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"math/big"
 	"sync"
@@ -11,7 +12,7 @@ import (
 )
 
 //todo test only will update this on release
-const EraBlockNumber = int64(10*60/6) //6hours 6*60*60/6
+const EraBlockNumber = int64(10 * 60 / 6) //6hours 6*60*60/6
 
 //one pool address with one poolClient
 type PoolClient struct {
@@ -22,17 +23,12 @@ type PoolClient struct {
 	cachedUnsignedTx map[string]*WrapUnsignedTx //map[hash(unsignedTx)]unsignedTx
 }
 
-const (
-	BondUnbond        = uint8(0)
-	ClaimThenDelegate = uint8(1)
-)
-
 type WrapUnsignedTx struct {
 	UnsignedTx []byte
 	Hash       string
 	SnapshotId subTypes.Hash
 	Era        uint32
-	Type       uint8
+	Type       core.OriginalTx
 }
 
 func NewPoolClient(log log15.Logger, rpcClient *rpc.Client, subKey string) *PoolClient {

@@ -308,11 +308,11 @@ type MultisigCall struct {
 type OriginalTx string
 
 const (
-	OriginalTransfer       = "OriginalTransfer"
-	OriginalBond           = "OriginalBond"
-	OriginalUnbond         = "OriginalUnbond"
-	OriginalWithdrawUnbond = "OriginalWithdrawUnbond"
-	OriginalClaimRewards   = "OriginalClaimRewards"
+	OriginalTransfer       = OriginalTx("OriginalTransfer")
+	OriginalBond           = OriginalTx("OriginalBond")
+	OriginalUnbond         = OriginalTx("OriginalUnbond")
+	OriginalWithdrawUnbond = OriginalTx("OriginalWithdrawUnbond")
+	OriginalClaimRewards   = OriginalTx("OriginalClaimRewards")
 )
 
 func (r *OriginalTx) Decode(decoder scale.Decoder) error {
