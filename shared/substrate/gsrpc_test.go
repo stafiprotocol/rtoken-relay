@@ -2,6 +2,7 @@ package substrate
 
 import (
 	"fmt"
+	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 	"os"
@@ -62,7 +63,7 @@ func TestGsrpcClient(t *testing.T) {
 
 	call, err := types.NewCall(
 		meta,
-		config.ExecuteBondRecord,
+		config.MethodExecuteBondRecord,
 		bondKey,
 		core.Pass,
 	)
@@ -70,7 +71,7 @@ func TestGsrpcClient(t *testing.T) {
 
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
-	ext, err := gc.NewUnsignedExtrinsic(config.RacknowledgeProposal, bondKey.Rsymbol, bondKey.BondId, true, call)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, bondKey.Rsymbol, bondKey.BondId, true, call)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }
@@ -196,55 +197,24 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	bond, _ := utils.StringToBigint("10000000000000")
 	unbond := big.NewInt(0)
 
-	extStr, opaque, err := gc.BondOrUnbondCall(bond, unbond)
+	call, err := gc.BondOrUnbondCall(bond, unbond)
 	assert.NoError(t, err)
-	fmt.Println(extStr)
-	fmt.Println(hexutil.Encode(opaque))
-	h := utils.BlakeTwo256(opaque)
+	fmt.Println(call.Extrinsic)
+	fmt.Println(hexutil.Encode(call.Opaque))
+	h := utils.BlakeTwo256(call.Opaque)
 	fmt.Println("callHash", hexutil.Encode(h[:]))
 
 	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
-	info, err := sc.GetPaymentQueryInfo(extStr)
+	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
-
-	//tp := types.TimePoint{3010, 2}
-	//callHash, _ := types.NewHashFromHexString("0xba6c8ec1798285f8f312523e2353ebe8468fab4b55afe1a788a64a65f8bcc72c")
-	//ext, err := gc.NewUnsignedExtrinsic(config.MethodApproveAsMulti, threshold, others, tp, callHash, types.Weight(uint64(info.Weight)))
-
-	//fmt.Println(opaque)
 
 	tp := core.NewOptionTimePointEmpty()
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, opaque, false, info.Weight)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
-}
-
-func TestEncodedExtrinsic(t *testing.T) {
-	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
-	assert.NoError(t, err)
-
-	bond, _ := utils.StringToBigint("10000000000000")
-	unbond := big.NewInt(0)
-
-	extStr, opaque, err := gc.BondOrUnbondCall(bond, unbond)
-	assert.NoError(t, err)
-
-	//e, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, types.NewUCompact(bond))
-	//assert.NoError(t, err)
-	//bz, err := types.EncodeToBytes(e)
-	//assert.NoError(t, err)
-
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
-	assert.NoError(t, err)
-
-	info, err := sc.GetPaymentQueryInfo(extStr)
-	assert.NoError(t, err)
-	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
-	fmt.Println(opaque)
 }
 
 func TestStorages(t *testing.T) {
@@ -279,4 +249,136 @@ func TestStorages(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(exist)
 	fmt.Println(ledger)
+}
+
+func TestBatch(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	assert.NoError(t, err)
+
+	addr, err := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	assert.NoError(t, err)
+
+	amount, _ := utils.StringToBigint("1000000000000")
+	value := types.NewUCompact(amount)
+
+	calls := make([]types.Call, 0)
+	meta, err := gc.GetLatestMetadata()
+	assert.NoError(t, err)
+
+	for i := 0; i <= 4000; i++ {
+		call, err := types.NewCall(
+			meta,
+			config.MethodTransferKeepAlive,
+			addr,
+			value,
+		)
+		assert.NoError(t, err)
+		calls = append(calls, call)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	assert.NoError(t, err)
+
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
+}
+
+func TestTransfer(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+	jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+	mul, _ := types.NewAddressFromHexAccountID("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
+
+	addrs := []types.Address{less, jun, wen, bao, mul}
+
+	amount, _ := utils.StringToBigint("10000000000000000")
+	value := types.NewUCompact(amount)
+
+	calls := make([]types.Call, 0)
+	meta, err := gc.GetLatestMetadata()
+	assert.NoError(t, err)
+
+	for _, addr := range addrs {
+		call, err := types.NewCall(
+			meta,
+			config.MethodTransferKeepAlive,
+			addr,
+			value,
+		)
+		assert.NoError(t, err)
+		calls = append(calls, call)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	assert.NoError(t, err)
+
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
+}
+
+func TestMultiBatch(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	assert.NoError(t, err)
+
+	//less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+	jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+	//mul, _ := types.NewAddressFromHexAccountID("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
+	threshold := uint16(2)
+	others := []types.AccountID{wen.AsAccountID, jun.AsAccountID}
+	addrs := []types.Address{bao, jun, bao}
+
+	amount, _ := utils.StringToBigint("1000000000000")
+	value := types.NewUCompact(amount)
+
+	calls := make([]types.Call, 0)
+
+	var info *rpc.PaymentQueryInfo
+	tp := core.NewOptionTimePointEmpty()
+	for _, addr := range addrs {
+		c, err := gc.TransferCall(addr, value)
+		fmt.Println(c.CallHash)
+		assert.NoError(t, err)
+		if info == nil {
+			sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+			assert.NoError(t, err)
+			info, err = sc.GetPaymentQueryInfo(c.Extrinsic)
+			assert.NoError(t, err)
+		}
+
+		ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, c.Opaque, false, info.Weight)
+		calls = append(calls, ext.Method)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	assert.NoError(t, err)
+
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
 }

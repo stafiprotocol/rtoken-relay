@@ -10,6 +10,7 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 )
 
@@ -235,10 +236,22 @@ func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
 }
 
-func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (extStr string, opaque []byte, err error) {
+func (gc *GsrpcClient) StakingLedger(ac types.AccountID) (*StakingLedger, error) {
+	s := new(StakingLedger)
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLedger, ac[:], nil, s)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("can not get active for account: %s", hexutil.Encode(ac[:]))
+	}
+
+	return s, nil
+}
+
+func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*MultiOpaqueCall, error) {
 	gc.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
-	var ext *types.Extrinsic
-	var bz []byte
 	var method string
 	var val types.UCompact
 
@@ -254,39 +267,50 @@ func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (extStr string, o
 		val = types.NewUCompact(diff)
 	} else {
 		gc.log.Info("bond is equal to unbond, NoCall")
-		err = BondEqualToUnbondError
-		return
+		return nil, BondEqualToUnbondError
 	}
 
-	ext, err = gc.NewUnsignedExtrinsic(method, val)
-	if err != nil {
-		return
-	}
-
-	opaque, err = types.EncodeToBytes(ext.Method)
-	if err != nil {
-		return
-	}
-
-	bz, err = types.EncodeToBytes(ext)
-	if err != nil {
-		return
-	}
-
-	extStr = hexutil.Encode(bz)
-	return
-}
-
-func (gc *GsrpcClient) StakingLedger(ac types.AccountID) (*StakingLedger, error) {
-	s := new(StakingLedger)
-	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLedger, ac[:], nil, s)
+	ext, err := gc.NewUnsignedExtrinsic(method, val)
 	if err != nil {
 		return nil, err
 	}
 
-	if !exist {
-		return nil, fmt.Errorf("can not get active for account: %s", hexutil.Encode(ac[:]))
+	return OpaqueCall(ext)
+}
+
+func (gc *GsrpcClient) WithdrawCall() (*MultiOpaqueCall, error) {
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodWithdrawUnbonded, uint32(0))
+	if err != nil {
+		return nil, err
 	}
 
-	return s, nil
+	return OpaqueCall(ext)
+}
+
+func (gc *GsrpcClient) TransferCall(dest types.Address, value types.UCompact) (*MultiOpaqueCall, error) {
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodTransferKeepAlive, dest, value)
+	if err != nil {
+		return nil, err
+	}
+
+	return OpaqueCall(ext)
+}
+
+func OpaqueCall(ext *types.Extrinsic) (*MultiOpaqueCall, error) {
+	opaque, err := types.EncodeToBytes(ext.Method)
+	if err != nil {
+		return nil, err
+	}
+
+	bz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		return nil, err
+	}
+
+	callhash := utils.BlakeTwo256(opaque)
+	return &MultiOpaqueCall{
+		Extrinsic: hexutil.Encode(bz),
+		Opaque:    opaque,
+		CallHash:  hexutil.Encode(callhash[:]),
+	}, nil
 }

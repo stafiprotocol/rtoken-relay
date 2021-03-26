@@ -98,14 +98,18 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		w.printContentError(m, errors.New("msg cast to MultisigFlow not ok"))
 		return false
 	}
+	flow, ok := mFlow.HeadFlow.(*core.EraPoolUpdatedFlow)
+	if !ok {
+		w.log.Error("processEraPoolUpdated HeadFlow is not EraPoolUpdatedFlow")
+		return false
+	}
 
 	era, err := w.conn.GetCurrentEra()
 	if err != nil {
 		w.log.Error("CurrentEra error", "rsymbol", m.Source)
 		return false
 	}
-	updateData := mFlow.UpdatedData
-	snap := updateData.Snap
+	snap := flow.Snap
 
 	if snap.Era != era {
 		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", snap.Era, "rsymbol", snap.Rsymbol)
@@ -118,7 +122,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
 		callHash := utils.BlakeTwo256([]byte{})
 		mFlow.CallHash = hexutil.Encode(callHash[:])
-		return w.bondReport(m.Destination, m.Source, mFlow)
+		return w.informChain(m.Destination, m.Source, mFlow)
 	}
 
 	//get subClient of this pool address
@@ -170,7 +174,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	proposalIdHexStr := hex.EncodeToString(proposalId[:])
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
-		SnapshotId: updateData.Evt.ShotId,
+		SnapshotId: flow.ShotId,
 		Hash:       proposalIdHexStr,
 		Type:       cosmos.BondUnbond}
 	subClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
@@ -272,13 +276,12 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 			case cosmos.BondUnbond:
 				callHash := utils.BlakeTwo256(sigs.Pool)
 				mflow := core.MultisigFlow{
-					UpdatedData: &core.PoolUpdatedData{
-						Evt: &core.EvtEraPoolUpdated{
-							ShotId: wrappedUnSignedTx.SnapshotId}},
+					HeadFlow: &core.EraPoolUpdatedFlow{
+						ShotId: wrappedUnSignedTx.SnapshotId},
 					CallHash: hexutil.Encode(callHash[:])}
 
 				poolClient.RemoveUnsignedTx(proposalIdHexStr)
-				return w.bondReport(m.Destination, m.Source, &mflow)
+				return w.informChain(m.Destination, m.Source, &mflow)
 			case cosmos.ClaimThenDelegate:
 				height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
 				delegationsRes, err := client.QueryDelegations(poolAddr, height)
@@ -454,8 +457,8 @@ func (w *writer) submitMessage(m *core.Message) bool {
 	return true
 }
 
-func (w *writer) bondReport(source, dest core.RSymbol, flow *core.MultisigFlow) bool {
-	msg := &core.Message{Source: source, Destination: dest, Reason: core.BondReport, Content: flow}
+func (w *writer) informChain(source, dest core.RSymbol, flow *core.MultisigFlow) bool {
+	msg := &core.Message{Source: source, Destination: dest, Reason: core.InformChain, Content: flow}
 	return w.submitMessage(msg)
 }
 

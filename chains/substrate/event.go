@@ -52,46 +52,22 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*core.Mu
 		return nil, err
 	}
 
-	bz, err := types.EncodeToBytes(data.ShotId)
-	snap := new(core.BondSnapshot)
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, bz, nil, snap)
+	snap, err := l.snapshot(data.ShotId)
 	if err != nil {
 		return nil, err
 	}
 
-	if !exist {
-		return nil, fmt.Errorf("unable to get snap of shotId: %s", hexutil.Encode(data.ShotId[:]))
-	}
-
-	pk := &core.PoolKey{Rsymbol: snap.Rsymbol, Pool: snap.Pool}
-	pkBz, err := types.EncodeToBytes(pk)
+	mc, err := l.multiCall(snap.Rsymbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
 
-	var threshold uint16
-	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, pkBz, nil, &threshold)
-	if err != nil {
-		return nil, err
-	}
-	if !exist {
-		return nil, fmt.Errorf("unable to get threshold of pool: %s, rsymbol: %s", pk.Rsymbol, hexutil.Encode(pk.Pool))
-	}
-
-	subs := make([]types.Bytes, 0)
-	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, pkBz, nil, &subs)
-	if err != nil {
-		return nil, err
-	}
-	if !exist {
-		return nil, fmt.Errorf("unable to get subAccounts of pool: %s, rsymbol: %s", pk.Rsymbol, hexutil.Encode(pk.Pool))
-	}
+	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
+	data.Snap = snap
 
 	return &core.MultisigFlow{
-		UpdatedData:   &core.PoolUpdatedData{Evt: data, Snap: snap},
-		LastVoterFlag: l.conn.IsLastVoter(data.LastVoter),
-		Threshold:     threshold,
-		SubAccounts:   subs,
+		HeadFlow: data,
+		MulCall:  mc,
 	}, nil
 }
 
@@ -150,10 +126,10 @@ func (l *listener) processNewMultisigEvt(evt *substrate.ChainEvent) (*core.Multi
 	}
 
 	return &core.MultisigFlow{
-		TimePoint: core.NewOptionTimePoint(mul.When),
-		CallHash:  hexutil.Encode(data.CallHash[:]),
-		NewMul:    data,
-		Multisig:  mul,
+		MulCall:  &core.MultisigCall{TimePoint: core.NewOptionTimePoint(mul.When)},
+		CallHash: hexutil.Encode(data.CallHash[:]),
+		NewMul:   data,
+		Multisig: mul,
 	}, nil
 }
 
@@ -179,4 +155,74 @@ func (l *listener) processBondReportEvt(evt *substrate.ChainEvent) (*core.BondRe
 	flow.LastEra = flow.Era - 1
 
 	return flow, nil
+}
+
+func (l *listener) processWithdrawUnbondEvt(evt *substrate.ChainEvent) (*core.MultisigFlow, error) {
+	data, err := substrate.EventWithdrawUnbond(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := l.snapshot(data.ShotId)
+	if err != nil {
+		return nil, err
+	}
+
+	mc, err := l.multiCall(snap.Rsymbol, snap.Pool)
+	if err != nil {
+		return nil, err
+	}
+
+	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
+
+	return &core.MultisigFlow{
+		HeadFlow: data,
+		MulCall:  mc,
+	}, nil
+}
+
+func (l *listener) snapshot(shotId types.Hash) (*core.EraPoolSnapshot, error) {
+	bz, err := types.EncodeToBytes(shotId)
+	snap := new(core.EraPoolSnapshot)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, bz, nil, snap)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("unable to get snap of shotId: %s", hexutil.Encode(shotId[:]))
+	}
+
+	return snap, nil
+}
+
+func (l *listener) multiCall(symbol core.RSymbol, pool []byte) (*core.MultisigCall, error) {
+	pk := &core.PoolKey{Rsymbol: symbol, Pool: pool}
+	pkBz, err := types.EncodeToBytes(pk)
+	if err != nil {
+		return nil, err
+	}
+
+	var threshold uint16
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, pkBz, nil, &threshold)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, fmt.Errorf("unable to get threshold of pool: %s, rsymbol: %s", symbol, hexutil.Encode(pool))
+	}
+
+	subs := make([]types.Bytes, 0)
+	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, pkBz, nil, &subs)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, fmt.Errorf("unable to get subAccounts of pool: %s, rsymbol: %s", symbol, hexutil.Encode(pool))
+	}
+
+	return &core.MultisigCall{
+		Threshold:   threshold,
+		SubAccounts: subs,
+	}, nil
 }

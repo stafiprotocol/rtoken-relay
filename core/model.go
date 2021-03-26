@@ -190,11 +190,6 @@ func (p *Proposal) Encode() ([]byte, error) {
 	}{p.Key.BondId, p.Call})
 }
 
-type PoolKey struct {
-	Rsymbol RSymbol
-	Pool    types.Bytes
-}
-
 type SignaturesKey struct {
 	RSymbol    RSymbol
 	Era        uint32
@@ -203,20 +198,9 @@ type SignaturesKey struct {
 	ProposalId []byte
 }
 
-type MultisigFlow struct {
-	UpdatedData     *PoolUpdatedData
-	LastVoterFlag   bool
-	Threshold       uint16
-	SubAccounts     []types.Bytes
-	Key             *signature.KeyringPair
-	Others          []types.AccountID
-	TimePoint       *OptionTimePoint
-	Opaque          []byte
-	EncodeExtrinsic string
-	CallHash        string
-	NewMul          *EventNewMultisig
-	Multisig        *Multisig
-	MulExecuted     *EventMultisigExecuted
+type PoolKey struct {
+	Rsymbol RSymbol
+	Pool    []byte
 }
 
 type BondReportFlow struct {
@@ -231,14 +215,22 @@ type BondReportFlow struct {
 	Stashes       []types.AccountID
 }
 
-//type ToPayout struct {
-//	Stash      types.AccountID
-//	Era        uint32
-//}
+type WithdrawUnbondFlow struct {
+	ShotId        types.Hash
+	Rsymbol       RSymbol
+	Pool          []byte
+	Era           uint32
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+}
 
-type PoolUpdatedData struct {
-	Evt  *EvtEraPoolUpdated
-	Snap *BondSnapshot
+type TransferFlow struct {
+	ShotId        types.Hash
+	Rsymbol       RSymbol
+	Pool          []byte
+	Era           uint32
+	LastVoter     types.AccountID
+	LastVoterFlag bool
 }
 
 //EraPoolUpdated(RSymbol, u32, Vec<u8>, u128, u128, AccountId),
@@ -247,7 +239,14 @@ type EvtEraPoolUpdated struct {
 	LastVoter types.AccountID
 }
 
-type BondSnapshot struct {
+type EraPoolUpdatedFlow struct {
+	ShotId        types.Hash
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+	Snap          *EraPoolSnapshot
+}
+
+type EraPoolSnapshot struct {
 	Rsymbol   RSymbol
 	Era       uint32
 	Pool      []byte
@@ -286,14 +285,34 @@ type EventMultisigExecuted struct {
 	Result    bool
 }
 
+type MultisigFlow struct {
+	HeadFlow    interface{}
+	MulCall     *MultisigCall
+	CallHash    string
+	NewMul      *EventNewMultisig
+	Multisig    *Multisig
+	MulExecuted *EventMultisigExecuted
+}
+
+type MultisigCall struct {
+	Threshold   uint16
+	SubAccounts []types.Bytes
+	Key         *signature.KeyringPair
+	Others      []types.AccountID
+	TimePoint   *OptionTimePoint
+	Opaque      []byte
+	Extrinsic   string
+	CallHash    string
+}
+
 type OriginalTx string
 
 const (
-	Transfer       = "Transfer"
-	Bond           = "Bond"
-	Unbond         = "Unbond"
-	WithdrawUnbond = "WithdrawUnbond"
-	ClaimRewards   = "ClaimRewards"
+	Transfer        = "Transfer"
+	Bond            = "Bond"
+	Unbond          = "Unbond"
+	WithdrawUnbondO = "WithdrawUnbond"
+	ClaimRewards    = "ClaimRewards"
 )
 
 func (r *OriginalTx) Decode(decoder scale.Decoder) error {
@@ -310,7 +329,7 @@ func (r *OriginalTx) Decode(decoder scale.Decoder) error {
 	case 2:
 		*r = Unbond
 	case 3:
-		*r = WithdrawUnbond
+		*r = WithdrawUnbondO
 	case 4:
 		*r = ClaimRewards
 	default:
@@ -328,7 +347,7 @@ func (r OriginalTx) Encode(encoder scale.Encoder) error {
 		return encoder.PushByte(1)
 	case Unbond:
 		return encoder.PushByte(2)
-	case WithdrawUnbond:
+	case WithdrawUnbondO:
 		return encoder.PushByte(3)
 	case ClaimRewards:
 		return encoder.PushByte(4)

@@ -20,6 +20,7 @@ const (
 	LiquidityBond  = eventName(config.LiquidityBondEventId)
 	EraPoolUpdated = eventName(config.EraPoolUpdatedEventId)
 	BondReport     = eventName(config.BondReportEventId)
+	WithdrawUnbond = eventName(config.WithdrawUnbondEventId)
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
@@ -32,6 +33,7 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{EraPoolUpdated, eraPoolUpdatedHandler},
 	{SignatureEnough, signatureEnoughHandler},
 	{BondReport, bondReportHandler},
+	{WithdrawUnbond, withdrawUnbondHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -51,16 +53,30 @@ func liquidityBondHandler(data interface{}, log log15.Logger) (*core.Message, er
 func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
 	d, ok := data.(*core.MultisigFlow)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast era pool updated")
+		return nil, fmt.Errorf("eraPoolUpdatedHandler: failed to cast MultisigFlow")
 	}
 
-	return &core.Message{Destination: d.UpdatedData.Snap.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+	flow, ok := d.HeadFlow.(*core.EraPoolUpdatedFlow)
+	if !ok {
+		return nil, fmt.Errorf("eraPoolUpdatedHandler: failed to cast EraPoolUpdatedFlow")
+	}
+
+	return &core.Message{Destination: flow.Snap.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
 }
 
 func bondReportHandler(data interface{}, log log15.Logger) (*core.Message, error) {
 	d, ok := data.(*core.BondReportFlow)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast bond report")
+		return nil, fmt.Errorf("failed to cast bond informChain")
+	}
+
+	return &core.Message{Destination: d.Rsymbol, Reason: core.BondReportEvent, Content: d}, nil
+}
+
+func withdrawUnbondHandler(data interface{}, log log15.Logger) (*core.Message, error) {
+	d, ok := data.(*core.WithdrawUnbondFlow)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast bond informChain")
 	}
 
 	return &core.Message{Destination: d.Rsymbol, Reason: core.BondReportEvent, Content: d}, nil
