@@ -236,24 +236,6 @@ type EventMultisigExecuted struct {
 	Result      bool
 }
 
-//type MultisigFlow struct {
-//	HeadFlow    interface{}
-//	MulCall     *MultisigCall
-//	CallHash    string
-//	NewMul      *EventNewMultisig
-//	Multisig    *Multisig
-//	MulExecuted *EventMultisigExecuted
-//	Params      []*MultiBatchCallParam
-//}
-
-type MultisigCall struct {
-	//Params      []*MultiCallParam
-	//TimePoint   *OptionTimePoint
-	//Opaque      []byte
-	//Extrinsic   string
-	//CallHash    string
-}
-
 type MultiCallParam struct {
 	TimePoint *substrate.OptionTimePoint
 	Opaque    []byte
