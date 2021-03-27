@@ -7,6 +7,7 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	errType "github.com/cosmos/cosmos-sdk/types/errors"
+	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	chainBridgeUtils "github.com/stafiprotocol/chainbridge/shared/ethereum"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -57,6 +58,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processBondReportEvent(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
+	case core.TransferBackEvent:
+		return w.processTransferBackEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -91,8 +94,9 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 }
 
 //process eraPoolUpdate event
-//1 gen bond/unbond multiSig unsigned tx and sign it with subKey
-//2 send signature to stafi
+//1 gen bond/unbond multiSig unsigned tx and cache it
+//2 sign it with subKey
+//3 send signature to stafi
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
 	mFlow, ok := m.Content.(*submodel.MultiEventFlow)
@@ -337,8 +341,20 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 					ShotId:  wrappedUnSignedTx.SnapshotId,
 					Active:  substrateTypes.NewU128(*total.BigInt())}
 
+				poolClient.RemoveUnsignedTx(proposalIdHexStr)
 				return w.activeReport(m.Destination, m.Source, &f)
+			case submodel.OriginalTransfer:
+				callHash := utils.BlakeTwo256(sigs.Pool)
+				mflow := submodel.MultiEventFlow{
+					EventData: &submodel.TransferFlow{
+						ShotId: wrappedUnSignedTx.SnapshotId},
+					OpaqueCalls: []*substrate.MultiOpaqueCall{
+						&substrate.MultiOpaqueCall{
+							CallHash: hexutil.Encode(callHash[:])}},
+				}
 
+				poolClient.RemoveUnsignedTx(proposalIdHexStr)
+				return w.informChain(m.Destination, m.Source, &mflow)
 			default:
 				return true
 			}
@@ -358,8 +374,9 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 
 //process bondReportEvent from stafi
 //1 query reward on era height
-//2 gen (claim reward && delegate) or (claim reward) unsigned tx and cached
-//3 send unsigned tx to stafi
+//2 gen (claim reward && delegate) or (claim reward) unsigned tx and cache it
+//3 sign it with subKey
+//4 send signature to stafi
 func (w *writer) processBondReportEvent(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondReportFlow)
 	if !ok {
@@ -455,6 +472,116 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	}
 
 	w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
+		"pool address", poolAddr.String(),
+		"unsigned tx hash", hex.EncodeToString(proposalId[:]))
+
+	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
+	return w.submitMessage(result)
+}
+
+//process TransferBackEvent
+//1 gen transfer  unsigned tx and cache it
+//2 sign it with subKey
+//3 send signature to stafi
+func (w *writer) processTransferBackEvent(m *core.Message) bool {
+	mef, ok := m.Content.(*submodel.MultiEventFlow)
+	if !ok {
+		w.printContentError(m, errors.New("msg cast to MultiEventFlow not ok"))
+		return false
+	}
+
+	flow, ok := mef.EventData.(*submodel.TransferFlow)
+	if !ok {
+		w.log.Error("processTransferBackEvent eventData is not TransferFlow")
+		return false
+	}
+
+	era, err := w.conn.GetCurrentEra()
+	if err != nil {
+		w.log.Error("CurrentEra error", "rsymbol", m.Source)
+		return false
+	}
+
+	if flow.Era != era {
+		w.log.Warn("processTransferBackEvent of past era, ignored", "current", era, "eventEra", flow.Era, "rsymbol", flow.Rsymbol)
+		return true
+	}
+
+	poolAddrHexStr := hex.EncodeToString(flow.Pool)
+	poolClient, err := w.conn.GetPoolClient(poolAddrHexStr)
+	if err != nil {
+		w.log.Error("processBondReportEvent failed",
+			"pool hex address", poolAddrHexStr,
+			"error", err)
+		return false
+	}
+
+	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
+	if err != nil {
+		w.log.Error("hexPoolAddr cast to cosmos AccAddress failed", "pool hex address", poolAddrHexStr, "err", err)
+		return false
+	}
+	client := poolClient.GetRpcClient()
+	outPuts := make([]xBankTypes.Output, 0)
+
+	for _, receive := range flow.Receives {
+		hexAccountStr := hex.EncodeToString(receive.Recipient.AsAccountID[:])
+		addr, err := types.AccAddressFromHex(hexAccountStr)
+		if err != nil {
+			w.log.Error("hexAddr cast to cosmos AccAddress failed", "hex address", addr, "err", err)
+			return false
+		}
+		valueBigInt := big.Int(receive.Value)
+		out := xBankTypes.Output{
+			Address: addr.String(),
+			Coins:   types.NewCoins(types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(&valueBigInt))),
+		}
+		outPuts = append(outPuts, out)
+	}
+	if len(outPuts) == 0 {
+		w.log.Warn("processTransferBackEvent transfer outPuts len is zero")
+		return true
+	}
+
+	unSignedTx, err := client.GenMultiSigRawBatchTransferTx(outPuts)
+	if err != nil {
+		w.log.Error("processTransferBackEvent GenMultiSigRawBatchTransferTx failed",
+			"pool address", poolAddr.String(),
+			"err", err)
+		return false
+	}
+
+	sigBts, err := client.SignMultiSigRawTx(unSignedTx, poolClient.GetSubKey())
+	if err != nil {
+		w.log.Error("processTransferBackEvent SignMultiSigRawTx failed",
+			"pool address", poolAddr.String(),
+			"unsignedTx", string(unSignedTx),
+			"err", err)
+		return false
+	}
+
+	//cache unSignedTx
+	proposalId := chainBridgeUtils.Hash(unSignedTx)
+	proposalIdHexStr := hex.EncodeToString(proposalId[:])
+	wrapUnsignedTx := cosmos.WrapUnsignedTx{
+		UnsignedTx: unSignedTx,
+		Hash:       proposalIdHexStr,
+		SnapshotId: flow.ShotId,
+		Era:        flow.Era,
+		Type:       submodel.OriginalTransfer}
+
+	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
+
+	param := submodel.SubmitSignatureParams{
+		Symbol:     w.conn.symbol,
+		Era:        substrateTypes.NewU32(flow.Era),
+		Pool:       substrateTypes.NewBytes(flow.Pool),
+		TxType:     submodel.OriginalTransfer,
+		ProposalId: substrateTypes.NewBytes(proposalId[:]),
+		Signature:  substrateTypes.NewBytes(sigBts),
+	}
+
+	w.log.Info("processTransferBackEvent gen unsigned transfer Tx",
 		"pool address", poolAddr.String(),
 		"unsigned tx hash", hex.EncodeToString(proposalId[:]))
 
