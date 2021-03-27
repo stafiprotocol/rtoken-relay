@@ -67,7 +67,7 @@ func (c *Connection) CommonReportProposal(method string, key *submodel.BondKey, 
 	return &submodel.Proposal{call, key, method}, nil
 }
 
-func (c *Connection) ActiveReportProposal(key *submodel.BondKey, shotId types.Hash, active types.UCompact) (*submodel.Proposal, error) {
+func (c *Connection) ActiveReportProposal(key *submodel.BondKey, shotId types.Hash, active types.U128) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err

@@ -172,7 +172,7 @@ type BondReportFlow struct {
 	LastVoter     types.AccountID
 	LastEra       uint32
 	LastVoterFlag bool
-	Active        types.UCompact
+	Active        types.U128
 	Stashes       []types.AccountID
 }
 

@@ -5,6 +5,7 @@ package substrate
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -715,7 +716,7 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 		return
 	}
 
-	flow.Active = ledger.Active
+	flow.Active = types.NewU128(big.Int(ledger.Active))
 	m.Content = flow
 	m.Reason = core.ActiveReport
 
