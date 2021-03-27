@@ -2,18 +2,19 @@ package substrate
 
 import (
 	"fmt"
-	"github.com/itering/substrate-api-rpc/rpc"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +44,7 @@ func TestGsrpcClient(t *testing.T) {
 	bId, err := types.NewHashFromHexString("0xd2f787195c3498f941653fe542e62b397988eeb3e2b867cf39a93c1ae5127b41")
 	assert.NoError(t, err)
 
-	bondKey := &core.BondKey{
+	bondKey := &submodel.BondKey{
 		Rsymbol: core.RDOT,
 		BondId:  bId,
 	}
@@ -53,7 +54,7 @@ func TestGsrpcClient(t *testing.T) {
 	bk, err := types.EncodeToBytes(bondKey)
 	assert.NoError(t, err)
 
-	br := new(core.BondRecord)
+	br := new(submodel.BondRecord)
 	exist, err := gc.QueryStorage(config.LiquidityBondModuleId, config.StorageBondRecords, bk, nil, br)
 	assert.NoError(t, err)
 	fmt.Println("exist:", exist)
@@ -65,7 +66,7 @@ func TestGsrpcClient(t *testing.T) {
 		meta,
 		config.MethodExecuteBondRecord,
 		bondKey,
-		core.Pass,
+		submodel.Pass,
 	)
 	assert.NoError(t, err)
 
@@ -93,14 +94,14 @@ func TestGsrpcClient1(t *testing.T) {
 	bId, err := types.NewHashFromHexString("0x7942f736614444159dba03bc5fef684dcebb7c5edb16d4e57315e148ea4525be")
 	assert.NoError(t, err)
 
-	bondKey := &core.BondKey{
+	bondKey := &submodel.BondKey{
 		Rsymbol: core.RDOT,
 		BondId:  bId,
 	}
 
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
-	ext, err := gc.NewUnsignedExtrinsic("RTokenSeries.add_hashes", bondKey, core.Pass)
+	ext, err := gc.NewUnsignedExtrinsic("RTokenSeries.add_hashes", bondKey, submodel.Pass)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }
@@ -134,7 +135,7 @@ func TestGsrpcClient_QueryStorage(t *testing.T) {
 	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
 	assert.NoError(t, err)
 
-	key := core.PoolKey{Rsymbol: core.RDOT, Pool: pool}
+	key := submodel.PoolKey{Rsymbol: core.RDOT, Pool: pool}
 	keybz, err := types.EncodeToBytes(key)
 	assert.NoError(t, err)
 
@@ -164,7 +165,7 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
 	assert.NoError(t, err)
 
-	pk := &core.PoolKey{core.RDOT, pool}
+	pk := &submodel.PoolKey{core.RDOT, pool}
 	pkBz, err := types.EncodeToBytes(pk)
 	assert.NoError(t, err)
 
@@ -211,7 +212,7 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
 
-	tp := core.NewOptionTimePointEmpty()
+	tp := NewOptionTimePointEmpty()
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
@@ -360,7 +361,7 @@ func TestMultiBatch(t *testing.T) {
 	calls := make([]types.Call, 0)
 
 	var info *rpc.PaymentQueryInfo
-	tp := core.NewOptionTimePointEmpty()
+	tp := NewOptionTimePointEmpty()
 	for _, addr := range addrs {
 		c, err := gc.TransferCall(addr, value)
 		fmt.Println(c.CallHash)
@@ -381,4 +382,27 @@ func TestMultiBatch(t *testing.T) {
 
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
+}
+
+func TestBalance(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+	ac := new(types.AccountInfo)
+	exist, err := gc.QueryStorage(config.SystemModuleId, config.StorageAccount, less.AsAccountID[:], nil, ac)
+	assert.NoError(t, err)
+
+	fmt.Println(exist)
+	fmt.Println(ac.Data.Free)
+}
+
+func TestGetConst(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	assert.NoError(t, err)
+	e, err := gc.ExistentialDeposit()
+	assert.NoError(t, err)
+	fmt.Println(e)
 }

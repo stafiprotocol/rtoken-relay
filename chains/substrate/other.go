@@ -2,11 +2,11 @@ package substrate
 
 import (
 	"github.com/stafiprotocol/rtoken-relay/config"
-	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"time"
 )
 
-func (c *Connection) submitSignature(param *core.SubmitSignatureParams) bool {
+func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool {
 	for i := 0; i < BlockRetryLimit; i++ {
 		c.log.Info("submitSignature on chain...")
 		ext, err := c.gc.NewUnsignedExtrinsic(config.SubmitSignatures, param.Symbol, param.Era, param.Pool,

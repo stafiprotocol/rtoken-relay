@@ -21,19 +21,23 @@ const (
 	MethodTransferReport   = "RTokenLedger.transfer_report"
 	BondReportEventId      = "BondReport"
 	WithdrawUnbondEventId  = "WithdrawUnbond"
+	TransferBackEventId    = "TransferBack"
 	StorageSubAccounts     = "SubAccounts"
 	StorageMultiThresholds = "MultiThresholds"
 	StorageBondedPools     = "BondedPools"
 	StorageLastVoter       = "LastVoter"
 	StorageSnapshots       = "Snapshots"
-	//StoragePoolBonded          = "PoolBonded"
-	//StoragePoolSubAccountFlag  = "PoolSubAccountFlag"
-	StorageTotalLinking = "TotalLinking"
-	StorageBondFaucets  = "BondFaucets"
-
+	//<<<<<<< HEAD
+	//	//StoragePoolBonded          = "PoolBonded"
+	//	//StoragePoolSubAccountFlag  = "PoolSubAccountFlag"
+	//	StorageTotalLinking = "TotalLinking"
+	//	StorageBondFaucets  = "BondFaucets"
+	//
 	SubmitSignatures         = "RTokenSeries.submit_signatures"
 	SubmitSignaturesModuleId = "RTokenSeries"
 	SignaturesEnoughEventId  = "SignaturesEnough"
 	StorageSignatures        = "Signatures"
 
+	//=======
+	StoragePoolUnbonds = "PoolUnbonds"
 )

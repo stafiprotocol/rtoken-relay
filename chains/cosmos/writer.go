@@ -12,7 +12,9 @@ import (
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 	"time"
@@ -65,13 +67,13 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 //1 check liquidityBond data  on cosmos chain
 //2 return check result to stafi
 func (w *writer) processLiquidityBond(m *core.Message) bool {
-	flow, ok := m.Content.(*core.BondFlow)
+	flow, ok := m.Content.(*submodel.BondFlow)
 	if !ok {
 		w.printContentError(m, errors.New("msg cast to BondFlow not ok"))
 		return false
 	}
 
-	if flow.Reason != core.BondReasonDefault {
+	if flow.Reason != submodel.BondReasonDefault {
 		w.log.Error("processLiquidityBond receive a message of which reason is not default", "bondId", flow.Key.BondId.Hex(), "reason", flow.Reason)
 		return false
 	}
@@ -93,12 +95,12 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 //2 send signature to stafi
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
-	mFlow, ok := m.Content.(*core.MultisigFlow)
+	mFlow, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		w.printContentError(m, errors.New("msg cast to MultisigFlow not ok"))
 		return false
 	}
-	flow, ok := mFlow.HeadFlow.(*core.EraPoolUpdatedFlow)
+	flow, ok := mFlow.EventData.(*submodel.EraPoolUpdatedFlow)
 	if !ok {
 		w.log.Error("processEraPoolUpdated HeadFlow is not EraPoolUpdatedFlow")
 		return false
@@ -121,7 +123,9 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
 		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
 		callHash := utils.BlakeTwo256([]byte{})
-		mFlow.CallHash = hexutil.Encode(callHash[:])
+		mFlow.OpaqueCalls = []*substrate.MultiOpaqueCall{
+			&substrate.MultiOpaqueCall{
+				CallHash: hexutil.Encode(callHash[:])}}
 		return w.informChain(m.Destination, m.Source, mFlow)
 	}
 
@@ -176,14 +180,14 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		UnsignedTx: unSignedTx,
 		SnapshotId: flow.ShotId,
 		Hash:       proposalIdHexStr,
-		Type:       core.OriginalBond}
+		Type:       submodel.OriginalBond}
 	subClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
 
-	param := core.SubmitSignatureParams{
+	param := submodel.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(snap.Era),
 		Pool:       substrateTypes.NewBytes(snap.Pool),
-		TxType:     core.OriginalBond,
+		TxType:     submodel.OriginalBond,
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
@@ -203,7 +207,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 //	(2)claimThenDelegate type:report active to stafi
 func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 	w.log.Trace("processSignatureEnoughEvt", "source", m.Source, "dest", m.Destination, "content", m.Content)
-	sigs, ok := m.Content.(*core.SubmitSignatures)
+	sigs, ok := m.Content.(*submodel.SubmitSignatures)
 	if !ok {
 		w.printContentError(m, errors.New("msg cast to SubmitSignatures not ok"))
 		return false
@@ -249,7 +253,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 			"err", err)
 		return false
 	}
-	if wrappedUnSignedTx.Type != core.OriginalBond && wrappedUnSignedTx.Type != core.OriginalClaimRewards {
+	if wrappedUnSignedTx.Type != submodel.OriginalBond && wrappedUnSignedTx.Type != submodel.OriginalClaimRewards {
 		w.log.Error("processSignatureEnoughEvt failed,unknown unsigned tx type",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
 			"type", wrappedUnSignedTx.Type)
@@ -286,16 +290,19 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 			//return true only check on chain
 
 			switch wrappedUnSignedTx.Type {
-			case core.OriginalBond:
+			case submodel.OriginalBond:
 				callHash := utils.BlakeTwo256(sigs.Pool)
-				mflow := core.MultisigFlow{
-					HeadFlow: &core.EraPoolUpdatedFlow{
+				mflow := submodel.MultiEventFlow{
+					EventData: &submodel.EraPoolUpdatedFlow{
 						ShotId: wrappedUnSignedTx.SnapshotId},
-					CallHash: hexutil.Encode(callHash[:])}
+					OpaqueCalls: []*substrate.MultiOpaqueCall{
+						&substrate.MultiOpaqueCall{
+							CallHash: hexutil.Encode(callHash[:])}},
+				}
 
 				poolClient.RemoveUnsignedTx(proposalIdHexStr)
 				return w.informChain(m.Destination, m.Source, &mflow)
-			case core.OriginalClaimRewards:
+			case submodel.OriginalClaimRewards:
 				height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
 				delegationsRes, err := client.QueryDelegations(poolAddr, height)
 				if err != nil {
@@ -323,12 +330,12 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 				}
 
 				total.Add(types.NewIntFromBigInt(rewardTotal))
-				f := core.BondReportFlow{
+				f := submodel.BondReportFlow{
 					Era:     wrappedUnSignedTx.Era,
 					Rsymbol: sigs.Symbol,
 					Pool:    sigs.Pool,
 					ShotId:  wrappedUnSignedTx.SnapshotId,
-					Active:  substrateTypes.NewUCompact(total.BigInt())}
+					Active:  substrateTypes.NewU128(*total.BigInt())}
 
 				return w.activeReport(m.Destination, m.Source, &f)
 
@@ -354,7 +361,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 //2 gen (claim reward && delegate) or (claim reward) unsigned tx and cached
 //3 send unsigned tx to stafi
 func (w *writer) processBondReportEvent(m *core.Message) bool {
-	flow, ok := m.Content.(*core.BondReportFlow)
+	flow, ok := m.Content.(*submodel.BondReportFlow)
 	if !ok {
 		w.printContentError(m, errors.New("msg cast to BondReportFlow not ok"))
 		return false
@@ -434,15 +441,15 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Hash:       proposalIdHexStr,
 		SnapshotId: flow.ShotId,
 		Era:        flow.Era,
-		Type:       core.OriginalClaimRewards}
+		Type:       submodel.OriginalClaimRewards}
 
 	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
 
-	param := core.SubmitSignatureParams{
+	param := submodel.SubmitSignatureParams{
 		Symbol:     w.conn.symbol,
 		Era:        substrateTypes.NewU32(flow.Era),
 		Pool:       substrateTypes.NewBytes(flow.Pool),
-		TxType:     core.OriginalClaimRewards,
+		TxType:     submodel.OriginalClaimRewards,
 		ProposalId: substrateTypes.NewBytes(proposalId[:]),
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
@@ -470,12 +477,12 @@ func (w *writer) submitMessage(m *core.Message) bool {
 	return true
 }
 
-func (w *writer) informChain(source, dest core.RSymbol, flow *core.MultisigFlow) bool {
+func (w *writer) informChain(source, dest core.RSymbol, flow *submodel.MultiEventFlow) bool {
 	msg := &core.Message{Source: source, Destination: dest, Reason: core.InformChain, Content: flow}
 	return w.submitMessage(msg)
 }
 
-func (w *writer) activeReport(source, dest core.RSymbol, flow *core.BondReportFlow) bool {
+func (w *writer) activeReport(source, dest core.RSymbol, flow *submodel.BondReportFlow) bool {
 	msg := &core.Message{Source: source, Destination: dest, Reason: core.ActiveReport, Content: flow}
 	return w.submitMessage(msg)
 }

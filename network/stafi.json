@@ -180,19 +180,6 @@
       ]
     ]
   },
-  "BondUnlockChunk": {
-    "type": "struct",
-    "type_mapping": [
-      [
-        "value",
-        "u128"
-      ],
-      [
-        "era",
-        "u32"
-      ]
-    ]
-  },
   "LinkChunk": {
     "type": "struct",
     "type_mapping": [
@@ -203,10 +190,14 @@
       [
         "unbond",
         "u128"
+      ],
+      [
+        "active",
+        "u128"
       ]
     ]
   },
-  "WithdrawChunk": {
+  "Unbonding": {
     "type": "struct",
     "type_mapping": [
       [
@@ -214,16 +205,32 @@
         "AccountId"
       ],
       [
+        "symbol",
+        "RSymbol"
+      ],
+      [
         "pool",
         "Vec<u8>"
       ],
       [
-        "recipient",
-        "Vec<u8>"
+        "rvalue",
+        "u128"
       ],
       [
         "value",
         "u128"
+      ],
+      [
+        "current_era",
+        "u32"
+      ],
+      [
+        "unlock_era",
+        "u32"
+      ],
+      [
+        "recipient",
+        "Vec<u8>"
       ]
     ]
   },

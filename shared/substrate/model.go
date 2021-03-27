@@ -17,11 +17,6 @@ type ChainEvent struct {
 	Params   []scalecodec.EventParam `json:"params"`
 }
 
-type Era struct {
-	Type  string `json:"type"`
-	Value uint32 `json:"value"`
-}
-
 type EraRewardPoints struct {
 	Total       uint32
 	Individuals []Individual
@@ -60,4 +55,5 @@ type MultiOpaqueCall struct {
 	Extrinsic string
 	Opaque    []byte
 	CallHash  string
+	TimePoint *OptionTimePoint
 }

@@ -11,6 +11,7 @@ import (
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
@@ -93,15 +94,15 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}, nil
 }
 
-func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error) {
+func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	//todo test only,must rm on release
-	return core.Pass, nil
+	return submodel.Pass, nil
 
 	hashStr := hex.EncodeToString(r.Txhash)
 
 	poolClient, err := c.GetOnePoolClient()
 	if err != nil {
-		return core.BondReasonDefault, err
+		return submodel.BondReasonDefault, err
 	}
 
 	//check tx hash
@@ -109,7 +110,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	retryTx := BlockRetryLimit
 	for {
 		if retryTx <= 0 {
-			return core.TxhashUnmatch, errors.New("QueryTxByHash reach retryTx limit")
+			return submodel.TxhashUnmatch, errors.New("QueryTxByHash reach retryTx limit")
 		}
 		txRes, err = poolClient.GetRpcClient().QueryTxByHash(hashStr)
 		if err != nil || txRes == nil || txRes.Empty() {
@@ -128,7 +129,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 
 	//check code
 	if txRes.Code != 0 {
-		return core.TxhashUnmatch, nil
+		return submodel.TxhashUnmatch, nil
 	}
 
 	//check block hash
@@ -136,7 +137,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	retryBlock := BlockRetryLimit
 	for {
 		if retryBlock <= 0 {
-			return core.BlockhashUnmatch, errors.New("QueryBlock reach retryTx limit")
+			return submodel.BlockhashUnmatch, errors.New("QueryBlock reach retryTx limit")
 		}
 		blockRes, err = poolClient.GetRpcClient().QueryBlock(txRes.Height)
 		if err != nil || blockRes == nil {
@@ -149,7 +150,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	}
 
 	if !bytes.Equal(blockRes.BlockID.Hash, r.Blockhash) {
-		return core.BlockhashUnmatch, nil
+		return submodel.BlockhashUnmatch, nil
 	}
 
 	//check amount and pool
@@ -178,26 +179,26 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 		}
 	}
 	if !amountIsMatch {
-		return core.AmountUnmatch, nil
+		return submodel.AmountUnmatch, nil
 	}
 	if !poolIsMatch {
-		return core.PoolUnmatch, nil
+		return submodel.PoolUnmatch, nil
 	}
 
 	//check pubkey
 	fromAddress, err := types.AccAddressFromBech32(fromAddressStr)
 	if err != nil {
-		return core.PubkeyUnmatch, err
+		return submodel.PubkeyUnmatch, err
 	}
 	accountRes, err := poolClient.GetRpcClient().QueryAccount(fromAddress)
 	if err != nil {
-		return core.PubkeyUnmatch, err
+		return submodel.PubkeyUnmatch, err
 	}
 
 	if !bytes.Equal(accountRes.GetPubKey().Bytes(), r.Pubkey) {
-		return core.PubkeyUnmatch, nil
+		return submodel.PubkeyUnmatch, nil
 	}
-	return core.Pass, nil
+	return submodel.Pass, nil
 }
 
 //fetch one for query

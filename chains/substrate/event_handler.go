@@ -6,6 +6,7 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
 type eventName string
@@ -21,6 +22,7 @@ const (
 	EraPoolUpdated = eventName(config.EraPoolUpdatedEventId)
 	BondReport     = eventName(config.BondReportEventId)
 	WithdrawUnbond = eventName(config.WithdrawUnbondEventId)
+	TransferBack   = eventName(config.TransferBackEventId)
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
@@ -34,6 +36,7 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{SignatureEnough, signatureEnoughHandler},
 	{BondReport, bondReportHandler},
 	{WithdrawUnbond, withdrawUnbondHandler},
+	{TransferBack, transferBackHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -42,7 +45,7 @@ var OtherSubscriptions = []eventHandlerSubscriptions{
 }
 
 func liquidityBondHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.BondFlow)
+	d, ok := data.(*submodel.BondFlow)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast bondflow")
 	}
@@ -51,12 +54,16 @@ func liquidityBondHandler(data interface{}, log log15.Logger) (*core.Message, er
 }
 
 func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.MultisigFlow)
+	d, ok := data.(*submodel.MultiEventFlow)
 	if !ok {
 		return nil, fmt.Errorf("eraPoolUpdatedHandler: failed to cast MultisigFlow")
 	}
 
-	flow, ok := d.HeadFlow.(*core.EraPoolUpdatedFlow)
+	if d.EventId != config.EraPoolUpdatedEventId {
+		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.EraPoolUpdatedEventId, d.EventId)
+	}
+
+	flow, ok := d.EventData.(*submodel.EraPoolUpdatedFlow)
 	if !ok {
 		return nil, fmt.Errorf("eraPoolUpdatedHandler: failed to cast EraPoolUpdatedFlow")
 	}
@@ -65,7 +72,7 @@ func eraPoolUpdatedHandler(data interface{}, log log15.Logger) (*core.Message, e
 }
 
 func bondReportHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.BondReportFlow)
+	d, ok := data.(*submodel.BondReportFlow)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast bond informChain")
 	}
@@ -74,16 +81,43 @@ func bondReportHandler(data interface{}, log log15.Logger) (*core.Message, error
 }
 
 func withdrawUnbondHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.WithdrawUnbondFlow)
+	d, ok := data.(*submodel.MultiEventFlow)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast bond informChain")
+		return nil, fmt.Errorf("withdrawUnbondHandler: failed to cast MultiEventFlow")
 	}
 
-	return &core.Message{Destination: d.Rsymbol, Reason: core.BondReportEvent, Content: d}, nil
+	if d.EventId != config.WithdrawUnbondEventId {
+		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.WithdrawUnbondEventId, d.EventId)
+	}
+
+	flow, ok := d.EventData.(*submodel.WithdrawUnbondFlow)
+	if !ok {
+		return nil, fmt.Errorf("withdrawUnbondHandler: failed to cast WithdrawUnbondFlow")
+	}
+
+	return &core.Message{Destination: flow.Rsymbol, Reason: core.WithdrawUnbondEvent, Content: d}, nil
+}
+
+func transferBackHandler(data interface{}, log log15.Logger) (*core.Message, error) {
+	d, ok := data.(*submodel.MultiEventFlow)
+	if !ok {
+		return nil, fmt.Errorf("transferBackHandler: failed to cast MultiEventFlow")
+	}
+
+	if d.EventId != config.TransferBackEventId {
+		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.TransferBackEventId, d.EventId)
+	}
+
+	flow, ok := d.EventData.(*submodel.TransferFlow)
+	if !ok {
+		return nil, fmt.Errorf("transferBackHandler: failed to cast WithdrawUnbondFlow")
+	}
+
+	return &core.Message{Destination: flow.Rsymbol, Reason: core.TransferBackEvent, Content: d}, nil
 }
 
 func signatureEnoughHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.SubmitSignatures)
+	d, ok := data.(*submodel.SubmitSignatures)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast submitSignatures")
 	}
@@ -92,7 +126,7 @@ func signatureEnoughHandler(data interface{}, log log15.Logger) (*core.Message, 
 }
 
 func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.MultisigFlow)
+	d, ok := data.(*submodel.EventNewMultisig)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast newMultisig")
 	}
@@ -101,7 +135,7 @@ func newMultisigHandler(data interface{}, log log15.Logger) (*core.Message, erro
 }
 
 func multisigExecutedHandler(data interface{}, log log15.Logger) (*core.Message, error) {
-	d, ok := data.(*core.MultisigFlow)
+	d, ok := data.(*submodel.EventMultisigExecuted)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast multisigExecuted")
 	}

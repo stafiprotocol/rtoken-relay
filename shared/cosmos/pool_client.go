@@ -3,7 +3,7 @@ package cosmos
 import (
 	"errors"
 	subTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
-	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"math/big"
 	"sync"
@@ -28,7 +28,7 @@ type WrapUnsignedTx struct {
 	Hash       string
 	SnapshotId subTypes.Hash
 	Era        uint32
-	Type       core.OriginalTx
+	Type       submodel.OriginalTx
 }
 
 func NewPoolClient(log log15.Logger, rpcClient *rpc.Client, subKey string) *PoolClient {

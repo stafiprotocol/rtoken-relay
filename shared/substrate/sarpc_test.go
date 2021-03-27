@@ -3,13 +3,13 @@ package substrate
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/core"
 	"testing"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -176,13 +176,13 @@ func TestEventNewMultisig(t *testing.T) {
 			continue
 		}
 
-		d, err := EventNewMultisig(evt)
+		d, err := submodel.EventNewMultisigData(evt)
 		assert.NoError(t, err)
 		fmt.Println("who", hexutil.Encode(d.Who[:]))
 		fmt.Println("id", hexutil.Encode(d.ID[:]))
 		fmt.Println("hash", hexutil.Encode(d.CallHash[:]))
 
-		mul := new(core.Multisig)
+		mul := new(submodel.Multisig)
 		exist, err := gc.QueryStorage(config.MultisigModuleId, config.StorageMultisigs, d.ID[:], d.CallHash[:], mul)
 		assert.NoError(t, err)
 		assert.True(t, exist)
@@ -233,7 +233,7 @@ func TestEraPoolUpdated(t *testing.T) {
 		fmt.Println(evt.ModuleId)
 		fmt.Println(evt.EventId)
 		fmt.Println(evt.Params)
-		a, err := EraPoolUpdatedData(evt)
+		a, err := submodel.EraPoolUpdatedData(evt)
 		assert.NoError(t, err)
 		fmt.Println(a)
 	}
