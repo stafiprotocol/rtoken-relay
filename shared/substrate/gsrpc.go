@@ -3,6 +3,8 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
@@ -11,7 +13,6 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
 )
 
 type GsrpcClient struct {
@@ -294,6 +295,29 @@ func (gc *GsrpcClient) TransferCall(dest types.Address, value types.UCompact) (*
 	}
 
 	return OpaqueCall(ext)
+}
+
+func (gc *GsrpcClient) AccountInfo(who []byte) (*types.AccountInfo, error) {
+	ac := new(types.AccountInfo)
+	exist, err := gc.QueryStorage(config.SystemModuleId, config.StorageAccount, who, nil, ac)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("can not get accountInfo for account: %s", hexutil.Encode(who))
+	}
+
+	return ac, nil
+}
+
+func (gc *GsrpcClient) ExistentialDeposit() (types.U128, error) {
+	var e types.U128
+	err := gc.api.RPC.State.GetConst(config.BalancesModuleId, config.ConstExistentialDeposit, &e)
+	if err != nil {
+		return types.U128{}, err
+	}
+	return e, nil
 }
 
 func OpaqueCall(ext *types.Extrinsic) (*MultiOpaqueCall, error) {

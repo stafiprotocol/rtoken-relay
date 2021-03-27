@@ -21,9 +21,11 @@ const (
 	MethodTransferReport   = "RTokenLedger.transfer_report"
 	BondReportEventId      = "BondReport"
 	WithdrawUnbondEventId  = "WithdrawUnbond"
+	TransferBackEventId    = "TransferBack"
 	StorageSubAccounts     = "SubAccounts"
 	StorageMultiThresholds = "MultiThresholds"
 	StorageBondedPools     = "BondedPools"
 	StorageLastVoter       = "LastVoter"
 	StorageSnapshots       = "Snapshots"
+	StoragePoolUnbonds     = "PoolUnbonds"
 )

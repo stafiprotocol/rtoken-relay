@@ -1,4 +1,4 @@
-package core
+package substrate
 
 import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"

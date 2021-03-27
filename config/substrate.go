@@ -1,10 +1,11 @@
 package config
 
 const (
-	TransferModuleId        = "Balances"
-	TransferKeepAlive       = "transfer_keep_alive"
+	BalancesModuleId        = "Balances"
+	TransferKeepAlive       = "transfer_keep_alives"
 	Transfer                = "transfer"
 	MethodTransferKeepAlive = "Balances.transfer_keep_alive"
+	ConstExistentialDeposit = "ExistentialDeposit"
 
 	StakingModuleId         = "Staking"
 	StorageActiveEra        = "ActiveEra"
@@ -22,6 +23,9 @@ const (
 	MultisigExecutedEventId = "MultisigExecuted"
 	StorageMultisigs        = "Multisigs"
 	MethodAsMulti           = "Multisig.as_multi"
+
+	SystemModuleId = "System"
+	StorageAccount = "Account"
 
 	MethodBatch = "Utility.batch"
 

@@ -7,10 +7,10 @@ import (
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
-	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
-func (c *Connection) InitLastVoterProposal(key *core.BondKey) (*core.Proposal, error) {
+func (c *Connection) InitLastVoterProposal(key *submodel.BondKey) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -25,10 +25,10 @@ func (c *Connection) InitLastVoterProposal(key *core.BondKey) (*core.Proposal, e
 		return nil, err
 	}
 
-	return &core.Proposal{call, key, method}, nil
+	return &submodel.Proposal{call, key, method}, nil
 }
 
-func (c *Connection) LiquidityBondProposal(key *core.BondKey, reason core.BondReason) (*core.Proposal, error) {
+func (c *Connection) LiquidityBondProposal(key *submodel.BondKey, reason submodel.BondReason) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -45,10 +45,10 @@ func (c *Connection) LiquidityBondProposal(key *core.BondKey, reason core.BondRe
 		return nil, err
 	}
 
-	return &core.Proposal{call, key, method}, nil
+	return &submodel.Proposal{call, key, method}, nil
 }
 
-func (c *Connection) CommonReportProposal(method string, key *core.BondKey, shotId types.Hash) (*core.Proposal, error) {
+func (c *Connection) CommonReportProposal(method string, key *submodel.BondKey, shotId types.Hash) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -64,10 +64,10 @@ func (c *Connection) CommonReportProposal(method string, key *core.BondKey, shot
 		return nil, err
 	}
 
-	return &core.Proposal{call, key, method}, nil
+	return &submodel.Proposal{call, key, method}, nil
 }
 
-func (c *Connection) ActiveReportProposal(key *core.BondKey, shotId types.Hash, active types.UCompact) (*core.Proposal, error) {
+func (c *Connection) ActiveReportProposal(key *submodel.BondKey, shotId types.Hash, active types.UCompact) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -84,10 +84,10 @@ func (c *Connection) ActiveReportProposal(key *core.BondKey, shotId types.Hash, 
 		return nil, err
 	}
 
-	return &core.Proposal{call, key, method}, nil
+	return &submodel.Proposal{call, key, method}, nil
 }
 
-func (c *Connection) resolveProposal(prop *core.Proposal, inFavour bool) bool {
+func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) bool {
 	for i := 0; i < BlockRetryLimit; i++ {
 		// Ensure we only submit a vote if status of the proposal is Initiated
 		valid, reason, err := c.proposalValid(prop)
@@ -121,8 +121,8 @@ func (c *Connection) resolveProposal(prop *core.Proposal, inFavour bool) bool {
 	return true
 }
 
-func (c *Connection) proposalValid(prop *core.Proposal) (bool, string, error) {
-	var state core.VoteState
+func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error) {
+	var state submodel.VoteState
 
 	symBz, err := types.EncodeToBytes(prop.Key.Rsymbol)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *Connection) proposalValid(prop *core.Proposal) (bool, string, error) {
 		return true, "", nil
 	}
 
-	if state.Status != core.Initiated {
+	if state.Status != submodel.Initiated {
 		return false, fmt.Sprintf("CurrentVoteStatus: %s", state.Status), nil
 	}
 
@@ -158,7 +158,7 @@ func (c *Connection) proposalValid(prop *core.Proposal) (bool, string, error) {
 	return true, "", nil
 }
 
-func (c *Connection) newUpdateEraProposal(key *core.BondKey, newEra types.U32) (*core.Proposal, error) {
+func (c *Connection) newUpdateEraProposal(key *submodel.BondKey, newEra types.U32) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (c *Connection) newUpdateEraProposal(key *core.BondKey, newEra types.U32) (
 		return nil, err
 	}
 
-	return &core.Proposal{call, key, method}, nil
+	return &submodel.Proposal{call, key, method}, nil
 }
 
 func containsVote(votes []types.AccountID, voter types.AccountID) bool {

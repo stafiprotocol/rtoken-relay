@@ -6,16 +6,20 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/utiles"
+	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 )
 
@@ -118,19 +122,32 @@ func (c *Connection) LatestMetadata() (*types.Metadata, error) {
 	return c.gc.GetLatestMetadata()
 }
 
-func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error) {
+func (c *Connection) FreeBalance(who []byte) (types.U128, error) {
+	info, err := c.gc.AccountInfo(who)
+	if err != nil {
+		return types.NewU128(big.Int{}), err
+	}
+
+	return info.Data.Free, nil
+}
+
+func (c *Connection) ExistentialDeposit() (types.U128, error) {
+	return c.gc.ExistentialDeposit()
+}
+
+func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	bh := hexutil.Encode(r.Blockhash)
 
 	if !c.IsConnected() {
 		if err := c.Reconnect(); err != nil {
 			c.log.Error("Reconnect error", "err", err)
-			return core.BondReasonDefault, err
+			return submodel.BondReasonDefault, err
 		}
 	}
 
 	exts, err := c.GetExtrinsics(bh)
 	if err != nil {
-		return core.BlockhashUnmatch, nil
+		return submodel.BlockhashUnmatch, nil
 	}
 
 	th := hexutil.Encode(r.Txhash)
@@ -139,18 +156,18 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 			continue
 		}
 
-		if ext.CallModule.Name != config.TransferModuleId || (ext.Call.Name != config.TransferKeepAlive && ext.Call.Name != config.Transfer) {
-			return core.TxhashUnmatch, nil
+		if ext.CallModule.Name != config.BalancesModuleId || (ext.Call.Name != config.TransferKeepAlive && ext.Call.Name != config.Transfer) {
+			return submodel.TxhashUnmatch, nil
 		}
 
 		addr, ok := ext.Address.(string)
 		if !ok {
 			c.log.Warn("TransferVerify: address not string", "address", ext.Address)
-			return core.PubkeyUnmatch, nil
+			return submodel.PubkeyUnmatch, nil
 		}
 
 		if hexutil.Encode(r.Pubkey) != utiles.AddHex(addr) {
-			return core.PubkeyUnmatch, nil
+			return submodel.PubkeyUnmatch, nil
 		}
 
 		for _, p := range ext.Params {
@@ -161,41 +178,41 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 				if !ok {
 					dest, ok := p.Value.(map[string]interface{})
 					if !ok {
-						return core.PoolUnmatch, nil
+						return submodel.PoolUnmatch, nil
 					}
 
 					destId, ok := dest["Id"]
 					if !ok {
-						return core.PoolUnmatch, nil
+						return submodel.PoolUnmatch, nil
 					}
 
 					d, ok := destId.(string)
 					if !ok {
-						return core.PoolUnmatch, nil
+						return submodel.PoolUnmatch, nil
 					}
 
 					if hexutil.Encode(r.Pool) != utiles.AddHex(d) {
-						return core.PoolUnmatch, nil
+						return submodel.PoolUnmatch, nil
 					}
 				} else {
 					if hexutil.Encode(r.Pool) != utiles.AddHex(dest) {
-						return core.PoolUnmatch, nil
+						return submodel.PoolUnmatch, nil
 					}
 				}
 			} else if p.Name == config.ParamValue && p.Type == config.ParamValueType {
 				c.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", p.Value)
 				if fmt.Sprint(r.Amount) != fmt.Sprint(p.Value) {
-					return core.AmountUnmatch, nil
+					return submodel.AmountUnmatch, nil
 				}
 			} else {
 				c.log.Error("TransferVerify unexpected param", "name", p.Name, "value", p.Value, "type", p.Type)
-				return core.TxhashUnmatch, nil
+				return submodel.TxhashUnmatch, nil
 			}
 		}
-		return core.Pass, nil
+		return submodel.Pass, nil
 	}
 
-	return core.TxhashUnmatch, nil
+	return submodel.TxhashUnmatch, nil
 }
 
 func (c *Connection) CurrentEra() (uint32, error) {
@@ -251,7 +268,7 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
-func (c *Connection) BondOrUnbondCall(snap *core.EraPoolSnapshot) (*substrate.MultiOpaqueCall, error) {
+func (c *Connection) BondOrUnbondCall(snap *submodel.EraPoolSnapshot) (*substrate.MultiOpaqueCall, error) {
 	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
 
@@ -259,23 +276,63 @@ func (c *Connection) WithdrawCall() (*substrate.MultiOpaqueCall, error) {
 	return c.gc.WithdrawCall()
 }
 
-func (c *Connection) AsMulti(mc *core.MultisigCall) error {
-	info, err := c.sc.GetPaymentQueryInfo(mc.Extrinsic)
+func (c *Connection) TransferCalls(receives []*submodel.Receive) ([]*substrate.MultiOpaqueCall, map[string]bool, map[string]bool, error) {
+	calls := make([]*substrate.MultiOpaqueCall, 0)
+	hashs1 := make(map[string]bool)
+	hashs2 := make(map[string]bool)
+	for _, rec := range receives {
+		call, err := c.gc.TransferCall(rec.Recipient, rec.Value)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		hashs1[call.CallHash] = true
+		hashs2[call.CallHash] = true
+		calls = append(calls, call)
+	}
+
+	return calls, hashs1, hashs2, nil
+}
+
+func (c *Connection) PaymentQueryInfo(ext string) (*rpc.PaymentQueryInfo, error) {
+	return c.sc.GetPaymentQueryInfo(ext)
+}
+
+func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
+	gc := c.gcs[flow.Key]
+	if gc == nil {
+		panic(fmt.Sprintf("key disappear: %s, rsymbol: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol))
+	}
+
+	l := len(flow.OpaqueCalls)
+	if l == 1 {
+		moc := flow.OpaqueCalls[0]
+		ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, moc.TimePoint, moc.Opaque, false, flow.PaymentInfo.Weight)
+		if err != nil {
+			return err
+		}
+
+		return gc.SignAndSubmitTx(ext)
+	}
+
+	calls := make([]types.Call, 0)
+	for _, oc := range flow.OpaqueCalls {
+		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, oc.TimePoint, oc.Opaque, false, flow.PaymentInfo.Weight)
+		if err != nil {
+			return err
+		}
+		calls = append(calls, ext.Method)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
 	if err != nil {
 		return err
 	}
-	c.log.Info("PaymentQueryInfo", "callhash", mc.CallHash, "class", info.Class, "fee", info.PartialFee, "weight", info.Weight)
 
-	gc := c.gcs[mc.Key]
-	if gc == nil {
-		panic(fmt.Sprintf("key disappear: %s, rsymbol: %s, callhash: %s", hexutil.Encode(mc.Key.PublicKey), c.rsymbol, mc.CallHash))
-	}
-
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, mc.Threshold, mc.Others, mc.TimePoint, mc.Opaque, false, info.Weight)
 	return gc.SignAndSubmitTx(ext)
 }
 
-func (c *Connection) SetToPayoutStashes(flow *core.BondReportFlow) error {
+func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportFlow) error {
 	fullTargets := make([]types.AccountID, 0)
 	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageNominators, flow.Pool, nil, &fullTargets)
 	if err != nil {
@@ -312,7 +369,7 @@ func (c *Connection) SetToPayoutStashes(flow *core.BondReportFlow) error {
 	return nil
 }
 
-func (c *Connection) TryPayout(flow *core.BondReportFlow) {
+func (c *Connection) TryPayout(flow *submodel.BondReportFlow) {
 	calls := make([]types.Call, 0)
 	meta, err := c.LatestMetadata()
 	if err != nil {
