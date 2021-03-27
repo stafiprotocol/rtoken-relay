@@ -12,6 +12,7 @@ import (
 var (
 	BlockRetryInterval = time.Second * 6
 	BlockRetryLimit    = 10
+	BlockConfirmNumber = int64(6)
 )
 
 //listen event from cosmos
@@ -85,21 +86,23 @@ func (l *listener) pollBlocks() error {
 }
 
 func (l *listener) updateEra() error {
-
 	client, err := l.conn.GetOnePoolClient()
 	if err != nil {
 		return err
 	}
 
-	era, err := client.GetCurrentEra()
+	height, era, err := client.GetCurrentEra()
 	if err != nil {
 		return err
 	}
+	//update height
+	l.conn.currentHeight = height
+
 	if era <= l.currentEra {
 		return nil
 	}
-
 	l.log.Info("get a new era, prepare to send message", "symbol", l.symbol, "currentEra", l.currentEra, "newEra", era)
+	//update era
 	l.currentEra = era
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)

@@ -14,15 +14,18 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"os"
+	"time"
 )
 
 type Connection struct {
-	url         string
-	symbol      core.RSymbol
-	poolClients map[string]*cosmos.PoolClient //map[addressHexStr]subClient
-	log         log15.Logger
-	stop        <-chan int
+	url           string
+	symbol        core.RSymbol
+	currentHeight int64
+	poolClients   map[string]*cosmos.PoolClient //map[addressHexStr]subClient
+	log           log15.Logger
+	stop          <-chan int
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -95,25 +98,56 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	return core.Pass, nil
 
 	hashStr := hex.EncodeToString(r.Txhash)
-	client, err := c.GetOnePoolClient()
+
+	poolClient, err := c.GetOnePoolClient()
 	if err != nil {
 		return core.BondReasonDefault, err
 	}
+
 	//check tx hash
-	res, err := client.GetRpcClient().QueryTxByHash(hashStr)
-	if err != nil {
-		return core.TxhashUnmatch, err
+	var txRes *types.TxResponse
+	retryTx := BlockRetryLimit
+	for {
+		if retryTx <= 0 {
+			return core.TxhashUnmatch, errors.New("QueryTxByHash reach retryTx limit")
+		}
+		txRes, err = poolClient.GetRpcClient().QueryTxByHash(hashStr)
+		if err != nil || txRes == nil || txRes.Empty() {
+			c.log.Warn(fmt.Sprintf("QueryTxByHash empty or err: %s ,will retryTx after %f second", err, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			retryTx--
+			continue
+		}
+		if txRes.Height+BlockConfirmNumber <= c.currentHeight {
+			continue
+		} else {
+			break
+		}
+
 	}
-	//todo maybe use another unmatch
-	if res.Empty() || res.Code != 0 {
+
+	//check code
+	if txRes.Code != 0 {
 		return core.TxhashUnmatch, nil
 	}
 
 	//check block hash
-	blockRes, err := client.GetRpcClient().QueryBlock(res.Height)
-	if err != nil {
-		return core.BlockhashUnmatch, err
+	var blockRes *ctypes.ResultBlock
+	retryBlock := BlockRetryLimit
+	for {
+		if retryBlock <= 0 {
+			return core.BlockhashUnmatch, errors.New("QueryBlock reach retryTx limit")
+		}
+		blockRes, err = poolClient.GetRpcClient().QueryBlock(txRes.Height)
+		if err != nil || blockRes == nil {
+			c.log.Warn(fmt.Sprintf("QueryBlock empty or err: %s ,will retryTx after %f second", err, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			continue
+		} else {
+			break
+		}
 	}
+
 	if !bytes.Equal(blockRes.BlockID.Hash, r.Blockhash) {
 		return core.BlockhashUnmatch, nil
 	}
@@ -122,7 +156,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	amountIsMatch := false
 	poolIsMatch := false
 	fromAddressStr := ""
-	msgs := res.GetTx().GetMsgs()
+	msgs := txRes.GetTx().GetMsgs()
 	for i, _ := range msgs {
 		if msgs[i].Type() == xBankTypes.TypeMsgSend {
 			sendMsg, ok := msgs[i].(*xBankTypes.MsgSend)
@@ -131,7 +165,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 				if err == nil {
 					//amount and pool address must in one message
 					if bytes.Equal(toAddr.Bytes(), r.Pool) &&
-						sendMsg.Amount.AmountOf(client.GetRpcClient().GetDenom()).
+						sendMsg.Amount.AmountOf(poolClient.GetRpcClient().GetDenom()).
 							Equal(types.NewIntFromBigInt(r.Amount.Int)) {
 						poolIsMatch = true
 						amountIsMatch = true
@@ -155,7 +189,7 @@ func (c *Connection) TransferVerify(r *core.BondRecord) (core.BondReason, error)
 	if err != nil {
 		return core.PubkeyUnmatch, err
 	}
-	accountRes, err := client.GetRpcClient().QueryAccount(fromAddress)
+	accountRes, err := poolClient.GetRpcClient().QueryAccount(fromAddress)
 	if err != nil {
 		return core.PubkeyUnmatch, err
 	}

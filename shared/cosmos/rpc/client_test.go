@@ -112,6 +112,7 @@ func TestClient_BroadcastTx(t *testing.T) {
 
 func TestClient_QueryTxByHash(t *testing.T) {
 	res, err := client.QueryTxByHash("6C017062FD3F48F13B640E5FEDD59EB050B148E67EF12EC0A511442D32BD4C88")
+	t.Log(err)
 	assert.NoError(t, err)
 	for _, msg := range res.GetTx().GetMsgs() {
 

@@ -70,13 +70,13 @@ func (pc *PoolClient) GetHeightByEra(era uint32) int64 {
 	return int64(era) * EraBlockNumber
 }
 
-func (pc *PoolClient) GetCurrentEra() (uint32, error) {
+func (pc *PoolClient) GetCurrentEra() (int64, uint32, error) {
 	height, err := pc.GetRpcClient().GetCurrentBLockHeight()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	era := uint32(height / EraBlockNumber)
-	return era, nil
+	return height, era, nil
 }
 func (pc *PoolClient) bond(val *big.Int) error {
 	return nil
