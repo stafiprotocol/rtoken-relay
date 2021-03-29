@@ -236,14 +236,14 @@ func (c *Connection) CurrentRsymbolEra(sym core.RSymbol) (uint32, error) {
 	}
 
 	var era uint32
-	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageChainEras, symBz, nil, &era)
+	_, err = c.QueryStorage(config.RTokenLedgerModuleId, config.StorageChainEras, symBz, nil, &era)
 	if err != nil {
 		return 0, err
 	}
 
-	if !exists {
-		return 0, fmt.Errorf("era of rsymbol %s not exist", sym)
-	}
+	//if !exists {
+	//	return 0, fmt.Errorf("era of rsymbol %s not exist", sym)
+	//}
 
 	return era, nil
 }
