@@ -169,7 +169,7 @@ func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receiv
 	return client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
 }
 
-func RebuildUnsignedTxFromSigs(client *rpc.Client, sigs *submodel.SubmitSignatures) (*cosmos.WrapUnsignedTx, error) {
+func (w *writer) RebuildUnsignedTxFromSigs(client *rpc.Client, sigs *submodel.SubmitSignatures) (*cosmos.WrapUnsignedTx, error) {
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
 	proposalIdHexStr := hex.EncodeToString(sigs.ProposalId)
 	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
@@ -217,15 +217,35 @@ func RebuildUnsignedTxFromSigs(client *rpc.Client, sigs *submodel.SubmitSignatur
 		}
 
 	case submodel.OriginalTransfer:
-		//todo implement
-		//showtId,err:=ParseTransferProposalId(sigs.ProposalId)
-		//if err != nil {
-		//	w.log.Error("ParseTransferProposalId failed",
-		//		"proposalId", hex.EncodeToString(sigs.ProposalId),
-		//		"err", err)
-		//	return false
-		//}
-		//
+		showtId, err := ParseTransferProposalId(sigs.ProposalId)
+		if err != nil {
+			return nil, err
+		}
+		//get receivers from stafi
+		msg := &core.Message{Source: sigs.Symbol, Destination: core.RFIS,
+			Reason: core.GetReceivers, Content: &submodel.GetReceiversParams{
+				Symbol: sigs.Symbol, Era: sigs.Era, Pool: sigs.Pool,
+			}}
+		ok := w.submitMessage(msg)
+		if !ok {
+			return nil, fmt.Errorf("get receiver from stafi failed ")
+		}
+
+		receiveList, ok := msg.Content.([]*submodel.Receive)
+		if !ok {
+			return nil, fmt.Errorf("cat msg to receive failed ")
+		}
+		unsignedTx, err := GetTransferUnsignedTx(client, poolAddr, receiveList)
+		if err != nil {
+			return nil, err
+		}
+		wrappedUnSignedTx = &cosmos.WrapUnsignedTx{
+			UnsignedTx: unsignedTx,
+			SnapshotId: showtId,
+			Era:        uint32(sigs.Era),
+			Type:       submodel.OriginalTransfer,
+			Key:        proposalIdHexStr,
+		}
 
 	default:
 		return nil, fmt.Errorf("rebuild from proposalId failed unknown tx type:%s", sigs.TxType)

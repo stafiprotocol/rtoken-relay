@@ -87,6 +87,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processActiveReport(m)
 	case core.SubmitSignature:
 		return w.processSubmitSignature(m)
+	case core.GetReceivers: //here is read not write
+		return w.processGetReceivers(m)
 	case core.WithdrawUnbondEvent:
 		return w.processWithdrawUnbond(m)
 	case core.TransferBackEvent:
@@ -557,6 +559,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 	w.log.Error("AsMulti success", "callhash", flow.CallHash)
 	return true
 }
+
 func (w *writer) processSubmitSignature(m *core.Message) bool {
 	param, ok := m.Content.(submodel.SubmitSignatureParams)
 	if !ok {
@@ -567,6 +570,22 @@ func (w *writer) processSubmitSignature(m *core.Message) bool {
 	w.log.Info("submitSignature", "rsymbol", m.Source, "result", result)
 	return result
 }
+
+func (w *writer) processGetReceivers(m *core.Message) bool {
+	param, ok := m.Content.(*submodel.GetReceiversParams)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+	recievers, _, err := w.unbondings(param.Symbol, param.Pool[:], uint32(param.Era))
+	if err != nil {
+		w.log.Error("get unbondings from stafi failed", "err", err)
+		return false
+	}
+	m.Content = recievers
+	return true
+}
+
 func (w *writer) processMultisigExecuted(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.EventMultisigExecuted)
 	if !ok {
@@ -753,7 +772,6 @@ func (w *writer) processActiveReport(m *core.Message) bool {
 
 	return result
 }
-
 
 func (w *writer) printContentError(m *core.Message) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason)

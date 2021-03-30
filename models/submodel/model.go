@@ -324,6 +324,12 @@ type SubmitSignatureParams struct {
 	Signature  types.Bytes
 }
 
+type GetReceiversParams struct {
+	Symbol core.RSymbol
+	Era    types.U32
+	Pool   types.Bytes
+}
+
 type SubmitSignatures struct {
 	Symbol     core.RSymbol
 	Era        types.U32

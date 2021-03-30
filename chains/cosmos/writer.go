@@ -440,7 +440,7 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		w.log.Warn("processSignatureEnoughEvt failed",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
 			"err", err)
-		wrappedUnSignedTx, err = RebuildUnsignedTxFromSigs(client, sigs)
+		wrappedUnSignedTx, err = w.RebuildUnsignedTxFromSigs(client, sigs)
 		if err != nil {
 			w.log.Error("RebuildUnsignedTxFromSigs failed",
 				"proposalId", proposalIdHexStr,

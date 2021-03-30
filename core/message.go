@@ -27,4 +27,5 @@ const (
 	MultisigExecuted    = Reason("MultisigExecuted")
 	SubmitSignature     = Reason("SubmitSignature")
 	SignatureEnough     = Reason("SignatureEnough")
+	GetReceivers        = Reason("GetReceivers")
 )
