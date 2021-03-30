@@ -37,7 +37,7 @@ func init() {
 	}
 
 	client, _ = rpc.NewClient(rpcClient, key, "stargate-final", "recipient")
-	client.SetGasPrice("0.000001umuon")
+	client.SetGasPrice("0.04umuon")
 	client.SetDenom("umuon")
 }
 
@@ -45,7 +45,7 @@ func init() {
 //{"height":"903451","txhash":"0E4F8F8FF7A3B67121711DA17FBE5AE8CB25DB272DDBF7DC0E02122947266604","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"10umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"10umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51159","tx":null,"timestamp":""}
 //block hash 0x16E8297663210ABF6937FE4C1C139D4BACD0D27A22EFD9E3FE06B1DA8E3F7BB3
 func TestClient_SendTo(t *testing.T) {
-	err := client.SingleTransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
+	err := client.SingleTransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 50000)))
 	assert.NoError(t, err)
 }
 
@@ -92,7 +92,7 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 	//assert.NoError(t, err)
 	//t.Log(string(signature2))
 
-	hash, tx, err := client.AssembleMultiSigTxWithSeq(50, rawTx, [][]byte{ signature2, signature1})
+	hash, tx, err := client.AssembleMultiSigTxWithSeq(50, rawTx, [][]byte{signature2, signature1})
 	assert.NoError(t, err)
 	t.Log(hex.EncodeToString(hash))
 	t.Log(string(tx))
@@ -272,7 +272,7 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 		Coins:   types.NewCoins(types.NewCoin(client.GetDenom(), types.NewInt(10))),
 	}
 
-	rawTx, err := client.GenMultiSigRawBatchTransferTx([]xBankTypes.Output{out1, out2})
+	rawTx, err := client.GenMultiSigRawBatchTransferTx(addrMultiSig1, []xBankTypes.Output{out1, out2})
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
@@ -345,8 +345,39 @@ func TestClient_QueryDelegationTotalRewards(t *testing.T) {
 }
 
 func TestClient_GetSequence(t *testing.T) {
-	seq,err:=client.GetSequence(0,addrMultiSig1)
-	assert.NoError(t,err)
+	seq, err := client.GetSequence(0, addrMultiSig1)
+	assert.NoError(t, err)
 	t.Log(seq)
 	t.Log(hex.EncodeToString(addrValidatorTestnetAteam.Bytes()))
+}
+
+func TestMaxTransfer(t *testing.T) {
+	err := client.SetFromName("multiSign1")
+	assert.NoError(t, err)
+	outputs := make([]xBankTypes.Output, 0)
+	for i := 0; i < 10000; i++ {
+		out1 := xBankTypes.Output{
+			Address: addrReceive.String(),
+			Coins:   types.NewCoins(types.NewCoin(client.GetDenom(), types.NewInt(1))),
+		}
+		outputs = append(outputs, out1)
+	}
+
+	rawTx, err := client.GenMultiSigRawBatchTransferTx(addrMultiSig1, outputs)
+	assert.NoError(t, err)
+
+	sequence, err := client.GetSequence(0, addrMultiSig1)
+	assert.NoError(t, err)
+	signature1, err := client.SignMultiSigRawTxWithSeq(sequence, rawTx, "key2")
+	assert.NoError(t, err)
+	signature2, err := client.SignMultiSigRawTxWithSeq(sequence, rawTx, "key3")
+	assert.NoError(t, err)
+
+	hash, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	assert.NoError(t, err)
+	t.Log(hex.EncodeToString(hash))
+	t.Log(len(tx))
+	txHash, err := client.BroadcastTx(tx)
+	assert.NoError(t, err)
+	t.Log(txHash)
 }
