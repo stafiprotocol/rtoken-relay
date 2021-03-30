@@ -25,7 +25,7 @@ type PoolClient struct {
 
 type WrapUnsignedTx struct {
 	UnsignedTx []byte
-	Hash       string
+	Key        string
 	SnapshotId subTypes.Hash
 	Era        uint32
 	Type       submodel.OriginalTx

@@ -35,7 +35,7 @@ func LiquidityBondEventData(evt *substrate.ChainEvent) (*EvtLiquidityBond, error
 		case "RSymbol":
 			sym := p.Value.(string)
 			lb.Rsymbol = core.RSymbol(sym)
-		case "Hash":
+		case "Key":
 			b := p.Value.(string)
 			bid, err := types.NewHashFromHexString(b)
 			if err != nil {

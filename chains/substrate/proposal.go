@@ -104,7 +104,7 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 		}
 
 		c.log.Info("Acknowledging proposal on chain...")
-		//rsymbol: RSymbol, prop_id: T::Hash, in_favour: bool
+		//rsymbol: RSymbol, prop_id: T::Key, in_favour: bool
 		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Key.Rsymbol, prop.Key.BondId, inFavour, prop.Call)
 		err = c.gc.SignAndSubmitTx(ext)
 		if err != nil {

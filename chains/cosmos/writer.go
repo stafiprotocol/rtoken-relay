@@ -3,10 +3,8 @@ package cosmos
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
-	errType "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
@@ -15,8 +13,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
-	"time"
 )
 
 //write to cosmos
@@ -184,7 +180,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
 		SnapshotId: flow.ShotId,
-		Hash:       proposalIdHexStr,
+		Key:        proposalIdHexStr,
 		Type:       submodel.OriginalBond}
 	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
 
@@ -264,7 +260,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
-		Hash:       proposalIdHexStr,
+		Key:        proposalIdHexStr,
 		SnapshotId: flow.ShotId,
 		Era:        flow.Era,
 		Type:       submodel.OriginalClaimRewards}
@@ -373,7 +369,7 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
-		Hash:       proposalIdHexStr,
+		Key:        proposalIdHexStr,
 		SnapshotId: flow.ShotId,
 		Era:        flow.Era,
 		Type:       submodel.OriginalTransfer}
@@ -431,12 +427,6 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
-	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
-	if err != nil {
-		w.log.Error("hexPoolAddr cast to cosmos AccAddress failed", "pool hex address", poolAddrHexStr, "err", err)
-		return false
-	}
-
 	client := poolClient.GetRpcClient()
 	signatures := make([][]byte, 0)
 	for _, sig := range sigs.Signature {
@@ -450,77 +440,19 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		w.log.Warn("processSignatureEnoughEvt failed",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
 			"err", err)
-		switch sigs.TxType {
-		case submodel.OriginalBond:
-			shotId, bond, unbond, _, err := ParseBondUnBondProposalId(sigs.ProposalId)
-			if err != nil {
-				w.log.Error("ParseBondUnBondProposalId failed",
-					"proposalId", hex.EncodeToString(sigs.ProposalId),
-					"err", err)
-				return false
-			}
-			//todo cosmos validator just for test,will got from stafi or cosmos
-			var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
-			unsignedTx, err := GetBondUnbondUnsignedTx(client, bond, unbond, poolAddr, addrValidatorTestnetAteam)
-			if err != nil {
-				w.log.Error("GetBondUnbondUnsignedTx failed",
-					"proposalId", hex.EncodeToString(sigs.ProposalId),
-					"err", err)
-				return false
-			}
-			wrappedUnSignedTx = &cosmos.WrapUnsignedTx{
-				UnsignedTx: unsignedTx,
-				SnapshotId: shotId,
-				Era:        uint32(sigs.Era),
-				Type:       submodel.OriginalBond,
-				Hash:       proposalIdHexStr,
-			}
-			poolClient.CacheUnsignedTx(proposalIdHexStr, wrappedUnSignedTx)
-
-		case submodel.OriginalClaimRewards:
-			shotId, height, err := ParseClaimRewardProposalId(sigs.ProposalId)
-			if err != nil {
-				w.log.Error("ParseClaimRewardProposalId failed",
-					"proposalId", hex.EncodeToString(sigs.ProposalId),
-					"err", err)
-				return false
-			}
-			unsignedTx, err := GetClaimRewardUnsignedTx(client, poolAddr, int64(height))
-			if err != nil {
-				w.log.Error("GetClaimRewardUnsignedTx failed",
-					"proposalId", hex.EncodeToString(sigs.ProposalId),
-					"err", err)
-				return false
-			}
-			wrappedUnSignedTx = &cosmos.WrapUnsignedTx{
-				UnsignedTx: unsignedTx,
-				SnapshotId: shotId,
-				Era:        uint32(sigs.Era),
-				Type:       submodel.OriginalClaimRewards,
-				Hash:       proposalIdHexStr,
-			}
-			poolClient.CacheUnsignedTx(proposalIdHexStr, wrappedUnSignedTx)
-
-		case submodel.OriginalTransfer:
-			//showtId,err:=ParseTransferProposalId(sigs.ProposalId)
-			//if err != nil {
-			//	w.log.Error("ParseTransferProposalId failed",
-			//		"proposalId", hex.EncodeToString(sigs.ProposalId),
-			//		"err", err)
-			//	return false
-			//}
-			//
-
-
-		default:
-			w.log.Error("processSignatureEnoughEvt rebuild from proposalId failed unknown tx type",
-				"tx type", sigs.TxType)
+		wrappedUnSignedTx, err = RebuildUnsignedTxFromSigs(client, sigs)
+		if err != nil {
+			w.log.Error("RebuildUnsignedTxFromSigs failed",
+				"proposalId", proposalIdHexStr,
+				"err", err)
 			return false
 		}
-
+		poolClient.CacheUnsignedTx(wrappedUnSignedTx.Key, wrappedUnSignedTx)
 	}
 
-	if wrappedUnSignedTx.Type != submodel.OriginalBond && wrappedUnSignedTx.Type != submodel.OriginalClaimRewards {
+	if wrappedUnSignedTx.Type != submodel.OriginalBond &&
+		wrappedUnSignedTx.Type != submodel.OriginalClaimRewards &&
+		wrappedUnSignedTx.Type != submodel.OriginalTransfer {
 		w.log.Error("processSignatureEnoughEvt failed,unknown unsigned tx type",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
 			"type", wrappedUnSignedTx.Type)
@@ -535,102 +467,5 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
-	retry := BlockRetryLimit
-	txHashHexStr := hex.EncodeToString(txHash)
-	for {
-		if retry <= 0 {
-			w.log.Error("processSignatureEnoughEvt broadcast tx reach retry limit",
-				"pool hex address", poolAddrHexStr)
-			break
-		}
-		//check on chain
-		res, err := client.QueryTxByHash(txHashHexStr)
-		if err != nil || res.Empty() || res.Code != 0 {
-			w.log.Warn(fmt.Sprintf("processSignatureEnoughEvt QueryTxByHash failed. will rebroadcast after %f second",
-				BlockRetryInterval.Seconds()),
-				"err or res.empty", err)
-			retry--
-		} else {
-			w.log.Info("processSignatureEnoughEvt success",
-				"pool hex address", poolAddrHexStr,
-				"txHash", txHashHexStr)
-			//return true only check on chain
-
-			switch wrappedUnSignedTx.Type {
-			case submodel.OriginalBond:
-				callHash := utils.BlakeTwo256(sigs.Pool)
-				mflow := submodel.MultiEventFlow{
-					EventData: &submodel.EraPoolUpdatedFlow{
-						ShotId: wrappedUnSignedTx.SnapshotId},
-					OpaqueCalls: []*substrate.MultiOpaqueCall{
-						&substrate.MultiOpaqueCall{
-							CallHash: hexutil.Encode(callHash[:])}},
-				}
-
-				poolClient.RemoveUnsignedTx(proposalIdHexStr)
-				return w.informChain(m.Destination, m.Source, &mflow)
-			case submodel.OriginalClaimRewards:
-				height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
-				delegationsRes, err := client.QueryDelegations(poolAddr, height)
-				if err != nil {
-					w.log.Error("processSignatureEnoughEvt QueryDelegations failed",
-						"pool hex address", poolAddrHexStr,
-						"err", err)
-					return false
-				}
-				total := types.NewInt(0)
-				for _, dele := range delegationsRes.GetDelegationResponses() {
-					total = total.Add(dele.Balance.Amount)
-				}
-
-				rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
-				if err != nil {
-					w.log.Error("processSignatureEnoughEvt QueryDelegationTotalRewards failed",
-						"pool hex address", poolAddrHexStr,
-						"err", err)
-					return false
-				}
-				rewardTotal := big.NewInt(0)
-				rewardDe := rewardRes.Total.AmountOf(client.GetDenom())
-				if !rewardDe.IsNil() {
-					rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
-				}
-
-				total.Add(types.NewIntFromBigInt(rewardTotal))
-				f := submodel.BondReportFlow{
-					Era:     wrappedUnSignedTx.Era,
-					Rsymbol: sigs.Symbol,
-					Pool:    sigs.Pool,
-					ShotId:  wrappedUnSignedTx.SnapshotId,
-					Active:  substrateTypes.NewU128(*total.BigInt())}
-
-				poolClient.RemoveUnsignedTx(proposalIdHexStr)
-				return w.activeReport(m.Destination, m.Source, &f)
-			case submodel.OriginalTransfer:
-				callHash := utils.BlakeTwo256(sigs.Pool)
-				mflow := submodel.MultiEventFlow{
-					EventData: &submodel.TransferFlow{
-						ShotId: wrappedUnSignedTx.SnapshotId},
-					OpaqueCalls: []*substrate.MultiOpaqueCall{
-						&substrate.MultiOpaqueCall{
-							CallHash: hexutil.Encode(callHash[:])}},
-				}
-
-				poolClient.RemoveUnsignedTx(proposalIdHexStr)
-				return w.informChain(m.Destination, m.Source, &mflow)
-			default:
-				return true
-			}
-		}
-
-		//broadcast if not on chain
-		_, err = client.BroadcastTx(txBts)
-		if err != nil && err != errType.ErrTxInMempoolCache {
-			w.log.Warn("processSignatureEnoughEvt BroadcastTx failed",
-				"err", err)
-		}
-		time.Sleep(BlockRetryInterval)
-	}
-
-	return false
+	return w.checkAndSend(poolClient, wrappedUnSignedTx, sigs, m, txHash, txBts)
 }

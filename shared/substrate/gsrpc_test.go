@@ -71,7 +71,7 @@ func TestGsrpcClient(t *testing.T) {
 	assert.NoError(t, err)
 
 	//prop := &conn.Proposal{call, bondKey}
-	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
+	//symbol: RSymbol, prop_id: T::Key, in_favour: bool
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, bondKey.Rsymbol, bondKey.BondId, true, call)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestGsrpcClient1(t *testing.T) {
 	}
 
 	//prop := &conn.Proposal{call, bondKey}
-	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
+	//symbol: RSymbol, prop_id: T::Key, in_favour: bool
 	ext, err := gc.NewUnsignedExtrinsic("RTokenSeries.add_hashes", bondKey, submodel.Pass)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
