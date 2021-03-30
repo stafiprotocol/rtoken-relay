@@ -119,6 +119,16 @@ func (c *Client) QueryAccount(addr types.AccAddress) (client.Account, error) {
 	return c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
 }
 
+func (c *Client) GetSequence(height int64, addr types.AccAddress) (uint64, error) {
+	client := c.clientCtx.WithHeight(height)
+	account, err := client.AccountRetriever.GetAccount(client, addr)
+	if err != nil {
+		return 0, err
+	}
+
+	return account.GetSequence(), nil
+}
+
 func (c *Client) QueryBalance(addr types.AccAddress, denom string, height int64) (*xBankTypes.QueryBalanceResponse, error) {
 	client := c.clientCtx.WithHeight(height)
 	queryClient := xBankTypes.NewQueryClient(client)

@@ -23,7 +23,7 @@ func (c *Client) GenMultiSigRawTransferTx(toAddr types.AccAddress, amount types.
 }
 
 //only support one type coin
-func (c *Client) GenMultiSigRawBatchTransferTx(outs []xBankTypes.Output) ([]byte, error) {
+func (c *Client) GenMultiSigRawBatchTransferTx(poolAddr types.AccAddress, outs []xBankTypes.Output) ([]byte, error) {
 	totalAmount := types.NewInt(0)
 	for _, out := range outs {
 		for _, coin := range out.Coins {
@@ -31,7 +31,7 @@ func (c *Client) GenMultiSigRawBatchTransferTx(outs []xBankTypes.Output) ([]byte
 		}
 	}
 	input := xBankTypes.Input{
-		Address: c.clientCtx.GetFromAddress().String(),
+		Address: poolAddr.String(),
 		Coins:   types.NewCoins(types.NewCoin(c.denom, totalAmount))}
 
 	msg := xBankTypes.NewMsgMultiSend([]xBankTypes.Input{input}, outs)
@@ -68,6 +68,7 @@ func (c *Client) GenMultiSigRawWithdrawRewardThenDeleTx(delAddr types.AccAddress
 	msg2 := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
 	return c.GenMultiSigRawTx(msg, msg2)
 }
+
 //generate unsigned withdraw all reward then delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawAllRewardTx(delAddr types.AccAddress, height int64) ([]byte, error) {
 	delValsRes, err := c.QueryDelegations(delAddr, height)
@@ -142,7 +143,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//c.clientCtx.FromAddress must be multi sig address
+//c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
@@ -150,8 +151,7 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	}
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
-	txf = txf.WithSequence(account.GetSequence()).
-		WithAccountNumber(account.GetAccountNumber()).
+	txf = txf.WithAccountNumber(account.GetAccountNumber()).
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON). //multi sig need this mod
 		WithGasAdjustment(1.5).
 		WithGasPrices(c.gasPrice).
@@ -182,6 +182,34 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
 	txf = txf.WithSequence(account.GetSequence()).
+		WithAccountNumber(account.GetAccountNumber()).
+		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON) //multi sig need this mod
+
+	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
+	if err != nil {
+		return nil, err
+	}
+	txBuilder, err := c.clientCtx.TxConfig.WrapTxBuilder(tx)
+	if err != nil {
+		return nil, err
+	}
+	xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
+	if err != nil {
+		return nil, err
+	}
+	return marshalSignatureJSON(c.clientCtx.TxConfig, txBuilder, true)
+}
+
+//c.clientCtx.FromAddress  must be multi sig address
+func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromKey string) (signature []byte, err error) {
+	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := cobra.Command{}
+	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
+	txf = txf.WithSequence(sequence).
 		WithAccountNumber(account.GetAccountNumber()).
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON) //multi sig need this mod
 
@@ -250,11 +278,65 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 	}
 	txBuilder.SetSignatures(sigV2)
 	txBuilder.GetTx()
+	//txbts, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
+	txbts, err := c.clientCtx.TxConfig.TxJSONEncoder()(txBuilder.GetTx())
+	if err != nil {
+		return nil, nil, err
+	}
+	tendermintTx := tendermintTypes.Tx(txbts)
+	return tendermintTx.Hash(), tendermintTx, nil
+}
+
+//assemble multiSig tx bytes for broadcast
+func (c *Client) AssembleMultiSigTxWithSeq(sequence uint64, rawTx []byte, signatures [][]byte) (txHash, txBts []byte, err error) {
+
+	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
+	if err != nil {
+		return
+	}
+	if multisigInfo.GetType() != keyring.TypeMulti {
+		return nil, nil, fmt.Errorf("%q must be of type %s: %s", c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
+	}
+
+	multiSigPub := multisigInfo.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
+
+	willUseSigs := make([]signing.SignatureV2, 0)
+	for _, s := range signatures {
+		ss, err := c.clientCtx.TxConfig.UnmarshalSignatureJSON(s)
+		if err != nil {
+			return nil, nil, err
+		}
+		willUseSigs = append(willUseSigs, ss...)
+	}
+
+	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
+	//todo check sig
+	for _, sig := range willUseSigs {
+		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	sigV2 := signing.SignatureV2{
+		PubKey:   multiSigPub,
+		Data:     multiSigData,
+		Sequence: sequence,
+	}
+
+	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
+	if err != nil {
+		return nil, nil, err
+	}
+	txBuilder, err := c.clientCtx.TxConfig.WrapTxBuilder(tx)
+	if err != nil {
+		return nil, nil, err
+	}
+	txBuilder.SetSignatures(sigV2)
+	txBuilder.GetTx()
 	txbts, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {
 		return nil, nil, err
 	}
 	tendermintTx := tendermintTypes.Tx(txbts)
-
 	return tendermintTx.Hash(), tendermintTx, nil
 }

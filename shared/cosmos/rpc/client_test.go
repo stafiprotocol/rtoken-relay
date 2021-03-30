@@ -81,13 +81,21 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
 	assert.NoError(t, err)
 
-	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
+	signature1, err := client.SignMultiSigRawTxWithSeq(56, rawTx, "key1")
 	assert.NoError(t, err)
-	signature2, err := client.SignMultiSigRawTx(rawTx, "key3")
-	assert.NoError(t, err)
+	t.Log(string(signature1))
 
-	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	signature2, err := client.SignMultiSigRawTxWithSeq(56, rawTx, "key3")
 	assert.NoError(t, err)
+	t.Log(string(signature2))
+	//signature3, err := client.SignMultiSigRawTxWithSeq(56, rawTx, "key2")
+	//assert.NoError(t, err)
+	//t.Log(string(signature2))
+
+	hash, tx, err := client.AssembleMultiSigTxWithSeq(50, rawTx, [][]byte{ signature2, signature1})
+	assert.NoError(t, err)
+	t.Log(hex.EncodeToString(hash))
+	t.Log(string(tx))
 
 	txHash, err := client.BroadcastTx(tx)
 	assert.NoError(t, err)
@@ -334,4 +342,11 @@ func TestClient_QueryDelegationTotalRewards(t *testing.T) {
 	res, err := client.QueryDelegationTotalRewards(addrMultiSig1, 0)
 	assert.NoError(t, err)
 	t.Log(res.Total.AmountOf(client.GetDenom()).TruncateInt())
+}
+
+func TestClient_GetSequence(t *testing.T) {
+	seq,err:=client.GetSequence(0,addrMultiSig1)
+	assert.NoError(t,err)
+	t.Log(seq)
+	t.Log(hex.EncodeToString(addrValidatorTestnetAteam.Bytes()))
 }
