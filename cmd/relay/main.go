@@ -103,13 +103,14 @@ func run(ctx *cli.Context) error {
 
 	for _, chain := range cfg.Chains {
 		chainConfig := &core.ChainConfig{
-			Name:         chain.Name,
-			Endpoint:     chain.Endpoint,
-			KeystorePath: chain.KeystorePath,
-			Symbol:       core.RSymbol(chain.Rsymbol),
-			Accounts:     chain.Accounts,
-			Insecure:     false,
-			Opts:         chain.Opts,
+			Name:            chain.Name,
+			Endpoint:        chain.Endpoint,
+			KeystorePath:    chain.KeystorePath,
+			Symbol:          core.RSymbol(chain.Rsymbol),
+			Accounts:        chain.Accounts,
+			LatestBlockFlag: chain.LatestBlockFlag,
+			Insecure:        false,
+			Opts:            chain.Opts,
 		}
 		var newChain core.Chain
 		logger := log.Root().New("chain", chainConfig.Name)
