@@ -10,13 +10,12 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var multiEndError = errors.New("multiEnd")
 
-func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) (*submodel.BondFlow, error) {
+func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submodel.BondFlow, error) {
 	evtData, err := submodel.LiquidityBondEventData(evt)
 	if err != nil {
 		return nil, err
@@ -49,7 +48,7 @@ func (l *listener) processLiquidityBondEvent(evt *substrate.ChainEvent) (*submod
 	return &submodel.BondFlow{Key: bondKey, Record: br, Reason: submodel.BondReasonDefault}, nil
 }
 
-func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*submodel.MultiEventFlow, error) {
+func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
 	data, err := submodel.EraPoolUpdatedData(evt)
 	if err != nil {
 		return nil, err
@@ -76,7 +75,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *substrate.ChainEvent) (*submode
 	}, nil
 }
 
-func (l *listener) processBondReportEvt(evt *substrate.ChainEvent) (*submodel.BondReportFlow, error) {
+func (l *listener) processBondReportEvt(evt *submodel.ChainEvent) (*submodel.BondReportFlow, error) {
 	flow, err := submodel.EventBondReport(evt)
 	if err != nil {
 		return nil, err
@@ -88,7 +87,7 @@ func (l *listener) processBondReportEvt(evt *substrate.ChainEvent) (*submodel.Bo
 	return flow, nil
 }
 
-func (l *listener) processWithdrawUnbondEvt(evt *substrate.ChainEvent) (*submodel.MultiEventFlow, error) {
+func (l *listener) processWithdrawUnbondEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
 	data, err := submodel.EventWithdrawUnbond(evt)
 	if err != nil {
 		return nil, err
@@ -109,7 +108,7 @@ func (l *listener) processWithdrawUnbondEvt(evt *substrate.ChainEvent) (*submode
 	}, nil
 }
 
-func (l *listener) processTransferBackEvt(evt *substrate.ChainEvent) (*submodel.MultiEventFlow, error) {
+func (l *listener) processTransferBackEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
 	data, err := submodel.EventTransferBack(evt)
 	if err != nil {
 		return nil, err
@@ -137,7 +136,7 @@ func (l *listener) processTransferBackEvt(evt *substrate.ChainEvent) (*submodel.
 	}, nil
 }
 
-func (l *listener) processNewMultisigEvt(evt *substrate.ChainEvent) (*submodel.EventNewMultisig, error) {
+func (l *listener) processNewMultisigEvt(evt *submodel.ChainEvent) (*submodel.EventNewMultisig, error) {
 	data, err := submodel.EventNewMultisigData(evt)
 	if err != nil {
 		return nil, err
@@ -153,13 +152,13 @@ func (l *listener) processNewMultisigEvt(evt *substrate.ChainEvent) (*submodel.E
 		return nil, multiEndError
 	}
 
-	data.TimePoint = substrate.NewOptionTimePoint(mul.When)
+	data.TimePoint = submodel.NewOptionTimePoint(mul.When)
 	data.Approvals = mul.Approvals
 	data.CallHashStr = hexutil.Encode(data.CallHash[:])
 	return data, nil
 }
 
-func (l *listener) processMultisigExecutedEvt(evt *substrate.ChainEvent) (*submodel.EventMultisigExecuted, error) {
+func (l *listener) processMultisigExecutedEvt(evt *submodel.ChainEvent) (*submodel.EventMultisigExecuted, error) {
 	data, err := submodel.EventMultisigExecutedData(evt)
 	if err != nil {
 		return nil, err

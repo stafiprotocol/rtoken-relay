@@ -6,11 +6,9 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/utiles"
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
@@ -39,7 +37,7 @@ var (
 )
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
-	log.Info("NewConnection", "KeystorePath", cfg.KeystorePath)
+	log.Info("NewConnection", "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint, "typesPath", cfg.Opts["typesPath"])
 
 	typesPath := cfg.Opts["typesPath"]
 	types, ok := typesPath.(string)
@@ -47,7 +45,13 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, errors.New("no typesPath")
 	}
 
-	sc, err := substrate.NewSarpcClient(cfg.Endpoint, types, log)
+	adType := cfg.Opts["addressType"]
+	addressType, ok := adType.(string)
+	if !ok {
+		return nil, errors.New("addressType not ok")
+	}
+
+	sc, err := substrate.NewSarpcClient(cfg.Name, cfg.Endpoint, types, log)
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +64,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 		krp := kp.(*sr25519.Keypair).AsKeyringPair()
-
-		gc, err := substrate.NewGsrpcClient(cfg.Endpoint, krp, log, stop)
+		gc, err := substrate.NewGsrpcClient(cfg.Endpoint, addressType, krp, log, stop)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +108,7 @@ func (c *Connection) Reconnect() error {
 	return c.sc.WebsocketReconnect()
 }
 
-func (c *Connection) GetEvents(blockNum uint64) ([]*substrate.ChainEvent, error) {
+func (c *Connection) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error) {
 	return c.sc.GetEvents(blockNum)
 }
 
@@ -114,7 +117,7 @@ func (c *Connection) QueryStorage(prefix, method string, arg1, arg2 []byte, resu
 	return c.gc.QueryStorage(prefix, method, arg1, arg2, result)
 }
 
-func (c *Connection) GetExtrinsics(blockhash string) ([]*scalecodec.ExtrinsicDecoder, error) {
+func (c *Connection) GetExtrinsics(blockhash string) ([]*submodel.Transaction, error) {
 	return c.sc.GetExtrinsics(blockhash)
 }
 
@@ -123,12 +126,7 @@ func (c *Connection) LatestMetadata() (*types.Metadata, error) {
 }
 
 func (c *Connection) FreeBalance(who []byte) (types.U128, error) {
-	info, err := c.gc.AccountInfo(who)
-	if err != nil {
-		return types.NewU128(big.Int{}), err
-	}
-
-	return info.Data.Free, nil
+	return c.gc.FreeBalance(who)
 }
 
 func (c *Connection) ExistentialDeposit() (types.U128, error) {
@@ -152,11 +150,15 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 
 	th := hexutil.Encode(r.Txhash)
 	for _, ext := range exts {
-		if th != utiles.AddHex(ext.ExtrinsicHash) {
+		txhash := utiles.AddHex(ext.ExtrinsicHash)
+		if th != txhash {
+			c.log.Info("txhash not equal", "expected", th, "got", txhash)
 			continue
 		}
+		c.log.Info("txhash equal", "expected", th, "got", txhash)
+		c.log.Info("TransferVerify", "CallModuleName", ext.CallModuleName, "CallName", ext.CallName, "ext.Params number", len(ext.Params))
 
-		if ext.CallModule.Name != config.BalancesModuleId || (ext.Call.Name != config.TransferKeepAlive && ext.Call.Name != config.Transfer) {
+		if ext.CallModuleName != config.BalancesModuleId || (ext.CallName != config.TransferKeepAlive && ext.CallName != config.Transfer) {
 			return submodel.TxhashUnmatch, nil
 		}
 
@@ -167,10 +169,12 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 		}
 
 		if hexutil.Encode(r.Pubkey) != utiles.AddHex(addr) {
+			c.log.Warn("TransferVerify: pubkey", "addr", addr, "pubkey", hexutil.Encode(r.Pubkey))
 			return submodel.PubkeyUnmatch, nil
 		}
 
 		for _, p := range ext.Params {
+			c.log.Info("TransferVerify", "name", p.Name, "type", p.Type)
 			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
 				c.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", p.Value)
 
@@ -209,6 +213,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 				return submodel.TxhashUnmatch, nil
 			}
 		}
+
 		return submodel.Pass, nil
 	}
 
@@ -268,16 +273,16 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
-func (c *Connection) BondOrUnbondCall(snap *submodel.EraPoolSnapshot) (*substrate.MultiOpaqueCall, error) {
+func (c *Connection) BondOrUnbondCall(snap *submodel.EraPoolSnapshot) (*submodel.MultiOpaqueCall, error) {
 	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
 
-func (c *Connection) WithdrawCall() (*substrate.MultiOpaqueCall, error) {
+func (c *Connection) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
 	return c.gc.WithdrawCall()
 }
 
-func (c *Connection) TransferCalls(receives []*submodel.Receive) ([]*substrate.MultiOpaqueCall, map[string]bool, map[string]bool, error) {
-	calls := make([]*substrate.MultiOpaqueCall, 0)
+func (c *Connection) TransferCalls(receives []*submodel.Receive) ([]*submodel.MultiOpaqueCall, map[string]bool, map[string]bool, error) {
+	calls := make([]*submodel.MultiOpaqueCall, 0)
 	hashs1 := make(map[string]bool)
 	hashs2 := make(map[string]bool)
 	for _, rec := range receives {
@@ -321,7 +326,12 @@ func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
 		if err != nil {
 			return err
 		}
-		calls = append(calls, ext.Method)
+
+		if xt, ok := ext.(*types.Extrinsic); ok {
+			calls = append(calls, xt.Method)
+		} else if xt, ok := ext.(*types.ExtrinsicMulti); ok {
+			calls = append(calls, xt.Method)
+		}
 	}
 
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
@@ -347,7 +357,7 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportFlow) error {
 		return err
 	}
 
-	points := new(substrate.EraRewardPoints)
+	points := new(submodel.EraRewardPoints)
 	exist, err = c.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, points)
 	if err != nil {
 		return err
@@ -392,7 +402,7 @@ func (c *Connection) TryPayout(flow *submodel.BondReportFlow) {
 		}
 		controllerStr := hexutil.Encode(controller)
 
-		ledger := new(substrate.StakingLedger)
+		ledger := new(submodel.StakingLedger)
 		exist, err = c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller, nil, ledger)
 		if err != nil {
 			c.log.Error("TryPayout get ledger error", "error", err, "stash", stashStr)

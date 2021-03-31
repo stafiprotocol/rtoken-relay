@@ -12,11 +12,13 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 type GsrpcClient struct {
 	endpoint    string
+	addressType string
 	api         *gsrpc.SubstrateAPI
 	key         *signature.KeyringPair
 	genesisHash types.Hash
@@ -24,8 +26,12 @@ type GsrpcClient struct {
 	log         log15.Logger
 }
 
-func NewGsrpcClient(endpoint string, key *signature.KeyringPair, log log15.Logger, stop <-chan int) (*GsrpcClient, error) {
+func NewGsrpcClient(endpoint, addressType string, key *signature.KeyringPair, log log15.Logger, stop <-chan int) (*GsrpcClient, error) {
 	log.Info("Connecting to substrate chain with Gsrpc", "endpoint", endpoint)
+
+	if addressType != AddressTypeAccountId && addressType != AddressTypeMultiAddress {
+		return nil, errors.New("addressType not supported")
+	}
 
 	api, err := gsrpc.NewSubstrateAPI(endpoint)
 	if err != nil {
@@ -39,6 +45,7 @@ func NewGsrpcClient(endpoint string, key *signature.KeyringPair, log log15.Logge
 
 	return &GsrpcClient{
 		endpoint:    endpoint,
+		addressType: addressType,
 		api:         api,
 		key:         key,
 		genesisHash: genesisHash,
@@ -147,8 +154,8 @@ func (gc *GsrpcClient) GetAccountInfo() (*types.AccountInfo, error) {
 	return ac, nil
 }
 
-func (gc *GsrpcClient) NewUnsignedExtrinsic(callMethod string, args ...interface{}) (*types.Extrinsic, error) {
-	gc.log.Debug("Submitting substrate call...", "callMethod", callMethod, "sender", gc.key.Address)
+func (gc *GsrpcClient) NewUnsignedExtrinsic(callMethod string, args ...interface{}) (interface{}, error) {
+	gc.log.Debug("Submitting substrate call...", "callMethod", callMethod, "addressType", gc.addressType, "sender", gc.key.Address)
 	meta, err := gc.GetLatestMetadata()
 	if err != nil {
 		return nil, err
@@ -159,18 +166,25 @@ func (gc *GsrpcClient) NewUnsignedExtrinsic(callMethod string, args ...interface
 		return nil, err
 	}
 
-	unsignedExt := types.NewExtrinsic(call)
-	return &unsignedExt, nil
+	if gc.addressType == AddressTypeAccountId {
+		unsignedExt := types.NewExtrinsic(call)
+		return &unsignedExt, nil
+	} else if gc.addressType == AddressTypeMultiAddress {
+		unsignedExt := types.NewExtrinsicMulti(call)
+		return &unsignedExt, nil
+	} else {
+		return nil, errors.New("addressType not supported")
+	}
 }
 
-func (gc *GsrpcClient) SignAndSubmitTx(ext *types.Extrinsic) error {
+func (gc *GsrpcClient) SignAndSubmitTx(ext interface{}) error {
 	err := gc.signExtrinsic(ext)
 	if err != nil {
 		return err
 	}
 
 	// Do the transfer and track the actual status
-	sub, err := gc.api.RPC.Author.SubmitAndWatchExtrinsic(*ext)
+	sub, err := gc.api.RPC.Author.SubmitAndWatch(ext)
 	if err != nil {
 		return err
 	}
@@ -204,7 +218,7 @@ func (gc *GsrpcClient) watchSubmission(sub *author.ExtrinsicStatusSubscription) 
 	}
 }
 
-func (gc *GsrpcClient) signExtrinsic(ext *types.Extrinsic) error {
+func (gc *GsrpcClient) signExtrinsic(xt interface{}) error {
 	rv, err := gc.GetLatestRuntimeVersion()
 	if err != nil {
 		return err
@@ -225,9 +239,20 @@ func (gc *GsrpcClient) signExtrinsic(ext *types.Extrinsic) error {
 		TransactionVersion: rv.TransactionVersion,
 	}
 
-	err = ext.Sign(*gc.key, o)
-	if err != nil {
-		return err
+	if ext, ok := xt.(*types.Extrinsic); ok {
+		gc.log.Info("signExtrinsic", "addressType", gc.addressType)
+		err = ext.Sign(*gc.key, o)
+		if err != nil {
+			return err
+		}
+	} else if ext, ok := xt.(*types.ExtrinsicMulti); ok {
+		gc.log.Info("signExtrinsic", "addressType1", gc.addressType)
+		err = ext.Sign(*gc.key, o)
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("extrinsic cast error")
 	}
 
 	return nil
@@ -237,8 +262,8 @@ func (gc *GsrpcClient) PublicKey() []byte {
 	return gc.key.PublicKey
 }
 
-func (gc *GsrpcClient) StakingLedger(ac types.AccountID) (*StakingLedger, error) {
-	s := new(StakingLedger)
+func (gc *GsrpcClient) StakingLedger(ac types.AccountID) (*submodel.StakingLedger, error) {
+	s := new(submodel.StakingLedger)
 	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLedger, ac[:], nil, s)
 	if err != nil {
 		return nil, err
@@ -251,7 +276,7 @@ func (gc *GsrpcClient) StakingLedger(ac types.AccountID) (*StakingLedger, error)
 	return s, nil
 }
 
-func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*MultiOpaqueCall, error) {
+func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*submodel.MultiOpaqueCall, error) {
 	gc.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
 	var method string
 	var val types.UCompact
@@ -279,7 +304,7 @@ func (gc *GsrpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*MultiOpaqueCall
 	return OpaqueCall(ext)
 }
 
-func (gc *GsrpcClient) WithdrawCall() (*MultiOpaqueCall, error) {
+func (gc *GsrpcClient) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodWithdrawUnbonded, uint32(0))
 	if err != nil {
 		return nil, err
@@ -288,7 +313,7 @@ func (gc *GsrpcClient) WithdrawCall() (*MultiOpaqueCall, error) {
 	return OpaqueCall(ext)
 }
 
-func (gc *GsrpcClient) TransferCall(dest types.Address, value types.UCompact) (*MultiOpaqueCall, error) {
+func (gc *GsrpcClient) TransferCall(dest types.Address, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodTransferKeepAlive, dest, value)
 	if err != nil {
 		return nil, err
@@ -297,8 +322,39 @@ func (gc *GsrpcClient) TransferCall(dest types.Address, value types.UCompact) (*
 	return OpaqueCall(ext)
 }
 
+func (gc *GsrpcClient) FreeBalance(who []byte) (types.U128, error) {
+	if gc.addressType == AddressTypeMultiAddress {
+		info, err := gc.NewVersionAccountInfo(who)
+		if err != nil {
+			return types.U128{}, err
+		}
+		return info.Data.Free, nil
+	}
+
+	info, err := gc.AccountInfo(who)
+	if err != nil {
+		return types.U128{}, err
+	}
+
+	return info.Data.Free, nil
+}
+
 func (gc *GsrpcClient) AccountInfo(who []byte) (*types.AccountInfo, error) {
 	ac := new(types.AccountInfo)
+	exist, err := gc.QueryStorage(config.SystemModuleId, config.StorageAccount, who, nil, ac)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("can not get accountInfo for account: %s", hexutil.Encode(who))
+	}
+
+	return ac, nil
+}
+
+func (gc *GsrpcClient) NewVersionAccountInfo(who []byte) (*submodel.AccountInfo, error) {
+	ac := new(submodel.AccountInfo)
 	exist, err := gc.QueryStorage(config.SystemModuleId, config.StorageAccount, who, nil, ac)
 	if err != nil {
 		return nil, err
@@ -320,8 +376,17 @@ func (gc *GsrpcClient) ExistentialDeposit() (types.U128, error) {
 	return e, nil
 }
 
-func OpaqueCall(ext *types.Extrinsic) (*MultiOpaqueCall, error) {
-	opaque, err := types.EncodeToBytes(ext.Method)
+func OpaqueCall(ext interface{}) (*submodel.MultiOpaqueCall, error) {
+	var call types.Call
+	if xt, ok := ext.(*types.Extrinsic); ok {
+		call = xt.Method
+	} else if xt, ok := ext.(*types.ExtrinsicMulti); ok {
+		call = xt.Method
+	} else {
+		return nil, errors.New("extrinsic cast error")
+	}
+
+	opaque, err := types.EncodeToBytes(call)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +397,7 @@ func OpaqueCall(ext *types.Extrinsic) (*MultiOpaqueCall, error) {
 	}
 
 	callhash := utils.BlakeTwo256(opaque)
-	return &MultiOpaqueCall{
+	return &submodel.MultiOpaqueCall{
 		Extrinsic: hexutil.Encode(bz),
 		Opaque:    opaque,
 		CallHash:  hexutil.Encode(callhash[:]),

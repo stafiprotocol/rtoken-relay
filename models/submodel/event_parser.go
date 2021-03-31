@@ -11,7 +11,6 @@ import (
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -21,7 +20,7 @@ var (
 	ValueNotU32         = errors.New("value not u32")
 )
 
-func LiquidityBondEventData(evt *substrate.ChainEvent) (*EvtLiquidityBond, error) {
+func LiquidityBondEventData(evt *ChainEvent) (*EvtLiquidityBond, error) {
 	lb := new(EvtLiquidityBond)
 	for _, p := range evt.Params {
 		switch p.Type {
@@ -50,7 +49,7 @@ func LiquidityBondEventData(evt *substrate.ChainEvent) (*EvtLiquidityBond, error
 	return lb, nil
 }
 
-func EraPoolUpdatedData(evt *substrate.ChainEvent) (*EraPoolUpdatedFlow, error) {
+func EraPoolUpdatedData(evt *ChainEvent) (*EraPoolUpdatedFlow, error) {
 	if len(evt.Params) != 2 {
 		return nil, fmt.Errorf("EraPoolUpdatedData params number not right: %d, expected: 2", len(evt.Params))
 	}
@@ -71,7 +70,7 @@ func EraPoolUpdatedData(evt *substrate.ChainEvent) (*EraPoolUpdatedFlow, error) 
 	}, nil
 }
 
-func EventNewMultisigData(evt *substrate.ChainEvent) (*EventNewMultisig, error) {
+func EventNewMultisigData(evt *ChainEvent) (*EventNewMultisig, error) {
 	who, err := parseAccountId(evt.Params[0].Value)
 	if err != nil {
 		return nil, fmt.Errorf("EventNewMultisig params[0] -> who error: %s", err)
@@ -94,7 +93,7 @@ func EventNewMultisigData(evt *substrate.ChainEvent) (*EventNewMultisig, error) 
 	}, nil
 }
 
-func EventMultisigExecutedData(evt *substrate.ChainEvent) (*EventMultisigExecuted, error) {
+func EventMultisigExecutedData(evt *ChainEvent) (*EventMultisigExecuted, error) {
 	if len(evt.Params) != 5 {
 		return nil, fmt.Errorf("EventMultisigExecuted params number not right: %d, expected: 5", len(evt.Params))
 	}
@@ -133,7 +132,7 @@ func EventMultisigExecutedData(evt *substrate.ChainEvent) (*EventMultisigExecute
 	}, nil
 }
 
-func EventBondReport(evt *substrate.ChainEvent) (*BondReportFlow, error) {
+func EventBondReport(evt *ChainEvent) (*BondReportFlow, error) {
 	if len(evt.Params) != 5 {
 		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
 	}
@@ -172,7 +171,7 @@ func EventBondReport(evt *substrate.ChainEvent) (*BondReportFlow, error) {
 	}, nil
 }
 
-func EventWithdrawUnbond(evt *substrate.ChainEvent) (*WithdrawUnbondFlow, error) {
+func EventWithdrawUnbond(evt *ChainEvent) (*WithdrawUnbondFlow, error) {
 	if len(evt.Params) != 5 {
 		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
 	}
@@ -211,7 +210,7 @@ func EventWithdrawUnbond(evt *substrate.ChainEvent) (*WithdrawUnbondFlow, error)
 	}, nil
 }
 
-func EventTransferBack(evt *substrate.ChainEvent) (*TransferFlow, error) {
+func EventTransferBack(evt *ChainEvent) (*TransferFlow, error) {
 	if len(evt.Params) != 5 {
 		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
 	}

@@ -112,7 +112,6 @@ func run(ctx *cli.Context) error {
 			Opts:         chain.Opts,
 		}
 		var newChain core.Chain
-
 		logger := log.Root().New("chain", chainConfig.Name)
 
 		if chain.Type == "substrate" {

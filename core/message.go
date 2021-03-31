@@ -22,7 +22,6 @@ const (
 	ActiveReport        = Reason("ActiveReport")
 	WithdrawUnbondEvent = Reason("WithdrawUnbondEvent")
 	TransferBackEvent   = Reason("TransferBackEvent")
-	TransferReport      = Reason("TransferReport")
 	NewMultisig         = Reason("AsMulti")
 	MultisigExecuted    = Reason("MultisigExecuted")
 )

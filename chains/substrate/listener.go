@@ -80,11 +80,6 @@ func (l *listener) start() error {
 				return err
 			}
 		}
-
-		if err := l.initLastVoter(); err != nil {
-			l.log.Error("init last voter", "error", err)
-			return err
-		}
 	}
 
 	go func() {
@@ -170,13 +165,6 @@ func (l *listener) pollBlocks() error {
 			retry = BlockRetryLimit
 		}
 	}
-}
-
-func (l *listener) initLastVoter() error {
-	msg := &core.Message{Destination: core.RFIS, Reason: core.InitLastVoter}
-	l.submitMessage(msg, nil)
-
-	return nil
 }
 
 func (l *listener) processEra() error {

@@ -23,23 +23,26 @@ const (
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
-	sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
-	evts, err := sc.GetEvents(1006395)
-	assert.NoError(t, err)
-	for _, evt := range evts {
-		fmt.Println(evt.ModuleId)
-		fmt.Println(evt.EventId)
-		fmt.Println(evt.Params)
+	for i := 1; i < 1000; i++ {
+		evts, err := sc.GetEvents(uint64(i))
+		assert.NoError(t, err)
+		for _, evt := range evts {
+			fmt.Println(evt.ModuleId)
+			fmt.Println(evt.EventId)
+			fmt.Println(evt.Params)
+		}
 	}
 }
 
 func TestSarpcClient_GetExtrinsics(t *testing.T) {
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
-	sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
 	/// polkadot-test
@@ -52,8 +55,8 @@ func TestSarpcClient_GetExtrinsics(t *testing.T) {
 	assert.NoError(t, err)
 	for _, ext := range exts {
 		fmt.Println("exthash", ext.ExtrinsicHash)
-		fmt.Println("moduleName", ext.CallModule.Name)
-		fmt.Println("methodName", ext.Call.Name)
+		fmt.Println("moduleName", ext.CallModuleName)
+		fmt.Println("methodName", ext.CallName)
 		fmt.Println("address", ext.Address)
 		fmt.Println(ext.Params)
 		for _, p := range ext.Params {
@@ -78,26 +81,22 @@ func TestSarpcClient_GetExtrinsics(t *testing.T) {
 }
 
 func TestSarpcClient_GetExtrinsics1(t *testing.T) {
-	sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
-	call, ok := sc.metaDecoder.Metadata.CallIndex["1459"]
-	fmt.Println("ok", ok)
-	fmt.Println("call", call)
-
 	/// polkadot-test
-	exts, err := sc.GetExtrinsics("0x04b257be925ad91ef2655643ad1dc1456283d9dc8e4f252601eece246bae670a")
+	exts, err := sc.GetExtrinsics("0x9e4810599ef1ad3a59c916c0bbb16e06252d868a30ee6b3707cb37e775b854ac")
+	assert.NoError(t, err)
 	//exts, err := sc.GetExtrinsics("0x3d55fb40d3ac4f96373f5d2d9860154145c09df9b5b83a88062014cea0da5ad3")
 
 	/// stafi transfer_keep_alive
 	//exts, err := sc.GetExtrinsics("0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da4")
 
-	assert.NoError(t, err)
 	for _, ext := range exts {
 		fmt.Println("exthash", ext.ExtrinsicHash)
-		fmt.Println("moduleName", ext.CallModule.Name)
-		fmt.Println("methodName", ext.Call.Name)
+		fmt.Println("moduleName", ext.CallModuleName)
+		fmt.Println("methodName", ext.CallName)
 		fmt.Println("address", ext.Address)
 		fmt.Println(ext.Params)
 		for _, p := range ext.Params {
@@ -122,17 +121,15 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 }
 
 func TestSarpcClient_GetExtrinsics2(t *testing.T) {
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
-	/// stafi transfer_keep_alive
-	exts, err := sc.GetExtrinsics("0xb39cc51509f579344d6e634ce885555871be4a5e4bccae129b3e7b348e5e55b9")
-
+	exts, err := sc.GetExtrinsics("0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da4")
 	assert.NoError(t, err)
 	for _, ext := range exts {
 		fmt.Println("exthash", ext.ExtrinsicHash)
-		fmt.Println("moduleName", ext.CallModule.Name)
-		fmt.Println("methodName", ext.Call.Name)
+		fmt.Println("moduleName", ext.CallModuleName)
+		fmt.Println("methodName", ext.CallName)
 		fmt.Println("address", ext.Address)
 		fmt.Println(ext.Params)
 		for _, p := range ext.Params {
@@ -158,11 +155,11 @@ func TestEncode(t *testing.T) {
 }
 
 func TestEventNewMultisig(t *testing.T) {
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
 	evts, err := sc.GetEvents(906)
@@ -191,7 +188,7 @@ func TestEventNewMultisig(t *testing.T) {
 }
 
 func TestEventMultisigExecuted(t *testing.T) {
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
 	evts, err := sc.GetEvents(119)
@@ -221,7 +218,7 @@ func TestEventMultisigExecuted(t *testing.T) {
 }
 
 func TestEraPoolUpdated(t *testing.T) {
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
 	evts, err := sc.GetEvents(113)
