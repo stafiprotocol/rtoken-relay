@@ -22,32 +22,28 @@ var (
 )
 
 func LiquidityBondEventData(evt *substrate.ChainEvent) (*EvtLiquidityBond, error) {
-	lb := new(EvtLiquidityBond)
-	for _, p := range evt.Params {
-		switch p.Type {
-		case "AccountId":
-			a := utiles.AddHex(p.Value.(string))
-			aid, err := hexutil.Decode(a)
-			if err != nil {
-				return nil, err
-			}
-			lb.AccountId = types.NewAccountID(aid)
-		case "RSymbol":
-			sym := p.Value.(string)
-			lb.Rsymbol = core.RSymbol(sym)
-		case "Key":
-			b := p.Value.(string)
-			bid, err := types.NewHashFromHexString(b)
-			if err != nil {
-				return nil, err
-			}
-			lb.BondId = bid
-		default:
-			continue
-		}
+	if len(evt.Params) != 3 {
+		return nil, fmt.Errorf("EvtLiquidityBond params number not right: %d, expected: 3", len(evt.Params))
+	}
+	accountId, err := parseAccountId(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EvtLiquidityBond params[0] -> AccountId error: %s", err)
+	}
+	rSymbol, err := parseRsymbol(evt.Params[1].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EvtLiquidityBond params[1] -> RSymbol error: %s", err)
+	}
+	bondId, err := parseHash(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EvtLiquidityBond params[2] -> BondId error: %s", err)
 	}
 
-	return lb, nil
+	return &EvtLiquidityBond{
+		AccountId: accountId,
+		Rsymbol:   rSymbol,
+		BondId:    bondId,
+	}, nil
+
 }
 
 func EraPoolUpdatedData(evt *substrate.ChainEvent) (*EraPoolUpdatedFlow, error) {
