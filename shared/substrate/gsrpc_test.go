@@ -160,7 +160,9 @@ func TestGsrpcClient_QueryStorage(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, exist)
 	for _, ac := range unbonds {
-		fmt.Println(ac)
+		t.Log(fmt.Println(hexutil.Encode(ac.Recipient)))
+		addr:=types.NewAddressFromAccountID(ac.Recipient)
+		t.Log(hexutil.Encode(addr.AsAccountID[:]))
 	}
 }
 

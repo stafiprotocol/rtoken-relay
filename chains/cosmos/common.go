@@ -148,10 +148,11 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receives []*submodel.Receive) ([]byte, error) {
 	outPuts := make([]xBankTypes.Output, 0)
 	for _, receive := range receives {
-		hexAccountStr := hex.EncodeToString(receive.Recipient.AsAccountID[:])
+		hexAccountStr := hex.EncodeToString(receive.Recipient.AsAccountID[:20])
 		addr, err := types.AccAddressFromHex(hexAccountStr)
 		if err != nil {
 			//skp is err
+			fmt.Println("AccAddressFromHex err", err)
 			continue
 		}
 		valueBigInt := big.Int(receive.Value)
