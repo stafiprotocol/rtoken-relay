@@ -114,7 +114,7 @@ func (l *listener) pollBlocks() error {
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
-				if l.rsymbol == "Default" {
+				if l.rsymbol == core.RFIS {
 					l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.rsymbol)
 				} else {
 					l.log.Error("pollBlocks error", "rsymbol", l.rsymbol)
@@ -131,6 +131,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
+			l.log.Info("pollBlocks", "currentBlock", currentBlock, "finalBlk", finalBlk)
 			// Sleep if the block we want comes after the most recently finalized block
 			if currentBlock+l.blockDelay() > finalBlk {
 				l.log.Trace("Block not yet finalized", "target", currentBlock, "finalBlk", finalBlk)
@@ -155,12 +156,13 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			// Write to blockstore
-			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
-			if err != nil {
-				l.log.Error("Failed to write to blockstore", "err", err)
+			if l.rsymbol == core.RFIS {
+				// Write to blockstore
+				err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
+				if err != nil {
+					l.log.Error("Failed to write to blockstore", "err", err)
+				}
 			}
-
 			currentBlock++
 			retry = BlockRetryLimit
 		}
@@ -186,9 +188,9 @@ func (l *listener) processEra() error {
 
 // processEvents fetches a block and parses out the events, calling Listener.handleEvents()
 func (l *listener) processEvents(blockNum uint64) error {
-	if blockNum%100 == 0 {
-		l.log.Debug("processEvents", "blockNum", blockNum)
-	}
+	//if blockNum%100 == 0 {
+	l.log.Debug("processEvents", "blockNum", blockNum)
+	//}
 
 	evts, err := l.conn.GetEvents(blockNum)
 	if err != nil {
