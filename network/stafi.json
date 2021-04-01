@@ -37,6 +37,7 @@
     ]
   },
   "ChainId": "u8",
+  "RateType": "u64",
   "ResourceId": "[u8; 32]",
   "DepositNonce": "u64",
   "U256": "H256",
@@ -49,7 +50,6 @@
       "RATOM"
     ]
   },
-  "RateType": "u64",
   "AccountRData": {
     "type": "struct",
     "type_mapping": [
@@ -205,28 +205,8 @@
         "AccountId"
       ],
       [
-        "symbol",
-        "RSymbol"
-      ],
-      [
-        "pool",
-        "Vec<u8>"
-      ],
-      [
-        "rvalue",
-        "u128"
-      ],
-      [
         "value",
         "u128"
-      ],
-      [
-        "current_era",
-        "u32"
-      ],
-      [
-        "unlock_era",
-        "u32"
       ],
       [
         "recipient",

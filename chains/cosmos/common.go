@@ -16,7 +16,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
-	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 	"time"
@@ -319,8 +318,8 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 				mflow := submodel.MultiEventFlow{
 					EventData: &submodel.EraPoolUpdatedFlow{
 						ShotId: wrappedUnSignedTx.SnapshotId},
-					OpaqueCalls: []*substrate.MultiOpaqueCall{
-						&substrate.MultiOpaqueCall{
+					OpaqueCalls: []*submodel.MultiOpaqueCall{
+						&submodel.MultiOpaqueCall{
 							CallHash: hexutil.Encode(callHash[:])}},
 				}
 
@@ -368,8 +367,8 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 				mflow := submodel.MultiEventFlow{
 					EventData: &submodel.TransferFlow{
 						ShotId: wrappedUnSignedTx.SnapshotId},
-					OpaqueCalls: []*substrate.MultiOpaqueCall{
-						&substrate.MultiOpaqueCall{
+					OpaqueCalls: []*submodel.MultiOpaqueCall{
+						&submodel.MultiOpaqueCall{
 							CallHash: hexutil.Encode(callHash[:])}},
 				}
 

@@ -2,7 +2,7 @@ package config
 
 const (
 	BalancesModuleId        = "Balances"
-	TransferKeepAlive       = "transfer_keep_alives"
+	TransferKeepAlive       = "transfer_keep_alive"
 	Transfer                = "transfer"
 	MethodTransferKeepAlive = "Balances.transfer_keep_alive"
 	ConstExistentialDeposit = "ExistentialDeposit"

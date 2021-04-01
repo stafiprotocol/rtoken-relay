@@ -21,6 +21,7 @@ import (
 var (
 	AliceKey     = keystore.TestKeyRing.SubstrateKeys[keystore.AliceKey].AsKeyringPair()
 	From         = "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+	LessPolka    = "1334v66HrtqQndbugYxX9m56V6222m97LbavB4KAMmqgjsas"
 	From1        = "31d96Cq9idWQqPq3Ch5BFY84zrThVE3r98M7vG4xYaSWHwsX"
 	From2        = "1TgYb5x8xjsZRyL5bwvxUoAWBn36psr4viSMHbRXA8bkB2h"
 	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
@@ -38,7 +39,7 @@ func TestGsrpcClient(t *testing.T) {
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
 	assert.NoError(t, err)
 
 	bId, err := types.NewHashFromHexString("0xd2f787195c3498f941653fe542e62b397988eeb3e2b867cf39a93c1ae5127b41")
@@ -88,7 +89,7 @@ func TestGsrpcClient1(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
 	assert.NoError(t, err)
 
 	bId, err := types.NewHashFromHexString("0x7942f736614444159dba03bc5fef684dcebb7c5edb16d4e57315e148ea4525be")
@@ -117,7 +118,7 @@ func TestGsrpcClient_StakingActive(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
 	assert.NoError(t, err)
 
 	b, _ := hexutil.Decode("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
@@ -129,7 +130,7 @@ func TestGsrpcClient_StakingActive(t *testing.T) {
 
 func TestGsrpcClient_QueryStorage(t *testing.T) {
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
 	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
@@ -159,7 +160,7 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
 	assert.NoError(t, err)
 
 	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
@@ -205,14 +206,14 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	h := utils.BlakeTwo256(call.Opaque)
 	fmt.Println("callHash", hexutil.Encode(h[:]))
 
-	sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
 	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
 
-	tp := NewOptionTimePointEmpty()
+	tp := submodel.NewOptionTimePointEmpty()
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
@@ -220,7 +221,7 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 
 func TestStorages(t *testing.T) {
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
 	addr, err := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
@@ -239,13 +240,13 @@ func TestStorages(t *testing.T) {
 	bz, err := types.EncodeToBytes(era)
 	assert.NoError(t, err)
 
-	re := new(EraRewardPoints)
+	re := new(submodel.EraRewardPoints)
 	exist1, err := gc.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, re)
 	assert.NoError(t, err)
 	fmt.Println(exist1)
 	fmt.Println(re)
 
-	ledger := new(StakingLedger)
+	ledger := new(submodel.StakingLedger)
 	exist, err = gc.QueryStorage(config.StakingModuleId, config.StorageLedger, addr.AsAccountID[:], nil, ledger)
 	assert.NoError(t, err)
 	fmt.Println(exist)
@@ -263,7 +264,7 @@ func TestBatch(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
 	assert.NoError(t, err)
 
 	addr, err := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
@@ -294,20 +295,19 @@ func TestBatch(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestTransfer(t *testing.T) {
+func TestBatchTransfer(t *testing.T) {
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
 	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
 	jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
 	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
 	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
-	mul, _ := types.NewAddressFromHexAccountID("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
 
-	addrs := []types.Address{less, jun, wen, bao, mul}
+	addrs := []types.Address{less, jun, wen, bao}
 
-	amount, _ := utils.StringToBigint("10000000000000000")
+	amount, _ := utils.StringToBigint("3000" + "000000000000")
 	value := types.NewUCompact(amount)
 
 	calls := make([]types.Call, 0)
@@ -343,7 +343,7 @@ func TestMultiBatch(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", krp, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
 	assert.NoError(t, err)
 
 	//less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
@@ -361,20 +361,22 @@ func TestMultiBatch(t *testing.T) {
 	calls := make([]types.Call, 0)
 
 	var info *rpc.PaymentQueryInfo
-	tp := NewOptionTimePointEmpty()
+	tp := submodel.NewOptionTimePointEmpty()
 	for _, addr := range addrs {
 		c, err := gc.TransferCall(addr, value)
 		fmt.Println(c.CallHash)
 		assert.NoError(t, err)
 		if info == nil {
-			sc, err := NewSarpcClient("ws://127.0.0.1:9944", stafiTypesFile, tlog)
+			sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 			assert.NoError(t, err)
 			info, err = sc.GetPaymentQueryInfo(c.Extrinsic)
 			assert.NoError(t, err)
 		}
 
 		ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, c.Opaque, false, info.Weight)
-		calls = append(calls, ext.Method)
+		xt, ok := ext.(*types.Extrinsic)
+		assert.True(t, ok)
+		calls = append(calls, xt.Method)
 	}
 
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
@@ -386,7 +388,7 @@ func TestMultiBatch(t *testing.T) {
 
 func TestBalance(t *testing.T) {
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
 	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
@@ -400,9 +402,74 @@ func TestBalance(t *testing.T) {
 
 func TestGetConst(t *testing.T) {
 	stop := make(chan int)
-	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 	e, err := gc.ExistentialDeposit()
 	assert.NoError(t, err)
 	fmt.Println(e)
+}
+
+func TestBondExtra(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
+	assert.NoError(t, err)
+
+	amount, _ := utils.StringToBigint("10000000000000")
+	value := types.NewUCompact(amount)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
+	assert.NoError(t, err)
+
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
+}
+
+func TestPolkaBondExtra(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(LessPolka, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
+	assert.NoError(t, err)
+
+	amount, _ := utils.StringToBigint("10000000000000")
+	value := types.NewUCompact(amount)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
+	assert.NoError(t, err)
+
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
+}
+
+func TestFreeBalance(t *testing.T) {
+	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+	free, err := gc.FreeBalance(less.AsAccountID[:])
+	assert.NoError(t, err)
+	fmt.Println(free)
+
+	lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
+	gc1, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	free1, err := gc1.FreeBalance(lessPolka.AsID[:])
+	assert.NoError(t, err)
+	fmt.Println(free1)
 }

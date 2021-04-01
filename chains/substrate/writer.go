@@ -26,10 +26,9 @@ type writer struct {
 	log           log15.Logger
 	sysErr        chan<- error
 	events        map[string]*submodel.MultiEventFlow
-	newMultisigs  map[string]*submodel.EventNewMultisig
+	newMultics    map[string]*submodel.EventNewMultisig
 	multiExecuted map[string]*submodel.EventMultisigExecuted
-	//multisigFlows     map[string]*core.MultisigFlow // CallHash => flow
-	bondedPools map[string]bool
+	bondedPools   map[string]bool
 }
 
 type callHashs struct {
@@ -47,7 +46,7 @@ func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer 
 		log:           log,
 		sysErr:        sysErr,
 		events:        make(map[string]*submodel.MultiEventFlow),
-		newMultisigs:  make(map[string]*submodel.EventNewMultisig),
+		newMultics:    make(map[string]*submodel.EventNewMultisig),
 		multiExecuted: make(map[string]*submodel.EventMultisigExecuted),
 		bondedPools:   make(map[string]bool),
 	}
@@ -63,8 +62,6 @@ func (w *writer) setRouter(r chains.Router) {
 
 func (w *writer) ResolveMessage(m *core.Message) bool {
 	switch m.Reason {
-	case core.InitLastVoter:
-		return w.initLastVoter(m)
 	case core.LiquidityBond:
 		return w.processLiquidityBond(m)
 	case core.LiquidityBondResult:
@@ -99,40 +96,6 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 	}
 }
 
-func (w *writer) initLastVoter(m *core.Message) bool {
-	sym := m.Source
-
-	bz, err := types.EncodeToBytes(sym)
-	if err != nil {
-		w.sysErr <- err
-		return false
-	}
-
-	var voter types.AccountID
-	exist, err := w.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageLastVoter, bz, nil, &voter)
-	if err != nil {
-		w.sysErr <- err
-		return false
-	}
-
-	if exist {
-		return true
-	}
-
-	bk := &submodel.BondKey{Rsymbol: sym, BondId: utils.BlakeTwo256(bz)}
-	prop, err := w.conn.InitLastVoterProposal(bk)
-	if err != nil {
-		w.log.Error("InitLastVoterProposal", "error", err)
-		w.sysErr <- err
-		return false
-	}
-
-	result := w.conn.resolveProposal(prop, true)
-	w.log.Info("InitLastVoterProposal resolveProposal", "result", result)
-
-	return result
-}
-
 func (w *writer) processLiquidityBond(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondFlow)
 	if !ok {
@@ -150,7 +113,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 		w.log.Error("TransferVerify error", "err", err, "bondId", flow.Key.BondId.Hex())
 		return false
 	}
-
+	w.log.Info("processLiquidityBond", "bondReason", bondReason)
 	flow.Reason = bondReason
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.LiquidityBondResult, Content: flow}
@@ -190,14 +153,19 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	}
 
 	old, err := w.conn.CurrentRsymbolEra(m.Source)
+	cmpFlag := false
 	if err != nil {
-		w.sysErr <- err
-		return false
+		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", m.Source) {
+			w.log.Error("CurrentRsymbolEra error", "error", err)
+			return false
+		} else {
+			cmpFlag = true
+		}
 	}
 
-	if neew <= old {
-		w.log.Warn("rsymbol era is nog bigger than the storage one")
-		return false
+	if cmpFlag && neew <= old {
+		w.log.Warn("rsymbol era is no bigger than the storage one, ignored")
+		return true
 	}
 
 	symbz, err := types.EncodeToBytes(m.Source)
@@ -208,7 +176,7 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	bondedPools := make([]types.Bytes, 0)
 	exist, err := w.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondedPools, symbz, nil, &bondedPools)
 	if err != nil {
-		w.sysErr <- err
+		w.log.Error("processNewEra error", "error", err)
 		return false
 	}
 	if !exist {
@@ -288,7 +256,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	call, err := w.conn.BondOrUnbondCall(snap)
 	if err != nil {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
-			w.log.Info("No need to send any call", "callhash", call.CallHash)
+			w.log.Info("No need to send any call", "rsymbol", snap.Rsymbol, "era", snap.Era)
 			return w.informChain(m.Destination, m.Source, mef)
 		}
 		w.log.Error("BondOrUnbondCall error", "err", err)
@@ -301,14 +269,14 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = []*substrate.MultiOpaqueCall{call}
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
 	w.events[call.CallHash] = mef
 
 	if flow.LastVoterFlag {
-		call.TimePoint = substrate.NewOptionTimePointEmpty()
+		call.TimePoint = submodel.NewOptionTimePointEmpty()
 		err = w.conn.AsMulti(mef)
 		if err != nil {
 			w.log.Error("AsMulti error", "err", err, "callhash", callhash)
@@ -318,7 +286,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return true
 	}
 
-	newMuls, ok := w.newMultisigs[callhash]
+	newMuls, ok := w.newMultics[callhash]
 	if !ok {
 		w.log.Info("not last voter, wait for NewMultisigEvent")
 		w.events[call.CallHash] = mef
@@ -384,14 +352,14 @@ func (w *writer) processWithdrawUnbond(m *core.Message) bool {
 		return false
 	}
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = []*substrate.MultiOpaqueCall{call}
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
 	w.events[call.CallHash] = mef
 
 	if flow.LastVoterFlag {
-		call.TimePoint = substrate.NewOptionTimePointEmpty()
+		call.TimePoint = submodel.NewOptionTimePointEmpty()
 		err = w.conn.AsMulti(mef)
 		if err != nil {
 			w.log.Error("AsMulti error", "err", err, "callhash", callhash)
@@ -401,7 +369,7 @@ func (w *writer) processWithdrawUnbond(m *core.Message) bool {
 		return true
 	}
 
-	newMuls, ok := w.newMultisigs[callhash]
+	newMuls, ok := w.newMultics[callhash]
 	if !ok {
 		w.log.Info("not last voter, wait for NewMultisigEvent")
 		w.events[call.CallHash] = mef
@@ -480,7 +448,7 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 	mef.MulExeCallHashs = hashs2
 	for _, call := range calls {
 		if flow.LastVoterFlag {
-			call.TimePoint = substrate.NewOptionTimePointEmpty()
+			call.TimePoint = submodel.NewOptionTimePointEmpty()
 		}
 		w.events[call.CallHash] = mef
 	}
@@ -496,7 +464,7 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 	}
 
 	for _, call := range calls {
-		newMuls, ok := w.newMultisigs[call.CallHash]
+		newMuls, ok := w.newMultics[call.CallHash]
 		if ok {
 			call.TimePoint = newMuls.TimePoint
 			delete(mef.NewMulCallHashs, call.CallHash)
@@ -531,7 +499,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 		return true
 	}
 
-	w.newMultisigs[flow.CallHashStr] = flow
+	w.newMultics[flow.CallHashStr] = flow
 	evt, ok := w.events[flow.CallHashStr]
 	if !ok {
 		w.log.Info("receive a newMultisig, wait for more flow data")
@@ -611,7 +579,7 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		return true
 	}
 	delete(w.events, flow.CallHashStr)
-	delete(w.newMultisigs, flow.CallHashStr)
+	delete(w.newMultics, flow.CallHashStr)
 	return w.informChain(m.Destination, m.Source, evt)
 }
 
@@ -632,15 +600,8 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		return false
 	}
 
-	callhash := flow.OpaqueCalls[0].CallHash
-	bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
-	if err != nil {
-		w.sysErr <- fmt.Errorf("processBondReport: callhash %s decode error: %s", bondId, err)
-		return false
-	}
-
-	bk := &submodel.BondKey{Rsymbol: m.Source, BondId: bondId}
 	if data, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow); ok {
+		bk := &submodel.BondKey{Rsymbol: m.Source, BondId: data.ShotId}
 		prop, err := w.conn.CommonReportProposal(config.MethodBondReport, bk, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodBondReportProposal", "error", err)
@@ -651,6 +612,14 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		return result
 	}
 
+	callhash := flow.OpaqueCalls[0].CallHash
+	bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
+	if err != nil {
+		w.sysErr <- fmt.Errorf("processInformChain: callhash %s decode error: %s", bondId, err)
+		return false
+	}
+
+	bk := &submodel.BondKey{Rsymbol: m.Source, BondId: bondId}
 	if data, ok := flow.EventData.(*submodel.WithdrawUnbondFlow); ok {
 		prop, err := w.conn.CommonReportProposal(config.MethodWithdrawReport, bk, data.ShotId)
 		if err != nil {
@@ -735,7 +704,7 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 		}
 	}
 
-	ledger := new(substrate.StakingLedger)
+	ledger := new(submodel.StakingLedger)
 	exist, err := w.conn.QueryStorage(config.StakingModuleId, config.StorageLedger, flow.Pool, nil, ledger)
 	if err != nil {
 		w.log.Error("waitPayout get ledger error", "error", err, "pool", hexutil.Encode(flow.Pool))

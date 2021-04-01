@@ -62,7 +62,7 @@ func getDataDir(ctx *cli.Context) (string, error) {
 // keypath example: /Homepath/chainbridge/keys
 func generateKeyFileByRawseed(keypath string) error {
 	key := keystore.GetPassword("Enter mnemonic/rawseed:")
-	kp, err := sr25519.NewKeypairFromSeed(string(key), "stafi")
+	kp, err := sr25519.NewKeypairFromSeed(string(key), "polkadot")
 	if err != nil {
 		return err
 	}

@@ -2,20 +2,22 @@ package substrate
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/gorilla/websocket"
-	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/source"
-	"github.com/itering/scale.go/types"
 	"github.com/itering/scale.go/utiles"
 	"github.com/itering/substrate-api-rpc/pkg/recws"
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/itering/substrate-api-rpc/util"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/types/polkadot"
+	"github.com/stafiprotocol/rtoken-relay/types/stafi"
 )
 
 const (
@@ -27,13 +29,21 @@ type SarpcClient struct {
 	endpoint           string
 	rec                *recws.RecConn
 	log                log15.Logger
+	chainType          string
 	metaRaw            string
 	typesPath          string
 	currentSpecVersion int
-	metaDecoder        *scalecodec.MetadataDecoder
+	metaDecoder        interface{}
 }
 
-func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient, error) {
+var (
+	metaDecoders = map[string]interface{}{
+		ChainTypeStafi:    &stafi.MetadataDecoder{},
+		ChainTypePolkadot: &polkadot.MetadataDecoder{},
+	}
+)
+
+func NewSarpcClient(chainType, endpoint, typesPath string, log log15.Logger) (*SarpcClient, error) {
 	api, err := gsrpc.NewSubstrateAPI(endpoint)
 	if err != nil {
 		return nil, err
@@ -47,15 +57,23 @@ func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient,
 
 	rec := &recws.RecConn{KeepAliveTimeout: 10 * time.Second}
 	rec.Dial(endpoint, nil)
+	md := metaDecoders[chainType]
+	if md == nil {
+		return nil, errors.New("chainType not supported")
+	}
+
 	sc := &SarpcClient{
+		chainType:          chainType,
 		endpoint:           endpoint,
 		rec:                rec,
 		log:                log,
 		metaRaw:            "",
 		typesPath:          typesPath,
 		currentSpecVersion: 0,
-		metaDecoder:        &scalecodec.MetadataDecoder{},
+		metaDecoder:        md,
 	}
+
+	sc.regCustomTypes()
 
 	err = sc.UpdateMeta(latestHash.Hex())
 	if err != nil {
@@ -65,7 +83,25 @@ func NewSarpcClient(endpoint, typesPath string, log log15.Logger) (*SarpcClient,
 	return sc, nil
 }
 
-func (sc *SarpcClient) SendWsRequest(v interface{}, action []byte) (err error) {
+func (sc *SarpcClient) regCustomTypes() {
+	content, err := ioutil.ReadFile(sc.typesPath)
+	if err != nil {
+		panic(err)
+	}
+
+	switch sc.chainType {
+	case ChainTypeStafi:
+		stafi.RuntimeType{}.Reg()
+		stafi.RegCustomTypes(source.LoadTypeRegistry(content))
+	case ChainTypePolkadot:
+		polkadot.RuntimeType{}.Reg()
+		polkadot.RegCustomTypes(source.LoadTypeRegistry(content))
+	default:
+		panic("chainType not supported")
+	}
+}
+
+func (sc *SarpcClient) sendWsRequest(v interface{}, action []byte) (err error) {
 	if err = sc.rec.WriteMessage(websocket.TextMessage, action); err != nil {
 		if sc.rec != nil {
 			sc.rec.MarkUnusable()
@@ -84,7 +120,7 @@ func (sc *SarpcClient) SendWsRequest(v interface{}, action []byte) (err error) {
 func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	v := &rpc.JsonRpcResult{}
 	// runtime version
-	if err := sc.SendWsRequest(v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
+	if err := sc.sendWsRequest(v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
 		return err
 	}
 
@@ -95,7 +131,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 
 	// metadata raw
 	if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
-		if err := sc.SendWsRequest(v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
+		if err := sc.sendWsRequest(v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
 			return err
 		}
 		metaRaw, err := v.ToString()
@@ -103,23 +139,24 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 			return err
 		}
 		sc.metaRaw = metaRaw
-		sc.metaDecoder.Init(utiles.HexToBytes(metaRaw))
-		err = sc.metaDecoder.Process()
-		if err != nil {
-			return err
-		}
-
-		types.RuntimeType{}.Reg()
-		content, err := ioutil.ReadFile(sc.typesPath)
-		if err != nil {
-			panic(err)
-		}
-		types.RegCustomTypes(source.LoadTypeRegistry(content))
-
-		if err != nil {
-			return err
-		}
 		sc.currentSpecVersion = r.SpecVersion
+
+		switch sc.chainType {
+		case ChainTypeStafi:
+			md, _ := sc.metaDecoder.(*stafi.MetadataDecoder)
+			md.Init(utiles.HexToBytes(metaRaw))
+			if err := md.Process(); err != nil {
+				return err
+			}
+		case ChainTypePolkadot:
+			md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+			md.Init(utiles.HexToBytes(metaRaw))
+			if err := md.Process(); err != nil {
+				return err
+			}
+		default:
+			return errors.New("chainType not supported")
+		}
 	}
 
 	return nil
@@ -127,14 +164,14 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 
 func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 	v := &rpc.JsonRpcResult{}
-	if err := sc.SendWsRequest(v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
+	if err := sc.sendWsRequest(v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
 		return nil, err
 	}
 	rpcBlock := v.ToBlock()
 	return &rpcBlock.Block, nil
 }
 
-func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*scalecodec.ExtrinsicDecoder, error) {
+func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*submodel.Transaction, error) {
 	err := sc.UpdateMeta(blockHash)
 	if err != nil {
 		return nil, err
@@ -145,18 +182,49 @@ func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*scalecodec.ExtrinsicD
 		return nil, err
 	}
 
-	exts := make([]*scalecodec.ExtrinsicDecoder, 0)
-	e := new(scalecodec.ExtrinsicDecoder)
-	option := types.ScaleDecoderOption{Metadata: &sc.metaDecoder.Metadata, Spec: sc.currentSpecVersion}
-	for _, raw := range blk.Extrinsics {
-		e.Init(types.ScaleBytes{Data: util.HexToBytes(raw)}, &option)
-		e.Process()
-		if e.ExtrinsicHash != "" && e.ContainsTransaction {
-			exts = append(exts, e)
+	exts := make([]*submodel.Transaction, 0)
+	switch sc.chainType {
+	case ChainTypeStafi:
+		e := new(stafi.ExtrinsicDecoder)
+		md, _ := sc.metaDecoder.(*stafi.MetadataDecoder)
+		option := stafi.ScaleDecoderOption{Metadata: &md.Metadata, Spec: sc.currentSpecVersion}
+		for _, raw := range blk.Extrinsics {
+			e.Init(stafi.ScaleBytes{Data: util.HexToBytes(raw)}, &option)
+			e.Process()
+			if e.ExtrinsicHash != "" && e.ContainsTransaction {
+				ext := &submodel.Transaction{
+					ExtrinsicHash:  e.ExtrinsicHash,
+					CallModuleName: e.CallModule.Name,
+					CallName:       e.Call.Name,
+					Address:        e.Address,
+					Params:         e.Params,
+				}
+				exts = append(exts, ext)
+			}
 		}
+		return exts, nil
+	case ChainTypePolkadot:
+		e := new(polkadot.ExtrinsicDecoder)
+		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		option := polkadot.ScaleDecoderOption{Metadata: &md.Metadata, Spec: sc.currentSpecVersion}
+		for _, raw := range blk.Extrinsics {
+			e.Init(polkadot.ScaleBytes{Data: util.HexToBytes(raw)}, &option)
+			e.Process()
+			if e.ExtrinsicHash != "" && e.ContainsTransaction {
+				ext := &submodel.Transaction{
+					ExtrinsicHash:  e.ExtrinsicHash,
+					CallModuleName: e.CallModule.Name,
+					CallName:       e.Call.Name,
+					Address:        e.Address,
+					Params:         e.Params,
+				}
+				exts = append(exts, ext)
+			}
+		}
+		return exts, nil
+	default:
+		return nil, errors.New("chainType not supported")
 	}
-
-	return exts, nil
 }
 
 func (sc *SarpcClient) IsConnected() bool {
@@ -172,7 +240,7 @@ func (sc *SarpcClient) WebsocketReconnect() error {
 
 func (sc *SarpcClient) GetBlockHash(blockNum uint64) (string, error) {
 	v := &rpc.JsonRpcResult{}
-	if err := sc.SendWsRequest(v, rpc.ChainGetBlockHash(wsId, int(blockNum))); err != nil {
+	if err := sc.sendWsRequest(v, rpc.ChainGetBlockHash(wsId, int(blockNum))); err != nil {
 		return "", fmt.Errorf("websocket get block hash error: %v", err)
 	}
 
@@ -184,14 +252,14 @@ func (sc *SarpcClient) GetBlockHash(blockNum uint64) (string, error) {
 	return blockHash, nil
 }
 
-func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*ChainEvent, error) {
+func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*submodel.ChainEvent, error) {
 	err := sc.UpdateMeta(blockHash)
 	if err != nil {
 		return nil, err
 	}
 
 	v := &rpc.JsonRpcResult{}
-	if err := sc.SendWsRequest(v, rpc.StateGetStorage(wsId, storageKey, blockHash)); err != nil {
+	if err := sc.sendWsRequest(v, rpc.StateGetStorage(wsId, storageKey, blockHash)); err != nil {
 		return nil, fmt.Errorf("websocket get event raw error: %v", err)
 	}
 	eventRaw, err := v.ToString()
@@ -199,26 +267,44 @@ func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*ChainEvent, error) {
 		return nil, err
 	}
 
-	// parse event raw into []ChainEvent
-	e := scalecodec.EventsDecoder{}
-	option := types.ScaleDecoderOption{Metadata: &sc.metaDecoder.Metadata}
-	e.Init(types.ScaleBytes{Data: util.HexToBytes(eventRaw)}, &option)
-	e.Process()
-
-	var events []*ChainEvent
-	b, err := json.Marshal(e.Value)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(b, &events)
-	if err != nil {
-		return nil, err
+	var events []*submodel.ChainEvent
+	switch sc.chainType {
+	case ChainTypeStafi:
+		e := stafi.EventsDecoder{}
+		md, _ := sc.metaDecoder.(*stafi.MetadataDecoder)
+		option := stafi.ScaleDecoderOption{Metadata: &md.Metadata}
+		e.Init(stafi.ScaleBytes{Data: util.HexToBytes(eventRaw)}, &option)
+		e.Process()
+		b, err := json.Marshal(e.Value)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(b, &events)
+		if err != nil {
+			return nil, err
+		}
+	case ChainTypePolkadot:
+		e := polkadot.EventsDecoder{}
+		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		option := polkadot.ScaleDecoderOption{Metadata: &md.Metadata}
+		e.Init(polkadot.ScaleBytes{Data: util.HexToBytes(eventRaw)}, &option)
+		e.Process()
+		b, err := json.Marshal(e.Value)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(b, &events)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.New("chainType not supported")
 	}
 
 	return events, nil
 }
 
-func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*ChainEvent, error) {
+func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error) {
 	blockHash, err := sc.GetBlockHash(blockNum)
 	if err != nil {
 		return nil, err
@@ -234,7 +320,7 @@ func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*ChainEvent, error) {
 
 func (sc *SarpcClient) GetPaymentQueryInfo(encodedExtrinsic string) (paymentInfo *rpc.PaymentQueryInfo, err error) {
 	v := &rpc.JsonRpcResult{}
-	if err = sc.SendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
+	if err = sc.sendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
 		return
 	}
 

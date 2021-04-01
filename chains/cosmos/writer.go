@@ -11,7 +11,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
-	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -121,8 +120,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
 		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
 		callHash := utils.BlakeTwo256([]byte{})
-		mFlow.OpaqueCalls = []*substrate.MultiOpaqueCall{
-			&substrate.MultiOpaqueCall{
+		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
+			&submodel.MultiOpaqueCall{
 				CallHash: hexutil.Encode(callHash[:])}}
 		return w.informChain(m.Destination, m.Source, mFlow)
 	}
@@ -339,8 +338,8 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 		mflow := submodel.MultiEventFlow{
 			EventData: &submodel.TransferFlow{
 				ShotId: flow.ShotId},
-			OpaqueCalls: []*substrate.MultiOpaqueCall{
-				&substrate.MultiOpaqueCall{
+			OpaqueCalls: []*submodel.MultiOpaqueCall{
+				&submodel.MultiOpaqueCall{
 					CallHash: hexutil.Encode(callHash[:])}},
 		}
 		return w.informChain(m.Destination, m.Source, &mflow)
