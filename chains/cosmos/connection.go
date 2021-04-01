@@ -23,7 +23,7 @@ import (
 type Connection struct {
 	url           string
 	symbol        core.RSymbol
-	currentHeight int64
+	currentHeight int64                         //todo enable automic
 	poolClients   map[string]*cosmos.PoolClient //map[addressHexStr]subClient
 	log           log15.Logger
 	stop          <-chan int
@@ -96,7 +96,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	//todo test only,must rm on release
-	return submodel.Pass, nil
+	//return submodel.Pass, nil
 
 	hashStr := hex.EncodeToString(r.Txhash)
 
@@ -119,7 +119,10 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 			retryTx--
 			continue
 		}
-		if txRes.Height+BlockConfirmNumber <= c.currentHeight {
+		if txRes.Height+BlockConfirmNumber > c.currentHeight {
+			c.log.Warn(fmt.Sprintf("confirm number is smaller than %d ,will retryTx after %f second", BlockConfirmNumber, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			retryTx--
 			continue
 		} else {
 			break
@@ -160,8 +163,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	msgs := txRes.GetTx().GetMsgs()
 	for i, _ := range msgs {
 		if msgs[i].Type() == xBankTypes.TypeMsgSend {
-			sendMsg, ok := msgs[i].(*xBankTypes.MsgSend)
-			if ok {
+			if sendMsg, ok := msgs[i].(*xBankTypes.MsgSend); ok {
 				toAddr, err := types.AccAddressFromBech32(sendMsg.ToAddress)
 				if err == nil {
 					//amount and pool address must in one message
@@ -198,6 +200,9 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	if !bytes.Equal(accountRes.GetPubKey().Bytes(), r.Pubkey) {
 		return submodel.PubkeyUnmatch, nil
 	}
+	//check memo
+	//tx.ConvertTxToStdTx(poolClient.GetRpcClient().GetLegacyAmino(), txRes.Data)
+
 	return submodel.Pass, nil
 }
 

@@ -155,7 +155,7 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON). //multi sig need this mod
 		WithGasAdjustment(1.5).
 		WithGasPrices(c.gasPrice).
-		WithGas(100000000).
+		WithGas(50000000).
 		WithSimulateAndExecute(true)
 
 	//todo fix auto cal gas

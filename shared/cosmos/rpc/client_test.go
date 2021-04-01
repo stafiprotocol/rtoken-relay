@@ -381,3 +381,9 @@ func TestMaxTransfer(t *testing.T) {
 	assert.NoError(t, err)
 	t.Log(txHash)
 }
+
+func TestMemo(t *testing.T) {
+	res, err := client.QueryTxByHash("594973BEE9771FA5FA05F57397462260FE88774D765253A7BAB192543C35266A")
+	assert.NoError(t, err)
+	t.Log(res.GetTx())
+}
