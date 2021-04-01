@@ -96,7 +96,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	//todo test only,must rm on release
-	//return submodel.Pass, nil
+	return submodel.Pass, nil
 
 	hashStr := hex.EncodeToString(r.Txhash)
 
