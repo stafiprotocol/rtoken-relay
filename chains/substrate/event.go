@@ -133,9 +133,9 @@ func (l *listener) processWithdrawUnbondEvt(evt *submodel.ChainEvent) (*submodel
 	}
 
 	//turn to process Transfer if rsymol==ratom
-	if data.Rsymbol == core.RATOM {
-		return l.processTransferBackEvt(evt)
-	}
+	//if data.Rsymbol == core.RATOM {
+	//	return l.processTransferBackEvt(evt)
+	//}
 
 	th, sub, err := l.thresholdAndSubAccounts(data.Rsymbol, data.Pool)
 	if err != nil {

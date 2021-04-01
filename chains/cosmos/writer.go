@@ -3,6 +3,7 @@ package cosmos
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -49,6 +50,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processSignatureEnoughEvt(m)
 	case core.BondReportEvent:
 		return w.processBondReportEvent(m)
+	case core.WithdrawUnbondEvent:
+		return w.processWithdrawUnbond(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
 	case core.TransferBackEvent:
@@ -192,7 +195,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	w.log.Info("processEraPoolUpdatedEvt gen unsigned Tx",
+	w.log.Info("processEraPoolUpdatedEvt gen unsigned bond/unbond Tx",
 		"pool address", poolAddr.String(),
 		"tx hash", hex.EncodeToString(proposalId))
 
@@ -390,6 +393,41 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
+}
+
+func (w *writer) processWithdrawUnbond(m *core.Message) bool {
+	mef, ok := m.Content.(*submodel.MultiEventFlow)
+	if !ok {
+		w.printContentError(m,fmt.Errorf("msg cast to MultiEventFlow not ok"))
+		return false
+	}
+
+	flow, ok := mef.EventData.(*submodel.WithdrawUnbondFlow)
+	if !ok {
+		w.log.Error("processWithdrawUnbond eventData is not WithdrawUnbondFlow")
+		return false
+	}
+
+	era, err := w.conn.GetCurrentEra()
+	if err != nil {
+		w.log.Error("CurrentEra error", "rsymbol", m.Source)
+		return false
+	}
+
+	if flow.Era != era {
+		w.log.Warn("processWithdrawUnbond of past era, ignored", "current", era, "eventEra", flow.Era, "rsymbol", flow.Rsymbol)
+		return true
+	}
+
+	callHash := utils.BlakeTwo256(flow.Pool)
+	mflow := submodel.MultiEventFlow{
+		EventData: flow,
+		OpaqueCalls: []*submodel.MultiOpaqueCall{
+			&submodel.MultiOpaqueCall{
+				CallHash: hexutil.Encode(callHash[:])}},
+	}
+
+	return w.informChain(m.Destination, m.Source, &mflow)
 }
 
 //process SignatureEnough event
