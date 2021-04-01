@@ -12,7 +12,8 @@
       "opts": {
         "startBlock": "1",
         "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/network/stafi.json",
-        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/blockstore"
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relaynew/blockstore",
+        "addressType": "AccountId"
       }
     },
     {
