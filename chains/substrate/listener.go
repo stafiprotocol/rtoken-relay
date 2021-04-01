@@ -237,7 +237,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[SignatureEnough](sigs, l.log))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawUnbondEventId {
-				l.log.Trace("Handling BondReportEvent")
+				l.log.Trace("Handling WithDrawUnBondEvent")
 				flow, err := l.processWithdrawUnbondEvt(evt)
 				if err != nil {
 					return err

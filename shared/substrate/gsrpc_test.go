@@ -133,19 +133,34 @@ func TestGsrpcClient_QueryStorage(t *testing.T) {
 	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
-	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
-	assert.NoError(t, err)
-
-	key := submodel.PoolKey{Rsymbol: core.RDOT, Pool: pool}
-	keybz, err := types.EncodeToBytes(key)
-	assert.NoError(t, err)
-
-	subAcs := make([]types.Bytes, 0)
-	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, keybz, nil, &subAcs)
+	//pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
+	//assert.NoError(t, err)
+	//
+	//key := submodel.PoolKey{Rsymbol: core.RDOT, Pool: pool}
+	//keybz, err := types.EncodeToBytes(key)
+	//assert.NoError(t, err)
+	type poolkey struct {
+		Rsymbol core.RSymbol
+		Pool    types.Bytes
+		Era     types.U32
+	}
+	pool, err := hexutil.Decode("0xeda331e37bf66b2393c4c271e384dfaa2bfcdd35")
+	bz, err := types.EncodeToBytes(poolkey{core.RATOM, types.NewBytes(pool), types.U32(11386)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(hexutil.Encode(bz))
+	type Unbonding struct {
+		Who       types.AccountID
+		Value     types.U128
+		Recipient types.Bytes
+	}
+	unbonds := make([]Unbonding, 0)
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
 	assert.NoError(t, err)
 	assert.True(t, exist)
-	for _, ac := range subAcs {
-		fmt.Println(hexutil.Encode(ac))
+	for _, ac := range unbonds {
+		fmt.Println(ac)
 	}
 }
 

@@ -255,16 +255,25 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-	bz, err := types.EncodeToBytes(struct {
-		core.RSymbol
-		types.Bytes
-		uint32
-	}{symbol, pool, era})
+	type poolkey struct {
+		Rsymbol core.RSymbol
+		Pool    types.Bytes
+		Era     types.U32
+	}
+
+
+	bz, err := types.EncodeToBytes(poolkey{symbol, pool, types.NewU32(era)})
 	if err != nil {
 		return nil, types.U128{}, err
 	}
 
-	unbonds := make([]*submodel.Unbonding, 0)
+	type Unbonding struct {
+		Who       types.AccountID
+		Value     types.U128
+		Recipient types.Bytes
+	}
+	unbonds := make([]Unbonding, 0)
+
 	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
 	if err != nil {
 
