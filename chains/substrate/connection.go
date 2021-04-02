@@ -390,7 +390,7 @@ func (c *Connection) TryPayout(flow *submodel.BondReportFlow) {
 	for _, stash := range flow.Stashes {
 		stashStr := hexutil.Encode(stash[:])
 
-		var controller []byte
+		var controller types.AccountID
 		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageBonded, stash[:], nil, &controller)
 		if err != nil {
 			c.log.Error("TryPayout get controller error", "error", err, "stash", stashStr)
@@ -400,10 +400,10 @@ func (c *Connection) TryPayout(flow *submodel.BondReportFlow) {
 			c.log.Error("TryPayout get controller not exist", "stash", stashStr)
 			continue
 		}
-		controllerStr := hexutil.Encode(controller)
+		controllerStr := hexutil.Encode(controller[:])
 
 		ledger := new(submodel.StakingLedger)
-		exist, err = c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller, nil, ledger)
+		exist, err = c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller[:], nil, ledger)
 		if err != nil {
 			c.log.Error("TryPayout get ledger error", "error", err, "stash", stashStr)
 			continue

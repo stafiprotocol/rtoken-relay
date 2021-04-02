@@ -131,7 +131,6 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			l.log.Info("pollBlocks", "currentBlock", currentBlock, "finalBlk", finalBlk)
 			// Sleep if the block we want comes after the most recently finalized block
 			if currentBlock+l.blockDelay() > finalBlk {
 				l.log.Trace("Block not yet finalized", "target", currentBlock, "finalBlk", finalBlk)
@@ -188,9 +187,9 @@ func (l *listener) processEra() error {
 
 // processEvents fetches a block and parses out the events, calling Listener.handleEvents()
 func (l *listener) processEvents(blockNum uint64) error {
-	//if blockNum%100 == 0 {
-	l.log.Debug("processEvents", "blockNum", blockNum)
-	//}
+	if blockNum%100 == 0 {
+		l.log.Debug("processEvents", "blockNum", blockNum)
+	}
 
 	evts, err := l.conn.GetEvents(blockNum)
 	if err != nil {
@@ -252,7 +251,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				flow, err := l.processNewMultisigEvt(evt)
 				if err != nil {
 					if err.Error() == multiEndError.Error() {
-						l.log.Info("listener received an eneded NewMultisig event, ignored")
+						l.log.Info("listener received an ended NewMultisig event, ignored")
 						continue
 					}
 					return err

@@ -550,7 +550,7 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 	}
 	delete(w.events, flow.CallHashStr)
 	delete(w.newMultics, flow.CallHashStr)
-	return w.informChain(m.Destination, m.Source, evt)
+	return w.informChain(m.Source, "", evt)
 }
 
 func (w *writer) informChain(source, dest core.RSymbol, flow *submodel.MultiEventFlow) bool {
@@ -686,6 +686,7 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 	}
 
 	flow.Active = types.NewU128(big.Int(ledger.Active))
+	w.log.Info("waitPayout", "waitFlag", waitFlag, "pool", hexutil.Encode(flow.Pool), "active", flow.Active)
 	m.Content = flow
 	m.Reason = core.ActiveReport
 
@@ -718,6 +719,9 @@ func (w *writer) printContentError(m *core.Message) {
 
 // submitMessage inserts the chainId into the msg and sends it to the router
 func (w *writer) submitMessage(m *core.Message) bool {
+	if m.Destination == "" {
+		m.Destination = core.RFIS
+	}
 	err := w.router.Send(m)
 	if err != nil {
 		w.log.Error("failed to process event", "err", err)

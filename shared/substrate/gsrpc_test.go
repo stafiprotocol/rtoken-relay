@@ -473,3 +473,36 @@ func TestFreeBalance(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(free1)
 }
+
+func TestBonded(t *testing.T) {
+	//lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	a := "0xbe5ddb1579b72e84524fc29e78609e3caf42e85aa118ebfe0b0ad404b5bdd25f"
+	mac, err := types.NewMultiAddressFromHexAccountID(a)
+	assert.NoError(t, err)
+	b := hexutil.Encode(mac.AsID[:])
+	fmt.Println(b)
+
+	var controller types.AccountID
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageBonded, mac.AsID[:], nil, &controller)
+	assert.NoError(t, err)
+	fmt.Println(exist)
+}
+
+func TestActive(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	a := "0xac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c"
+	mac, err := types.NewMultiAddressFromHexAccountID(a)
+	ledger := new(submodel.StakingLedger)
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLedger, mac.AsID[:], nil, ledger)
+	assert.NoError(t, err)
+	assert.True(t, exist)
+
+	fmt.Println(types.NewU128(big.Int(ledger.Active)))
+}
