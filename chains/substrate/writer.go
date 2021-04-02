@@ -658,7 +658,8 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 		}
 
 		endBlk := startBlk + waitBlockNum
-		for {
+
+	LOOP:for {
 			select {
 			default:
 				blk, err := w.conn.LatestBlockNumber()
@@ -668,7 +669,7 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 				if blk < endBlk {
 					time.Sleep(singleBlockTime)
 				} else {
-					break
+					break LOOP
 				}
 			}
 		}
