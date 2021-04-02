@@ -36,7 +36,7 @@ type callHashs struct {
 }
 
 var (
-	waitBlockNum    = uint64(50)
+	waitBlockNum    = uint64(30)
 	singleBlockTime = 6 * time.Second
 )
 
