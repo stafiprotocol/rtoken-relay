@@ -46,7 +46,8 @@
     "value_list": [
       "RFIS",
       "RDOT",
-      "RKSM"
+      "RKSM",
+      "RATOM"
     ]
   },
   "AccountRData": {
@@ -254,6 +255,36 @@
         "last_voter",
         "AccountId"
       ]
+    ]
+  },
+
+  "UserUnlockChunk": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "pool",
+        "Vec<u8>"
+      ],
+      [
+        "unlock_era",
+        "u32"
+      ],
+      [
+        "value",
+        "u128"
+      ],
+      [
+        "recipient",
+        "Vec<u8>"
+      ]
+    ]
+  },
+  "SigVerifyResult": {
+    "type": "enum",
+    "value_list": [
+      "InvalidPubkey",
+      "Fail",
+      "Pass"
     ]
   }
 }

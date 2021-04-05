@@ -25,7 +25,6 @@ const (
 	StorageSubAccounts     = "SubAccounts"
 	StorageMultiThresholds = "MultiThresholds"
 	StorageBondedPools     = "BondedPools"
-	StorageLastVoter       = "LastVoter"
 	StorageSnapshots       = "Snapshots"
 	StoragePoolUnbonds     = "PoolUnbonds"
 )

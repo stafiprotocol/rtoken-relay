@@ -506,3 +506,20 @@ func TestActive(t *testing.T) {
 
 	fmt.Println(types.NewU128(big.Int(ledger.Active)))
 }
+
+func TestActive1(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	a := "0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7"
+	b, _ := hexutil.Decode(a) // work
+	//mac, err := types.NewAddressFromHexAccountID(a) // work
+	//mac, err := types.NewMultiAddressFromHexAccountID(a) // work
+	ledger := new(submodel.StakingLedger)
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageLedger, b, nil, ledger)
+	assert.NoError(t, err)
+	assert.True(t, exist)
+
+	fmt.Println(types.NewU128(big.Int(ledger.Active)))
+}

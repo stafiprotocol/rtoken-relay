@@ -296,13 +296,13 @@ type StakingLedger struct {
 	Stash          types.AccountID
 	Total          types.UCompact
 	Active         types.UCompact
-	Unlocking      []*UnlockChunk
+	Unlocking      []UnlockChunk
 	ClaimedRewards []uint32
 }
 
 type UnlockChunk struct {
-	Value types.U128
-	Era   uint32
+	Value types.UCompact
+	Era   types.U32
 }
 
 type MultiOpaqueCall struct {
