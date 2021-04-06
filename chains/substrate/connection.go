@@ -51,7 +51,13 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, errors.New("addressType not ok")
 	}
 
-	sc, err := substrate.NewSarpcClient(cfg.Name, cfg.Endpoint, types, log)
+	ct := cfg.Opts["chainType"]
+	chainType, ok := ct.(string)
+	if !ok {
+		return nil, errors.New("chainType not ok")
+	}
+
+	sc, err := substrate.NewSarpcClient(chainType, cfg.Endpoint, types, log)
 	if err != nil {
 		return nil, err
 	}

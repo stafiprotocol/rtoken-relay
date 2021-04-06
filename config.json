@@ -13,7 +13,8 @@
       "opts": {
         "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
         "startBlock": "1",
-        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore"
+        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "chainType": "stafi"
       }
     },
     {
@@ -28,7 +29,9 @@
       "latestBlockFlag": true,
       "opts": {
         "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
-        "blockstorePath": ""
+        "blockstorePath": "",
+        "chainType": "polkadot"
+
       }
     }
   ]
