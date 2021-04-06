@@ -245,7 +245,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[TransferBack](flow, l.log))
 				}
 			}
-		case core.RDOT:
+		case core.RDOT, core.RKSM:
 			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {
 				l.log.Trace("Handling NewMultisigEvent")
 				flow, err := l.processNewMultisigEvt(evt)
