@@ -296,7 +296,7 @@ type StakingLedger struct {
 	Stash          types.AccountID
 	Total          types.UCompact
 	Active         types.UCompact
-	Unlocking      []UnlockChunk
+	//Unlocking      []UnlockChunk
 	ClaimedRewards []uint32
 }
 
