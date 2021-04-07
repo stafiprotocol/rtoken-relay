@@ -523,3 +523,21 @@ func TestActive1(t *testing.T) {
 
 	fmt.Println(types.NewU128(big.Int(ledger.Active)))
 }
+
+func TestPoolUnbonds(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	pool, _ := hexutil.Decode("0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7")
+	uk := &submodel.PoolUnbondKey{Rsymbol: core.RDOT, Pool: pool, Era: uint32(1776)}
+
+	bz, err := types.EncodeToBytes(uk)
+	assert.NoError(t, err)
+
+	unbonds := make([]submodel.Unbonding, 0)
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
+	assert.NoError(t, err)
+	fmt.Println(exist)
+	fmt.Println(unbonds)
+}

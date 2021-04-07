@@ -8,9 +8,9 @@ import (
 type RSymbol string
 
 const (
-	RFIS = RSymbol("RFIS")
-	RDOT = RSymbol("RDOT")
-	RKSM = RSymbol("RKSM")
+	RFIS  = RSymbol("RFIS")
+	RDOT  = RSymbol("RDOT")
+	RKSM  = RSymbol("RKSM")
 	RATOM = RSymbol("RATOM")
 )
 

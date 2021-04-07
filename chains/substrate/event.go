@@ -69,6 +69,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.EraPoolUpdatedEventId,
+		Rsymbol:     snap.Rsymbol,
 		EventData:   data,
 		Threshold:   th,
 		SubAccounts: sub,
@@ -102,6 +103,7 @@ func (l *listener) processWithdrawUnbondEvt(evt *submodel.ChainEvent) (*submodel
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.WithdrawUnbondEventId,
+		Rsymbol:     data.Rsymbol,
 		EventData:   data,
 		Threshold:   th,
 		SubAccounts: sub,
@@ -130,6 +132,7 @@ func (l *listener) processTransferBackEvt(evt *submodel.ChainEvent) (*submodel.M
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.TransferBackEventId,
+		Rsymbol:     data.Rsymbol,
 		EventData:   data,
 		Threshold:   th,
 		SubAccounts: sub,
@@ -211,11 +214,8 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-	bz, err := types.EncodeToBytes(struct {
-		core.RSymbol
-		types.Bytes
-		uint32
-	}{symbol, pool, era})
+	puk := &submodel.PoolUnbondKey{Rsymbol: symbol, Pool: pool, Era: era}
+	bz, err := types.EncodeToBytes(puk)
 	if err != nil {
 		return nil, types.U128{}, err
 	}

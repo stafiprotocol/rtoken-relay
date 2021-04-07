@@ -4,6 +4,7 @@
 package substrate
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -19,6 +20,7 @@ import (
 type listener struct {
 	name          string
 	rsymbol       core.RSymbol
+	cares         []core.RSymbol
 	startBlock    uint64
 	blockstore    blockstore.Blockstorer
 	conn          *Connection
@@ -36,10 +38,23 @@ var (
 	BlockRetryLimit    = 5
 )
 
-func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+	cares := make([]core.RSymbol, 0)
+	optCares := opts["cares"]
+	if optCares != nil {
+		if tmpCares, ok := optCares.([]string); ok {
+			for _, tc := range tmpCares {
+				cares = append(cares, core.RSymbol(tc))
+			}
+		} else {
+			sysErr <- errors.New("opt cares not string array")
+			return nil
+		}
+	}
 	return &listener{
 		name:          name,
 		rsymbol:       symbol,
+		cares:         cares,
 		startBlock:    startBlock,
 		blockstore:    bs,
 		conn:          conn,
@@ -205,7 +220,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if err != nil {
 					return err
 				}
-				if l.subscriptions[LiquidityBond] != nil {
+				if l.cared(flow.Record.Rsymbol) && l.subscriptions[LiquidityBond] != nil {
 					l.submitMessage(l.subscriptions[LiquidityBond](flow, l.log))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId {
@@ -214,7 +229,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if err != nil {
 					return err
 				}
-				if l.subscriptions[EraPoolUpdated] != nil {
+
+				if l.cared(flow.Rsymbol) && l.subscriptions[EraPoolUpdated] != nil {
 					l.submitMessage(l.subscriptions[EraPoolUpdated](flow, l.log))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportEventId {
@@ -223,7 +239,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if err != nil {
 					return err
 				}
-				if l.subscriptions[BondReport] != nil {
+				if l.cared(flow.Rsymbol) && l.subscriptions[BondReport] != nil {
 					l.submitMessage(l.subscriptions[BondReport](flow, l.log))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawUnbondEventId {
@@ -232,7 +248,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if err != nil {
 					return err
 				}
-				if l.subscriptions[WithdrawUnbond] != nil {
+				if l.cared(flow.Rsymbol) && l.subscriptions[WithdrawUnbond] != nil {
 					l.submitMessage(l.subscriptions[WithdrawUnbond](flow, l.log))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.TransferBackEventId {
@@ -241,7 +257,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if err != nil {
 					return err
 				}
-				if l.subscriptions[TransferBack] != nil {
+				if l.cared(flow.Rsymbol) && l.subscriptions[TransferBack] != nil {
 					l.submitMessage(l.subscriptions[TransferBack](flow, l.log))
 				}
 			}
@@ -300,4 +316,18 @@ func (l *listener) blockDelay() uint64 {
 	default:
 		return 0
 	}
+}
+
+func (l *listener) cared(symbol core.RSymbol) bool {
+	if len(l.cares) == 0 {
+		return true
+	}
+
+	for _, care := range l.cares {
+		if care == symbol {
+			return true
+		}
+	}
+
+	return false
 }

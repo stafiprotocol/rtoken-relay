@@ -14,7 +14,8 @@
         "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
         "startBlock": "1",
         "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
-        "chainType": "stafi"
+        "chainType": "stafi",
+        "cares": ["RDOT"]
       }
     },
     {
@@ -31,7 +32,6 @@
         "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
         "blockstorePath": "",
         "chainType": "polkadot"
-
       }
     }
   ]
