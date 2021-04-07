@@ -209,18 +209,25 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 
 	return threshold, subs, nil
 }
-
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-	bz, err := types.EncodeToBytes(struct {
-		core.RSymbol
-		types.Bytes
-		uint32
-	}{symbol, pool, era})
+	type poolkey struct {
+		Rsymbol core.RSymbol
+		Pool    types.Bytes
+		Era     types.U32
+	}
+
+	bz, err := types.EncodeToBytes(poolkey{symbol, pool, types.NewU32(era)})
 	if err != nil {
 		return nil, types.U128{}, err
 	}
 
-	unbonds := make([]*submodel.Unbonding, 0)
+	type Unbonding struct {
+		Who       types.AccountID
+		Value     types.U128
+		Recipient types.Bytes
+	}
+	unbonds := make([]Unbonding, 0)
+
 	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
 	if err != nil {
 
@@ -251,3 +258,45 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 
 	return receives, total, nil
 }
+
+//func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
+//	bz, err := types.EncodeToBytes(struct {
+//		core.RSymbol
+//		types.Bytes
+//		uint32
+//	}{symbol, pool, era})
+//	if err != nil {
+//		return nil, types.U128{}, err
+//	}
+//
+//	unbonds := make([]*submodel.Unbonding, 0)
+//	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
+//	if err != nil {
+//
+//	}
+//	if !exist {
+//		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
+//	}
+//
+//	amounts := make(map[string]types.U128)
+//	for _, ub := range unbonds {
+//		rec := hexutil.Encode(ub.Recipient)
+//		acc, ok := amounts[rec]
+//		if !ok {
+//			amounts[rec] = ub.Value
+//		} else {
+//			amounts[rec] = utils.AddU128(acc, ub.Value)
+//		}
+//	}
+//
+//	receives := make([]*submodel.Receive, 0)
+//	total := types.NewU128(*big.NewInt(0))
+//	for k, v := range amounts {
+//		r, _ := hexutil.Decode(k)
+//		rec := &submodel.Receive{Recipient: types.NewAddressFromAccountID(r), Value: types.NewUCompact(v.Int)}
+//		receives = append(receives, rec)
+//		total = utils.AddU128(total, v)
+//	}
+//
+//	return receives, total, nil
+//}
