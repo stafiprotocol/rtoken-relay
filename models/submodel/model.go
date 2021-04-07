@@ -154,6 +154,7 @@ type PoolKey struct {
 
 type MultiEventFlow struct {
 	EventId         string
+	Rsymbol         core.RSymbol
 	EventData       interface{}
 	Threshold       uint16
 	SubAccounts     []types.Bytes
@@ -244,15 +245,16 @@ type MultiCallParam struct {
 	CallHash  string
 }
 
+type PoolUnbondKey struct {
+	Rsymbol core.RSymbol
+	Pool    []byte
+	Era     uint32
+}
+
 type Unbonding struct {
-	Who        types.AccountID
-	Symbol     core.RSymbol
-	Pool       []byte
-	Rvalue     types.U128
-	Value      types.U128
-	CurrentEra uint32
-	UnlockEra  uint32
-	Recipient  []byte
+	Who       types.AccountID
+	Value     types.U128
+	Recipient []byte
 }
 
 type Receive struct {
@@ -293,9 +295,9 @@ type IndividualExposure struct {
 }
 
 type StakingLedger struct {
-	Stash          types.AccountID
-	Total          types.UCompact
-	Active         types.UCompact
+	Stash  types.AccountID
+	Total  types.UCompact
+	Active types.UCompact
 	//Unlocking      []UnlockChunk
 	ClaimedRewards []uint32
 }

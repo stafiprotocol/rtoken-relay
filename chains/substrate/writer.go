@@ -659,7 +659,8 @@ func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
 
 		endBlk := startBlk + waitBlockNum
 
-	LOOP:for {
+	LOOP:
+		for {
 			select {
 			default:
 				blk, err := w.conn.LatestBlockNumber()
