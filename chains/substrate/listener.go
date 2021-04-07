@@ -4,7 +4,6 @@
 package substrate
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -41,14 +40,18 @@ var (
 func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	cares := make([]core.RSymbol, 0)
 	optCares := opts["cares"]
+	log.Info("NewListener", "optCares", optCares)
 	if optCares != nil {
-		if tmpCares, ok := optCares.([]string); ok {
+		if tmpCares, ok := optCares.([]interface{}); ok {
 			for _, tc := range tmpCares {
-				cares = append(cares, core.RSymbol(tc))
+				care, ok := tc.(string)
+				if !ok {
+					panic("care not string")
+				}
+				cares = append(cares, core.RSymbol(care))
 			}
 		} else {
-			sysErr <- errors.New("opt cares not string array")
-			return nil
+			panic("opt cares not string array")
 		}
 	}
 	return &listener{
