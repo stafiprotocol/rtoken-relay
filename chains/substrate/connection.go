@@ -40,7 +40,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	log.Info("NewConnection", "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint, "typesPath", cfg.Opts["typesPath"])
 
 	typesPath := cfg.Opts["typesPath"]
-	types, ok := typesPath.(string)
+	path, ok := typesPath.(string)
 	if !ok {
 		return nil, errors.New("no typesPath")
 	}
@@ -57,7 +57,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, errors.New("chainType not ok")
 	}
 
-	sc, err := substrate.NewSarpcClient(chainType, cfg.Endpoint, types, log)
+	sc, err := substrate.NewSarpcClient(chainType, cfg.Endpoint, path, log)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,26 @@ func (c *Connection) CurrentEra() (uint32, error) {
 	return index, nil
 }
 
-func (c *Connection) CurrentRsymbolEra(sym core.RSymbol) (uint32, error) {
+func (c *Connection) EraContinuable(sym core.RSymbol) (bool, error) {
+	symBz, err := types.EncodeToBytes(sym)
+	if err != nil {
+		return false, err
+	}
+
+	ids := make([]types.Hash, 0)
+	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageCurrentEraSnapShots, symBz, nil, &ids)
+	if err != nil {
+		return false, err
+	}
+
+	if !exists {
+		return true, nil
+	}
+
+	return len(ids) == 0, nil
+}
+
+func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
 	symBz, err := types.EncodeToBytes(sym)
 	if err != nil {
 		return 0, err
@@ -279,7 +298,7 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
-func (c *Connection) BondOrUnbondCall(snap *submodel.EraPoolSnapshot) (*submodel.MultiOpaqueCall, error) {
+func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.MultiOpaqueCall, error) {
 	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
 
@@ -348,9 +367,9 @@ func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
 	return gc.SignAndSubmitTx(ext)
 }
 
-func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportFlow) error {
+func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow) error {
 	fullTargets := make([]types.AccountID, 0)
-	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageNominators, flow.Pool, nil, &fullTargets)
+	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageNominators, flow.Snap.Pool, nil, &fullTargets)
 	if err != nil {
 		return err
 	}
@@ -385,7 +404,7 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportFlow) error {
 	return nil
 }
 
-func (c *Connection) TryPayout(flow *submodel.BondReportFlow) {
+func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) {
 	calls := make([]types.Call, 0)
 	meta, err := c.LatestMetadata()
 	if err != nil {

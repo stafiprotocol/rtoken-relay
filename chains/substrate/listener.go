@@ -28,7 +28,6 @@ type listener struct {
 	log           log15.Logger
 	stop          <-chan int
 	sysErr        chan<- error
-	currentEra    uint32
 }
 
 // Frequency of polling for a new block
@@ -65,7 +64,6 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 		log:           log,
 		stop:          stop,
 		sysErr:        sysErr,
-		currentEra:    0,
 	}
 }
 
@@ -158,6 +156,11 @@ func (l *listener) pollBlocks() error {
 
 			if l.rsymbol != core.RFIS {
 				err = l.processEra()
+				if err != nil {
+					l.log.Error("Failed to processEra", "err", err)
+					retry--
+					continue
+				}
 			}
 
 			err = l.processEvents(currentBlock)
@@ -192,12 +195,6 @@ func (l *listener) processEra() error {
 		return err
 	}
 
-	if era == l.currentEra {
-		return nil
-	}
-
-	l.log.Info("get a new era, prepare to send message", "rsymbol", l.rsymbol, "currentEra", l.currentEra, "newEra", era)
-	l.currentEra = era
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)
 	return nil
@@ -224,44 +221,56 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Record.Rsymbol) && l.subscriptions[LiquidityBond] != nil {
-					l.submitMessage(l.subscriptions[LiquidityBond](flow, l.log))
+					l.submitMessage(l.subscriptions[LiquidityBond](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId {
 				l.log.Trace("Handling EraPoolUpdatedEvent")
 				flow, err := l.processEraPoolUpdatedEvt(evt)
 				if err != nil {
+					if err.Error() == BondStateNotEraUpdatedError.Error() {
+						continue
+					}
 					return err
 				}
 
 				if l.cared(flow.Rsymbol) && l.subscriptions[EraPoolUpdated] != nil {
-					l.submitMessage(l.subscriptions[EraPoolUpdated](flow, l.log))
+					l.submitMessage(l.subscriptions[EraPoolUpdated](flow))
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportEventId {
+			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId {
 				l.log.Trace("Handling BondReportEvent")
-				flow, err := l.processBondReportEvt(evt)
+				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
+					if err.Error() == BondStateNotBondReportedError.Error() {
+						continue
+					}
 					return err
 				}
-				if l.cared(flow.Rsymbol) && l.subscriptions[BondReport] != nil {
-					l.submitMessage(l.subscriptions[BondReport](flow, l.log))
+				if l.cared(flow.Snap.Rsymbol) && l.subscriptions[BondReported] != nil {
+					l.submitMessage(l.subscriptions[BondReported](flow))
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawUnbondEventId {
+			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId {
 				l.log.Trace("Handling BondReportEvent")
-				flow, err := l.processWithdrawUnbondEvt(evt)
+				flow, err := l.processActiveReportedEvt(evt)
 				if err != nil {
+					if err.Error() == BondStateNotActiveReportedError.Error() {
+						continue
+					}
 					return err
 				}
-				if l.cared(flow.Rsymbol) && l.subscriptions[WithdrawUnbond] != nil {
-					l.submitMessage(l.subscriptions[WithdrawUnbond](flow, l.log))
+				if l.cared(flow.Rsymbol) && l.subscriptions[ActiveReported] != nil {
+					l.submitMessage(l.subscriptions[ActiveReported](flow))
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.TransferBackEventId {
-				l.log.Trace("Handling TransferBackEvent")
-				flow, err := l.processTransferBackEvt(evt)
+			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawReportedEventId {
+				l.log.Trace("Handling WithdrawReportedEvent")
+				flow, err := l.processWithdrawReportedEvt(evt)
 				if err != nil {
+					if err.Error() == BondStateNotWithdrawReportedError.Error() {
+						continue
+					}
 					return err
 				}
-				if l.cared(flow.Rsymbol) && l.subscriptions[TransferBack] != nil {
-					l.submitMessage(l.subscriptions[TransferBack](flow, l.log))
+				if l.cared(flow.Rsymbol) && l.subscriptions[WithdrawReported] != nil {
+					l.submitMessage(l.subscriptions[WithdrawReported](flow))
 				}
 			}
 		case core.RDOT, core.RKSM:
@@ -276,7 +285,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.subscriptions[NewMultisig] != nil {
-					l.submitMessage(l.subscriptions[NewMultisig](flow, l.log))
+					l.submitMessage(l.subscriptions[NewMultisig](flow))
 				}
 			} else if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.MultisigExecutedEventId {
 				l.log.Trace("Handling MultisigExecutedEvent")
@@ -285,7 +294,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.subscriptions[MultisigExecuted] != nil {
-					l.submitMessage(l.subscriptions[MultisigExecuted](flow, l.log))
+					l.submitMessage(l.subscriptions[MultisigExecuted](flow))
 				}
 			}
 		default:

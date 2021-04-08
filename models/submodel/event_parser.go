@@ -127,119 +127,65 @@ func EventMultisigExecutedData(evt *ChainEvent) (*EventMultisigExecuted, error) 
 	}, nil
 }
 
-func EventBondReport(evt *ChainEvent) (*BondReportFlow, error) {
-	if len(evt.Params) != 5 {
-		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
+func EventBondReported(evt *ChainEvent) (*BondReportedFlow, error) {
+	if len(evt.Params) != 2 {
+		return nil, fmt.Errorf("EventBondReported params number not right: %d, expected: 2", len(evt.Params))
 	}
 
 	shot, err := parseHash(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventBondReported params[0] -> shot_id error: %s", err)
 	}
 
-	symbol, err := parseRsymbol(evt.Params[1].Value)
+	voter, err := parseAccountId(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[1] -> rsymbol error: %s", err)
+		return nil, fmt.Errorf("EventBondReported params[1] -> lastVoter error: %s", err)
 	}
 
-	pool, err := parseBytes(evt.Params[2].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[2] -> pool error: %s", err)
-	}
-
-	era, err := parseEra(evt.Params[3])
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[3] -> era error: %s", err)
-	}
-
-	voter, err := parseAccountId(evt.Params[4].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[4] -> lastVoter error: %s", err)
-	}
-
-	return &BondReportFlow{
+	return &BondReportedFlow{
 		ShotId:    shot,
-		Rsymbol:   symbol,
-		Pool:      pool,
-		Era:       era.Value,
 		LastVoter: voter,
 	}, nil
 }
 
-func EventWithdrawUnbond(evt *ChainEvent) (*WithdrawUnbondFlow, error) {
-	if len(evt.Params) != 5 {
-		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
+func EventActiveReported(evt *ChainEvent) (*ActiveReportedFlow, error) {
+	if len(evt.Params) != 2 {
+		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 2", len(evt.Params))
 	}
 
 	shot, err := parseHash(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[0] -> shot_id error: %s", err)
 	}
 
-	symbol, err := parseRsymbol(evt.Params[1].Value)
+	voter, err := parseAccountId(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[1] -> rsymbol error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[1] -> lastVoter error: %s", err)
 	}
 
-	pool, err := parseBytes(evt.Params[2].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[2] -> pool error: %s", err)
-	}
-
-	era, err := parseEra(evt.Params[3])
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[3] -> era error: %s", err)
-	}
-
-	voter, err := parseAccountId(evt.Params[4].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[4] -> lastVoter error: %s", err)
-	}
-
-	return &WithdrawUnbondFlow{
+	return &ActiveReportedFlow{
 		ShotId:    shot,
-		Rsymbol:   symbol,
-		Pool:      pool,
-		Era:       era.Value,
 		LastVoter: voter,
 	}, nil
 }
 
-func EventTransferBack(evt *ChainEvent) (*TransferFlow, error) {
-	if len(evt.Params) != 5 {
-		return nil, fmt.Errorf("EventBondReport params number not right: %d, expected: 5", len(evt.Params))
+func EventWithdrawReported(evt *ChainEvent) (*WithdrawReportedFlow, error) {
+	if len(evt.Params) != 2 {
+		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 2", len(evt.Params))
 	}
 
 	shot, err := parseHash(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[0] -> shot_id error: %s", err)
 	}
 
-	symbol, err := parseRsymbol(evt.Params[1].Value)
+	voter, err := parseAccountId(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[1] -> rsymbol error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[1] -> lastVoter error: %s", err)
 	}
 
-	pool, err := parseBytes(evt.Params[2].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[2] -> pool error: %s", err)
-	}
-
-	era, err := parseEra(evt.Params[3])
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[3] -> era error: %s", err)
-	}
-
-	voter, err := parseAccountId(evt.Params[4].Value)
-	if err != nil {
-		return nil, fmt.Errorf("EventBondReport params[4] -> lastVoter error: %s", err)
-	}
-
-	return &TransferFlow{
+	return &WithdrawReportedFlow{
 		ShotId:    shot,
-		Rsymbol:   symbol,
-		Pool:      pool,
-		Era:       era.Value,
 		LastVoter: voter,
 	}, nil
 }

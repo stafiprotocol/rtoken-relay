@@ -224,6 +224,17 @@
       "ClaimRewards"
     ]
   },
+  "PoolBondState": {
+    "type": "enum",
+    "value_list": [
+      "EraUpdated",
+      "BondReported",
+      "ActiveReported",
+      "WithdrawSkipped",
+      "WithdrawReported",
+      "TransferReported"
+    ]
+  },
   "BondSnapshot": {
     "type": "struct",
     "type_mapping": [
@@ -254,6 +265,10 @@
       [
         "last_voter",
         "AccountId"
+      ],
+      [
+        "bond_state",
+        "PoolBondState"
       ]
     ]
   },

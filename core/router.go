@@ -35,7 +35,10 @@ func (r *Router) Send(msg *Message) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.log.Trace("Routing message", "source", msg.Source, "dest", msg.Destination, "Reason", msg.Reason)
+	if msg.Reason != NewEra {
+		r.log.Trace("Routing message", "source", msg.Source, "dest", msg.Destination, "Reason", msg.Reason)
+	}
+
 	w := r.registry[msg.Destination]
 	if w == nil {
 		return fmt.Errorf("unknown destination symbol: %s", msg.Destination)

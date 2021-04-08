@@ -158,7 +158,7 @@ func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error
 	return true, "", nil
 }
 
-func (c *Connection) newUpdateEraProposal(key *submodel.BondKey, newEra types.U32) (*submodel.Proposal, error) {
+func (c *Connection) SetChainEraProposal(key *submodel.BondKey, newEra uint32) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err

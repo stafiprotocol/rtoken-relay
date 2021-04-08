@@ -13,7 +13,14 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
-var multiEndError = errors.New("multiEnd")
+var (
+	multiEndError = errors.New("multiEnd")
+
+	BondStateNotEraUpdatedError       = errors.New("BondStateNotEraUpdatedError")
+	BondStateNotBondReportedError     = errors.New("BondStateNotBondReportedError")
+	BondStateNotActiveReportedError   = errors.New("BondStateNotActiveReportedError")
+	BondStateNotWithdrawReportedError = errors.New("BondStateNotWithdrawReportedError")
+)
 
 func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submodel.BondFlow, error) {
 	evtData, err := submodel.LiquidityBondEventData(evt)
@@ -59,6 +66,12 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	if snap.BondState != submodel.EraUpdated {
+		l.log.Warn("processEraPoolUpdatedEvt: bondState not EraUpdated",
+			"rsymbol", snap.Rsymbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		return nil, BondStateNotEraUpdatedError
+	}
+
 	th, sub, err := l.thresholdAndSubAccounts(snap.Rsymbol, snap.Pool)
 	if err != nil {
 		return nil, err
@@ -76,64 +89,100 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	}, nil
 }
 
-func (l *listener) processBondReportEvt(evt *submodel.ChainEvent) (*submodel.BondReportFlow, error) {
-	flow, err := submodel.EventBondReport(evt)
+func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.BondReportedFlow, error) {
+	flow, err := submodel.EventBondReported(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := l.snapshot(flow.ShotId)
+	if err != nil {
+		return nil, err
+	}
+
+	if snap.BondState != submodel.BondReported {
+		l.log.Warn("processBondReportedEvt: bondState not BondReported",
+			"rsymbol", snap.Rsymbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		return nil, BondStateNotBondReportedError
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	flow.Snap = snap
+	flow.LastEra = snap.Era - 1
+
+	return flow, nil
+}
+
+func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+	flow, err := submodel.EventActiveReported(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := l.snapshot(flow.ShotId)
+	if err != nil {
+		return nil, err
+	}
+
+	if snap.BondState != submodel.ActiveReported {
+		l.log.Warn("processActiveReportedEvt: bondState not ActiveReported",
+			"rsymbol", snap.Rsymbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		return nil, BondStateNotBondReportedError
+	}
+
+	th, sub, err := l.thresholdAndSubAccounts(snap.Rsymbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
 
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
-	flow.LastEra = flow.Era - 1
-
-	return flow, nil
-}
-
-func (l *listener) processWithdrawUnbondEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
-	data, err := submodel.EventWithdrawUnbond(evt)
-	if err != nil {
-		return nil, err
-	}
-
-	th, sub, err := l.thresholdAndSubAccounts(data.Rsymbol, data.Pool)
-	if err != nil {
-		return nil, err
-	}
-
-	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
+	flow.Snap = snap
 
 	return &submodel.MultiEventFlow{
-		EventId:     config.WithdrawUnbondEventId,
-		Rsymbol:     data.Rsymbol,
-		EventData:   data,
+		EventId:     config.ActiveReportedEventId,
+		Rsymbol:     snap.Rsymbol,
+		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
 	}, nil
 }
 
-func (l *listener) processTransferBackEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
-	data, err := submodel.EventTransferBack(evt)
+func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+	flow, err := submodel.EventWithdrawReported(evt)
 	if err != nil {
 		return nil, err
 	}
 
-	receives, total, err := l.unbondings(data.Rsymbol, data.Pool, data.Era)
+	snap, err := l.snapshot(flow.ShotId)
 	if err != nil {
 		return nil, err
 	}
 
-	th, sub, err := l.thresholdAndSubAccounts(data.Rsymbol, data.Pool)
+	if snap.BondState != submodel.WithdrawReported {
+		l.log.Warn("processWithdrawReportedEvt: bondState not WithdrawReported",
+			"rsymbol", snap.Rsymbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		return nil, BondStateNotWithdrawReportedError
+	}
+
+	receives, total, err := l.unbondings(snap.Rsymbol, snap.Pool, snap.Era)
 	if err != nil {
 		return nil, err
 	}
 
-	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
-	data.Receives = receives
-	data.TotalAmount = total
+	th, sub, err := l.thresholdAndSubAccounts(snap.Rsymbol, snap.Pool)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	flow.Snap = snap
+	flow.Receives = receives
+	flow.TotalAmount = total
 
 	return &submodel.MultiEventFlow{
-		EventId:     config.TransferBackEventId,
-		Rsymbol:     data.Rsymbol,
-		EventData:   data,
+		EventId:     config.WithdrawReportedEventId,
+		Rsymbol:     snap.Rsymbol,
+		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
 	}, nil
@@ -170,9 +219,9 @@ func (l *listener) processMultisigExecutedEvt(evt *submodel.ChainEvent) (*submod
 	return data, nil
 }
 
-func (l *listener) snapshot(shotId types.Hash) (*submodel.EraPoolSnapshot, error) {
+func (l *listener) snapshot(shotId types.Hash) (*submodel.PoolSnapshot, error) {
 	bz, err := types.EncodeToBytes(shotId)
-	snap := new(submodel.EraPoolSnapshot)
+	snap := new(submodel.PoolSnapshot)
 	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, bz, nil, snap)
 	if err != nil {
 		return nil, err
@@ -214,27 +263,16 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-	type poolkey struct {
-		Rsymbol core.RSymbol
-		Pool    types.Bytes
-		Era     types.U32
-	}
-
-	bz, err := types.EncodeToBytes(poolkey{symbol, pool, types.NewU32(era)})
+	puk := &submodel.PoolUnbondKey{Rsymbol: symbol, Pool: pool, Era: era}
+	bz, err := types.EncodeToBytes(puk)
 	if err != nil {
 		return nil, types.U128{}, err
 	}
 
-	type Unbonding struct {
-		Who       types.AccountID
-		Value     types.U128
-		Recipient types.Bytes
-	}
-	unbonds := make([]Unbonding, 0)
-
+	unbonds := make([]submodel.Unbonding, 0)
 	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
 	if err != nil {
-
+		return nil, types.U128{}, err
 	}
 	if !exist {
 		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
@@ -262,45 +300,3 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 
 	return receives, total, nil
 }
-
-//func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-//	bz, err := types.EncodeToBytes(struct {
-//		core.RSymbol
-//		types.Bytes
-//		uint32
-//	}{symbol, pool, era})
-//	if err != nil {
-//		return nil, types.U128{}, err
-//	}
-//
-//	unbonds := make([]*submodel.Unbonding, 0)
-//	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
-//	if err != nil {
-//
-//	}
-//	if !exist {
-//		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
-//	}
-//
-//	amounts := make(map[string]types.U128)
-//	for _, ub := range unbonds {
-//		rec := hexutil.Encode(ub.Recipient)
-//		acc, ok := amounts[rec]
-//		if !ok {
-//			amounts[rec] = ub.Value
-//		} else {
-//			amounts[rec] = utils.AddU128(acc, ub.Value)
-//		}
-//	}
-//
-//	receives := make([]*submodel.Receive, 0)
-//	total := types.NewU128(*big.NewInt(0))
-//	for k, v := range amounts {
-//		r, _ := hexutil.Decode(k)
-//		rec := &submodel.Receive{Recipient: types.NewAddressFromAccountID(r), Value: types.NewUCompact(v.Int)}
-//		receives = append(receives, rec)
-//		total = utils.AddU128(total, v)
-//	}
-//
-//	return receives, total, nil
-//}

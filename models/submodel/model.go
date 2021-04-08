@@ -2,9 +2,9 @@ package submodel
 
 import (
 	"fmt"
+
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/substrate-api-rpc/rpc"
-
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -127,6 +127,43 @@ func (r *RproposalStatus) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+type PoolBondState string
+
+const (
+	EraUpdated       = PoolBondState("EraUpdated")
+	BondReported     = PoolBondState("BondReported")
+	ActiveReported   = PoolBondState("ActiveReported")
+	WithdrawSkipped  = PoolBondState("WithdrawSkipped")
+	WithdrawReported = PoolBondState("WithdrawReported")
+	TransferReported = PoolBondState("TransferReported")
+)
+
+func (p *PoolBondState) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*p = EraUpdated
+	case 1:
+		*p = BondReported
+	case 2:
+		*p = ActiveReported
+	case 3:
+		*p = WithdrawSkipped
+	case 4:
+		*p = WithdrawReported
+	case 5:
+		*p = TransferReported
+	default:
+		return fmt.Errorf("PoolBondState decode error: %d", b)
+	}
+
+	return nil
+}
+
 type VoteState struct {
 	VotesFor     []types.AccountID
 	VotesAgainst []types.AccountID
@@ -152,6 +189,49 @@ type PoolKey struct {
 	Pool    []byte
 }
 
+type PoolSnapshot struct {
+	Rsymbol   core.RSymbol
+	Era       uint32
+	Pool      []byte
+	Bond      types.U128
+	Unbond    types.U128
+	Active    types.U128
+	LastVoter types.AccountID
+	BondState PoolBondState
+}
+
+type EraPoolUpdatedFlow struct {
+	ShotId        types.Hash
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+	Snap          *PoolSnapshot
+}
+
+type BondReportedFlow struct {
+	ShotId        types.Hash
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+	Snap          *PoolSnapshot
+	LastEra       uint32
+	Stashes       []types.AccountID
+}
+
+type ActiveReportedFlow struct {
+	ShotId        types.Hash
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+	Snap          *PoolSnapshot
+}
+
+type WithdrawReportedFlow struct {
+	ShotId        types.Hash
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+	Snap          *PoolSnapshot
+	Receives      []*Receive
+	TotalAmount   types.U128
+}
+
 type MultiEventFlow struct {
 	EventId         string
 	Rsymbol         core.RSymbol
@@ -164,55 +244,6 @@ type MultiEventFlow struct {
 	PaymentInfo     *rpc.PaymentQueryInfo
 	NewMulCallHashs map[string]bool
 	MulExeCallHashs map[string]bool
-}
-
-type BondReportFlow struct {
-	ShotId        types.Hash
-	Rsymbol       core.RSymbol
-	Pool          []byte
-	Era           uint32
-	LastVoter     types.AccountID
-	LastEra       uint32
-	LastVoterFlag bool
-	Active        types.U128
-	Stashes       []types.AccountID
-}
-
-type WithdrawUnbondFlow struct {
-	ShotId        types.Hash
-	Rsymbol       core.RSymbol
-	Pool          []byte
-	Era           uint32
-	LastVoter     types.AccountID
-	LastVoterFlag bool
-}
-
-type TransferFlow struct {
-	ShotId        types.Hash
-	Rsymbol       core.RSymbol
-	Pool          []byte
-	Era           uint32
-	LastVoter     types.AccountID
-	LastVoterFlag bool
-	Receives      []*Receive
-	TotalAmount   types.U128
-}
-
-type EraPoolUpdatedFlow struct {
-	ShotId        types.Hash
-	LastVoter     types.AccountID
-	LastVoterFlag bool
-	Snap          *EraPoolSnapshot
-}
-
-type EraPoolSnapshot struct {
-	Rsymbol   core.RSymbol
-	Era       uint32
-	Pool      []byte
-	Bond      types.U128
-	Unbond    types.U128
-	Active    types.U128
-	LastVoter types.AccountID
 }
 
 type EventNewMultisig struct {
