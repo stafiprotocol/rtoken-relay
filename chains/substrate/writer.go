@@ -6,6 +6,7 @@ package substrate
 import (
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -21,14 +22,68 @@ import (
 )
 
 type writer struct {
-	conn          *Connection
-	router        chains.Router
-	log           log15.Logger
-	sysErr        chan<- error
-	events        map[string]*submodel.MultiEventFlow
-	newMultics    map[string]*submodel.EventNewMultisig
-	multiExecuted map[string]*submodel.EventMultisigExecuted
-	bondedPools   map[string]bool
+	conn           *Connection
+	router         chains.Router
+	log            log15.Logger
+	sysErr         chan<- error
+	eventMtx       sync.RWMutex
+	newMulTicsMtx  sync.RWMutex
+	bondedPoolsMtx sync.RWMutex
+	events         map[string]*submodel.MultiEventFlow
+	newMultics     map[string]*submodel.EventNewMultisig
+	multiExecuted  map[string]*submodel.EventMultisigExecuted
+	bondedPools    map[string]bool
+}
+
+func (w *writer) getEvents(key string) (*submodel.MultiEventFlow, bool) {
+	w.eventMtx.RLock()
+	defer w.eventMtx.RUnlock()
+	value, exist := w.events[key]
+	return value, exist
+}
+
+func (w *writer) setEvents(key string, value *submodel.MultiEventFlow) {
+	w.eventMtx.Lock()
+	defer w.eventMtx.Unlock()
+	w.events[key] = value
+}
+
+func (w *writer) deleteEvents(key string) {
+	w.eventMtx.Lock()
+	defer w.eventMtx.Unlock()
+	delete(w.events, key)
+}
+
+func (w *writer) getNewMultics(key string) (*submodel.EventNewMultisig, bool) {
+	w.newMulTicsMtx.RLock()
+	defer w.newMulTicsMtx.RUnlock()
+	value, exist := w.newMultics[key]
+	return value, exist
+}
+
+func (w *writer) setNewMultics(key string, value *submodel.EventNewMultisig) {
+	w.newMulTicsMtx.Lock()
+	defer w.newMulTicsMtx.Unlock()
+	w.newMultics[key] = value
+}
+
+func (w *writer) deleteNewMultics(key string) {
+	w.newMulTicsMtx.Lock()
+	defer w.newMulTicsMtx.Unlock()
+	delete(w.newMultics, key)
+}
+
+func (w *writer) getBondedPools(key string) (bool, bool) {
+	w.bondedPoolsMtx.RLock()
+	defer w.bondedPoolsMtx.RUnlock()
+	value, exist := w.bondedPools[key]
+	return value, exist
+}
+
+func (w *writer) setBondedPools(key string, value bool) {
+	w.bondedPoolsMtx.Lock()
+	defer w.bondedPoolsMtx.Unlock()
+	w.bondedPools[key] = value
 }
 
 type callHashs struct {
@@ -206,7 +261,7 @@ func (w *writer) processBondedPools(m *core.Message) bool {
 
 	for _, p := range pools {
 		w.log.Info("processBondedPools", "pool", utiles.AddHex(hexutil.Encode(p)))
-		w.bondedPools[hexutil.Encode(p)] = true
+		w.setBondedPools(hexutil.Encode(p), true)
 	}
 
 	return true
@@ -269,7 +324,8 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
-	w.events[call.CallHash] = mef
+
+	w.setEvents(call.CallHash, mef)
 
 	if flow.LastVoterFlag {
 		call.TimePoint = submodel.NewOptionTimePointEmpty()
@@ -282,10 +338,10 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return true
 	}
 
-	newMuls, ok := w.newMultics[callhash]
+	newMuls, ok := w.getNewMultics(callhash)
 	if !ok {
 		w.log.Info("not last voter, wait for NewMultisigEvent")
-		w.events[call.CallHash] = mef
+		w.setEvents(call.CallHash, mef)
 		return true
 	}
 	call.TimePoint = newMuls.TimePoint
@@ -352,7 +408,7 @@ func (w *writer) processWithdrawUnbond(m *core.Message) bool {
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
-	w.events[call.CallHash] = mef
+	w.setEvents(call.CallHash, mef)
 
 	if flow.LastVoterFlag {
 		call.TimePoint = submodel.NewOptionTimePointEmpty()
@@ -365,10 +421,10 @@ func (w *writer) processWithdrawUnbond(m *core.Message) bool {
 		return true
 	}
 
-	newMuls, ok := w.newMultics[callhash]
+	newMuls, ok := w.getNewMultics(callhash)
 	if !ok {
 		w.log.Info("not last voter, wait for NewMultisigEvent")
-		w.events[call.CallHash] = mef
+		w.setEvents(call.CallHash, mef)
 		return true
 	}
 	call.TimePoint = newMuls.TimePoint
@@ -446,7 +502,7 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 		if flow.LastVoterFlag {
 			call.TimePoint = submodel.NewOptionTimePointEmpty()
 		}
-		w.events[call.CallHash] = mef
+		w.setEvents(call.CallHash, mef)
 	}
 
 	if flow.LastVoterFlag {
@@ -460,7 +516,8 @@ func (w *writer) processTransferBackEvent(m *core.Message) bool {
 	}
 
 	for _, call := range calls {
-		newMuls, ok := w.newMultics[call.CallHash]
+
+		newMuls, ok := w.getNewMultics(call.CallHash)
 		if ok {
 			call.TimePoint = newMuls.TimePoint
 			delete(mef.NewMulCallHashs, call.CallHash)
@@ -489,14 +546,15 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.bondedPools[hexutil.Encode(flow.ID[:])]
+
+	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
 	if !ok {
 		w.log.Info("received a newMultisig event which the ID is not in the bondedPools, ignored")
 		return true
 	}
 
-	w.newMultics[flow.CallHashStr] = flow
-	evt, ok := w.events[flow.CallHashStr]
+	w.setNewMultics(flow.CallHashStr, flow)
+	evt, ok := w.getEvents(flow.CallHashStr)
 	if !ok {
 		w.log.Info("receive a newMultisig, wait for more flow data")
 		return true
@@ -531,13 +589,13 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.bondedPools[hexutil.Encode(flow.ID[:])]
+	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
 	if !ok {
 		w.log.Info("received a multisigExecuted event which the ID is not in the bondedPools, ignored")
 		return true
 	}
 
-	evt, ok := w.events[flow.CallHashStr]
+	evt, ok := w.getEvents(flow.CallHashStr)
 	if !ok {
 		w.log.Info("receive a multisigExecuted but no evt found")
 		return true
@@ -548,8 +606,8 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		w.log.Info("processMultisigExecuted wait for more callhash", "eventId", evt.EventId)
 		return true
 	}
-	delete(w.events, flow.CallHashStr)
-	delete(w.newMultics, flow.CallHashStr)
+	w.deleteEvents(flow.CallHashStr)
+	w.deleteNewMultics(flow.CallHashStr)
 	return w.informChain(m.Source, "", evt)
 }
 
