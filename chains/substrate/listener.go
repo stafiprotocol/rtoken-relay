@@ -227,7 +227,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling EraPoolUpdatedEvent")
 				flow, err := l.processEraPoolUpdatedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotEraUpdatedError.Error() {
+					if err.Error() == BondStateNotEraUpdatedError.Error() || err.Error() == EventEraIsOldError.Error() {
 						continue
 					}
 					return err
@@ -240,7 +240,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling BondReportEvent")
 				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotBondReportedError.Error() {
+					if err.Error() == BondStateNotBondReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
 						continue
 					}
 					return err
@@ -252,7 +252,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling BondReportEvent")
 				flow, err := l.processActiveReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotActiveReportedError.Error() {
+					if err.Error() == BondStateNotActiveReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
 						continue
 					}
 					return err
@@ -264,7 +264,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling WithdrawReportedEvent")
 				flow, err := l.processWithdrawReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotWithdrawReportedError.Error() {
+					if err.Error() == BondStateNotWithdrawReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
 						continue
 					}
 					return err

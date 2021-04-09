@@ -229,17 +229,17 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	era, err := w.conn.CurrentEra()
-	if err != nil {
-		w.log.Error("CurrentEra error", "rsymbol", m.Source)
-		return false
-	}
+	//era, err := w.conn.CurrentEra()
+	//if err != nil {
+	//	w.log.Error("CurrentEra error", "rsymbol", m.Source)
+	//	return false
+	//}
 
 	snap := flow.Snap
-	if snap.Era != era {
-		w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", snap.Era, "rsymbol", snap.Rsymbol)
-		return true
-	}
+	//if snap.Era != era {
+	//	w.log.Warn("era_pool_updated_event of past era, ignored", "current", era, "eventEra", snap.Era, "rsymbol", snap.Rsymbol)
+	//	return true
+	//}
 
 	key, others := w.conn.FoundFirstSubAccount(mef.SubAccounts)
 	if key == nil {
