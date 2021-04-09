@@ -185,7 +185,10 @@ func (w *writer) processNewEra(m *core.Message) bool {
 		w.log.Info("successed to update bondedPools")
 	}
 
-	should := old + 1
+	should := cur
+	if old != 0 && cur > old {
+		should = old + 1
+	}
 	eraBz, _ := types.EncodeToBytes(should)
 	bondId := types.Hash(utils.BlakeTwo256(eraBz))
 	bk := &submodel.BondKey{Rsymbol: m.Source, BondId: bondId}
