@@ -289,7 +289,7 @@ type Unbonding struct {
 }
 
 type Receive struct {
-	Recipient types.Address
+	Recipient []byte
 	Value     types.UCompact
 }
 

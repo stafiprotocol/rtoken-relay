@@ -6,6 +6,7 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -34,6 +35,8 @@ type Connection struct {
 
 var (
 	TargetNotExistError = errors.New("TargetNotExistError")
+	BlockInterval       = 6 * time.Second
+	WaitUntilFinalized  = 10 * BlockInterval
 )
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -94,6 +97,10 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}, nil
 }
 
+func (c *Connection) GetBlockNumber(hash types.Hash) (uint64, error) {
+	return c.gc.GetBlockNumber(hash)
+}
+
 func (c *Connection) LatestBlockNumber() (uint64, error) {
 	return c.gc.GetLatestBlockNumber()
 }
@@ -141,11 +148,36 @@ func (c *Connection) ExistentialDeposit() (types.U128, error) {
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	bh := hexutil.Encode(r.Blockhash)
+	hash := types.NewHash(r.Blockhash)
+	blkNum, err := c.GetBlockNumber(hash)
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+	if blkNum == 0 {
+		return submodel.BlockhashUnmatch, nil
+	}
 
 	if !c.IsConnected() {
 		if err := c.Reconnect(); err != nil {
 			c.log.Error("Reconnect error", "err", err)
 			return submodel.BondReasonDefault, err
+		}
+	}
+
+	final, err := c.FinalizedBlockNumber()
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+
+	if blkNum > final {
+		c.log.Info("TransferVerify: block hash not finalized, waiting", "blockHash", bh, "symbol", r.Rsymbol)
+		time.Sleep(WaitUntilFinalized)
+		final, err = c.FinalizedBlockNumber()
+		if err != nil {
+			return submodel.BondReasonDefault, err
+		}
+		if blkNum > final {
+			return submodel.BondReasonDefault, errors.New("block number not finalized")
 		}
 	}
 

@@ -293,7 +293,7 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	total := types.NewU128(*big.NewInt(0))
 	for k, v := range amounts {
 		r, _ := hexutil.Decode(k)
-		rec := &submodel.Receive{Recipient: types.NewAddressFromAccountID(r), Value: types.NewUCompact(v.Int)}
+		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
 		receives = append(receives, rec)
 		total = utils.AddU128(total, v)
 	}

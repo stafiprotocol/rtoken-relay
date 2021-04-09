@@ -24,6 +24,7 @@ var (
 	LessPolka    = "1334v66HrtqQndbugYxX9m56V6222m97LbavB4KAMmqgjsas"
 	From1        = "31d96Cq9idWQqPq3Ch5BFY84zrThVE3r98M7vG4xYaSWHwsX"
 	From2        = "1TgYb5x8xjsZRyL5bwvxUoAWBn36psr4viSMHbRXA8bkB2h"
+	Wen          = "1swvN162p1siDjm63UhhWoa59bpPZTSNKGVcbCwHUYkfRRW"
 	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
 )
 
@@ -363,7 +364,7 @@ func TestMultiBatch(t *testing.T) {
 	var info *rpc.PaymentQueryInfo
 	tp := submodel.NewOptionTimePointEmpty()
 	for _, addr := range addrs {
-		c, err := gc.TransferCall(addr, value)
+		c, err := gc.TransferCall(addr.AsAccountID[:], value)
 		fmt.Println(c.CallHash)
 		assert.NoError(t, err)
 		if info == nil {
@@ -540,4 +541,60 @@ func TestPoolUnbonds(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(exist)
 	fmt.Println(unbonds)
+}
+
+func TestGsrpcClient_GetHeader(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	bh, err := types.NewHashFromHexString("0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da4")
+	assert.NoError(t, err)
+
+	head, err := gc.GetHeader(bh)
+	assert.NoError(t, err)
+	fmt.Println(head.Number)
+
+	final, err := gc.GetFinalizedBlockNumber()
+	assert.NoError(t, err)
+	fmt.Println(final)
+}
+
+func TestGsrpcClient_Multisig1(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(Wen, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://kusama-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
+	assert.NoError(t, err)
+
+	//pool, err := hexutil.Decode("0xac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c")
+	//assert.NoError(t, err)
+
+	wen, _ := types.NewMultiAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	//less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+
+	//bond, _ := utils.StringToBigint("10000000000000")
+	//unbond := big.NewInt(0)
+	//
+	//call, err := gc.BondOrUnbondCall(bond, unbond)
+
+	amount, _ := utils.StringToBigint("10000000000000")
+	call, err := gc.TransferCall(wen.AsID[:], types.NewUCompact(amount))
+	assert.NoError(t, err)
+	fmt.Println(call)
+
+	fmt.Println("callHash", call.Extrinsic)
+
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	assert.NoError(t, err)
+	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	assert.NoError(t, err)
+	fmt.Println(info)
 }

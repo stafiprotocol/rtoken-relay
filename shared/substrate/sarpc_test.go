@@ -235,3 +235,35 @@ func TestEraPoolUpdated(t *testing.T) {
 		fmt.Println(a)
 	}
 }
+
+func TestBlockNumber(t *testing.T) {
+	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+
+	bh := "0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da1"
+	/// will panic which means sc.GetBlock should only be used for fully trusted blockHash
+	blk, err := sc.GetBlock(bh)
+	assert.NoError(t, err)
+	fmt.Println(blk.Header.Number)
+	/// next is wrong, as the number is a hex-string
+	//blkNum, ok := utils.StringToBigint(blk.Header.Number)
+	//assert.True(t, ok)
+	//fmt.Println(blkNum)
+}
+
+func TestSarpcClient_GetPaymentQueryInfo(t *testing.T) {
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", polkaTypesFile, tlog)
+	assert.NoError(t, err)
+
+	encodedExtrinsic := "0xa8040503ff425ef3c6c4ca93e6047569bd61ebc0df15c9b54b460ddc4f28553c6c0ff1d5180788e4801431"
+
+	//v := &rpc.JsonRpcResult{}
+	//if err = sc.sendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
+	//	return
+	//}
+	//fmt.Println(v.Result == nil)
+
+	_, err = sc.GetPaymentQueryInfo(encodedExtrinsic)
+	assert.NoError(t, err)
+	//fmt.Println("info", info.Class, info.PartialFee, info.Weight)
+}

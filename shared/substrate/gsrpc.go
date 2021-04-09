@@ -93,6 +93,15 @@ func (gc *GsrpcClient) GetHeader(blockHash types.Hash) (*types.Header, error) {
 	return gc.api.RPC.Chain.GetHeader(blockHash)
 }
 
+func (gc *GsrpcClient) GetBlockNumber(blockHash types.Hash) (uint64, error) {
+	head, err := gc.GetHeader(blockHash)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(head.Number), nil
+}
+
 // queryStorage performs a storage lookup. Arguments may be nil, result must be a pointer.
 func (gc *GsrpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, result interface{}) (bool, error) {
 	meta, err := gc.GetLatestMetadata()
@@ -313,8 +322,18 @@ func (gc *GsrpcClient) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
 	return OpaqueCall(ext)
 }
 
-func (gc *GsrpcClient) TransferCall(dest types.Address, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodTransferKeepAlive, dest, value)
+func (gc *GsrpcClient) TransferCall(accountId []byte, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
+	var addr interface{}
+	switch gc.addressType {
+	case AddressTypeAccountId:
+		addr = types.NewAddressFromAccountID(accountId)
+	case AddressTypeMultiAddress:
+		addr = types.NewMultiAddressFromAccountID(accountId)
+	default:
+		return nil, fmt.Errorf("addressType not supported: %s", gc.addressType)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodTransferKeepAlive, addr, value)
 	if err != nil {
 		return nil, err
 	}
