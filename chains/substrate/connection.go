@@ -170,7 +170,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	}
 
 	if blkNum > final {
-		c.log.Info("TransferVerify: block hash not finalized, waiting", "blockHash", bh, "symbol", r.Rsymbol)
+		c.log.Info("TransferVerify: block hash not finalized, waiting", "blockHash", bh, "symbol", r.Symbol)
 		time.Sleep(WaitUntilFinalized)
 		final, err = c.FinalizedBlockNumber()
 		if err != nil {
@@ -304,7 +304,7 @@ func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
 	}
 
 	if !exists {
-		return 0, fmt.Errorf("era of rsymbol %s not exist", sym)
+		return 0, fmt.Errorf("era of symbol %s not exist", sym)
 	}
 
 	return era, nil
@@ -356,6 +356,10 @@ func (c *Connection) TransferCalls(receives []*submodel.Receive) ([]*submodel.Mu
 	return calls, hashs1, hashs2, nil
 }
 
+func (c *Connection) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
+	return c.gc.NominateCall(validators)
+}
+
 func (c *Connection) PaymentQueryInfo(ext string) (*rpc.PaymentQueryInfo, error) {
 	return c.sc.GetPaymentQueryInfo(ext)
 }
@@ -363,7 +367,7 @@ func (c *Connection) PaymentQueryInfo(ext string) (*rpc.PaymentQueryInfo, error)
 func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
 	gc := c.gcs[flow.Key]
 	if gc == nil {
-		panic(fmt.Sprintf("key disappear: %s, rsymbol: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol))
+		panic(fmt.Sprintf("key disappear: %s, symbol: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol))
 	}
 
 	l := len(flow.OpaqueCalls)
@@ -420,7 +424,7 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow) error {
 		return err
 	}
 	if !exist {
-		return fmt.Errorf("earRewardPoints not exits for era: %d, rsymbol: %s", flow.LastEra, c.rsymbol)
+		return fmt.Errorf("earRewardPoints not exits for era: %d, symbol: %s", flow.LastEra, c.rsymbol)
 	}
 
 	pointedTargets := make([]types.AccountID, 0)

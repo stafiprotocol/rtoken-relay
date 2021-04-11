@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	ValueNotStringError = errors.New("value not string")
-	ValueNotMapError    = errors.New("value not map")
-	ValueNotU32         = errors.New("value not u32")
+	ValueNotStringError      = errors.New("value not string")
+	ValueNotMapError         = errors.New("value not map")
+	ValueNotU32              = errors.New("value not u32")
+	ValueNotStringSliceError = errors.New("value not string slice")
 )
 
 func LiquidityBondEventData(evt *ChainEvent) (*EvtLiquidityBond, error) {
@@ -28,7 +29,7 @@ func LiquidityBondEventData(evt *ChainEvent) (*EvtLiquidityBond, error) {
 	if err != nil {
 		return nil, fmt.Errorf("EvtLiquidityBond params[0] -> AccountId error: %s", err)
 	}
-	rSymbol, err := parseRsymbol(evt.Params[1].Value)
+	symbol, err := parseRsymbol(evt.Params[1].Value)
 	if err != nil {
 		return nil, fmt.Errorf("EvtLiquidityBond params[1] -> RSymbol error: %s", err)
 	}
@@ -39,27 +40,39 @@ func LiquidityBondEventData(evt *ChainEvent) (*EvtLiquidityBond, error) {
 
 	return &EvtLiquidityBond{
 		AccountId: accountId,
-		Rsymbol:   rSymbol,
+		Symbol:    symbol,
 		BondId:    bondId,
 	}, nil
 }
 
 func EraPoolUpdatedData(evt *ChainEvent) (*EraPoolUpdatedFlow, error) {
-	if len(evt.Params) != 2 {
-		return nil, fmt.Errorf("EraPoolUpdatedData params number not right: %d, expected: 2", len(evt.Params))
+	if len(evt.Params) != 4 {
+		return nil, fmt.Errorf("EraPoolUpdatedData params number not right: %d, expected: 4", len(evt.Params))
 	}
 
-	shot, err := parseHash(evt.Params[0].Value)
+	symbol, err := parseRsymbol(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EraPoolUpdatedData params[0] -> RSymbol error: %s", err)
 	}
 
-	voter, err := parseAccountId(evt.Params[1].Value)
+	era, err := parseEra(evt.Params[1])
 	if err != nil {
-		return nil, fmt.Errorf("EraPoolUpdatedData params[1] -> lastVoter error: %s", err)
+		return nil, fmt.Errorf("EraPoolUpdatedData params[1] -> era error: %s", err)
+	}
+
+	shot, err := parseHash(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[2] -> shot_id error: %s", err)
+	}
+
+	voter, err := parseAccountId(evt.Params[3].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EraPoolUpdatedData params[3] -> lastVoter error: %s", err)
 	}
 
 	return &EraPoolUpdatedFlow{
+		Symbol:    symbol,
+		Era:       era.Value,
 		ShotId:    shot,
 		LastVoter: voter,
 	}, nil
@@ -128,65 +141,122 @@ func EventMultisigExecutedData(evt *ChainEvent) (*EventMultisigExecuted, error) 
 }
 
 func EventBondReported(evt *ChainEvent) (*BondReportedFlow, error) {
-	if len(evt.Params) != 2 {
-		return nil, fmt.Errorf("EventBondReported params number not right: %d, expected: 2", len(evt.Params))
+	if len(evt.Params) != 3 {
+		return nil, fmt.Errorf("EventBondReported params number not right: %d, expected: 3", len(evt.Params))
 	}
 
-	shot, err := parseHash(evt.Params[0].Value)
+	symbol, err := parseRsymbol(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReported params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventBondReported params[0] -> RSymbol error: %s", err)
 	}
 
-	voter, err := parseAccountId(evt.Params[1].Value)
+	shot, err := parseHash(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventBondReported params[1] -> lastVoter error: %s", err)
+		return nil, fmt.Errorf("EventBondReported params[1] -> shot_id error: %s", err)
+	}
+
+	voter, err := parseAccountId(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventBondReported params[2] -> lastVoter error: %s", err)
 	}
 
 	return &BondReportedFlow{
+		Symbol:    symbol,
 		ShotId:    shot,
 		LastVoter: voter,
 	}, nil
 }
 
 func EventActiveReported(evt *ChainEvent) (*ActiveReportedFlow, error) {
-	if len(evt.Params) != 2 {
-		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 2", len(evt.Params))
+	if len(evt.Params) != 3 {
+		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 3", len(evt.Params))
 	}
 
-	shot, err := parseHash(evt.Params[0].Value)
+	symbol, err := parseRsymbol(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[0] -> RSymbol error: %s", err)
 	}
 
-	voter, err := parseAccountId(evt.Params[1].Value)
+	shot, err := parseHash(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[1] -> lastVoter error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[1] -> shot_id error: %s", err)
+	}
+
+	voter, err := parseAccountId(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventActiveReported params[2] -> lastVoter error: %s", err)
 	}
 
 	return &ActiveReportedFlow{
+		Symbol:    symbol,
 		ShotId:    shot,
 		LastVoter: voter,
 	}, nil
 }
 
 func EventWithdrawReported(evt *ChainEvent) (*WithdrawReportedFlow, error) {
-	if len(evt.Params) != 2 {
-		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 2", len(evt.Params))
+	if len(evt.Params) != 3 {
+		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 3", len(evt.Params))
 	}
 
-	shot, err := parseHash(evt.Params[0].Value)
+	symbol, err := parseRsymbol(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[0] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[0] -> RSymbol error: %s", err)
 	}
 
-	voter, err := parseAccountId(evt.Params[1].Value)
+	shot, err := parseHash(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[1] -> lastVoter error: %s", err)
+		return nil, fmt.Errorf("EventActiveReported params[1] -> shot_id error: %s", err)
+	}
+
+	voter, err := parseAccountId(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventActiveReported params[2] -> lastVoter error: %s", err)
 	}
 
 	return &WithdrawReportedFlow{
+		Symbol:    symbol,
 		ShotId:    shot,
 		LastVoter: voter,
+	}, nil
+}
+
+func EventNominationUpdated(evt *ChainEvent) (*NominationUpdatedFlow, error) {
+	if len(evt.Params) != 5 {
+		return nil, fmt.Errorf("EventNominationUpdated params number not right: %d, expected: 5", len(evt.Params))
+	}
+
+	symbol, err := parseRsymbol(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[0] -> RSymbol error: %s", err)
+	}
+
+	pool, err := parseBytes(evt.Params[1].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[1] -> pool error: %s", err)
+	}
+
+	vals, err := parseVecBytes(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[2] -> new_validators error: %s", err)
+	}
+
+	era, err := parseEra(evt.Params[3])
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[3] -> era error: %s", err)
+	}
+
+	voter, err := parseAccountId(evt.Params[4].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[4] -> lastVoter error: %s", err)
+	}
+
+	return &NominationUpdatedFlow{
+		Symbol:        symbol,
+		Pool:          pool,
+		NewValidators: vals,
+		Era:           era.Value,
+		LastVoter:     voter,
 	}, nil
 }
 
@@ -226,6 +296,25 @@ func parseBytes(value interface{}) ([]byte, error) {
 	}
 
 	return bz, nil
+}
+
+func parseVecBytes(value interface{}) ([]types.Bytes, error) {
+	vals, ok := value.([]string)
+	if !ok {
+		return nil, ValueNotStringSliceError
+	}
+
+	result := make([]types.Bytes, 0)
+	for _, val := range vals {
+		bz, err := hexutil.Decode(utiles.AddHex(val))
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, bz)
+	}
+
+	return result, nil
 }
 
 func parseBigint(value interface{}) (*big.Int, error) {

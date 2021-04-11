@@ -3,6 +3,7 @@ package substrate
 import (
 	"bytes"
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"time"
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -10,25 +11,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
-func (c *Connection) InitLastVoterProposal(key *submodel.BondKey) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
-	if err != nil {
-		return nil, err
-	}
-	method := config.MethodInitLastVoter
-
-	call, err := types.NewCall(
-		meta,
-		method,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &submodel.Proposal{call, key, method}, nil
-}
-
-func (c *Connection) LiquidityBondProposal(key *submodel.BondKey, reason submodel.BondReason) (*submodel.Proposal, error) {
+func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -38,36 +21,37 @@ func (c *Connection) LiquidityBondProposal(key *submodel.BondKey, reason submode
 	call, err := types.NewCall(
 		meta,
 		method,
-		key,
-		reason,
+		flow.Symbol,
+		flow.BondId,
+		flow.Reason,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &submodel.Proposal{call, key, method}, nil
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.BondId, MethodName: method}, nil
 }
 
-func (c *Connection) CommonReportProposal(method string, key *submodel.BondKey, shotId types.Hash) (*submodel.Proposal, error) {
+func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bondId, shotId types.Hash) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
 	}
-	//method := config.MethodBondReport
 
 	call, err := types.NewCall(
 		meta,
 		method,
+		symbol,
 		shotId,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &submodel.Proposal{call, key, method}, nil
+	return &submodel.Proposal{Call: call, Symbol: symbol, BondId: bondId, MethodName: method}, nil
 }
 
-func (c *Connection) ActiveReportProposal(key *submodel.BondKey, shotId types.Hash, active types.U128) (*submodel.Proposal, error) {
+func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -77,14 +61,15 @@ func (c *Connection) ActiveReportProposal(key *submodel.BondKey, shotId types.Ha
 	call, err := types.NewCall(
 		meta,
 		method,
-		shotId,
-		active,
+		flow.Symbol,
+		flow.ShotId,
+		flow.Snap.Active,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &submodel.Proposal{call, key, method}, nil
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
 }
 
 func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) bool {
@@ -104,8 +89,8 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 		}
 
 		c.log.Info("Acknowledging proposal on chain...")
-		//rsymbol: RSymbol, prop_id: T::Hash, in_favour: bool
-		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Key.Rsymbol, prop.Key.BondId, inFavour, prop.Call)
+		//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
+		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Symbol, prop.BondId, inFavour, prop.Call)
 		err = c.gc.SignAndSubmitTx(ext)
 		if err != nil {
 			if err.Error() == TerminatedError.Error() {
@@ -124,7 +109,7 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error) {
 	var state submodel.VoteState
 
-	symBz, err := types.EncodeToBytes(prop.Key.Rsymbol)
+	symBz, err := types.EncodeToBytes(prop.Symbol)
 	if err != nil {
 		return false, "", err
 	}
@@ -158,7 +143,7 @@ func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error
 	return true, "", nil
 }
 
-func (c *Connection) SetChainEraProposal(key *submodel.BondKey, newEra uint32) (*submodel.Proposal, error) {
+func (c *Connection) SetChainEraProposal(symbol core.RSymbol, bondId types.Hash, newEra uint32) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
@@ -168,14 +153,14 @@ func (c *Connection) SetChainEraProposal(key *submodel.BondKey, newEra uint32) (
 	call, err := types.NewCall(
 		meta,
 		method,
-		key.Rsymbol,
+		symbol,
 		newEra,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &submodel.Proposal{call, key, method}, nil
+	return &submodel.Proposal{Call: call, Symbol: symbol, BondId: bondId, MethodName: method}, nil
 }
 
 func containsVote(votes []types.AccountID, voter types.AccountID) bool {

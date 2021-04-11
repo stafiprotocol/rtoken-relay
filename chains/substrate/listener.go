@@ -18,7 +18,7 @@ import (
 
 type listener struct {
 	name          string
-	rsymbol       core.RSymbol
+	symbol        core.RSymbol
 	cares         []core.RSymbol
 	startBlock    uint64
 	blockstore    blockstore.Blockstorer
@@ -55,7 +55,7 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 	}
 	return &listener{
 		name:          name,
-		rsymbol:       symbol,
+		symbol:        symbol,
 		cares:         cares,
 		startBlock:    startBlock,
 		blockstore:    bs,
@@ -82,7 +82,7 @@ func (l *listener) start() error {
 		return fmt.Errorf("starting block (%d) is greater than latest known block (%d)", l.startBlock, latestBlk)
 	}
 
-	if l.rsymbol == core.RFIS {
+	if l.symbol == core.RFIS {
 		for _, sub := range MainSubscriptions {
 			err := l.registerEventHandler(sub.name, sub.handler)
 			if err != nil {
@@ -130,10 +130,10 @@ func (l *listener) pollBlocks() error {
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
-				if l.rsymbol == core.RFIS {
-					l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.rsymbol)
+				if l.symbol == core.RFIS {
+					l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.symbol)
 				} else {
-					l.log.Error("pollBlocks error", "rsymbol", l.rsymbol)
+					l.log.Error("pollBlocks error", "symbol", l.symbol)
 				}
 
 				return nil
@@ -154,7 +154,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if l.rsymbol != core.RFIS {
+			if l.symbol != core.RFIS {
 				err = l.processEra()
 				if err != nil {
 					l.log.Error("Failed to processEra", "err", err)
@@ -176,7 +176,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if l.rsymbol == core.RFIS {
+			if l.symbol == core.RFIS {
 				// Write to blockstore
 				err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
 				if err != nil {
@@ -212,15 +212,15 @@ func (l *listener) processEvents(blockNum uint64) error {
 	}
 
 	for _, evt := range evts {
-		switch l.rsymbol {
+		switch l.symbol {
 		case core.RFIS:
-			if evt.ModuleId == config.LiquidityBondModuleId && evt.EventId == config.LiquidityBondEventId {
+			if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.LiquidityBondEventId {
 				l.log.Trace("Handling LiquidityBondEvent")
 				flow, err := l.processLiquidityBondEvent(evt)
 				if err != nil {
 					return err
 				}
-				if l.cared(flow.Record.Rsymbol) && l.subscriptions[LiquidityBond] != nil {
+				if l.cared(flow.Record.Symbol) && l.subscriptions[LiquidityBond] != nil {
 					l.submitMessage(l.subscriptions[LiquidityBond](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId {
@@ -233,7 +233,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 
-				if l.cared(flow.Rsymbol) && l.subscriptions[EraPoolUpdated] != nil {
+				if l.cared(flow.Symbol) && l.subscriptions[EraPoolUpdated] != nil {
 					l.submitMessage(l.subscriptions[EraPoolUpdated](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId {
@@ -245,7 +245,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					}
 					return err
 				}
-				if l.cared(flow.Snap.Rsymbol) && l.subscriptions[BondReported] != nil {
+				if l.cared(flow.Snap.Symbol) && l.subscriptions[BondReported] != nil {
 					l.submitMessage(l.subscriptions[BondReported](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId {
@@ -257,7 +257,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					}
 					return err
 				}
-				if l.cared(flow.Rsymbol) && l.subscriptions[ActiveReported] != nil {
+				if l.cared(flow.Symbol) && l.subscriptions[ActiveReported] != nil {
 					l.submitMessage(l.subscriptions[ActiveReported](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawReportedEventId {
@@ -269,8 +269,17 @@ func (l *listener) processEvents(blockNum uint64) error {
 					}
 					return err
 				}
-				if l.cared(flow.Rsymbol) && l.subscriptions[WithdrawReported] != nil {
+				if l.cared(flow.Symbol) && l.subscriptions[WithdrawReported] != nil {
 					l.submitMessage(l.subscriptions[WithdrawReported](flow))
+				}
+			} else if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.NominationUpdatedEventId {
+				l.log.Trace("Handling NominationUpdatedEvent")
+				flow, err := l.processNominationUpdated(evt)
+				if err != nil {
+					return err
+				}
+				if l.cared(flow.Symbol) && l.subscriptions[NominationUpdated] != nil {
+					l.submitMessage(l.subscriptions[NominationUpdated](flow))
 				}
 			}
 		case core.RDOT, core.RKSM:
@@ -298,7 +307,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				}
 			}
 		default:
-			l.log.Error("process event unsupport rsymbol", "rsymbol", l.rsymbol)
+			l.log.Error("process event unsupport symbol", "symbol", l.symbol)
 		}
 	}
 
@@ -311,7 +320,7 @@ func (l *listener) submitMessage(m *core.Message, err error) {
 		l.log.Error("Critical error before sending message", "err", err)
 		return
 	}
-	m.Source = l.rsymbol
+	m.Source = l.symbol
 	if m.Destination == "" {
 		m.Destination = m.Source
 	}
@@ -322,7 +331,7 @@ func (l *listener) submitMessage(m *core.Message, err error) {
 }
 
 func (l *listener) blockDelay() uint64 {
-	switch l.rsymbol {
+	switch l.symbol {
 	case core.RFIS:
 		return 5
 	default:

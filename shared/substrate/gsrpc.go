@@ -341,6 +341,29 @@ func (gc *GsrpcClient) TransferCall(accountId []byte, value types.UCompact) (*su
 	return OpaqueCall(ext)
 }
 
+func (gc *GsrpcClient) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
+	targets := make([]interface{}, 0)
+	switch gc.addressType {
+	case AddressTypeAccountId:
+		for _, val := range validators {
+			targets = append(targets, types.NewAddressFromAccountID(val))
+		}
+	case AddressTypeMultiAddress:
+		for _, val := range validators {
+			targets = append(targets, types.NewMultiAddressFromAccountID(val))
+		}
+	default:
+		return nil, fmt.Errorf("addressType not supported: %s", gc.addressType)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodNominate, targets)
+	if err != nil {
+		return nil, err
+	}
+
+	return OpaqueCall(ext)
+}
+
 func (gc *GsrpcClient) FreeBalance(who []byte) (types.U128, error) {
 	if gc.addressType == AddressTypeMultiAddress {
 		info, err := gc.NewVersionAccountInfo(who)

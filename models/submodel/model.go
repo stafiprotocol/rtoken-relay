@@ -14,24 +14,20 @@ import (
 
 type EvtLiquidityBond struct {
 	AccountId types.AccountID
-	Rsymbol   core.RSymbol
+	Symbol    core.RSymbol
 	BondId    types.Hash
 }
 
 type BondFlow struct {
-	Key    *BondKey
+	Symbol core.RSymbol
+	BondId types.Hash
 	Record *BondRecord
 	Reason BondReason
 }
 
-type BondKey struct {
-	Rsymbol core.RSymbol
-	BondId  types.Hash
-}
-
 type BondRecord struct {
 	Bonder    types.AccountID
-	Rsymbol   core.RSymbol
+	Symbol    core.RSymbol
 	Pubkey    types.Bytes
 	Pool      types.Bytes
 	Blockhash types.Bytes
@@ -172,7 +168,8 @@ type VoteState struct {
 
 type Proposal struct {
 	Call       types.Call
-	Key        *BondKey
+	Symbol     core.RSymbol
+	BondId     types.Hash
 	MethodName string
 }
 
@@ -181,16 +178,11 @@ func (p *Proposal) Encode() ([]byte, error) {
 	return types.EncodeToBytes(struct {
 		types.Hash
 		types.Call
-	}{p.Key.BondId, p.Call})
-}
-
-type PoolKey struct {
-	Rsymbol core.RSymbol
-	Pool    []byte
+	}{p.BondId, p.Call})
 }
 
 type PoolSnapshot struct {
-	Rsymbol   core.RSymbol
+	Symbol    core.RSymbol
 	Era       uint32
 	Pool      []byte
 	Bond      types.U128
@@ -201,6 +193,8 @@ type PoolSnapshot struct {
 }
 
 type EraPoolUpdatedFlow struct {
+	Symbol        core.RSymbol
+	Era           uint32
 	ShotId        types.Hash
 	LastVoter     types.AccountID
 	LastVoterFlag bool
@@ -208,6 +202,7 @@ type EraPoolUpdatedFlow struct {
 }
 
 type BondReportedFlow struct {
+	Symbol        core.RSymbol
 	ShotId        types.Hash
 	LastVoter     types.AccountID
 	LastVoterFlag bool
@@ -217,6 +212,7 @@ type BondReportedFlow struct {
 }
 
 type ActiveReportedFlow struct {
+	Symbol        core.RSymbol
 	ShotId        types.Hash
 	LastVoter     types.AccountID
 	LastVoterFlag bool
@@ -224,6 +220,7 @@ type ActiveReportedFlow struct {
 }
 
 type WithdrawReportedFlow struct {
+	Symbol        core.RSymbol
 	ShotId        types.Hash
 	LastVoter     types.AccountID
 	LastVoterFlag bool
@@ -232,9 +229,18 @@ type WithdrawReportedFlow struct {
 	TotalAmount   types.U128
 }
 
+type NominationUpdatedFlow struct {
+	Symbol        core.RSymbol
+	Pool          []byte
+	NewValidators []types.Bytes
+	Era           uint32
+	LastVoter     types.AccountID
+	LastVoterFlag bool
+}
+
 type MultiEventFlow struct {
 	EventId         string
-	Rsymbol         core.RSymbol
+	Symbol          core.RSymbol
 	EventData       interface{}
 	Threshold       uint16
 	SubAccounts     []types.Bytes
@@ -277,9 +283,8 @@ type MultiCallParam struct {
 }
 
 type PoolUnbondKey struct {
-	Rsymbol core.RSymbol
-	Pool    []byte
-	Era     uint32
+	Pool []byte
+	Era  uint32
 }
 
 type Unbonding struct {

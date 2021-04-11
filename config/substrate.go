@@ -17,6 +17,7 @@ const (
 	MethodUnbond            = "Staking.unbond"
 	MethodBondExtra         = "Staking.bond_extra"
 	MethodWithdrawUnbonded  = "Staking.withdraw_unbonded"
+	MethodNominate          = "Staking.nominate"
 
 	MultisigModuleId        = "Multisig"
 	NewMultisigEventId      = "NewMultisig"

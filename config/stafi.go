@@ -1,10 +1,11 @@
 package config
 
 const (
-	LiquidityBondModuleId   = "RTokenSeries"
-	LiquidityBondEventId    = "LiquidityBond"
-	StorageBondRecords      = "BondRecords"
-	MethodExecuteBondRecord = "RTokenSeries.execute_bond_record"
+	RTokenSeriesModuleId     = "RTokenSeries"
+	LiquidityBondEventId     = "LiquidityBond"
+	NominationUpdatedEventId = "NominationUpdated"
+	StorageBondRecords       = "BondRecords"
+	MethodExecuteBondRecord  = "RTokenSeries.execute_bond_record"
 
 	RtokenVoteModuleId         = "RTokenVotes"
 	StorageVotes               = "Votes"
@@ -15,7 +16,6 @@ const (
 	StorageChainEras           = "ChainEras"
 	StorageCurrentEraSnapShots = "CurrentEraSnapShots"
 	MethodSetChainEra          = "RTokenLedger.set_chain_era"
-	MethodInitLastVoter        = "RTokenLedger.init_last_voter"
 	MethodBondReport           = "RTokenLedger.bond_report"
 	MethodActiveReport         = "RTokenLedger.active_report"
 	MethodWithdrawReport       = "RTokenLedger.withdraw_report"

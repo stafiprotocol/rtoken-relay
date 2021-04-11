@@ -17,11 +17,12 @@ type eventHandlerSubscriptions struct {
 }
 
 const (
-	LiquidityBond    = eventName(config.LiquidityBondEventId)
-	EraPoolUpdated   = eventName(config.EraPoolUpdatedEventId)
-	BondReported     = eventName(config.BondReportedEventId)
-	ActiveReported   = eventName(config.ActiveReportedEventId)
-	WithdrawReported = eventName(config.WithdrawReportedEventId)
+	LiquidityBond     = eventName(config.LiquidityBondEventId)
+	EraPoolUpdated    = eventName(config.EraPoolUpdatedEventId)
+	BondReported      = eventName(config.BondReportedEventId)
+	ActiveReported    = eventName(config.ActiveReportedEventId)
+	WithdrawReported  = eventName(config.WithdrawReportedEventId)
+	NominationUpdated = eventName(config.NominationUpdatedEventId)
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
@@ -33,6 +34,7 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{BondReported, bondReportedHandler},
 	{ActiveReported, activeReportedHandler},
 	{WithdrawReported, withdrawReportedHandler},
+	{NominationUpdated, nominationUpdatedHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -46,7 +48,7 @@ func liquidityBondHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("failed to cast bondflow")
 	}
 
-	return &core.Message{Destination: d.Key.Rsymbol, Reason: core.LiquidityBond, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.LiquidityBond, Content: d}, nil
 }
 
 func eraPoolUpdatedHandler(data interface{}) (*core.Message, error) {
@@ -59,7 +61,7 @@ func eraPoolUpdatedHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.EraPoolUpdatedEventId, d.EventId)
 	}
 
-	return &core.Message{Destination: d.Rsymbol, Reason: core.EraPoolUpdated, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.EraPoolUpdated, Content: d}, nil
 }
 
 func bondReportedHandler(data interface{}) (*core.Message, error) {
@@ -68,7 +70,7 @@ func bondReportedHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("failed to cast bond informChain")
 	}
 
-	return &core.Message{Destination: d.Snap.Rsymbol, Reason: core.BondReportEvent, Content: d}, nil
+	return &core.Message{Destination: d.Snap.Symbol, Reason: core.BondReportEvent, Content: d}, nil
 }
 
 func activeReportedHandler(data interface{}) (*core.Message, error) {
@@ -81,7 +83,7 @@ func activeReportedHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.ActiveReportedEventId, d.EventId)
 	}
 
-	return &core.Message{Destination: d.Rsymbol, Reason: core.ActiveReportedEvent, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.ActiveReportedEvent, Content: d}, nil
 }
 
 func withdrawReportedHandler(data interface{}) (*core.Message, error) {
@@ -94,7 +96,20 @@ func withdrawReportedHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.WithdrawReportedEventId, d.EventId)
 	}
 
-	return &core.Message{Destination: d.Rsymbol, Reason: core.WithdrawReportedEvent, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.WithdrawReportedEvent, Content: d}, nil
+}
+
+func nominationUpdatedHandler(data interface{}) (*core.Message, error) {
+	d, ok := data.(*submodel.MultiEventFlow)
+	if !ok {
+		return nil, fmt.Errorf("nominationUpdatedHandler: failed to cast MultiEventFlow")
+	}
+
+	if d.EventId != config.NominationUpdatedEventId {
+		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.NominationUpdatedEventId, d.EventId)
+	}
+
+	return &core.Message{Destination: d.Symbol, Reason: core.NominationUpdatedEvent, Content: d}, nil
 }
 
 func newMultisigHandler(data interface{}) (*core.Message, error) {

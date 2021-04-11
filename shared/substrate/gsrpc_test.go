@@ -25,6 +25,7 @@ var (
 	From1        = "31d96Cq9idWQqPq3Ch5BFY84zrThVE3r98M7vG4xYaSWHwsX"
 	From2        = "1TgYb5x8xjsZRyL5bwvxUoAWBn36psr4viSMHbRXA8bkB2h"
 	Wen          = "1swvN162p1siDjm63UhhWoa59bpPZTSNKGVcbCwHUYkfRRW"
+	Jun          = "33RQ73d9XfPTaE2SV7dzdhQQ17YaeMQ4yzhzAQhhFVenxMuJ"
 	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
 )
 
@@ -46,18 +47,10 @@ func TestGsrpcClient(t *testing.T) {
 	bId, err := types.NewHashFromHexString("0xd2f787195c3498f941653fe542e62b397988eeb3e2b867cf39a93c1ae5127b41")
 	assert.NoError(t, err)
 
-	bondKey := &submodel.BondKey{
-		Rsymbol: core.RDOT,
-		BondId:  bId,
-	}
-
-	fmt.Println(bondKey)
-
-	bk, err := types.EncodeToBytes(bondKey)
-	assert.NoError(t, err)
+	symbz, _ := types.EncodeToBytes(core.RDOT)
 
 	br := new(submodel.BondRecord)
-	exist, err := gc.QueryStorage(config.LiquidityBondModuleId, config.StorageBondRecords, bk, nil, br)
+	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondRecords, symbz, bId[:], br)
 	assert.NoError(t, err)
 	fmt.Println("exist:", exist)
 
@@ -67,14 +60,15 @@ func TestGsrpcClient(t *testing.T) {
 	call, err := types.NewCall(
 		meta,
 		config.MethodExecuteBondRecord,
-		bondKey,
+		core.RDOT,
+		bId,
 		submodel.Pass,
 	)
 	assert.NoError(t, err)
 
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, bondKey.Rsymbol, bondKey.BondId, true, call)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, core.RDOT, bId, true, call)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }
@@ -96,14 +90,9 @@ func TestGsrpcClient1(t *testing.T) {
 	bId, err := types.NewHashFromHexString("0x7942f736614444159dba03bc5fef684dcebb7c5edb16d4e57315e148ea4525be")
 	assert.NoError(t, err)
 
-	bondKey := &submodel.BondKey{
-		Rsymbol: core.RDOT,
-		BondId:  bId,
-	}
-
 	//prop := &conn.Proposal{call, bondKey}
 	//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
-	ext, err := gc.NewUnsignedExtrinsic("RTokenSeries.add_hashes", bondKey, submodel.Pass)
+	ext, err := gc.NewUnsignedExtrinsic("RTokenSeries.add_hashes", core.RDOT, bId, submodel.Pass)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }
@@ -137,12 +126,10 @@ func TestGsrpcClient_QueryStorage(t *testing.T) {
 	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
 	assert.NoError(t, err)
 
-	key := submodel.PoolKey{Rsymbol: core.RDOT, Pool: pool}
-	keybz, err := types.EncodeToBytes(key)
-	assert.NoError(t, err)
+	symbz, _ := types.EncodeToBytes(core.RDOT)
 
 	subAcs := make([]types.Bytes, 0)
-	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, keybz, nil, &subAcs)
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symbz, pool, &subAcs)
 	assert.NoError(t, err)
 	assert.True(t, exist)
 	for _, ac := range subAcs {
@@ -167,18 +154,16 @@ func TestGsrpcClient_Multisig(t *testing.T) {
 	pool, err := hexutil.Decode("0xbeb93b63149fd6a1b69f2d50492fe01983be085cbf09f689219838f6322763d8")
 	assert.NoError(t, err)
 
-	pk := &submodel.PoolKey{core.RDOT, pool}
-	pkBz, err := types.EncodeToBytes(pk)
-	assert.NoError(t, err)
+	symbz, _ := types.EncodeToBytes(core.RDOT)
 
 	var threshold uint16
-	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, pkBz, nil, &threshold)
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symbz, pool, &threshold)
 	assert.NoError(t, err)
 	assert.True(t, exist)
 	fmt.Println(threshold)
 
 	subs := make([]types.Bytes, 0)
-	exist, err = gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, pkBz, nil, &subs)
+	exist, err = gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symbz, pool, &subs)
 	assert.NoError(t, err)
 	assert.True(t, exist)
 	fmt.Println(subs)
@@ -530,14 +515,15 @@ func TestPoolUnbonds(t *testing.T) {
 	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
 	assert.NoError(t, err)
 
+	symbz, _ := types.EncodeToBytes(core.RDOT)
 	pool, _ := hexutil.Decode("0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7")
-	uk := &submodel.PoolUnbondKey{Rsymbol: core.RDOT, Pool: pool, Era: uint32(1776)}
+	uk := &submodel.PoolUnbondKey{Pool: pool, Era: uint32(1776)}
 
 	bz, err := types.EncodeToBytes(uk)
 	assert.NoError(t, err)
 
 	unbonds := make([]submodel.Unbonding, 0)
-	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, bz, nil, &unbonds)
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, symbz, bz, &unbonds)
 	assert.NoError(t, err)
 	fmt.Println(exist)
 	fmt.Println(unbonds)
@@ -597,4 +583,55 @@ func TestGsrpcClient_Multisig1(t *testing.T) {
 	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
 	assert.NoError(t, err)
 	fmt.Println(info)
+}
+
+func TestHash(t *testing.T) {
+	h, _ := types.NewHashFromHexString("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	a, _ := types.EncodeToBytes(h)
+
+	fmt.Println(hexutil.Encode(a))
+}
+
+func TestGsrpcClient_Multisig2(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(Jun, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
+	assert.NoError(t, err)
+
+	//pool, err := hexutil.Decode("0xac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c")
+	//assert.NoError(t, err)
+
+	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	//jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+
+	others := []types.AccountID{wen.AsAccountID, bao.AsAccountID}
+	threshold := uint16(2)
+	targets := []types.Bytes{wen.AsAccountID[:]}
+
+	call, err := gc.NominateCall(targets)
+	assert.NoError(t, err)
+	fmt.Println(call)
+
+	fmt.Println("callHash", call.Extrinsic)
+
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	assert.NoError(t, err)
+	fmt.Println(info)
+
+	tp := types.TimePoint{Height: types.NewU32(1850), Index: types.NewU32(1)}
+	opTp := submodel.NewOptionTimePoint(tp)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, opTp, call.Opaque, false, info.Weight)
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
 }
