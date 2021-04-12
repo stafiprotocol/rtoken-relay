@@ -424,7 +424,9 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow) error {
 		return err
 	}
 	if !exist {
-		return fmt.Errorf("earRewardPoints not exits for era: %d, symbol: %s", flow.LastEra, c.rsymbol)
+		c.log.Warn("earRewardPoints not exits", "LastEra", flow.LastEra, "symbol", flow.Symbol)
+		flow.Stashes = nil
+		return nil
 	}
 
 	pointedTargets := make([]types.AccountID, 0)

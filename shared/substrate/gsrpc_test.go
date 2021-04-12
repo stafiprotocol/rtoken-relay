@@ -635,3 +635,27 @@ func TestGsrpcClient_Multisig2(t *testing.T) {
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }
+
+func TestPool(t *testing.T) {
+	p := "0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7"
+	pool, _ := hexutil.Decode(p)
+	pbz, _ := types.EncodeToBytes(pool)
+	fmt.Println(pool)
+	fmt.Println(pbz)
+
+	//stop := make(chan int)
+	//gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+	//assert.NoError(t, err)
+	//
+	//
+	////poolBz, err := types.EncodeToBytes(pool)
+	//symBz, err := types.EncodeToBytes(core.RKSM)
+	//assert.NoError(t, err)
+	//
+	//var threshold uint16
+	//exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, pbz, &threshold)
+	//assert.NoError(t, err)
+	//fmt.Println(exist)
+	//fmt.Println()
+
+}

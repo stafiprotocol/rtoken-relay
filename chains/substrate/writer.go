@@ -694,11 +694,16 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	m.Source, m.Destination = m.Destination, m.Source
 	waitFlag := true
-	if flow.LastVoterFlag {
-		w.conn.TryPayout(flow)
+	if flow.Stashes == nil || len(flow.Stashes) == 0 {
 		waitFlag = false
+		go w.waitPayout(m, waitFlag)
+	} else {
+		if flow.LastVoterFlag {
+			w.conn.TryPayout(flow)
+			waitFlag = false
+		}
+		go w.waitPayout(m, waitFlag)
 	}
-	go w.waitPayout(m, waitFlag)
 
 	return true
 }
