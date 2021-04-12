@@ -66,7 +66,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	snap, err := l.snapshot(data.ShotId)
+	snap, err := l.snapshot(data.Symbol, data.ShotId)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
-	snap, err := l.snapshot(flow.ShotId)
+	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	snap, err := l.snapshot(flow.ShotId)
+	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
-	snap, err := l.snapshot(flow.ShotId)
+	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
 		return nil, err
 	}
@@ -290,10 +290,14 @@ func (l *listener) processMultisigExecutedEvt(evt *submodel.ChainEvent) (*submod
 	return data, nil
 }
 
-func (l *listener) snapshot(shotId types.Hash) (*submodel.PoolSnapshot, error) {
+func (l *listener) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.PoolSnapshot, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
 	bz, err := types.EncodeToBytes(shotId)
 	snap := new(submodel.PoolSnapshot)
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, bz, nil, snap)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symBz, bz, snap)
 	if err != nil {
 		return nil, err
 	}
