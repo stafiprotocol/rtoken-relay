@@ -310,13 +310,17 @@ func (l *listener) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.P
 }
 
 func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return 0, nil, err
+	}
 	symBz, err := types.EncodeToBytes(symbol)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	var threshold uint16
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, pool, &threshold)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -325,7 +329,7 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 	}
 
 	subs := make([]types.Bytes, 0)
-	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symBz, pool, &subs)
+	exist, err = l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symBz, poolBz, &subs)
 	if err != nil {
 		return 0, nil, err
 	}
