@@ -36,6 +36,8 @@ func (c *Core) AddChain(chain Chain) {
 
 // Start will call all registered chains' Start methods and block forever (or until signal is received)
 func (c *Core) Start() {
+	go c.route.MsgHandler()
+
 	for _, chain := range c.Registry {
 		err := chain.Start()
 		if err != nil {
@@ -44,6 +46,7 @@ func (c *Core) Start() {
 		}
 		c.log.Info(fmt.Sprintf("Started %s chain", chain.Name()))
 	}
+
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
@@ -61,6 +64,7 @@ func (c *Core) Start() {
 	for _, chain := range c.Registry {
 		chain.Stop()
 	}
+	c.route.StopMsgHandler()
 }
 
 func (c *Core) Errors() <-chan error {
