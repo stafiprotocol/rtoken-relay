@@ -442,13 +442,14 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow) error {
 	return nil
 }
 
-func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) {
+func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 	calls := make([]types.Call, 0)
 	meta, err := c.LatestMetadata()
 	if err != nil {
-		c.log.Error("TryPayout LatestMetadata error", "error", err)
+		return fmt.Errorf("LatestMetadata error: %s", err)
 	}
 	method := config.MethodPayoutStakers
+	controllers := make([]types.AccountID, 0)
 
 	for _, stash := range flow.Stashes {
 		stashStr := hexutil.Encode(stash[:])
@@ -456,24 +457,20 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) {
 		var controller types.AccountID
 		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageBonded, stash[:], nil, &controller)
 		if err != nil {
-			c.log.Error("TryPayout get controller error", "error", err, "stash", stashStr)
-			continue
+			return fmt.Errorf("get controller error: %s, stash: %s", )
 		}
 		if !exist {
-			c.log.Error("TryPayout get controller not exist", "stash", stashStr)
-			continue
+			return fmt.Errorf("get controller not exist, stash: %s", stashStr)
 		}
 		controllerStr := hexutil.Encode(controller[:])
 
 		ledger := new(submodel.StakingLedger)
 		exist, err = c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller[:], nil, ledger)
 		if err != nil {
-			c.log.Error("TryPayout get ledger error", "error", err, "stash", stashStr)
-			continue
+			return fmt.Errorf("get ledger error: %s, stash: %s", err, stashStr)
 		}
 		if !exist {
-			c.log.Error("TryPayout ledger not exist", "stash", stashStr, "controller", controllerStr)
-			continue
+			return fmt.Errorf("ledger not exist, stash: %s, controller: %s", stashStr, controllerStr)
 		}
 
 		claimed := false
@@ -486,6 +483,8 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) {
 		if claimed {
 			c.log.Info("TryPayout already claimed", "stash", stashStr)
 			continue
+		} else {
+			controllers = append(controllers, controller)
 		}
 
 		call, err := types.NewCall(
@@ -496,23 +495,46 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) {
 		)
 
 		if err != nil {
-			c.log.Error("TryPayout NewCall error", "error", err, "stash", stashStr)
-			continue
+			return fmt.Errorf("NewCall error: %s, stash: %s", err, stashStr)
 		}
 
 		calls = append(calls, call)
 	}
 
 	if len(calls) == 0 {
-		return
+		return nil
 	}
 
 	ext, err := c.gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
 	if err != nil {
-		c.log.Error("TryPayout NewUnsignedExtrinsic error", "error", err)
-		return
+		return fmt.Errorf("NewUnsignedExtrinsic error: %s", err)
 	}
 
 	err = c.gc.SignAndSubmitTx(ext)
-	c.log.Info("TryPayout SignAndSubmitTx result", "err", err)
+	c.log.Info("SignAndSubmitTx result", "err", err)
+
+	for _, con := range controllers {
+		conStr := hexutil.Encode(con[:])
+		ledger := new(submodel.StakingLedger)
+		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageLedger, con[:], nil, ledger)
+		if err != nil {
+			return fmt.Errorf("get ledger error: %s, controller: %s", err, conStr)
+		}
+		if !exist {
+			return fmt.Errorf("ledger not exist, controller: %s", conStr)
+		}
+
+		claimed := false
+		for _, claimedEra := range ledger.ClaimedRewards {
+			if flow.LastEra == claimedEra {
+				claimed = true
+				break
+			}
+		}
+		if !claimed {
+			return fmt.Errorf("payout for controller: %s but still not claimed", conStr)
+		}
+	}
+
+	return nil
 }

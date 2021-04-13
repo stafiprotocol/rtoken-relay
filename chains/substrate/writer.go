@@ -693,67 +693,40 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	}
 
 	m.Source, m.Destination = m.Destination, m.Source
-	waitFlag := true
 	if flow.Stashes == nil || len(flow.Stashes) == 0 {
-		waitFlag = false
-		go w.waitPayout(m, waitFlag)
+		w.queryAndReportActive(m)
 	} else {
-		if flow.LastVoterFlag {
-			w.conn.TryPayout(flow)
-			waitFlag = false
+		err := w.conn.TryPayout(flow)
+		if err != nil {
+			w.log.Error("TryPayout error", "error", err)
+			return false
 		}
-		go w.waitPayout(m, waitFlag)
+		w.queryAndReportActive(m)
 	}
 
 	return true
 }
 
-func (w *writer) waitPayout(m *core.Message, waitFlag bool) {
+func (w *writer) queryAndReportActive(m *core.Message) {
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
 		w.printContentError(m)
 		return
 	}
 
-	if waitFlag {
-		startBlk, err := w.conn.LatestBlockNumber()
-		if err != nil {
-			w.log.Error("waitPayout latest block error", "error", err)
-			return
-		}
-
-		endBlk := startBlk + waitBlockNum
-
-	LOOP:
-		for {
-			select {
-			default:
-				blk, err := w.conn.LatestBlockNumber()
-				if err != nil {
-					return
-				}
-				if blk < endBlk {
-					time.Sleep(singleBlockTime)
-				} else {
-					break LOOP
-				}
-			}
-		}
-	}
-
 	ledger := new(submodel.StakingLedger)
 	exist, err := w.conn.QueryStorage(config.StakingModuleId, config.StorageLedger, flow.Snap.Pool, nil, ledger)
 	if err != nil {
-		w.log.Error("waitPayout get ledger error", "error", err, "pool", hexutil.Encode(flow.Snap.Pool))
+		w.log.Error("queryAndReportActive get ledger error", "error", err, "pool", hexutil.Encode(flow.Snap.Pool))
 		return
 	}
 	if !exist {
-		w.log.Error("waitPayout ledger not exist", "pool", hexutil.Encode(flow.Snap.Pool))
+		w.log.Error("queryAndReportActive ledger not exist", "pool", hexutil.Encode(flow.Snap.Pool))
 		return
 	}
 
 	flow.Snap.Active = types.NewU128(big.Int(ledger.Active))
-	w.log.Info("waitPayout", "waitFlag", waitFlag, "pool", hexutil.Encode(flow.Snap.Pool), "active", flow.Snap.Active)
+	w.log.Info("queryAndReportActive", "pool", hexutil.Encode(flow.Snap.Pool), "active", flow.Snap.Active)
 	m.Content = flow
 	m.Reason = core.ActiveReport
 
