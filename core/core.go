@@ -60,11 +60,11 @@ func (c *Core) Start() {
 		c.log.Warn("Interrupt received, shutting down now.")
 	}
 
+	c.route.StopMsgHandler()
 	// Signal chains to shutdown
 	for _, chain := range c.Registry {
 		chain.Stop()
 	}
-	c.route.StopMsgHandler()
 }
 
 func (c *Core) Errors() <-chan error {
