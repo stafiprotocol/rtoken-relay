@@ -626,28 +626,33 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 	err = c.gc.SignAndSubmitTx(ext)
 	c.log.Info("SignAndSubmitTx result", "err", err)
 
-	for _, con := range controllers {
-		conStr := hexutil.Encode(con[:])
-		ledger := new(submodel.StakingLedger)
-		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageLedger, con[:], nil, ledger)
-		if err != nil {
-			return fmt.Errorf("get ledger error: %s, controller: %s", err, conStr)
-		}
-		if !exist {
-			return fmt.Errorf("ledger not exist, controller: %s", conStr)
-		}
+out:
+	for i := 0; i < BlockRetryLimit*10; i++ {
+		for _, con := range controllers {
+			conStr := hexutil.Encode(con[:])
+			ledger := new(submodel.StakingLedger)
+			exist, err := c.QueryStorage(config.StakingModuleId, config.StorageLedger, con[:], nil, ledger)
+			if err != nil {
+				return fmt.Errorf("get ledger error: %s, controller: %s", err, conStr)
+			}
+			if !exist {
+				return fmt.Errorf("ledger not exist, controller: %s", conStr)
+			}
 
-		claimed := false
-		for _, claimedEra := range ledger.ClaimedRewards {
-			if flow.LastEra == claimedEra {
-				claimed = true
-				break
+			claimed := false
+			for _, claimedEra := range ledger.ClaimedRewards {
+				if flow.LastEra == claimedEra {
+					claimed = true
+					break
+				}
+			}
+			if !claimed {
+				time.Sleep(BlockInterval)
+				continue out
 			}
 		}
-		if !claimed {
-			return fmt.Errorf("payout for controller: %s but still not claimed", conStr)
-		}
+		//all claimed
+		return nil
 	}
-
-	return nil
+	panic("reach limit")
 }
