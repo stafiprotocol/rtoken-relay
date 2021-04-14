@@ -4,6 +4,7 @@
 package substrate
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -23,6 +24,7 @@ import (
 
 type writer struct {
 	conn            *Connection
+	stafiConn       *Connection
 	router          chains.Router
 	log             log15.Logger
 	sysErr          chan<- error
@@ -294,6 +296,47 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	return true
 }
 
+func (w *writer) rebuildEraUpdateEventUseStafiConn(snap *submodel.PoolSnapshot) error {
+	th, sub, err := w.stafiConn.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	if err != nil {
+		return err
+	}
+	key, others := w.stafiConn.FoundFirstSubAccount(sub)
+	if key == nil {
+		return errors.New("EraPoolUpdated FoundFirstSubAccount have no sub key")
+	}
+	mef := &submodel.MultiEventFlow{
+		EventId:     config.EraPoolUpdatedEventId,
+		Symbol:      snap.Symbol,
+		Threshold:   th,
+		SubAccounts: sub,
+	}
+	mef.Key, mef.Others = key, others
+
+	call, err := w.stafiConn.BondOrUnbondCall(snap)
+	if err != nil {
+		if err.Error() == substrate.BondEqualToUnbondError.Error() {
+			return err
+		}
+		w.log.Error("BondOrUnbondCall error", "err", err)
+		return err
+	}
+
+	info, err := w.stafiConn.PaymentQueryInfo(call.Extrinsic)
+	if err != nil {
+		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
+		return err
+	}
+	mef.PaymentInfo = info
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
+	callhash := call.CallHash
+	mef.NewMulCallHashs = map[string]bool{callhash: true}
+	mef.MulExeCallHashs = map[string]bool{callhash: true}
+
+	w.setEvents(call.CallHash, mef)
+	return nil
+}
+
 func (w *writer) processActiveReported(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -546,14 +589,15 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
+	_, ok = w.existBondedPools(hexutil.Encode(flow.ID[:]), m.Destination)
 	if !ok {
 		w.log.Info("received a newMultisig event which the ID is not in the bondedPools, ignored")
 		return true
 	}
 
 	w.setNewMultics(flow.CallHashStr, flow)
-	evt, ok := w.getEvents(flow.CallHashStr)
+
+	evt, ok := w.existEvents(flow.CallHashStr, m.Destination)
 	if !ok {
 		w.log.Info("receive a newMultisig, wait for more flow data")
 		return true
@@ -774,6 +818,24 @@ func (w *writer) getLatestBondedPools(symbol core.RSymbol) ([]types.Bytes, error
 	return bondedPools, nil
 }
 
+func (w *writer) getLatestBondedPoolsUseStafiConn(symbol core.RSymbol) ([]types.Bytes, error) {
+	symbz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		w.sysErr <- err
+		return nil, err
+	}
+	bondedPools := make([]types.Bytes, 0)
+	exist, err := w.stafiConn.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondedPools, symbz, nil, &bondedPools)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, fmt.Errorf("bonded pools not extis: %s", symbol)
+	}
+
+	return bondedPools, nil
+}
+
 // submitMessage inserts the chainId into the msg and sends it to the router
 func (w *writer) submitMessage(m *core.Message) bool {
 	if m.Destination == "" {
@@ -799,6 +861,30 @@ func (w *writer) setEvents(key string, value *submodel.MultiEventFlow) {
 	w.eventMtx.Lock()
 	defer w.eventMtx.Unlock()
 	w.events[key] = value
+}
+
+func (w *writer) existEvents(key string, symbol core.RSymbol) (*submodel.MultiEventFlow, bool) {
+	_, ok := w.getEvents(key)
+	if !ok {
+		snapshots, err := w.stafiConn.CurrentEraSnapshots(symbol)
+		if err == nil {
+			for _, snapId := range snapshots {
+				snapshot, err := w.stafiConn.snapshot(symbol, snapId)
+				if err == nil {
+					switch snapshot.BondState {
+					case submodel.EraUpdated:
+						w.rebuildEraUpdateEventUseStafiConn(snapshot)
+					case submodel.BondReported:
+					case submodel.ActiveReported:
+					case submodel.WithdrawSkipped:
+					case submodel.WithdrawReported:
+					case submodel.TransferReported:
+					}
+				}
+			}
+		}
+	}
+	return w.getEvents(key)
 }
 
 func (w *writer) deleteEvents(key string) {
@@ -837,4 +923,17 @@ func (w *writer) setBondedPools(key string, value bool) {
 	w.bondedPoolsMtx.Lock()
 	defer w.bondedPoolsMtx.Unlock()
 	w.bondedPools[key] = value
+}
+
+func (w *writer) existBondedPools(poolStr string, symbol core.RSymbol) (bool, bool) {
+	_, ok := w.getBondedPools(poolStr)
+	if !ok {
+		pools, err := w.getLatestBondedPoolsUseStafiConn(symbol)
+		if err == nil {
+			for _, p := range pools {
+				w.setBondedPools(hexutil.Encode(p), true)
+			}
+		}
+	}
+	return w.getBondedPools(poolStr)
 }

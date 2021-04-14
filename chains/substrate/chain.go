@@ -118,3 +118,16 @@ func parseStartBlock(cfg *core.ChainConfig) uint64 {
 	}
 	return 0
 }
+
+func (c *Chain) SetStafiConn(stafiConn *Connection) {
+	if c.cfg.Symbol != core.RFIS {
+		c.writer.stafiConn = stafiConn
+	}
+}
+
+func (c *Chain) GetStafiConn() *Connection {
+	if c.cfg.Symbol == core.RFIS {
+		return c.conn
+	}
+	return nil
+}

@@ -291,6 +291,73 @@ func (c *Connection) EraContinuable(sym core.RSymbol) (bool, error) {
 	return len(ids) == 0, nil
 }
 
+func (c *Connection) CurrentEraSnapshots(symbol core.RSymbol) ([]types.Hash, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]types.Hash, 0)
+	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageCurrentEraSnapShots, symBz, nil, &ids)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.New("currentEraSnapshots not exist")
+	}
+	return ids, nil
+}
+
+func (c *Connection) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.PoolSnapshot, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+	bz, err := types.EncodeToBytes(shotId)
+	snap := new(submodel.PoolSnapshot)
+	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symBz, bz, snap)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("snap of shotId: %s not exist", hexutil.Encode(shotId[:]))
+	}
+
+	return snap, nil
+}
+
+func (c *Connection) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return 0, nil, err
+	}
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	var threshold uint16
+	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
+	if err != nil {
+		return 0, nil, err
+	}
+	if !exist {
+		return 0, nil, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+	}
+
+	subs := make([]types.Bytes, 0)
+	exist, err = c.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symBz, poolBz, &subs)
+	if err != nil {
+		return 0, nil, err
+	}
+	if !exist {
+		return 0, nil, fmt.Errorf("subAccounts of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+	}
+
+	return threshold, subs, nil
+}
+
 func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
 	symBz, err := types.EncodeToBytes(sym)
 	if err != nil {
@@ -457,7 +524,7 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 		var controller types.AccountID
 		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageBonded, stash[:], nil, &controller)
 		if err != nil {
-			return fmt.Errorf("get controller error: %s, stash: %s", )
+			return fmt.Errorf("get controller error: %s, stash: %s")
 		}
 		if !exist {
 			return fmt.Errorf("get controller not exist, stash: %s", stashStr)
