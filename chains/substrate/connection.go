@@ -640,13 +640,16 @@ out:
 			}
 
 			claimed := false
+			c.log.Debug("payout", "controller", conStr)
 			for _, claimedEra := range ledger.ClaimedRewards {
+				c.log.Debug("payout", "flow.lastEra", flow.LastEra, "claimedEra", claimedEra)
 				if flow.LastEra == claimedEra {
 					claimed = true
 					break
 				}
 			}
 			if !claimed {
+				c.log.Debug("claimed sleep", "claimed", claimed)
 				time.Sleep(BlockInterval)
 				continue out
 			}

@@ -331,10 +331,10 @@ type IndividualExposure struct {
 }
 
 type StakingLedger struct {
-	Stash  types.AccountID
-	Total  types.UCompact
-	Active types.UCompact
-	//Unlocking      []UnlockChunk
+	Stash          types.AccountID
+	Total          types.UCompact
+	Active         types.UCompact
+	Unlocking      []UnlockChunk
 	ClaimedRewards []uint32
 }
 
