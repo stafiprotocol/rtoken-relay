@@ -296,7 +296,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	return true
 }
 
-func (w *writer) rebuildEraUpdateEventUseStafiConn(snap *submodel.PoolSnapshot) error {
+func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *submodel.PoolSnapshot) error {
 	th, sub, err := w.stafiConn.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return err
@@ -305,16 +305,28 @@ func (w *writer) rebuildEraUpdateEventUseStafiConn(snap *submodel.PoolSnapshot) 
 	if key == nil {
 		return errors.New("EraPoolUpdated FoundFirstSubAccount have no sub key")
 	}
+
+	flow := &submodel.EraPoolUpdatedFlow{
+		Symbol:    snap.Symbol,
+		Era:       snap.Era,
+		ShotId:    shotId,
+		LastVoter: snap.LastVoter,
+	}
+	flow.LastVoterFlag = w.stafiConn.IsLastVoter(flow.LastVoter)
+	flow.Snap = snap
+
 	mef := &submodel.MultiEventFlow{
 		EventId:     config.EraPoolUpdatedEventId,
 		Symbol:      snap.Symbol,
+		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
 	}
-	mef.Key, mef.Others = key, others
 
+	mef.Key, mef.Others = key, others
 	call, err := w.stafiConn.BondOrUnbondCall(snap)
 	if err != nil {
+		//no tx no need to rebuild
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
 			return err
 		}
@@ -873,7 +885,7 @@ func (w *writer) existEvents(key string, symbol core.RSymbol) (*submodel.MultiEv
 				if err == nil {
 					switch snapshot.BondState {
 					case submodel.EraUpdated:
-						w.rebuildEraUpdateEventUseStafiConn(snapshot)
+						w.rebuildEraUpdateEventUseStafiConn(snapId, snapshot)
 					case submodel.BondReported:
 					case submodel.ActiveReported:
 					case submodel.WithdrawSkipped:
