@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -54,6 +55,25 @@ func NewGsrpcClient(endpoint, addressType string, key *signature.KeyringPair, lo
 	}, nil
 }
 
+func (gc *GsrpcClient) FlashApi() (*gsrpc.SubstrateAPI, error) {
+	_, err := gc.api.RPC.Chain.GetBlockHashLatest()
+	if err != nil {
+		var api *gsrpc.SubstrateAPI
+		for i := 0; i < 5; i++ {
+			api, err = gsrpc.NewSubstrateAPI(gc.endpoint)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(time.Millisecond * 500)
+			}
+		}
+		if api != nil {
+			gc.api = api
+		}
+	}
+	return gc.api, nil
+}
+
 func (gc *GsrpcClient) Address() string {
 	return gc.key.Address
 }
@@ -82,15 +102,27 @@ func (gc *GsrpcClient) GetFinalizedBlockNumber() (uint64, error) {
 }
 
 func (gc *GsrpcClient) GetHeaderLatest() (*types.Header, error) {
-	return gc.api.RPC.Chain.GetHeaderLatest()
+	api, err := gc.FlashApi()
+	if err != nil {
+		return nil, err
+	}
+	return api.RPC.Chain.GetHeaderLatest()
 }
 
 func (gc *GsrpcClient) GetFinalizedHead() (types.Hash, error) {
-	return gc.api.RPC.Chain.GetFinalizedHead()
+	api, err := gc.FlashApi()
+	if err != nil {
+		return types.NewHash([]byte{}), err
+	}
+	return api.RPC.Chain.GetFinalizedHead()
 }
 
 func (gc *GsrpcClient) GetHeader(blockHash types.Hash) (*types.Header, error) {
-	return gc.api.RPC.Chain.GetHeader(blockHash)
+	api, err := gc.FlashApi()
+	if err != nil {
+		return nil, err
+	}
+	return api.RPC.Chain.GetHeader(blockHash)
 }
 
 func (gc *GsrpcClient) GetBlockNumber(blockHash types.Hash) (uint64, error) {
@@ -114,7 +146,12 @@ func (gc *GsrpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 		return false, err
 	}
 
-	ok, err := gc.api.RPC.State.GetStorageLatest(key, result)
+	api, err := gc.FlashApi()
+	if err != nil {
+		return false, err
+	}
+
+	ok, err := api.RPC.State.GetStorageLatest(key, result)
 	if err != nil {
 		return false, err
 	}
@@ -123,7 +160,11 @@ func (gc *GsrpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 }
 
 func (gc *GsrpcClient) GetLatestMetadata() (*types.Metadata, error) {
-	meta, err := gc.api.RPC.State.GetMetadataLatest()
+	api, err := gc.FlashApi()
+	if err != nil {
+		return nil, err
+	}
+	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +173,11 @@ func (gc *GsrpcClient) GetLatestMetadata() (*types.Metadata, error) {
 }
 
 func (gc *GsrpcClient) GetLatestRuntimeVersion() (*types.RuntimeVersion, error) {
-	rv, err := gc.api.RPC.State.GetRuntimeVersionLatest()
+	api, err := gc.FlashApi()
+	if err != nil {
+		return nil, err
+	}
+	rv, err := api.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +237,12 @@ func (gc *GsrpcClient) SignAndSubmitTx(ext interface{}) error {
 		return err
 	}
 
+	api, err := gc.FlashApi()
+	if err != nil {
+		return err
+	}
 	// Do the transfer and track the actual status
-	sub, err := gc.api.RPC.Author.SubmitAndWatch(ext)
+	sub, err := api.RPC.Author.SubmitAndWatch(ext)
 	if err != nil {
 		return err
 	}
@@ -410,8 +459,12 @@ func (gc *GsrpcClient) NewVersionAccountInfo(who []byte) (*submodel.AccountInfo,
 }
 
 func (gc *GsrpcClient) ExistentialDeposit() (types.U128, error) {
+	api, err := gc.FlashApi()
+	if err != nil {
+		return types.U128{}, err
+	}
 	var e types.U128
-	err := gc.api.RPC.State.GetConst(config.BalancesModuleId, config.ConstExistentialDeposit, &e)
+	err = api.RPC.State.GetConst(config.BalancesModuleId, config.ConstExistentialDeposit, &e)
 	if err != nil {
 		return types.U128{}, err
 	}
