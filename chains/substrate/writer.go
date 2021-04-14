@@ -590,13 +590,13 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
+	_, ok = w.existBondedPools(hexutil.Encode(flow.ID[:]), m.Destination)
 	if !ok {
 		w.log.Info("received a multisigExecuted event which the ID is not in the bondedPools, ignored")
 		return true
 	}
 
-	evt, ok := w.getEvents(flow.CallHashStr)
+	evt, ok := w.existEvents(flow.CallHashStr, m.Destination)
 	if !ok {
 		w.log.Info("receive a multisigExecuted but no evt found")
 		return true
@@ -816,8 +816,10 @@ func (w *writer) existEvents(key string, symbol core.RSymbol) (*submodel.MultiEv
 						w.rebuildEraUpdateEventUseStafiConn(snapId, snapshot)
 					case submodel.BondReported:
 					case submodel.ActiveReported:
+						w.rebuildActiveReportedEventUseStafiConn(snapId, snapshot)
 					case submodel.WithdrawSkipped:
 					case submodel.WithdrawReported:
+						w.rebuildWithdrawReportedEventUseStafiConn(snapId, snapshot)
 					case submodel.TransferReported:
 					}
 				}

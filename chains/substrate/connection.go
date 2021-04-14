@@ -6,6 +6,8 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/utils"
+	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -306,6 +308,50 @@ func (c *Connection) CurrentEraSnapshots(symbol core.RSymbol) ([]types.Hash, err
 		return nil, errors.New("currentEraSnapshots not exist")
 	}
 	return ids, nil
+}
+
+func (c *Connection) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, types.U128{}, err
+	}
+
+	puk := &submodel.PoolUnbondKey{Pool: pool, Era: era}
+	pkbz, err := types.EncodeToBytes(puk)
+	if err != nil {
+		return nil, types.U128{}, err
+	}
+
+	unbonds := make([]submodel.Unbonding, 0)
+	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, symBz, pkbz, &unbonds)
+	if err != nil {
+		return nil, types.U128{}, err
+	}
+	if !exist {
+		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
+	}
+
+	amounts := make(map[string]types.U128)
+	for _, ub := range unbonds {
+		rec := hexutil.Encode(ub.Recipient)
+		acc, ok := amounts[rec]
+		if !ok {
+			amounts[rec] = ub.Value
+		} else {
+			amounts[rec] = utils.AddU128(acc, ub.Value)
+		}
+	}
+
+	receives := make([]*submodel.Receive, 0)
+	total := types.NewU128(*big.NewInt(0))
+	for k, v := range amounts {
+		r, _ := hexutil.Decode(k)
+		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
+		receives = append(receives, rec)
+		total = utils.AddU128(total, v)
+	}
+
+	return receives, total, nil
 }
 
 func (c *Connection) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.PoolSnapshot, error) {
