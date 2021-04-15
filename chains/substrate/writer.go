@@ -580,7 +580,6 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 	}
 
 	w.log.Error("AsMulti success", "callHash", flow.CallHash)
-	panic("fff")
 	return true
 }
 
