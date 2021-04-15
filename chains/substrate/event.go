@@ -165,7 +165,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	if snap.BondState != submodel.ActiveReported {
 		l.log.Warn("processActiveReportedEvt: bondState not ActiveReported",
 			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
-		return nil, BondStateNotBondReportedError
+		return nil, BondStateNotActiveReportedError
 	}
 
 	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)

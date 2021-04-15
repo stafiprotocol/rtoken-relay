@@ -3,6 +3,7 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -11,6 +12,8 @@ import (
 )
 
 func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *submodel.PoolSnapshot) error {
+	w.log.Debug("now is rebuildEraUpdateEventUseStafiConn","symbol",snap.Symbol,"pool",hexutil.Encode(snap.Pool),
+		"shotId",shotId.Hex())
 	th, sub, err := w.stafiConn.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return err
@@ -64,6 +67,8 @@ func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *subm
 }
 
 func (w *writer) rebuildActiveReportedEventUseStafiConn(shotId types.Hash, snap *submodel.PoolSnapshot) error {
+	w.log.Debug("now is rebuildActiveReportedEventUseStafiConn","symbol",snap.Symbol,"pool",hexutil.Encode(snap.Pool),
+		"shotId",shotId.Hex())
 	th, sub, err := w.stafiConn.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return err
@@ -111,6 +116,8 @@ func (w *writer) rebuildActiveReportedEventUseStafiConn(shotId types.Hash, snap 
 }
 
 func (w *writer) rebuildWithdrawReportedEventUseStafiConn(shotId types.Hash, snap *submodel.PoolSnapshot) error {
+	w.log.Debug("now is rebuildWithdrawReportedEventUseStafiConn","symbol",snap.Symbol,"pool",hexutil.Encode(snap.Pool),
+		"shotId",shotId.Hex())
 	th, sub, err := w.stafiConn.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return err
@@ -168,6 +175,8 @@ func (w *writer) rebuildWithdrawReportedEventUseStafiConn(shotId types.Hash, sna
 		w.setEvents(call.CallHash, mef)
 	}
 
+	w.log.Debug("rebuildWithdrawReportedEventUseStafiConn end","symbol",snap.Symbol,"pool",hexutil.Encode(snap.Pool),
+		"shotId",shotId.Hex())
 	return nil
 }
 

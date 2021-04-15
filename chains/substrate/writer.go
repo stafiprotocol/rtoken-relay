@@ -575,7 +575,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	err := w.conn.AsMulti(evt)
 	if err != nil {
-		w.log.Error("AsMulti error", "err", err, "callHash", flow.CallHash)
+		w.log.Error("AsMulti error", "err", err, "callHash", flow.CallHash.Hex())
 		return false
 	}
 
