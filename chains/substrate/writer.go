@@ -555,7 +555,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	w.setNewMultics(flow.CallHashStr, flow)
 
-	evt, ok := w.existEvents(flow.CallHashStr, m.Destination)
+	evt, ok := w.getEvents(flow.CallHashStr)
 	if !ok {
 		w.log.Info("receive a newMultisig, wait for more flow data", "call hash", flow.CallHashStr)
 		return true
