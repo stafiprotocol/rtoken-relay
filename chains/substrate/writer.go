@@ -557,7 +557,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	evt, ok := w.existEvents(flow.CallHashStr, m.Destination)
 	if !ok {
-		w.log.Info("receive a newMultisig, wait for more flow data")
+		w.log.Info("receive a newMultisig, wait for more flow data","call hash",flow.CallHashStr)
 		return true
 	}
 
@@ -580,6 +580,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 	}
 
 	w.log.Error("AsMulti success", "callHash", flow.CallHash)
+	panic("fff")
 	return true
 }
 
@@ -813,17 +814,31 @@ func (w *writer) existEvents(key string, symbol core.RSymbol) (*submodel.MultiEv
 				if err == nil {
 					switch snapshot.BondState {
 					case submodel.EraUpdated:
-						w.rebuildEraUpdateEventUseStafiConn(snapId, snapshot)
+						err := w.rebuildEraUpdateEventUseStafiConn(snapId, snapshot)
+						if err != nil {
+							w.log.Error("rebuildEraUpdateEventUseStafiConn", "err", err)
+						}
 					case submodel.BondReported:
 					case submodel.ActiveReported:
-						w.rebuildActiveReportedEventUseStafiConn(snapId, snapshot)
+						err := w.rebuildActiveReportedEventUseStafiConn(snapId, snapshot)
+						if err != nil {
+							w.log.Error("rebuildActiveReportedEventUseStafiConn", "err", err)
+						}
 					case submodel.WithdrawSkipped:
 					case submodel.WithdrawReported:
-						w.rebuildWithdrawReportedEventUseStafiConn(snapId, snapshot)
+						err := w.rebuildWithdrawReportedEventUseStafiConn(snapId, snapshot)
+						if err != nil {
+							w.log.Error("rebuildWithdrawReportedEventUseStafiConn", "err", err)
+						}
 					case submodel.TransferReported:
 					}
+				} else {
+					w.log.Error("w.stafiConn.snapshot", "err", err)
 				}
 			}
+		} else {
+			w.log.Error("w.stafiConn.snapshot", "err", err)
+
 		}
 	}
 	return w.getEvents(key)
@@ -875,6 +890,8 @@ func (w *writer) existBondedPools(poolStr string, symbol core.RSymbol) (bool, bo
 			for _, p := range pools {
 				w.setBondedPools(hexutil.Encode(p), true)
 			}
+		} else {
+			w.log.Error("getLatestBondedPoolsUseStafiConn", "err", err)
 		}
 	}
 	return w.getBondedPools(poolStr)

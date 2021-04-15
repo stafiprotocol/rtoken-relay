@@ -15,9 +15,9 @@ func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *subm
 	if err != nil {
 		return err
 	}
-	key, others := w.stafiConn.FoundFirstSubAccount(sub)
+	key, others := w.conn.FoundFirstSubAccount(sub)
 	if key == nil {
-		return errors.New("EraPoolUpdated FoundFirstSubAccount have no sub key")
+		return errors.New("FoundFirstSubAccount have no sub key")
 	}
 
 	flow := &submodel.EraPoolUpdatedFlow{
@@ -26,7 +26,7 @@ func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *subm
 		ShotId:    shotId,
 		LastVoter: snap.LastVoter,
 	}
-	flow.LastVoterFlag = w.stafiConn.IsLastVoter(flow.LastVoter)
+	flow.LastVoterFlag = w.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 
 	mef := &submodel.MultiEventFlow{
@@ -38,7 +38,7 @@ func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *subm
 	}
 
 	mef.Key, mef.Others = key, others
-	call, err := w.stafiConn.BondOrUnbondCall(snap)
+	call, err := w.conn.BondOrUnbondCall(snap)
 	if err != nil {
 		//no tx no need to rebuild
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
@@ -48,7 +48,7 @@ func (w *writer) rebuildEraUpdateEventUseStafiConn(shotId types.Hash, snap *subm
 		return err
 	}
 
-	info, err := w.stafiConn.PaymentQueryInfo(call.Extrinsic)
+	info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
 	if err != nil {
 		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return err
@@ -68,7 +68,7 @@ func (w *writer) rebuildActiveReportedEventUseStafiConn(shotId types.Hash, snap 
 	if err != nil {
 		return err
 	}
-	key, others := w.stafiConn.FoundFirstSubAccount(sub)
+	key, others := w.conn.FoundFirstSubAccount(sub)
 	if key == nil {
 		return errors.New("EraPoolUpdated FoundFirstSubAccount have no sub key")
 	}
@@ -78,7 +78,7 @@ func (w *writer) rebuildActiveReportedEventUseStafiConn(shotId types.Hash, snap 
 		ShotId:    shotId,
 		LastVoter: snap.LastVoter,
 	}
-	flow.LastVoterFlag = w.stafiConn.IsLastVoter(flow.LastVoter)
+	flow.LastVoterFlag = w.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 
 	mef := &submodel.MultiEventFlow{
@@ -90,13 +90,13 @@ func (w *writer) rebuildActiveReportedEventUseStafiConn(shotId types.Hash, snap 
 	}
 	mef.Key, mef.Others = key, others
 
-	call, err := w.stafiConn.WithdrawCall()
+	call, err := w.conn.WithdrawCall()
 	if err != nil {
 		w.log.Error("WithdrawCall error", "err", err)
 		return err
 	}
 
-	info, err := w.stafiConn.PaymentQueryInfo(call.Extrinsic)
+	info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
 	if err != nil {
 		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return err
@@ -115,7 +115,7 @@ func (w *writer) rebuildWithdrawReportedEventUseStafiConn(shotId types.Hash, sna
 	if err != nil {
 		return err
 	}
-	key, others := w.stafiConn.FoundFirstSubAccount(sub)
+	key, others := w.conn.FoundFirstSubAccount(sub)
 	if key == nil {
 		return errors.New("EraPoolUpdated FoundFirstSubAccount have no sub key")
 	}
@@ -131,7 +131,7 @@ func (w *writer) rebuildWithdrawReportedEventUseStafiConn(shotId types.Hash, sna
 		LastVoter: snap.LastVoter,
 	}
 
-	flow.LastVoterFlag = w.stafiConn.IsLastVoter(flow.LastVoter)
+	flow.LastVoterFlag = w.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 	flow.Receives = receives
 	flow.TotalAmount = total
@@ -145,13 +145,13 @@ func (w *writer) rebuildWithdrawReportedEventUseStafiConn(shotId types.Hash, sna
 	}
 	mef.Key, mef.Others = key, others
 
-	calls, hashs1, hashs2, err := w.stafiConn.TransferCalls(flow.Receives)
+	calls, hashs1, hashs2, err := w.conn.TransferCalls(flow.Receives)
 	if err != nil {
 		w.log.Error("TransferCalls error", "symbol", snap.Symbol)
 		return err
 	}
 
-	info, err := w.stafiConn.PaymentQueryInfo(calls[0].Extrinsic)
+	info, err := w.conn.PaymentQueryInfo(calls[0].Extrinsic)
 	if err != nil {
 		w.log.Error("PaymentQueryInfo error", "err", err, "Extrinsic", calls[0].Extrinsic)
 		return err

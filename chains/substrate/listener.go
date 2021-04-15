@@ -249,7 +249,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[BondReported](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId {
-				l.log.Trace("Handling BondReportEvent")
+				l.log.Trace("Handling ActiveReportEvent")
 				flow, err := l.processActiveReportedEvt(evt)
 				if err != nil {
 					if err.Error() == BondStateNotActiveReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
