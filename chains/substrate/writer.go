@@ -291,7 +291,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Error("AsMulti success", "callHash", callhash)
+	w.log.Info("AsMulti success", "callHash", callhash)
 	return true
 }
 
@@ -363,7 +363,7 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Error("AsMulti success", "callHash", callhash)
+	w.log.Info("AsMulti success", "callHash", callhash)
 	return true
 }
 
@@ -452,7 +452,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Error("AsMulti success", "eventId", mef.EventId)
+	w.log.Info("AsMulti success", "eventId", mef.EventId)
 	return true
 }
 
@@ -536,7 +536,7 @@ func (w *writer) processNominationUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Error("AsMulti success", "callHash", callhash)
+	w.log.Info("AsMulti success", "callHash", callhash)
 	return true
 }
 
@@ -579,7 +579,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Error("AsMulti success", "callHash", flow.CallHash)
+	w.log.Info("AsMulti success", "callHash", flow.CallHash)
 	return true
 }
 

@@ -478,6 +478,22 @@ func (c *Connection) PaymentQueryInfo(ext string) (*rpc.PaymentQueryInfo, error)
 }
 
 func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
+
+	for i := 0; i < BlockRetryLimit*2; i++ {
+		err := c.asMulti(flow)
+		if err != nil {
+			c.log.Warn("asmulti err will retry after 10 s", "err", err)
+			time.Sleep(10 * time.Second)
+			continue
+		} else {
+			return nil
+		}
+	}
+
+	return errors.New(fmt.Sprintf("asmulti reach limit symbol %s", flow.Symbol))
+}
+
+func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	gc := c.gcs[flow.Key]
 	if gc == nil {
 		panic(fmt.Sprintf("key disappear: %s, symbol: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol))
