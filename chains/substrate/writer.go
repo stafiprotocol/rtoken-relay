@@ -557,7 +557,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	evt, ok := w.existEvents(flow.CallHashStr, m.Destination)
 	if !ok {
-		w.log.Info("receive a newMultisig, wait for more flow data","call hash",flow.CallHashStr)
+		w.log.Info("receive a newMultisig, wait for more flow data", "call hash", flow.CallHashStr)
 		return true
 	}
 
@@ -591,13 +591,13 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.existBondedPools(hexutil.Encode(flow.ID[:]), m.Destination)
+	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
 	if !ok {
 		w.log.Info("received a multisigExecuted event which the ID is not in the bondedPools, ignored")
 		return true
 	}
 
-	evt, ok := w.existEvents(flow.CallHashStr, m.Destination)
+	evt, ok := w.getEvents(flow.CallHashStr)
 	if !ok {
 		w.log.Info("receive a multisigExecuted but no evt found")
 		return true
