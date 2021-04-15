@@ -590,7 +590,7 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
+	_, ok = w.existBondedPools(hexutil.Encode(flow.ID[:]), m.Destination)
 	if !ok {
 		w.log.Info("received a multisigExecuted event which the ID is not in the bondedPools, ignored")
 		return true
