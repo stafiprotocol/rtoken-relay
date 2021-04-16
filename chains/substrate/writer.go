@@ -721,12 +721,13 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
 
+	w.log.Debug("wait validator", "pool", eraNominatedFlow)
 	//wait for validators
 	select {
 	case <-timer.C:
 	case validatorsFromStafi = <-eraNominatedFlow.NewValidators:
 	}
-
+	w.log.Debug("eraNominatedFlow", validatorsFromStafi)
 	err := w.conn.SetToPayoutStashes(flow, validatorsFromStafi)
 	if err != nil {
 		if err.Error() == TargetNotExistError.Error() {

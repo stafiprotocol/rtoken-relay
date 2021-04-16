@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/utils"
+	"math/big"
 )
 
 var (
@@ -302,14 +301,13 @@ func parseBytes(value interface{}) ([]byte, error) {
 }
 
 func parseVecBytes(value interface{}) ([]types.Bytes, error) {
-	vals, ok := value.([]string)
+	vals, ok := value.([]interface{})
 	if !ok {
 		return nil, ValueNotStringSliceError
 	}
-
 	result := make([]types.Bytes, 0)
 	for _, val := range vals {
-		bz, err := hexutil.Decode(utiles.AddHex(val))
+		bz, err := parseBytes(val)
 		if err != nil {
 			return nil, err
 		}

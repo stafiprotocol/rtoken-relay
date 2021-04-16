@@ -323,7 +323,7 @@ func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint3
 	}
 
 	validators := make([]types.AccountID, 0)
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageEraNominated, symBz, pkbz, &validators)
+	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageEraNominated, symBz, pkbz, &validators)
 	if err != nil {
 		return nil, err
 	}
