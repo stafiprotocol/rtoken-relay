@@ -711,7 +711,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	eraNominatedFlow := &submodel.GetEraNominatedFlow{
 		Symbol:        flow.Snap.Symbol,
 		Pool:          flow.Snap.Pool,
-		Era:           flow.Snap.Era,
+		Era:           flow.Snap.Era - 1,
 		NewValidators: make(chan []types.AccountID, 1),
 	}
 
@@ -721,13 +721,13 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
 
-	w.log.Debug("wait validator", "pool", eraNominatedFlow)
+	w.log.Debug("wait validator from stafi", "pool", eraNominatedFlow)
 	//wait for validators
 	select {
 	case <-timer.C:
 	case validatorsFromStafi = <-eraNominatedFlow.NewValidators:
 	}
-	w.log.Debug("eraNominatedFlow", validatorsFromStafi)
+	w.log.Debug("validatorsFromStafi", "validator", validatorsFromStafi)
 	err := w.conn.SetToPayoutStashes(flow, validatorsFromStafi)
 	if err != nil {
 		if err.Error() == TargetNotExistError.Error() {
