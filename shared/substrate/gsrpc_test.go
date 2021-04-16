@@ -659,3 +659,18 @@ func TestPool(t *testing.T) {
 	//fmt.Println()
 
 }
+
+func TestGsrpcClient_Address(t *testing.T) {
+	stop := make(chan int)
+	//gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+	gc, err := NewGsrpcClient("wss://kusama-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	con, _ := types.NewMultiAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	ledger := new(submodel.StakingLedger)
+	_, err = gc.QueryStorage(config.StakingModuleId, config.StorageLedger, con.AsID[:], nil, ledger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(ledger)
+}
