@@ -556,8 +556,16 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	evt, ok := w.getEvents(flow.CallHashStr)
 	if !ok {
-		w.log.Info("receive a newMultisig, wait for more flow data", "call hash", flow.CallHashStr)
+		w.log.Info("receive a newMultisig, wait for more flow data", "callHash", flow.CallHashStr)
 		return true
+	}
+
+	identify := hexutil.Encode(evt.Key.PublicKey)
+	for _, apv := range flow.Approvals {
+		if identify == hexutil.Encode(apv[:]) {
+			w.log.Info("receive a newMultisig which has already approved, will ignore", "callHash", flow.CallHashStr)
+			return true
+		}
 	}
 
 	for _, call := range evt.OpaqueCalls {
