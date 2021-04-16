@@ -79,6 +79,9 @@ func EraPoolUpdatedData(evt *ChainEvent) (*EraPoolUpdatedFlow, error) {
 }
 
 func EventNewMultisigData(evt *ChainEvent) (*EventNewMultisig, error) {
+	if len(evt.Params) != 3 {
+		return nil, fmt.Errorf("EventNewMultisigData params number not right: %d, expected: 3", len(evt.Params))
+	}
 	who, err := parseAccountId(evt.Params[0].Value)
 	if err != nil {
 		return nil, fmt.Errorf("EventNewMultisig params[0] -> who error: %s", err)
