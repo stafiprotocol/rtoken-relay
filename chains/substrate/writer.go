@@ -89,10 +89,27 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processWithdrawReportedEvent(m)
 	case core.NominationUpdatedEvent:
 		return w.processNominationUpdatedEvent(m)
+	case core.GetEraNominated:
+		return w.processGetEraNominated(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
 	}
+}
+
+func (w *writer) processGetEraNominated(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.GetEraNominatedFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	validator, err := w.conn.GetEraNominated(flow.Symbol, flow.Pool, flow.Era)
+	if err != nil {
+		w.log.Warn("GetEraNominated failed", "err", err)
+	}
+	flow.NewValidators <- validator
+	return true
 }
 
 func (w *writer) processLiquidityBond(m *core.Message) bool {
@@ -682,8 +699,27 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		w.printContentError(m)
 		return false
 	}
+	//get targets from stafi
+	eraNominatedFlow := &submodel.GetEraNominatedFlow{
+		Symbol:        flow.Snap.Symbol,
+		Pool:          flow.Snap.Pool,
+		Era:           flow.Snap.Era,
+		NewValidators: make(chan []types.AccountID, 1),
+	}
 
-	err := w.conn.SetToPayoutStashes(flow)
+	validatorsFromStafi := make([]types.AccountID, 0)
+	w.submitMessage(&core.Message{m.Destination, core.RFIS, core.GetEraNominated, eraNominatedFlow})
+
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+
+	//wait for validators
+	select {
+	case <-timer.C:
+	case validatorsFromStafi = <-eraNominatedFlow.NewValidators:
+	}
+
+	err := w.conn.SetToPayoutStashes(flow, validatorsFromStafi)
 	if err != nil {
 		if err.Error() == TargetNotExistError.Error() {
 			w.sysErr <- fmt.Errorf("TargetNotExistError, pool: %s, symbol: %s, lastEra: %d", hexutil.Encode(flow.Snap.Pool), flow.Snap.Symbol, flow.LastEra)

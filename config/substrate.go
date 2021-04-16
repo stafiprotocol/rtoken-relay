@@ -11,6 +11,7 @@ const (
 	StorageActiveEra        = "ActiveEra"
 	StorageNominators       = "Nominators"
 	StorageErasRewardPoints = "ErasRewardPoints"
+	StorageEraNominated     = "EraNominated"
 	StorageBonded           = "Bonded"
 	StorageLedger           = "Ledger"
 	MethodPayoutStakers     = "Staking.payout_stakers"

@@ -25,4 +25,5 @@ const (
 	NominationUpdatedEvent = Reason("NominationUpdatedEvent")
 	NewMultisig            = Reason("AsMulti")
 	MultisigExecuted       = Reason("MultisigExecuted")
+	GetEraNominated        = Reason("GetEraNominated")
 )

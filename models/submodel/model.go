@@ -238,6 +238,13 @@ type NominationUpdatedFlow struct {
 	LastVoterFlag bool
 }
 
+type GetEraNominatedFlow struct {
+	Symbol        core.RSymbol
+	Pool          []byte
+	Era           uint32
+	NewValidators chan []types.AccountID
+}
+
 type MultiEventFlow struct {
 	EventId         string
 	Symbol          core.RSymbol

@@ -310,6 +310,29 @@ func (c *Connection) CurrentEraSnapshots(symbol core.RSymbol) ([]types.Hash, err
 	return ids, nil
 }
 
+func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint32) ([]types.AccountID, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	puk := &submodel.PoolUnbondKey{Pool: pool, Era: era}
+	pkbz, err := types.EncodeToBytes(puk)
+	if err != nil {
+		return nil, err
+	}
+
+	validators := make([]types.AccountID, 0)
+	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageEraNominated, symBz, pkbz, &validators)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, errors.New("not exist")
+	}
+	return validators, nil
+}
+
 func (c *Connection) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
 	symBz, err := types.EncodeToBytes(symbol)
 	if err != nil {
@@ -532,14 +555,23 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	return gc.SignAndSubmitTx(ext)
 }
 
-func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow) error {
+func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validatorFromStafi []types.AccountID) error {
+
+	//targets from kusama is new targets,maybe different from old era`s
+	//1 get target from stafi
+	//2 if target not exist instafi then get from kusama
+
 	fullTargets := make([]types.AccountID, 0)
-	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageNominators, flow.Snap.Pool, nil, &fullTargets)
-	if err != nil {
-		return err
-	}
-	if !exist || len(fullTargets) == 0 {
-		return TargetNotExistError
+	if len(validatorFromStafi) != 0 {
+		fullTargets = validatorFromStafi
+	} else {
+		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageNominators, flow.Snap.Pool, nil, &fullTargets)
+		if err != nil {
+			return err
+		}
+		if !exist || len(fullTargets) == 0 {
+			return TargetNotExistError
+		}
 	}
 
 	bz, err := types.EncodeToBytes(flow.LastEra)
@@ -548,7 +580,7 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow) error {
 	}
 
 	points := new(submodel.EraRewardPoints)
-	exist, err = c.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, points)
+	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, points)
 	if err != nil {
 		return err
 	}
