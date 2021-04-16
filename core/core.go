@@ -38,6 +38,24 @@ func (c *Core) AddChain(chain Chain) {
 func (c *Core) Start() {
 	go c.route.MsgHandler()
 
+	helpSymbols := make([]RSymbol, 0)
+	var stafiChain Chain
+	for _, chain := range c.Registry {
+		if chain.Rsymbol() == RFIS {
+			stafiChain = chain
+		} else {
+			helpSymbols = append(helpSymbols, chain.Rsymbol())
+		}
+	}
+	if stafiChain == nil {
+		panic("stafiChain is nil")
+	}
+	err := stafiChain.InitBondedPools(helpSymbols)
+	if err != nil {
+		c.log.Error("failed to init bonded pools", "err", err)
+		return
+	}
+
 	for _, chain := range c.Registry {
 		err := chain.Start()
 		if err != nil {
@@ -46,7 +64,6 @@ func (c *Core) Start() {
 		}
 		c.log.Info(fmt.Sprintf("Started %s chain", chain.Name()))
 	}
-
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)

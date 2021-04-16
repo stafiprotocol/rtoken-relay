@@ -101,8 +101,6 @@ func run(ctx *cli.Context) error {
 	sysErr := make(chan error)
 	c := core.NewCore(sysErr)
 
-	helpChains := make([]*substrate.Chain, 0)
-	var stafiConn *substrate.Connection
 	for _, chain := range cfg.Chains {
 		chainConfig := &core.ChainConfig{
 			Name:            chain.Name,
@@ -122,23 +120,11 @@ func run(ctx *cli.Context) error {
 			if err != nil {
 				return err
 			}
-			if chain.Rsymbol() == core.RFIS {
-				stafiConn = chain.GetStafiConn()
-			}
-			helpChains = append(helpChains, chain)
 			newChain = chain
 		} else {
 			return errors.New("unrecognized Chain Type")
 		}
-
 		c.AddChain(newChain)
-	}
-
-	if stafiConn == nil {
-		panic("stafiConn is nil")
-	}
-	for _, chain := range helpChains {
-		chain.SetStafiConn(stafiConn)
 	}
 
 	c.Start()

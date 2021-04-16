@@ -119,15 +119,20 @@ func parseStartBlock(cfg *core.ChainConfig) uint64 {
 	return 0
 }
 
-func (c *Chain) SetStafiConn(stafiConn *Connection) {
-	if c.cfg.Symbol != core.RFIS {
-		c.writer.stafiConn = stafiConn
+func (c *Chain) InitBondedPools(symbols []core.RSymbol) error {
+	//only stafi need
+	if c.Rsymbol() != core.RFIS {
+		return nil
 	}
-}
-
-func (c *Chain) GetStafiConn() *Connection {
-	if c.cfg.Symbol == core.RFIS {
-		return c.conn
+	for _, symbol := range symbols {
+		bondedPools, err := c.writer.getLatestBondedPools(symbol)
+		if err != nil {
+			return err
+		}
+		msg := &core.Message{Source: core.RFIS, Destination: symbol, Reason: core.BondedPools, Content: bondedPools}
+		if !c.writer.submitMessage(msg) {
+			return errors.New("init bondedPools submitMessage failed")
+		}
 	}
 	return nil
 }

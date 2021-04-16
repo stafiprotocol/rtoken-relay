@@ -9,6 +9,7 @@ type Chain interface {
 	Rsymbol() RSymbol
 	Name() string
 	Stop()
+	InitBondedPools(symbols []RSymbol) error
 }
 
 type ChainConfig struct {

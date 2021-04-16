@@ -23,7 +23,6 @@ import (
 
 type writer struct {
 	conn            *Connection
-	stafiConn       *Connection
 	router          chains.Router
 	log             log15.Logger
 	sysErr          chan<- error
@@ -547,7 +546,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.existBondedPools(hexutil.Encode(flow.ID[:]), m.Destination)
+	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
 	if !ok {
 		w.log.Info("received a newMultisig event which the ID is not in the bondedPools, ignored")
 		return true
@@ -590,7 +589,7 @@ func (w *writer) processMultisigExecuted(m *core.Message) bool {
 		return false
 	}
 
-	_, ok = w.existBondedPools(hexutil.Encode(flow.ID[:]), m.Destination)
+	_, ok = w.getBondedPools(hexutil.Encode(flow.ID[:]))
 	if !ok {
 		w.log.Info("received a multisigExecuted event which the ID is not in the bondedPools, ignored")
 		return true
@@ -803,46 +802,6 @@ func (w *writer) setEvents(key string, value *submodel.MultiEventFlow) {
 	w.events[key] = value
 }
 
-func (w *writer) existEvents(key string, symbol core.RSymbol) (*submodel.MultiEventFlow, bool) {
-	_, ok := w.getEvents(key)
-	if !ok {
-		snapshots, err := w.stafiConn.CurrentEraSnapshots(symbol)
-		if err == nil {
-			for _, snapId := range snapshots {
-				snapshot, err := w.stafiConn.snapshot(symbol, snapId)
-				if err == nil {
-					switch snapshot.BondState {
-					case submodel.EraUpdated:
-						err := w.rebuildEraUpdateEventUseStafiConn(snapId, snapshot)
-						if err != nil {
-							w.log.Error("rebuildEraUpdateEventUseStafiConn", "err", err)
-						}
-					case submodel.BondReported:
-					case submodel.ActiveReported:
-						err := w.rebuildActiveReportedEventUseStafiConn(snapId, snapshot)
-						if err != nil {
-							w.log.Error("rebuildActiveReportedEventUseStafiConn", "err", err)
-						}
-					case submodel.WithdrawSkipped:
-					case submodel.WithdrawReported:
-						err := w.rebuildWithdrawReportedEventUseStafiConn(snapId, snapshot)
-						if err != nil {
-							w.log.Error("rebuildWithdrawReportedEventUseStafiConn", "err", err)
-						}
-					case submodel.TransferReported:
-					}
-				} else {
-					w.log.Error("w.stafiConn.snapshot", "err", err)
-				}
-			}
-		} else {
-			w.log.Error("w.stafiConn.snapshot", "err", err)
-
-		}
-	}
-	return w.getEvents(key)
-}
-
 func (w *writer) deleteEvents(key string) {
 	w.eventMtx.Lock()
 	defer w.eventMtx.Unlock()
@@ -879,19 +838,4 @@ func (w *writer) setBondedPools(key string, value bool) {
 	w.bondedPoolsMtx.Lock()
 	defer w.bondedPoolsMtx.Unlock()
 	w.bondedPools[key] = value
-}
-
-func (w *writer) existBondedPools(poolStr string, symbol core.RSymbol) (bool, bool) {
-	_, ok := w.getBondedPools(poolStr)
-	if !ok {
-		pools, err := w.getLatestBondedPoolsUseStafiConn(symbol)
-		if err == nil {
-			for _, p := range pools {
-				w.setBondedPools(hexutil.Encode(p), true)
-			}
-		} else {
-			w.log.Error("getLatestBondedPoolsUseStafiConn", "err", err)
-		}
-	}
-	return w.getBondedPools(poolStr)
 }

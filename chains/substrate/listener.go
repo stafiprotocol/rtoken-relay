@@ -149,7 +149,9 @@ func (l *listener) pollBlocks() error {
 
 			// Sleep if the block we want comes after the most recently finalized block
 			if currentBlock+l.blockDelay() > finalBlk {
-				l.log.Trace("Block not yet finalized", "target", currentBlock, "finalBlk", finalBlk)
+				if currentBlock%100 == 0 {
+					l.log.Trace("Block not yet finalized", "target", currentBlock, "finalBlk", finalBlk)
+				}
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
