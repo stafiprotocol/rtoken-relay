@@ -6,8 +6,6 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -331,100 +329,6 @@ func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint3
 		return nil, errors.New("not exist")
 	}
 	return validators, nil
-}
-
-func (c *Connection) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, types.U128{}, err
-	}
-
-	puk := &submodel.PoolUnbondKey{Pool: pool, Era: era}
-	pkbz, err := types.EncodeToBytes(puk)
-	if err != nil {
-		return nil, types.U128{}, err
-	}
-
-	unbonds := make([]submodel.Unbonding, 0)
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, symBz, pkbz, &unbonds)
-	if err != nil {
-		return nil, types.U128{}, err
-	}
-	if !exist {
-		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
-	}
-
-	amounts := make(map[string]types.U128)
-	for _, ub := range unbonds {
-		rec := hexutil.Encode(ub.Recipient)
-		acc, ok := amounts[rec]
-		if !ok {
-			amounts[rec] = ub.Value
-		} else {
-			amounts[rec] = utils.AddU128(acc, ub.Value)
-		}
-	}
-
-	receives := make([]*submodel.Receive, 0)
-	total := types.NewU128(*big.NewInt(0))
-	for k, v := range amounts {
-		r, _ := hexutil.Decode(k)
-		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
-		receives = append(receives, rec)
-		total = utils.AddU128(total, v)
-	}
-
-	return receives, total, nil
-}
-
-func (c *Connection) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.PoolSnapshot, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, err
-	}
-	bz, err := types.EncodeToBytes(shotId)
-	snap := new(submodel.PoolSnapshot)
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symBz, bz, snap)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exist {
-		return nil, fmt.Errorf("snap of shotId: %s not exist", hexutil.Encode(shotId[:]))
-	}
-
-	return snap, nil
-}
-
-func (c *Connection) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
-	poolBz, err := types.EncodeToBytes(pool)
-	if err != nil {
-		return 0, nil, err
-	}
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	var threshold uint16
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
-	if err != nil {
-		return 0, nil, err
-	}
-	if !exist {
-		return 0, nil, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
-	}
-
-	subs := make([]types.Bytes, 0)
-	exist, err = c.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symBz, poolBz, &subs)
-	if err != nil {
-		return 0, nil, err
-	}
-	if !exist {
-		return 0, nil, fmt.Errorf("subAccounts of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
-	}
-
-	return threshold, subs, nil
 }
 
 func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {

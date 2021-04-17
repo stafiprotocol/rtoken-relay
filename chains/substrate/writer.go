@@ -207,9 +207,17 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	if old != 0 && cur > old {
 		should = old + 1
 	}
-	eraBz, _ := types.EncodeToBytes(should)
+	eraBz, err := types.EncodeToBytes(should)
+	if err != nil {
+		w.log.Error("processNewEra EncodeToBytes error", "error", err, "should", should)
+		return false
+	}
 	bondId := types.Hash(utils.BlakeTwo256(eraBz))
 	prop, err := w.conn.SetChainEraProposal(m.Source, bondId, should)
+	if err != nil {
+		w.log.Error("processNewEra SetChainEraProposal error", "error", err)
+		return false
+	}
 	result := w.conn.resolveProposal(prop, true)
 	w.log.Info("processNewEra", "symbol", m.Source, "uploadEra", should, "current", cur, "result", result)
 	if result {
@@ -397,7 +405,15 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 
 	balance, err := w.conn.FreeBalance(flow.Snap.Pool)
+	if err != nil {
+		w.log.Error("FreeBalance error", "err", err, "pool", hexutil.Encode(flow.Snap.Pool))
+		return false
+	}
 	e, err := w.conn.ExistentialDeposit()
+	if err != nil {
+		w.log.Error("ExistentialDeposit error", "err", err, "pool", hexutil.Encode(flow.Snap.Pool))
+		return false
+	}
 	least := utils.AddU128(flow.TotalAmount, e)
 	if balance.Cmp(least.Int) < 0 {
 		w.log.Error("free balance not enough for transfer back")

@@ -10,7 +10,7 @@ import (
 	log "github.com/ChainSafe/log15"
 )
 
-const msgLimit = 48
+const msgLimit = 4096
 
 // Writer consumes a message and makes the requried on-chain interactions.
 type Writer interface {

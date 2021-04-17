@@ -53,7 +53,7 @@ func GetConfig(ctx *cli.Context) (*Config, error) {
 	return &fig, nil
 }
 
-func loadConfig(file string, config *Config) error {
+func loadConfig(file string, config *Config) (err error) {
 	ext := filepath.Ext(file)
 	fp, err := filepath.Abs(file)
 	if err != nil {
@@ -66,14 +66,12 @@ func loadConfig(file string, config *Config) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err = f.Close()
+	}()
 
-	if ext == ".json" {
-		if err = json.NewDecoder(f).Decode(&config); err != nil {
-			return err
-		}
-	} else {
+	if ext != ".json" {
 		return fmt.Errorf("unrecognized extention: %s", ext)
 	}
-
-	return nil
+	return json.NewDecoder(f).Decode(&config)
 }
