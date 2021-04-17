@@ -208,6 +208,7 @@ type BondReportedFlow struct {
 	LastVoterFlag bool
 	Snap          *PoolSnapshot
 	LastEra       uint32
+	SubAccounts   []types.Bytes
 	Stashes       []types.AccountID
 }
 

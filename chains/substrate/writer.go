@@ -449,7 +449,6 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 
 	for _, call := range calls {
-
 		newMuls, ok := w.getNewMultics(call.CallHash)
 		if ok {
 			call.TimePoint = newMuls.TimePoint
@@ -709,16 +708,19 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	}
 	//get targets from stafi
 	eraNominatedFlow := &submodel.GetEraNominatedFlow{
-		Symbol:        flow.Snap.Symbol,
+		Symbol:        flow.Symbol,
 		Pool:          flow.Snap.Pool,
-		Era:           flow.Snap.Era - 1,
+		Era:           flow.LastEra,
 		NewValidators: make(chan []types.AccountID, 1),
 	}
 
 	validatorsFromStafi := make([]types.AccountID, 0)
-	w.submitMessage(&core.Message{m.Destination, core.RFIS, core.GetEraNominated, eraNominatedFlow})
+	msg := &core.Message{
+		Source: m.Destination, Destination: core.RFIS,
+		Reason: core.GetEraNominated, Content: eraNominatedFlow}
+	w.submitMessage(msg)
 
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 
 	w.log.Debug("wait validator from stafi", "pool", eraNominatedFlow)
@@ -731,10 +733,10 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	err := w.conn.SetToPayoutStashes(flow, validatorsFromStafi)
 	if err != nil {
 		if err.Error() == TargetNotExistError.Error() {
-			w.sysErr <- fmt.Errorf("TargetNotExistError, pool: %s, symbol: %s, lastEra: %d", hexutil.Encode(flow.Snap.Pool), flow.Snap.Symbol, flow.LastEra)
+			w.sysErr <- fmt.Errorf("TargetNotExistError, pool: %s, symbol: %s, lastEra: %d", hexutil.Encode(flow.Snap.Pool), flow.Symbol, flow.LastEra)
 			return false
 		}
-		w.log.Error("SetToPayoutStashes error", "error", err, "pool", hexutil.Encode(flow.Snap.Pool), "symbol", flow.Snap.Symbol, "lastEra", flow.LastEra)
+		w.log.Error("SetToPayoutStashes error", "error", err, "pool", hexutil.Encode(flow.Snap.Pool), "symbol", flow.Symbol, "lastEra", flow.LastEra)
 		return false
 	}
 

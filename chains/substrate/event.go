@@ -133,9 +133,15 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, BondStateNotBondReportedError
 	}
 
+	_, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	if err != nil {
+		return nil, err
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 	flow.LastEra = snap.Era - 1
+	flow.SubAccounts = sub
 
 	return flow, nil
 }

@@ -6,8 +6,6 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -333,100 +331,6 @@ func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint3
 	return validators, nil
 }
 
-func (c *Connection) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, types.U128{}, err
-	}
-
-	puk := &submodel.PoolUnbondKey{Pool: pool, Era: era}
-	pkbz, err := types.EncodeToBytes(puk)
-	if err != nil {
-		return nil, types.U128{}, err
-	}
-
-	unbonds := make([]submodel.Unbonding, 0)
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, symBz, pkbz, &unbonds)
-	if err != nil {
-		return nil, types.U128{}, err
-	}
-	if !exist {
-		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
-	}
-
-	amounts := make(map[string]types.U128)
-	for _, ub := range unbonds {
-		rec := hexutil.Encode(ub.Recipient)
-		acc, ok := amounts[rec]
-		if !ok {
-			amounts[rec] = ub.Value
-		} else {
-			amounts[rec] = utils.AddU128(acc, ub.Value)
-		}
-	}
-
-	receives := make([]*submodel.Receive, 0)
-	total := types.NewU128(*big.NewInt(0))
-	for k, v := range amounts {
-		r, _ := hexutil.Decode(k)
-		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
-		receives = append(receives, rec)
-		total = utils.AddU128(total, v)
-	}
-
-	return receives, total, nil
-}
-
-func (c *Connection) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.PoolSnapshot, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, err
-	}
-	bz, err := types.EncodeToBytes(shotId)
-	snap := new(submodel.PoolSnapshot)
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symBz, bz, snap)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exist {
-		return nil, fmt.Errorf("snap of shotId: %s not exist", hexutil.Encode(shotId[:]))
-	}
-
-	return snap, nil
-}
-
-func (c *Connection) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
-	poolBz, err := types.EncodeToBytes(pool)
-	if err != nil {
-		return 0, nil, err
-	}
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	var threshold uint16
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
-	if err != nil {
-		return 0, nil, err
-	}
-	if !exist {
-		return 0, nil, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
-	}
-
-	subs := make([]types.Bytes, 0)
-	exist, err = c.QueryStorage(config.RTokenLedgerModuleId, config.StorageSubAccounts, symBz, poolBz, &subs)
-	if err != nil {
-		return 0, nil, err
-	}
-	if !exist {
-		return 0, nil, fmt.Errorf("subAccounts of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
-	}
-
-	return threshold, subs, nil
-}
-
 func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
 	symBz, err := types.EncodeToBytes(sym)
 	if err != nil {
@@ -466,6 +370,17 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
+func (c *Connection) FoundIndexOfSubAccount(accounts []types.Bytes) (int, *substrate.GsrpcClient) {
+	for i, ac := range accounts {
+		for _, key := range c.keys {
+			if hexutil.Encode(key.PublicKey) == hexutil.Encode(ac) {
+				return i, c.gcs[key]
+			}
+		}
+	}
+	return -1, nil
+}
+
 func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.MultiOpaqueCall, error) {
 	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
@@ -501,7 +416,6 @@ func (c *Connection) PaymentQueryInfo(ext string) (*rpc.PaymentQueryInfo, error)
 }
 
 func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
-
 	for i := 0; i < BlockRetryLimit; i++ {
 		err := c.asMulti(flow)
 		if err != nil {
@@ -556,7 +470,6 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 }
 
 func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validatorFromStafi []types.AccountID) error {
-
 	//targets from kusama is new targets,maybe different from old era`s
 	//1 get target from stafi
 	//2 if target not exist instafi then get from kusama
@@ -604,21 +517,28 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validat
 }
 
 func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
-	calls := make([]types.Call, 0)
-	meta, err := c.LatestMetadata()
-	if err != nil {
-		return fmt.Errorf("LatestMetadata error: %s", err)
-	}
-	method := config.MethodPayoutStakers
 	controllers := make([]types.AccountID, 0)
 
-	for _, stash := range flow.Stashes {
+	idx, client := c.FoundIndexOfSubAccount(flow.SubAccounts)
+	if idx == -1 || client == nil {
+		return errors.New("not a sub account")
+	}
+
+	stashes := flow.Stashes
+	if idx%2 != 0 {
+		for i, j := 0, len(stashes)-1; i < j; i, j = i+1, j-1 {
+			stashes[i], stashes[j] = stashes[j], stashes[i]
+		}
+	}
+
+	method := config.MethodPayoutStakers
+	for _, stash := range stashes {
 		stashStr := hexutil.Encode(stash[:])
 
 		var controller types.AccountID
 		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageBonded, stash[:], nil, &controller)
 		if err != nil {
-			return fmt.Errorf("get controller error: %s, stash: %s")
+			return fmt.Errorf("get controller error: %s, stash: %s", err, stashStr)
 		}
 		if !exist {
 			return fmt.Errorf("get controller not exist, stash: %s", stashStr)
@@ -645,36 +565,21 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 			c.log.Info("TryPayout already claimed", "stash", stashStr)
 			continue
 		} else {
-			controllers = append(controllers, controller)
+			if idx >= 4 {
+				controllers = append(controllers, controller)
+				continue
+			}
+
+			ext, err := client.NewUnsignedExtrinsic(method, stash, flow.LastEra)
+			if err != nil {
+				return fmt.Errorf("NewUnsignedExtrinsic error: %s", err)
+			}
+
+			err = client.SignAndSubmitTx(ext)
+			c.log.Info("SignAndSubmitTx result", "err", err)
 		}
-
-		call, err := types.NewCall(
-			meta,
-			method,
-			stash,
-			flow.LastEra,
-		)
-
-		if err != nil {
-			return fmt.Errorf("NewCall error: %s, stash: %s", err, stashStr)
-		}
-
-		calls = append(calls, call)
 	}
-
-	if len(calls) == 0 {
-		return nil
-	}
-
-	ext, err := c.gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
-	if err != nil {
-		return fmt.Errorf("NewUnsignedExtrinsic error: %s", err)
-	}
-
-	err = c.gc.SignAndSubmitTx(ext)
-	c.log.Info("SignAndSubmitTx result", "err", err)
-
-out:
+Loop:
 	for i := 0; i < BlockRetryLimit*10; i++ {
 		for _, con := range controllers {
 			conStr := hexutil.Encode(con[:])
@@ -699,11 +604,11 @@ out:
 			if !claimed {
 				c.log.Debug("claimed sleep", "claimed", claimed)
 				time.Sleep(BlockInterval)
-				continue out
+				continue Loop
 			}
 		}
 		//all claimed
 		return nil
 	}
-	panic("reach limit")
+	return errors.New("reach limit")
 }
