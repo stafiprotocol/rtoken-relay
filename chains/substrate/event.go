@@ -302,6 +302,9 @@ func (l *listener) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.P
 		return nil, err
 	}
 	bz, err := types.EncodeToBytes(shotId)
+	if err != nil {
+		return nil, err
+	}
 	snap := new(submodel.PoolSnapshot)
 	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symBz, bz, snap)
 	if err != nil {
@@ -381,7 +384,10 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	receives := make([]*submodel.Receive, 0)
 	total := types.NewU128(*big.NewInt(0))
 	for k, v := range amounts {
-		r, _ := hexutil.Decode(k)
+		r, err := hexutil.Decode(k)
+		if err != nil {
+			return nil, types.U128{}, fmt.Errorf("hexutil.Decode err %s,k: %v", err, k)
+		}
 		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
 		receives = append(receives, rec)
 		total = utils.AddU128(total, v)
