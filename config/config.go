@@ -47,7 +47,7 @@ func GetConfig(ctx *cli.Context) (*Config, error) {
 	err := loadConfig(path, &fig)
 	if err != nil {
 		log.Warn("err loading json file", "err", err.Error())
-		return &fig, err
+		return nil, err
 	}
 	log.Debug("Loaded config", "path", path)
 	return &fig, nil
