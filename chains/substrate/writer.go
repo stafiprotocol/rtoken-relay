@@ -31,7 +31,6 @@ type writer struct {
 	bondedPoolsMtx  sync.RWMutex
 	events          map[string]*submodel.MultiEventFlow
 	newMultics      map[string]*submodel.EventNewMultisig
-	multiExecuted   map[string]*submodel.EventMultisigExecuted
 	bondedPools     map[string]bool
 	currentChainEra uint32
 }
