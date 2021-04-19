@@ -565,8 +565,8 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 			c.log.Info("TryPayout already claimed", "stash", stashStr)
 			continue
 		} else {
+			controllers = append(controllers, controller)
 			if idx >= 4 {
-				controllers = append(controllers, controller)
 				continue
 			}
 
