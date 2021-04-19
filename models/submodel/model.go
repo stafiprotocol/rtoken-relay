@@ -365,3 +365,95 @@ type Transaction struct {
 	Address        interface{}
 	Params         []chainTypes.ExtrinsicParam
 }
+
+type OriginalTx string
+
+const (
+	OriginalTransfer       = OriginalTx("Transfer")
+	OriginalBond           = OriginalTx("Bond")
+	OriginalUnbond         = OriginalTx("Unbond")
+	OriginalWithdrawUnbond = OriginalTx("WithdrawUnbond")
+	OriginalClaimRewards   = OriginalTx("ClaimRewards")
+)
+
+func (r *OriginalTx) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*r = OriginalTransfer
+	case 1:
+		*r = OriginalBond
+	case 2:
+		*r = OriginalUnbond
+	case 3:
+		*r = OriginalWithdrawUnbond
+	case 4:
+		*r = OriginalClaimRewards
+	default:
+		return fmt.Errorf("OriginalTx decode error: %d", b)
+	}
+
+	return nil
+}
+
+func (r OriginalTx) Encode(encoder scale.Encoder) error {
+	switch r {
+	case OriginalTransfer:
+		return encoder.PushByte(0)
+	case OriginalBond:
+		return encoder.PushByte(1)
+	case OriginalUnbond:
+		return encoder.PushByte(2)
+	case OriginalWithdrawUnbond:
+		return encoder.PushByte(3)
+	case OriginalClaimRewards:
+		return encoder.PushByte(4)
+	default:
+		return fmt.Errorf("OriginalTx %s not supported", r)
+	}
+}
+
+type SubmitSignatureParams struct {
+	Symbol     core.RSymbol
+	Era        types.U32
+	Pool       types.Bytes
+	TxType     OriginalTx
+	ProposalId types.Bytes
+	Signature  types.Bytes
+}
+
+type GetReceiversParams struct {
+	Symbol core.RSymbol
+	Era    types.U32
+	Pool   types.Bytes
+}
+
+type SubmitSignatures struct {
+	Symbol     core.RSymbol
+	Era        types.U32
+	Pool       types.Bytes
+	TxType     OriginalTx
+	ProposalId types.Bytes
+	Signature  []types.Bytes
+}
+
+type SignaturesKey struct {
+	RSymbol    core.RSymbol
+	Era        uint32
+	Pool       []byte
+	TxType     OriginalTx
+	ProposalId []byte
+}
+
+//SignaturesEnough(RSymbol, u32, Vec<u8>, OriginalTxType, Vec<u8>),
+type EvtSignatureEnough struct {
+	RSymbol    core.RSymbol
+	Era        uint32
+	Pool       []byte
+	TxType     OriginalTx
+	ProposalId []byte
+}
