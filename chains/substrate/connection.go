@@ -579,35 +579,50 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 			c.log.Info("SignAndSubmitTx result", "err", err)
 		}
 	}
-Loop:
-	for i := 0; i < BlockRetryLimit*10; i++ {
-		for _, con := range controllers {
-			conStr := hexutil.Encode(con[:])
-			ledger := new(submodel.StakingLedger)
-			exist, err := c.QueryStorage(config.StakingModuleId, config.StorageLedger, con[:], nil, ledger)
+	for _, con := range controllers {
+		conStr := hexutil.Encode(con[:])
+		retry := 0
+		for {
+			if retry >= BlockRetryLimit*10 {
+				//reach limit
+				return errors.New("query controller reach limit")
+			}
+			claimed, err := c.IsClaimed(con[:], flow.LastEra)
 			if err != nil {
-				return fmt.Errorf("get ledger error: %s, controller: %s", err, conStr)
-			}
-			if !exist {
-				return fmt.Errorf("ledger not exist, controller: %s", conStr)
-			}
-
-			claimed := false
-			c.log.Debug("payout", "controller", conStr)
-			for _, claimedEra := range ledger.ClaimedRewards {
-				if flow.LastEra == claimedEra {
-					claimed = true
-					break
-				}
+				c.log.Debug("query controller claimed err will retry", "controller", conStr, "retry", retry, "err", err)
+				retry++
+				time.Sleep(BlockInterval)
+				continue
 			}
 			if !claimed {
-				c.log.Debug("claimed sleep", "claimed", claimed)
+				c.log.Debug("not claimed will retry query controller", "controller", conStr, "retry", retry)
+				retry++
 				time.Sleep(BlockInterval)
-				continue Loop
+				continue
 			}
+			//has claimed
+			break
 		}
-		//all claimed
-		return nil
 	}
-	return errors.New("reach limit")
+	return nil
+}
+
+func (c *Connection) IsClaimed(controller []byte, lastEra uint32) (bool, error) {
+	ledger := new(submodel.StakingLedger)
+	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller, nil, ledger)
+	if err != nil {
+		return false, fmt.Errorf("get ledger error: %s, controller: %s", err, hexutil.Encode(controller))
+	}
+	if !exist {
+		return false, fmt.Errorf("ledger not exist, controller: %s", hexutil.Encode(controller))
+	}
+
+	claimed := false
+	for _, claimedEra := range ledger.ClaimedRewards {
+		if lastEra == claimedEra {
+			claimed = true
+			break
+		}
+	}
+	return claimed, nil
 }
