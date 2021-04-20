@@ -28,4 +28,6 @@ const (
 	StorageBondedPools         = "BondedPools"
 	StorageSnapshots           = "Snapshots"
 	StoragePoolUnbonds         = "PoolUnbonds"
+	SignaturesEnoughEventId    = "SignaturesEnough"
+	StorageSignatures          = "Signatures"
 )

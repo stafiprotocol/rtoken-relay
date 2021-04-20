@@ -291,12 +291,13 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
 	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
 	if err != nil {
+		w.log.Error("checkAndSend AccAddressFromHex failed", "err", err)
 		return false
 	}
 
 	for {
 		if retry <= 0 {
-			w.log.Error("processSignatureEnoughEvt broadcast tx reach retry limit",
+			w.log.Error("checkAndSend broadcast tx reach retry limit",
 				"pool hex address", poolAddrHexStr)
 			break
 		}
@@ -304,95 +305,99 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 		res, err := client.QueryTxByHash(txHashHexStr)
 		if err != nil || res.Empty() || res.Code != 0 {
 			w.log.Warn(fmt.Sprintf(
-				"processSignatureEnoughEvt QueryTxByHash failed. will rebroadcast after %f second",
+				"checkAndSend QueryTxByHash failed. will rebroadcast after %f second",
 				BlockRetryInterval.Seconds()),
 				"err or res.empty", err)
-			retry--
-		} else {
-			w.log.Info("processSignatureEnoughEvt success",
-				"pool hex address", poolAddrHexStr,
-				"txHash", txHashHexStr)
-			//return true only check on chain
 
-			switch wrappedUnSignedTx.Type {
-			case submodel.OriginalBond:
-				callHash := utils.BlakeTwo256(sigs.Pool)
-				mflow := submodel.MultiEventFlow{
-					EventData: &submodel.EraPoolUpdatedFlow{
-						ShotId: wrappedUnSignedTx.SnapshotId},
-					OpaqueCalls: []*submodel.MultiOpaqueCall{
-						&submodel.MultiOpaqueCall{
-							CallHash: hexutil.Encode(callHash[:])}},
-				}
-
-				poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-				return w.informChain(m.Destination, m.Source, &mflow)
-			case submodel.OriginalClaimRewards:
-				height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
-				delegationsRes, err := client.QueryDelegations(poolAddr, height)
-				if err != nil {
-					w.log.Error("processSignatureEnoughEvt QueryDelegations failed",
-						"pool hex address", poolAddrHexStr,
-						"err", err)
-					return false
-				}
-				total := types.NewInt(0)
-				for _, dele := range delegationsRes.GetDelegationResponses() {
-					total = total.Add(dele.Balance.Amount)
-				}
-
-				rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
-				if err != nil {
-					w.log.Error("processSignatureEnoughEvt QueryDelegationTotalRewards failed",
-						"pool hex address", poolAddrHexStr,
-						"err", err)
-					return false
-				}
-				rewardTotal := big.NewInt(0)
-				rewardDe := rewardRes.Total.AmountOf(client.GetDenom())
-				if !rewardDe.IsNil() {
-					rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
-				}
-
-				total.Add(types.NewIntFromBigInt(rewardTotal))
-				f := submodel.BondReportedFlow{
-					Symbol: sigs.Symbol,
-					ShotId: wrappedUnSignedTx.SnapshotId,
-					Snap: &submodel.PoolSnapshot{
-						Era:    wrappedUnSignedTx.Era,
-						Symbol: sigs.Symbol,
-						Pool:   sigs.Pool,
-						Active: substrateTypes.NewU128(*total.BigInt())},
-				}
-
-				poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-
-				return w.activeReport(m.Destination, m.Source, &f)
-			case submodel.OriginalTransfer:
-				callHash := utils.BlakeTwo256(sigs.Pool)
-				mflow := submodel.MultiEventFlow{
-					EventData: &submodel.WithdrawReportedFlow{
-						ShotId: wrappedUnSignedTx.SnapshotId},
-					OpaqueCalls: []*submodel.MultiOpaqueCall{
-						&submodel.MultiOpaqueCall{
-							CallHash: hexutil.Encode(callHash[:])}},
-				}
-
-				poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-
-				return w.informChain(m.Destination, m.Source, &mflow)
-			default:
-				return true
+			//broadcast if not on chain
+			_, err = client.BroadcastTx(txBts)
+			if err != nil && err != errType.ErrTxInMempoolCache {
+				w.log.Warn("checkAndSend BroadcastTx failed",
+					"err", err)
 			}
+			time.Sleep(BlockRetryInterval)
+			retry--
+			continue
 		}
 
-		//broadcast if not on chain
-		_, err = client.BroadcastTx(txBts)
-		if err != nil && err != errType.ErrTxInMempoolCache {
-			w.log.Warn("processSignatureEnoughEvt BroadcastTx failed",
-				"err", err)
+		w.log.Info("checkAndSend success",
+			"pool hex address", poolAddrHexStr,
+			"txHash", txHashHexStr)
+
+		//inform stafi
+		switch wrappedUnSignedTx.Type {
+		case submodel.OriginalBond:
+			callHash := utils.BlakeTwo256(sigs.Pool)
+			mflow := submodel.MultiEventFlow{
+				EventData: &submodel.EraPoolUpdatedFlow{
+					ShotId: wrappedUnSignedTx.SnapshotId},
+				OpaqueCalls: []*submodel.MultiOpaqueCall{
+					&submodel.MultiOpaqueCall{
+						CallHash: hexutil.Encode(callHash[:])}},
+			}
+
+			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
+			return w.informChain(m.Destination, m.Source, &mflow)
+		case submodel.OriginalClaimRewards:
+			height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
+			delegationsRes, err := client.QueryDelegations(poolAddr, height)
+			if err != nil {
+				w.log.Error("checkAndSend QueryDelegations failed",
+					"pool hex address", poolAddrHexStr,
+					"err", err)
+				return false
+			}
+			total := types.NewInt(0)
+			for _, dele := range delegationsRes.GetDelegationResponses() {
+				total = total.Add(dele.Balance.Amount)
+			}
+
+			rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
+			if err != nil {
+				w.log.Error("checkAndSend QueryDelegationTotalRewards failed",
+					"pool hex address", poolAddrHexStr,
+					"err", err)
+				return false
+			}
+			rewardTotal := big.NewInt(0)
+			rewardDe := rewardRes.Total.AmountOf(client.GetDenom())
+			if !rewardDe.IsNil() {
+				rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
+			}
+
+			total.Add(types.NewIntFromBigInt(rewardTotal))
+			f := submodel.BondReportedFlow{
+				Symbol: sigs.Symbol,
+				ShotId: wrappedUnSignedTx.SnapshotId,
+				Snap: &submodel.PoolSnapshot{
+					Era:    wrappedUnSignedTx.Era,
+					Symbol: sigs.Symbol,
+					Pool:   sigs.Pool,
+					Active: substrateTypes.NewU128(*total.BigInt())},
+			}
+
+			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
+
+			return w.activeReport(m.Destination, m.Source, &f)
+		case submodel.OriginalTransfer:
+			callHash := utils.BlakeTwo256(sigs.Pool)
+			mflow := submodel.MultiEventFlow{
+				EventData: &submodel.WithdrawReportedFlow{
+					ShotId: wrappedUnSignedTx.SnapshotId},
+				OpaqueCalls: []*submodel.MultiOpaqueCall{
+					&submodel.MultiOpaqueCall{
+						CallHash: hexutil.Encode(callHash[:])}},
+			}
+
+			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
+			return w.informChain(m.Destination, m.Source, &mflow)
+		default:
+			w.log.Error("checkAndSend failed,unknown unsigned tx type",
+				"proposalId", hex.EncodeToString(sigs.ProposalId),
+				"type", wrappedUnSignedTx.Type)
+			return false
 		}
-		time.Sleep(BlockRetryInterval)
+
 	}
 	return false
 }

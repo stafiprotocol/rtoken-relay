@@ -283,6 +283,15 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if l.cared(flow.Symbol) && l.subscriptions[NominationUpdated] != nil {
 					l.submitMessage(l.subscriptions[NominationUpdated](flow))
 				}
+			} else if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.SignaturesEnoughEventId {
+				l.log.Trace("Handling SignaturesEnoughEventId event")
+				sigs, err := l.processSignatureEnoughEvt(evt)
+				if err != nil {
+					return err
+				}
+				if l.cared(sigs.Symbol) && l.subscriptions[SignatureEnough] != nil {
+					l.submitMessage(l.subscriptions[SignatureEnough](sigs))
+				}
 			}
 		case core.RDOT, core.RKSM:
 			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {

@@ -393,18 +393,6 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
-	era, err := w.conn.GetCurrentEra()
-	if err != nil {
-		w.log.Error("CurrentEra error", "rsymbol", m.Source)
-		return false
-	}
-
-	if uint32(sigs.Era) != era {
-		w.log.Warn("processSignatureEnoughEvt of past era, ignored", "current", era, "eventEra", sigs.Era,
-			"rsymbol", sigs.Symbol)
-		return true
-	}
-
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrHexStr)
 	if err != nil {

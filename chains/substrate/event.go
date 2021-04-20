@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -265,6 +266,60 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 	}, nil
 }
 
+func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submodel.SubmitSignatures, error) {
+	data, err := submodel.SignatureEnoughData(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	symBz, err := types.EncodeToBytes(data.RSymbol)
+	if err != nil {
+		return nil, err
+	}
+
+	sk := submodel.SignaturesKey{
+		Era:        data.Era,
+		Pool:       data.Pool,
+		TxType:     data.TxType,
+		ProposalId: data.ProposalId,
+	}
+
+	skBz, err := types.EncodeToBytes(sk)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigs []types.Bytes
+	exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("unable to get signatures: signature key %+v ", sk)
+	}
+
+	th, err := l.threshold(data.RSymbol, data.Pool)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get threshold: pool %s ", hex.EncodeToString(data.Pool))
+	}
+
+	//check sigs
+	if len(sigs) < int(th) {
+		return nil, fmt.Errorf("sigs len < threshold,sigs len: %d ,threshold: %d", len(sigs), th)
+	}
+	useSigs := sigs[:th]
+
+	return &submodel.SubmitSignatures{
+		Symbol:     data.RSymbol,
+		Era:        types.NewU32(data.Era),
+		Pool:       data.Pool,
+		TxType:     data.TxType,
+		ProposalId: data.ProposalId,
+		Signature:  useSigs,
+	}, nil
+}
+
 func (l *listener) processNewMultisigEvt(evt *submodel.ChainEvent) (*submodel.EventNewMultisig, error) {
 	data, err := submodel.EventNewMultisigData(evt)
 	if err != nil {
@@ -347,6 +402,27 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 	}
 
 	return threshold, subs, nil
+}
+
+func (l *listener) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return 0, err
+	}
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return 0, err
+	}
+
+	var threshold uint16
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
+	if err != nil {
+		return 0, err
+	}
+	if !exist {
+		return 0, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+	}
+	return threshold, nil
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {

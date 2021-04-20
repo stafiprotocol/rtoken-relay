@@ -442,7 +442,6 @@ type SubmitSignatures struct {
 }
 
 type SignaturesKey struct {
-	RSymbol    core.RSymbol
 	Era        uint32
 	Pool       []byte
 	TxType     OriginalTx
