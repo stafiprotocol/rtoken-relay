@@ -173,6 +173,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 
 	th := hexutil.Encode(r.Txhash)
 	for _, ext := range exts {
+		c.log.Info("TransferVerify", "ext", ext)
 		txhash := utiles.AddHex(ext.ExtrinsicHash)
 		if th != txhash {
 			c.log.Info("txhash not equal", "expected", th, "got", txhash)
