@@ -52,7 +52,6 @@ func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer 
 	}
 }
 
-
 func (w *writer) setRouter(r chains.Router) {
 	w.router = r
 }

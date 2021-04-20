@@ -113,14 +113,6 @@ func (c *Connection) Address() string {
 	return c.gc.Address()
 }
 
-func (c *Connection) IsConnected() bool {
-	return c.sc.IsConnected()
-}
-
-func (c *Connection) Reconnect() error {
-	return c.sc.WebsocketReconnect()
-}
-
 func (c *Connection) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error) {
 	return c.sc.GetEvents(blockNum)
 }
@@ -155,13 +147,6 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	}
 	if blkNum == 0 {
 		return submodel.BlockhashUnmatch, nil
-	}
-
-	if !c.IsConnected() {
-		if err := c.Reconnect(); err != nil {
-			c.log.Error("Reconnect error", "err", err)
-			return submodel.BondReasonDefault, err
-		}
 	}
 
 	final, err := c.FinalizedBlockNumber()

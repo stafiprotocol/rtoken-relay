@@ -16,6 +16,7 @@ import (
 	"github.com/itering/substrate-api-rpc/util"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	wbskt "github.com/stafiprotocol/rtoken-relay/shared/substrate/websocket"
 	"github.com/stafiprotocol/rtoken-relay/types/polkadot"
 	"github.com/stafiprotocol/rtoken-relay/types/stafi"
 )
@@ -27,7 +28,7 @@ const (
 
 type SarpcClient struct {
 	endpoint           string
-	rec                *recws.RecConn
+	wsPool             wbskt.Pool
 	log                log15.Logger
 	chainType          string
 	metaRaw            string
@@ -55,8 +56,6 @@ func NewSarpcClient(chainType, endpoint, typesPath string, log log15.Logger) (*S
 	}
 	log.Info("NewSarpcClient", "latestHash", latestHash.Hex())
 
-	rec := &recws.RecConn{KeepAliveTimeout: 10 * time.Second}
-	rec.Dial(endpoint, nil)
 	md := metaDecoders[chainType]
 	if md == nil {
 		return nil, errors.New("chainType not supported")
@@ -65,7 +64,7 @@ func NewSarpcClient(chainType, endpoint, typesPath string, log log15.Logger) (*S
 	sc := &SarpcClient{
 		chainType:          chainType,
 		endpoint:           endpoint,
-		rec:                rec,
+		wsPool:             nil,
 		log:                log,
 		metaRaw:            "",
 		typesPath:          typesPath,
@@ -101,16 +100,46 @@ func (sc *SarpcClient) regCustomTypes() {
 	}
 }
 
-func (sc *SarpcClient) sendWsRequest(v interface{}, action []byte) (err error) {
-	if err = sc.rec.WriteMessage(websocket.TextMessage, action); err != nil {
-		if sc.rec != nil {
-			sc.rec.MarkUnusable()
+func (sc *SarpcClient) initial() (*wbskt.PoolConn, error) {
+	var err error
+	if sc.wsPool == nil {
+		factory := func() (*recws.RecConn, error) {
+			SubscribeConn := &recws.RecConn{KeepAliveTimeout: 10 * time.Second}
+			SubscribeConn.Dial(sc.endpoint, nil)
+			return SubscribeConn, err
+		}
+		if sc.wsPool, err = wbskt.NewChannelPool(1, 25, factory); err != nil {
+			fmt.Println("NewChannelPool", err)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	conn, err := sc.wsPool.Get()
+	return conn, err
+}
+
+func (sc *SarpcClient) sendWsRequest(p wbskt.WsConn, v interface{}, action []byte) (err error) {
+	if p == nil {
+		var pool *wbskt.PoolConn
+		if pool, err = sc.initial(); err == nil {
+			defer pool.Close()
+			p = pool.Conn
+		} else {
+			return
+		}
+
+	}
+
+	if err = p.WriteMessage(websocket.TextMessage, action); err != nil {
+		if p != nil {
+			p.MarkUnusable()
 		}
 		return fmt.Errorf("websocket send error: %v", err)
 	}
-	if err = sc.rec.ReadJSON(v); err != nil {
-		if sc.rec != nil {
-			sc.rec.MarkUnusable()
+	if err = p.ReadJSON(v); err != nil {
+		if p != nil {
+			p.MarkUnusable()
 		}
 		return
 	}
@@ -120,7 +149,7 @@ func (sc *SarpcClient) sendWsRequest(v interface{}, action []byte) (err error) {
 func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 	v := &rpc.JsonRpcResult{}
 	// runtime version
-	if err := sc.sendWsRequest(v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
+	if err := sc.sendWsRequest(nil, v, rpc.ChainGetRuntimeVersion(wsId, blockHash)); err != nil {
 		return err
 	}
 
@@ -131,7 +160,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 
 	// metadata raw
 	if sc.metaRaw == "" || r.SpecVersion > sc.currentSpecVersion {
-		if err := sc.sendWsRequest(v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
+		if err := sc.sendWsRequest(nil, v, rpc.StateGetMetadata(wsId, blockHash)); err != nil {
 			return err
 		}
 		metaRaw, err := v.ToString()
@@ -164,7 +193,7 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 
 func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 	v := &rpc.JsonRpcResult{}
-	if err := sc.sendWsRequest(v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
+	if err := sc.sendWsRequest(nil, v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
 		return nil, err
 	}
 	rpcBlock := v.ToBlock()
@@ -227,20 +256,9 @@ func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*submodel.Transaction,
 	}
 }
 
-func (sc *SarpcClient) IsConnected() bool {
-	return sc.rec.IsConnected()
-}
-
-func (sc *SarpcClient) WebsocketReconnect() error {
-	if _, _, err := sc.rec.ReadMessage(); err != nil {
-		return fmt.Errorf("websocket reconnect error: %s", err)
-	}
-	return nil
-}
-
 func (sc *SarpcClient) GetBlockHash(blockNum uint64) (string, error) {
 	v := &rpc.JsonRpcResult{}
-	if err := sc.sendWsRequest(v, rpc.ChainGetBlockHash(wsId, int(blockNum))); err != nil {
+	if err := sc.sendWsRequest(nil, v, rpc.ChainGetBlockHash(wsId, int(blockNum))); err != nil {
 		return "", fmt.Errorf("websocket get block hash error: %v", err)
 	}
 
@@ -259,7 +277,7 @@ func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*submodel.ChainEvent,
 	}
 
 	v := &rpc.JsonRpcResult{}
-	if err := sc.sendWsRequest(v, rpc.StateGetStorage(wsId, storageKey, blockHash)); err != nil {
+	if err := sc.sendWsRequest(nil, v, rpc.StateGetStorage(wsId, storageKey, blockHash)); err != nil {
 		return nil, fmt.Errorf("websocket get event raw error: %v", err)
 	}
 	eventRaw, err := v.ToString()
@@ -320,7 +338,7 @@ func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error
 
 func (sc *SarpcClient) GetPaymentQueryInfo(encodedExtrinsic string) (paymentInfo *rpc.PaymentQueryInfo, err error) {
 	v := &rpc.JsonRpcResult{}
-	if err = sc.sendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
+	if err = sc.sendWsRequest(nil, v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
 		return
 	}
 
