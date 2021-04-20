@@ -39,7 +39,7 @@ type writer struct {
 }
 
 const (
-	bondFlowLimit = 128
+	bondFlowLimit = 2048
 )
 
 func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
