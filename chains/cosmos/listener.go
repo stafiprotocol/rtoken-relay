@@ -1,6 +1,7 @@
 package cosmos
 
 import (
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
@@ -63,23 +64,22 @@ func (l *listener) start() error {
 
 func (l *listener) pollBlocks() error {
 	var retry = BlockRetryLimit
+	ticker := time.NewTicker(BlockRetryInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-l.stop:
 			return TerminatedError
-		default:
-			if retry == 0 {
-				l.log.Error("pollBlocks error", "symbol", l.symbol)
-				return nil
+		case <-ticker.C:
+			if retry <= 0 {
+				return fmt.Errorf("poolBlocks reach retry limit ,symbol: %s", l.symbol)
 			}
 
 			err := l.updateEra()
 			if err != nil {
 				retry--
-				time.Sleep(BlockRetryInterval)
 				continue
 			}
-			time.Sleep(BlockRetryInterval)
 			retry = BlockRetryLimit
 		}
 	}
@@ -95,15 +95,10 @@ func (l *listener) updateEra() error {
 	if err != nil {
 		return err
 	}
-	//update height
+	//update height era
 	l.conn.currentHeight = height
-
-	if era <= l.currentEra {
-		return nil
-	}
-	l.log.Info("get a new era, prepare to send message", "symbol", l.symbol, "currentEra", l.currentEra, "newEra", era)
-	//update era
 	l.currentEra = era
+
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)
 	return nil
