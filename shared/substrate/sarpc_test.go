@@ -3,6 +3,7 @@ package substrate
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/ChainSafe/log15"
@@ -257,13 +258,55 @@ func TestSarpcClient_GetPaymentQueryInfo(t *testing.T) {
 
 	encodedExtrinsic := "0xa8040503ff425ef3c6c4ca93e6047569bd61ebc0df15c9b54b460ddc4f28553c6c0ff1d5180788e4801431"
 
-	//v := &rpc.JsonRpcResult{}
-	//if err = sc.sendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
-	//	return
-	//}
-	//fmt.Println(v.Result == nil)
-
 	_, err = sc.GetPaymentQueryInfo(encodedExtrinsic)
 	assert.NoError(t, err)
 	//fmt.Println("info", info.Class, info.PartialFee, info.Weight)
+}
+
+func TestSarpcClient_Extrinsic(t *testing.T) {
+	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
+	//assert.NoError(t, err)
+	//
+	//exts, err := sc.GetExtrinsics("0x6df4292f19e8bbdb1d2563d877b262dac22e4307f98b29b249f7281bf971e72e")
+	//assert.NoError(t, err)
+	//
+	//for _, ext := range exts {
+	//	t.Log(ext)
+	//}
+
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
+	assert.NoError(t, err)
+	exs, err := sc.GetExtrinsics("0x6df4292f19e8bbdb1d2563d877b262dac22e4307f98b29b249f7281bf971e72e")
+	assert.NoError(t, err)
+	for _, e := range exs {
+		t.Log(e)
+	}
+}
+
+func TestSarpcClient_GetEvents(t *testing.T) {
+	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(5)
+
+	for i := 0; i < 5; i++ {
+		go func() {
+			exs, err := sc.GetExtrinsics("0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da4")
+			assert.NoError(t, err)
+			for _, e := range exs {
+				t.Log(e.ExtrinsicHash)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }

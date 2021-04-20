@@ -91,7 +91,7 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 		c.log.Info("Acknowledging proposal on chain...")
 		//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
 		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Symbol, prop.BondId, inFavour, prop.Call)
-		if err!=nil{
+		if err != nil {
 			c.log.Error("NewUnsignedExtrinsic error", "err", err)
 			time.Sleep(BlockRetryInterval)
 			continue
