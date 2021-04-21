@@ -39,12 +39,12 @@ var gc *substrate.GsrpcClient
 
 func init() {
 	var err error
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", kusamaTypesFile, tlog)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
 	if err != nil {
 		panic(err)
 	}
 	stop := make(chan int)
-	gc, err = substrate.NewGsrpcClient("wss://kusama-rpc.polkadot.io", substrate.AddressTypeAccountId, AliceKey, tlog, stop)
+	gc, err = substrate.NewGsrpcClient("wss://kusama-rpc.polkadot.io", substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
 	}
@@ -153,11 +153,41 @@ func TestConnection_TransferVerify(t *testing.T) {
 }
 
 func TestConnection_GetEvents(t *testing.T) {
-	evts, err := sc.GetEvents(7111716)
+	_, err := sc.GetEvents(7111716)
 	assert.NoError(t, err)
-	for _, evt := range evts {
-		t.Log("eventId", evt.EventId)
-		t.Log("moduleId", evt.ModuleId)
-		t.Log("params", evt.Params)
+
+	for i := 7111000; i < 7112000; i++ {
+		evts, err := sc.GetEvents(uint64(i))
+		assert.NoError(t, err)
+		for _, evt := range evts {
+			t.Log("eventId", evt.EventId)
+			t.Log("moduleId", evt.ModuleId)
+			t.Log("params", evt.Params)
+		}
 	}
+}
+
+func TestConnection_GetExtrinsics(t *testing.T) {
+
+	for i := 7111000; i < 7112000; i++ {
+		bh, err := sc.GetBlockHash(uint64(i))
+		assert.NoError(t, err)
+		exts, err := sc.GetExtrinsics(bh)
+		assert.NoError(t, err)
+		for _, ext := range exts {
+			t.Log("\n=============", i)
+			t.Log(ext.ExtrinsicHash)
+			t.Log(ext.Address)
+			t.Log(ext.CallModuleName)
+			t.Log(ext.CallName)
+			t.Log(ext.Params)
+		}
+
+	}
+}
+
+func TestConnection_PaymentQueryInfo(t *testing.T) {
+	info, err := sc.GetPaymentQueryInfo("0x74b58b2d6fbd6319e4cc7927f1b789d48fc2629437cf9373bf8224934b831f58")
+	assert.NoError(t, err)
+	t.Log(info)
 }
