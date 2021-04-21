@@ -6,7 +6,6 @@ package substrate
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -168,12 +167,6 @@ func (l *listener) pollBlocks() error {
 			err = l.processEvents(currentBlock)
 			if err != nil {
 				l.log.Error("Failed to process events in block", "block", currentBlock, "err", err)
-				if strings.Contains(err.Error(), "close 1006") || strings.Contains(err.Error(), "websocket: not connected") {
-					l.log.Info("listener", "is webscoket connected", l.conn.IsConnected())
-					if err := l.conn.Reconnect(); err != nil {
-						l.log.Error("listener", "websocket reconnect error", err)
-					}
-				}
 				retry--
 				continue
 			}

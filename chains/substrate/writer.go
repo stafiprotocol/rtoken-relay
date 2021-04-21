@@ -22,6 +22,7 @@ import (
 )
 
 type writer struct {
+	symbol          core.RSymbol
 	conn            *Connection
 	router          chains.Router
 	log             log15.Logger
@@ -32,23 +33,27 @@ type writer struct {
 	events          map[string]*submodel.MultiEventFlow
 	newMultics      map[string]*submodel.EventNewMultisig
 	bondedPools     map[string]bool
+	liquidityBonds  chan *core.Message
 	currentChainEra uint32
+	stop            <-chan int
 }
 
-var (
-	waitBlockNum    = uint64(30)
-	singleBlockTime = 6 * time.Second
+const (
+	bondFlowLimit = 2048
 )
 
-func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
+func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
 	return &writer{
+		symbol:          symbol,
 		conn:            conn,
 		log:             log,
 		sysErr:          sysErr,
 		events:          make(map[string]*submodel.MultiEventFlow),
 		newMultics:      make(map[string]*submodel.EventNewMultisig),
 		bondedPools:     make(map[string]bool),
+		liquidityBonds:  make(chan *core.Message, bondFlowLimit),
 		currentChainEra: 0,
+		stop:            stop,
 	}
 }
 
@@ -122,6 +127,8 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 	bondReason, err := w.conn.TransferVerify(flow.Record)
 	if err != nil {
 		w.log.Error("TransferVerify error", "err", err, "bondId", flow.BondId.Hex())
+		w.liquidityBonds <- m
+		w.log.Info("processLiquidityBond", "size of liquidityBonds", len(w.liquidityBonds))
 		return false
 	}
 	w.log.Info("processLiquidityBond", "bondReason", bondReason)
@@ -896,4 +903,26 @@ func (w *writer) setBondedPools(key string, value bool) {
 	w.bondedPoolsMtx.Lock()
 	defer w.bondedPoolsMtx.Unlock()
 	w.bondedPools[key] = value
+}
+
+func (w *writer) start() error {
+	if w.symbol == core.RFIS {
+		return nil
+	}
+
+	go func() {
+		for {
+			select {
+			case <-w.stop:
+				close(w.liquidityBonds)
+				w.log.Info("writer stopped")
+				return
+			case msg := <-w.liquidityBonds:
+				result := w.processLiquidityBond(msg)
+				w.log.Info("retry processLiquidityBond", "result", result)
+			}
+		}
+	}()
+
+	return nil
 }
