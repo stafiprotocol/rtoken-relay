@@ -1,4 +1,8 @@
 {
+  "Address": "AccountId",
+  "BlockNumber": "U32",
+  "LeasePeriod": "BlockNumber",
+  "Weight": "u64",
   "Keys": "SessionKeysPolkadot",
   "ValidatorPrefs": {
     "type": "struct",
