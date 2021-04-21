@@ -328,6 +328,7 @@ func (sc *SarpcClient) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error
 		return nil, err
 	}
 
+	sc.log.Trace("GetEvents", "blockHash", blockHash, "blockNum", blockNum)
 	evts, err := sc.GetChainEvents(blockHash)
 	if err != nil {
 		return nil, err
