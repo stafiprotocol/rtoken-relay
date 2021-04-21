@@ -95,63 +95,31 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 }
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
-	//todo test only,must rm on release
-	return submodel.Pass, nil
-
 	hashStr := hex.EncodeToString(r.Txhash)
-
 	poolClient, err := c.GetOnePoolClient()
 	if err != nil {
 		return submodel.BondReasonDefault, err
 	}
 
 	//check tx hash
-	var txRes *types.TxResponse
-	retryTx := BlockRetryLimit
-	for {
-		if retryTx <= 0 {
-			return submodel.TxhashUnmatch, errors.New("QueryTxByHash reach retryTx limit")
-		}
-		txRes, err = poolClient.GetRpcClient().QueryTxByHash(hashStr)
-		if err != nil || txRes == nil || txRes.Empty() {
-			c.log.Warn(fmt.Sprintf("QueryTxByHash empty or err: %s ,will retryTx after %f second", err, BlockRetryInterval.Seconds()))
-			time.Sleep(BlockRetryInterval)
-			retryTx--
-			continue
-		}
-		if txRes.Height+BlockConfirmNumber > c.currentHeight {
-			c.log.Warn(fmt.Sprintf("confirm number is smaller than %d ,will retryTx after %f second", BlockConfirmNumber, BlockRetryInterval.Seconds()))
-			time.Sleep(BlockRetryInterval)
-			retryTx--
-			continue
-		} else {
-			break
-		}
-
+	txRes, err := c.GetTx(poolClient, hashStr)
+	if err != nil {
+		return submodel.TxhashUnmatch, err
 	}
 
-	//check code
+	if txRes.Empty() {
+		return submodel.TxhashUnmatch, nil
+	}
+
 	if txRes.Code != 0 {
 		return submodel.TxhashUnmatch, nil
 	}
 
 	//check block hash
-	var blockRes *ctypes.ResultBlock
-	retryBlock := BlockRetryLimit
-	for {
-		if retryBlock <= 0 {
-			return submodel.BlockhashUnmatch, errors.New("QueryBlock reach retryTx limit")
-		}
-		blockRes, err = poolClient.GetRpcClient().QueryBlock(txRes.Height)
-		if err != nil || blockRes == nil {
-			c.log.Warn(fmt.Sprintf("QueryBlock empty or err: %s ,will retryTx after %f second", err, BlockRetryInterval.Seconds()))
-			time.Sleep(BlockRetryInterval)
-			continue
-		} else {
-			break
-		}
+	blockRes, err := c.GetBlock(poolClient, txRes.Height)
+	if err != nil {
+		return submodel.BlockhashUnmatch, err
 	}
-
 	if !bytes.Equal(blockRes.BlockID.Hash, r.Blockhash) {
 		return submodel.BlockhashUnmatch, nil
 	}
@@ -159,7 +127,8 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	//check amount and pool
 	amountIsMatch := false
 	poolIsMatch := false
-	fromAddressStr := ""
+	var fromAddressStr string
+
 	msgs := txRes.GetTx().GetMsgs()
 	for i, _ := range msgs {
 		if msgs[i].Type() == xBankTypes.TypeMsgSend {
@@ -201,7 +170,17 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 		return submodel.PubkeyUnmatch, nil
 	}
 	//check memo
-	//tx.ConvertTxToStdTx(poolClient.GetRpcClient().GetLegacyAmino(), txRes.Data)
+	var memoInTx string
+	tx, err := poolClient.GetRpcClient().GetTxConfig().TxDecoder()(txRes.Tx.GetValue())
+	if err == nil {
+		memoTx, ok := tx.(types.TxWithMemo)
+		if ok {
+			memoInTx = memoTx.GetMemo()
+		}
+	}
+	if !bytes.Equal([]byte(memoInTx), r.Bonder[:]) {
+		return submodel.TxhashUnmatch, nil
+	}
 
 	return submodel.Pass, nil
 }
@@ -237,4 +216,52 @@ func (c *Connection) GetCurrentEra() (uint32, error) {
 	}
 	era := uint32(status.SyncInfo.LatestBlockHeight / cosmos.EraBlockNumber)
 	return era, nil
+}
+
+func (c *Connection) GetTx(poolClient *cosmos.PoolClient, txHash string) (*types.TxResponse, error) {
+	var txRes *types.TxResponse
+	var err error
+	retryTx := 0
+	for {
+		if retryTx >= BlockRetryLimit {
+			return nil, errors.New("QueryTxByHash reach retry limit")
+		}
+		txRes, err = poolClient.GetRpcClient().QueryTxByHash(txHash)
+		if err != nil {
+			c.log.Warn(fmt.Sprintf("QueryTxByHash err: %s ,will retry queryTx after %f second", err, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			retryTx++
+			continue
+		}
+		if txRes.Height+BlockConfirmNumber > c.currentHeight {
+			c.log.Warn(fmt.Sprintf("confirm number is smaller than %d ,will retry queryTx after %f second", BlockConfirmNumber, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			retryTx++
+			continue
+		} else {
+			break
+		}
+
+	}
+	return txRes, nil
+}
+
+func (c *Connection) GetBlock(poolClient *cosmos.PoolClient, height int64) (*ctypes.ResultBlock, error) {
+	var blockRes *ctypes.ResultBlock
+	var err error
+	retryTx := 0
+	for {
+		if retryTx >= BlockRetryLimit {
+			return nil, errors.New("QueryBlock reach retry limit")
+		}
+		blockRes, err = poolClient.GetRpcClient().QueryBlock(height)
+		if err != nil {
+			c.log.Warn(fmt.Sprintf("QueryBlock err: %s ,will retry queryBlock after %f second", err, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			retryTx++
+			continue
+		}
+		break
+	}
+	return blockRes, nil
 }

@@ -383,7 +383,12 @@ func TestMaxTransfer(t *testing.T) {
 }
 
 func TestMemo(t *testing.T) {
-	res, err := client.QueryTxByHash("594973BEE9771FA5FA05F57397462260FE88774D765253A7BAB192543C35266A")
+	res, err := client.QueryTxByHash("81DDFF0EBDD89620B73E89427D5BA8EE16384F85DABA9471A3F4D813A108CA41")
 	assert.NoError(t, err)
-	t.Log(res.GetTx())
+	tx,err:=client.GetTxConfig().TxDecoder()(res.Tx.GetValue())
+	//tx, err := client.GetTxConfig().TxJSONDecoder()(res.Tx.Value)
+	assert.NoError(t, err)
+	memoTx, ok := tx.(types.TxWithMemo)
+	assert.Equal(t, true, ok)
+	t.Log(memoTx.GetMemo())
 }
