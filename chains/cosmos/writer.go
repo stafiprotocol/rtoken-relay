@@ -226,6 +226,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("GetClaimRewardUnsignedTx failed",
 			"pool address", poolAddr.String(),
+			"height", height,
 			"err", err)
 		return false
 	}
