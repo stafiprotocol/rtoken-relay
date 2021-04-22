@@ -93,6 +93,10 @@ func ParseTransferProposalId(content []byte) (shotId substrateTypes.Hash, err er
 	return
 }
 
+func GetValidatorUpdateProposalId(content []byte) []byte {
+	hash := utils.BlakeTwo256(content)
+	return hash[:]
+}
 func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U128,
 	poolAddr types.AccAddress, height int64) (unSignedTx []byte, err error) {
 	if bond.Int.Cmp(unbond.Int) == 0 {
@@ -194,7 +198,6 @@ func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receiv
 	return client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
 }
 
-
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)
 }
@@ -263,6 +266,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 
 		w.log.Info("checkAndSend success",
 			"pool hex address", poolAddrHexStr,
+			"tx type", wrappedUnSignedTx.Type,
 			"txHash", txHashHexStr)
 
 		//inform stafi
@@ -332,9 +336,11 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
 			return w.informChain(m.Destination, m.Source, &mflow)
+		case submodel.OriginalWithdrawUnbond:
+			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
 		default:
 			w.log.Error("checkAndSend failed,unknown unsigned tx type",
-				"proposalId", hex.EncodeToString(sigs.ProposalId),
+				"pool", hex.EncodeToString(sigs.Pool),
 				"type", wrappedUnSignedTx.Type)
 			return false
 		}

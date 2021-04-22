@@ -27,6 +27,7 @@ const (
 	MultisigExecuted       = Reason("MultisigExecuted")
 	GetEraNominated        = Reason("GetEraNominated")
 	//cosmos use
-	SubmitSignature = Reason("SubmitSignature")
-	SignatureEnough = Reason("SignatureEnough")
+	SubmitSignature       = Reason("SubmitSignature")
+	SignatureEnough       = Reason("SignatureEnough")
+	ValidatorUpdatedEvent = Reason("ValidatorUpdatedEvent")
 )

@@ -4,6 +4,7 @@ const (
 	RTokenSeriesModuleId     = "RTokenSeries"
 	LiquidityBondEventId     = "LiquidityBond"
 	NominationUpdatedEventId = "NominationUpdated"
+	ValidatorUpdatedEventId  = "ValidatorUpdated"
 	StorageBondRecords       = "BondRecords"
 	MethodExecuteBondRecord  = "RTokenSeries.execute_bond_record"
 

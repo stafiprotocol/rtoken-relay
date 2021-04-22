@@ -323,6 +323,19 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 	}, nil
 }
 
+func (l *listener) processValidatorUpdated(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+	flow, err := submodel.EventValidatorUpdated(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.MultiEventFlow{
+		EventId:   config.ValidatorUpdatedEventId,
+		Symbol:    flow.Symbol,
+		EventData: flow,
+	}, nil
+}
+
 func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submodel.SubmitSignatures, error) {
 	data, err := submodel.SignatureEnoughData(evt)
 	if err != nil {

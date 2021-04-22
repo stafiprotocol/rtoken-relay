@@ -239,6 +239,14 @@ type NominationUpdatedFlow struct {
 	LastVoterFlag bool
 }
 
+type ValidatorUpdatedFlow struct {
+	Symbol       core.RSymbol
+	Pool         []byte
+	OldValidator types.Bytes
+	NewValidator types.Bytes
+	Era          uint32
+}
+
 type GetEraNominatedFlow struct {
 	Symbol        core.RSymbol
 	Pool          []byte
@@ -369,11 +377,11 @@ type Transaction struct {
 type OriginalTx string
 
 const (
-	OriginalTransfer       = OriginalTx("Transfer")
-	OriginalBond           = OriginalTx("Bond")
+	OriginalTransfer       = OriginalTx("Transfer") //transfer
+	OriginalBond           = OriginalTx("Bond")     //bond or unbond
 	OriginalUnbond         = OriginalTx("Unbond")
-	OriginalWithdrawUnbond = OriginalTx("WithdrawUnbond")
-	OriginalClaimRewards   = OriginalTx("ClaimRewards")
+	OriginalWithdrawUnbond = OriginalTx("WithdrawUnbond") //redelegate: validator update
+	OriginalClaimRewards   = OriginalTx("ClaimRewards")   // claim
 )
 
 func (r *OriginalTx) Decode(decoder scale.Decoder) error {

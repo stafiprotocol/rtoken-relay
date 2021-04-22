@@ -53,6 +53,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processActiveReportedEvent(m)
 	case core.SignatureEnough:
 		return w.processSignatureEnoughEvt(m)
+	case core.ValidatorUpdatedEvent:
+		return w.processValidatorUpdatedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -378,6 +380,121 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
+//process validatorUpdated
+//1 gen redelegate  unsigned tx and cache it
+//2 sign it with subKey
+//3 send signature to stafi
+func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
+	mef, ok := m.Content.(*submodel.MultiEventFlow)
+	if !ok {
+		w.printContentError(m, errors.New("msg cast to MultiEventFlow not ok"))
+		return false
+	}
+
+	flow, ok := mef.EventData.(*submodel.ValidatorUpdatedFlow)
+	if !ok {
+		w.log.Error("processValidatorUpdatedEvent eventData is not ValidatorUpdatedFlow")
+		return false
+	}
+
+	poolAddrHexStr := hex.EncodeToString(flow.Pool)
+	poolClient, err := w.conn.GetPoolClient(poolAddrHexStr)
+	if err != nil {
+		w.log.Error("processValidatorUpdatedEvent failed",
+			"pool hex address", poolAddrHexStr,
+			"error", err)
+		return false
+	}
+
+	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
+	if err != nil {
+		w.log.Error("hexPoolAddr cast to cosmos AccAddress failed",
+			"pool hex address", poolAddrHexStr,
+			"err", err)
+		return false
+	}
+	client := poolClient.GetRpcClient()
+	oldValidator, err := types.ValAddressFromHex(hex.EncodeToString(flow.OldValidator))
+	if err != nil {
+		w.log.Error("old validator cast to cosmos AccAddress failed",
+			"old val hex address", hex.EncodeToString(flow.OldValidator),
+			"err", err)
+		return false
+	}
+
+	newValidator, err := types.ValAddressFromHex(hex.EncodeToString(flow.NewValidator))
+	if err != nil {
+		w.log.Error("new validator cast to cosmos AccAddress failed",
+			"new val hex address", hex.EncodeToString(flow.NewValidator),
+			"err", err)
+		return false
+	}
+
+	delRes, err := client.QueryDelegation(poolAddr, oldValidator)
+	if err != nil {
+		w.log.Error("QueryDelegation failed",
+			"pool", poolAddr.String(),
+			"validator", oldValidator.String(),
+			"err", err)
+		return false
+	}
+
+	amount := delRes.GetDelegationResponse().GetBalance()
+	unSignedTx, err := client.GenMultiSigRawReDelegateTx(poolAddr, oldValidator, newValidator, amount)
+	if err != nil {
+		w.log.Error("GenMultiSigRawReDelegateTx failed",
+			"pool", poolAddr.String(),
+			"new validator", newValidator.String(),
+			"old validator", oldValidator.String(),
+			"err", err)
+		return false
+	}
+
+	//use current seq
+	seq, err := client.GetSequence(0, poolAddr)
+	if err != nil {
+		w.log.Error("GetSequence failed",
+			"pool address", poolAddr.String(),
+			"err", err)
+		return false
+	}
+
+	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKeyName())
+	if err != nil {
+		w.log.Error("processValidatorUpdatedEvent SignMultiSigRawTx failed",
+			"pool address", poolAddr.String(),
+			"unsignedTx", string(unSignedTx),
+			"err", err)
+		return false
+	}
+
+	//cache unSignedTx
+	proposalId := GetValidatorUpdateProposalId(unSignedTx)
+	proposalIdHexStr := hex.EncodeToString(proposalId)
+	wrapUnsignedTx := cosmos.WrapUnsignedTx{
+		UnsignedTx: unSignedTx,
+		Key:        proposalIdHexStr,
+		Type:       submodel.OriginalWithdrawUnbond}
+
+	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
+
+	param := submodel.SubmitSignatureParams{
+		Symbol:     w.conn.symbol,
+		Era:        substrateTypes.NewU32(flow.Era),
+		Pool:       substrateTypes.NewBytes(flow.Pool),
+		TxType:     submodel.OriginalWithdrawUnbond,
+		ProposalId: substrateTypes.NewBytes(proposalId),
+		Signature:  substrateTypes.NewBytes(sigBts),
+	}
+
+	w.log.Info("processValidatorUpdatedEvent gen unsigned transfer Tx",
+		"pool address", poolAddr.String(),
+		"unsigned tx hash", hex.EncodeToString(proposalId))
+
+	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
+	return w.submitMessage(result)
+}
+
 //process SignatureEnough event
 //1 assemble unsigned tx and signatures
 //2 send tx to cosmos until it is confirmed or reach the retry limit
@@ -418,7 +535,8 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 
 	if wrappedUnSignedTx.Type != submodel.OriginalBond &&
 		wrappedUnSignedTx.Type != submodel.OriginalClaimRewards &&
-		wrappedUnSignedTx.Type != submodel.OriginalTransfer {
+		wrappedUnSignedTx.Type != submodel.OriginalTransfer &&
+		wrappedUnSignedTx.Type != submodel.OriginalWithdrawUnbond {
 		w.log.Error("processSignatureEnoughEvt failed,unknown unsigned tx type",
 			"proposalId", hex.EncodeToString(sigs.ProposalId),
 			"type", wrappedUnSignedTx.Type)

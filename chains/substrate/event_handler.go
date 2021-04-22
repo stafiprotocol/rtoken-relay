@@ -26,7 +26,8 @@ const (
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
 
-	SignatureEnough = eventName(config.SignaturesEnoughEventId)
+	SignatureEnough  = eventName(config.SignaturesEnoughEventId)
+	ValidaterUpdated = eventName(config.ValidatorUpdatedEventId)
 )
 
 var MainSubscriptions = []eventHandlerSubscriptions{
@@ -37,6 +38,7 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{WithdrawReported, withdrawReportedHandler},
 	{NominationUpdated, nominationUpdatedHandler},
 	{SignatureEnough, signatureEnoughHandler},
+	{ValidaterUpdated, validatorUpdatedHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -112,6 +114,19 @@ func nominationUpdatedHandler(data interface{}) (*core.Message, error) {
 	}
 
 	return &core.Message{Destination: d.Symbol, Reason: core.NominationUpdatedEvent, Content: d}, nil
+}
+
+func validatorUpdatedHandler(data interface{}) (*core.Message, error) {
+	d, ok := data.(*submodel.MultiEventFlow)
+	if !ok {
+		return nil, fmt.Errorf("validatorUpdatedHandler: failed to cast MultiEventFlow")
+	}
+
+	if d.EventId != config.ValidatorUpdatedEventId {
+		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.ValidatorUpdatedEventId, d.EventId)
+	}
+
+	return &core.Message{Destination: d.Symbol, Reason: core.ValidatorUpdatedEvent, Content: d}, nil
 }
 
 func signatureEnoughHandler(data interface{}) (*core.Message, error) {

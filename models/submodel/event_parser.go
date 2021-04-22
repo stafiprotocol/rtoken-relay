@@ -262,6 +262,45 @@ func EventNominationUpdated(evt *ChainEvent) (*NominationUpdatedFlow, error) {
 	}, nil
 }
 
+func EventValidatorUpdated(evt *ChainEvent) (*ValidatorUpdatedFlow, error) {
+	if len(evt.Params) != 5 {
+		return nil, fmt.Errorf("EventNominationUpdated params number not right: %d, expected: 5", len(evt.Params))
+	}
+
+	symbol, err := parseRsymbol(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[0] -> RSymbol error: %s", err)
+	}
+
+	pool, err := parseBytes(evt.Params[1].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[1] -> pool error: %s", err)
+	}
+
+	oldVal, err := parseBytes(evt.Params[2].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[2] -> old_validators error: %s", err)
+	}
+
+	newVal, err := parseBytes(evt.Params[3].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[3] -> new_validators error: %s", err)
+	}
+
+	era, err := parseEra(evt.Params[4])
+	if err != nil {
+		return nil, fmt.Errorf("EventNominationUpdated params[4] -> era error: %s", err)
+	}
+
+	return &ValidatorUpdatedFlow{
+		Symbol:       symbol,
+		Pool:         pool,
+		OldValidator: oldVal,
+		NewValidator: newVal,
+		Era:          era.Value,
+	}, nil
+}
+
 func SignatureEnoughData(evt *ChainEvent) (*EvtSignatureEnough, error) {
 	if len(evt.Params) != 5 {
 		return nil, fmt.Errorf("params number not right: %d, expected: 6", len(evt.Params))
