@@ -31,4 +31,5 @@ const (
 	StoragePoolUnbonds         = "PoolUnbonds"
 	SignaturesEnoughEventId    = "SignaturesEnough"
 	StorageSignatures          = "Signatures"
+	SubmitSignatures           = "RTokenSeries.submit_signatures"
 )

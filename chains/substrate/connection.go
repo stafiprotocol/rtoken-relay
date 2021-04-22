@@ -612,3 +612,23 @@ func (c *Connection) IsClaimed(controller []byte, lastEra uint32) (bool, error) 
 	}
 	return claimed, nil
 }
+
+func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool {
+	for i := 0; i < BlockRetryLimit; i++ {
+		c.log.Info("submitSignature on chain...")
+		ext, err := c.gc.NewUnsignedExtrinsic(config.SubmitSignatures, param.Symbol, param.Era, param.Pool,
+			param.TxType, param.ProposalId, param.Signature)
+		err = c.gc.SignAndSubmitTx(ext)
+		if err != nil {
+			if err.Error() == TerminatedError.Error() {
+				c.log.Error("submitSignature  met TerminatedError")
+				return false
+			}
+			c.log.Warn("submitSignature error will retry", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+		return true
+	}
+	return true
+}
