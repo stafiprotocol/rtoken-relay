@@ -414,6 +414,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 	client := poolClient.GetRpcClient()
+	height := poolClient.GetHeightByEra(flow.Era)
 	oldValidator, err := types.ValAddressFromHex(hex.EncodeToString(flow.OldValidator))
 	if err != nil {
 		w.log.Error("old validator cast to cosmos AccAddress failed",
@@ -430,7 +431,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 
-	delRes, err := client.QueryDelegation(poolAddr, oldValidator)
+	delRes, err := client.QueryDelegation(poolAddr, oldValidator, height)
 	if err != nil {
 		w.log.Error("QueryDelegation failed",
 			"pool", poolAddr.String(),
@@ -498,8 +499,10 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 //process SignatureEnough event
 //1 assemble unsigned tx and signatures
 //2 send tx to cosmos until it is confirmed or reach the retry limit
-//3 (1)bondUnbond type: bond report bond result to stafi
-//	(2)claimThenDelegate type:report active to stafi
+//3 (1)bondUnbond type: report bond result to stafi
+//	(2)claimThenDelegate type: report active to stafi
+//	(3)transfer type: report transfer to stafi
+//  (4)redegate type:rm cached unsigned tx
 func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 	w.log.Trace("processSignatureEnoughEvt", "source", m.Source, "dest", m.Destination, "content", m.Content)
 	sigs, ok := m.Content.(*submodel.SubmitSignatures)

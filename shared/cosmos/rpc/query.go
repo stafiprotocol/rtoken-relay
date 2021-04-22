@@ -17,8 +17,8 @@ func (c *Client) QueryTxByHash(hashHexStr string) (*types.TxResponse, error) {
 	return xAuthClient.QueryTx(c.clientCtx, hashHexStr)
 }
 
-func (c *Client) QueryDelegation(delegatorAddr types.AccAddress, validatorAddr types.ValAddress) (*xStakeTypes.QueryDelegationResponse, error) {
-	client := c.clientCtx
+func (c *Client) QueryDelegation(delegatorAddr types.AccAddress, validatorAddr types.ValAddress, height int64) (*xStakeTypes.QueryDelegationResponse, error) {
+	client := c.clientCtx.WithHeight(height)
 	queryClient := xStakeTypes.NewQueryClient(client)
 	params := &xStakeTypes.QueryDelegationRequest{
 		DelegatorAddr: delegatorAddr.String(),
