@@ -94,18 +94,43 @@ func ParseTransferProposalId(content []byte) (shotId substrateTypes.Hash, err er
 }
 
 func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U128,
-	poolAddr types.AccAddress, valAddr types.ValAddress) (unSignedTx []byte, err error) {
+	poolAddr types.AccAddress, height int64) (unSignedTx []byte, err error) {
+	if bond.Int.Cmp(unbond.Int) == 0 {
+		return nil, errors.New("bond equal to unbond")
+	}
+
+	deleRes, err := client.QueryDelegations(poolAddr, height)
+	if err != nil {
+		return nil, err
+	}
+	valAddrs := make([]types.ValAddress, 0)
+	for _, dele := range deleRes.GetDelegationResponses() {
+		valAddr, err := types.ValAddressFromBech32(dele.GetDelegation().ValidatorAddress)
+		if err != nil {
+			return nil, err
+		}
+		valAddrs = append(valAddrs, valAddr)
+	}
+
+	valAddrsLen := len(valAddrs)
+	if valAddrsLen == 0 {
+		return nil, fmt.Errorf("no valAddrs,pool: %s", poolAddr)
+	}
+
+	//bond or unbond to their validators average
 	if bond.Int.Cmp(unbond.Int) > 0 {
 		val := bond.Int.Sub(bond.Int, unbond.Int)
+		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
 		unSignedTx, err = client.GenMultiSigRawDelegateTx(
 			poolAddr,
-			valAddr,
+			valAddrs,
 			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
 	} else {
 		val := unbond.Int.Sub(unbond.Int, bond.Int)
+		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
 		unSignedTx, err = client.GenMultiSigRawUnDelegateTx(
 			poolAddr,
-			valAddr,
+			valAddrs,
 			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
 	}
 
@@ -169,90 +194,6 @@ func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receiv
 	return client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
 }
 
-func (w *writer) RebuildUnsignedTxFromSigs(client *rpc.Client, sigs *submodel.SubmitSignatures) (*cosmos.WrapUnsignedTx, error) {
-	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
-	proposalIdHexStr := hex.EncodeToString(sigs.ProposalId)
-	poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
-	if err != nil {
-		return nil, err
-	}
-
-	var wrappedUnSignedTx *cosmos.WrapUnsignedTx
-
-	switch sigs.TxType {
-	case submodel.OriginalBond:
-		shotId, bond, unbond, _, err := ParseBondUnBondProposalId(sigs.ProposalId)
-		if err != nil {
-			return nil, err
-		}
-		//todo cosmos validator just for test,will got from stafi or cosmos
-		var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
-		unsignedTx, err := GetBondUnbondUnsignedTx(client, bond, unbond, poolAddr, addrValidatorTestnetAteam)
-		if err != nil {
-			return nil, err
-		}
-		wrappedUnSignedTx = &cosmos.WrapUnsignedTx{
-			UnsignedTx: unsignedTx,
-			SnapshotId: shotId,
-			Era:        uint32(sigs.Era),
-			Type:       submodel.OriginalBond,
-			Key:        proposalIdHexStr,
-		}
-
-	case submodel.OriginalClaimRewards:
-		shotId, height, err := ParseClaimRewardProposalId(sigs.ProposalId)
-		if err != nil {
-			return nil, err
-		}
-		unsignedTx, err := GetClaimRewardUnsignedTx(client, poolAddr, int64(height))
-		if err != nil {
-			return nil, err
-		}
-		wrappedUnSignedTx = &cosmos.WrapUnsignedTx{
-			UnsignedTx: unsignedTx,
-			SnapshotId: shotId,
-			Era:        uint32(sigs.Era),
-			Type:       submodel.OriginalClaimRewards,
-			Key:        proposalIdHexStr,
-		}
-
-	case submodel.OriginalTransfer:
-		showtId, err := ParseTransferProposalId(sigs.ProposalId)
-		if err != nil {
-			return nil, err
-		}
-		//get receivers from stafi
-		msg := &core.Message{Source: sigs.Symbol, Destination: core.RFIS,
-			Reason: core.GetEraNominated, Content: &submodel.GetReceiversParams{
-				Symbol: sigs.Symbol, Era: sigs.Era, Pool: sigs.Pool,
-			}}
-		ok := w.submitMessage(msg)
-		if !ok {
-			return nil, fmt.Errorf("get receiver from stafi failed ")
-		}
-
-		receiveList, ok := msg.Content.([]*submodel.Receive)
-		if !ok {
-			return nil, fmt.Errorf("cat msg to receive failed ")
-		}
-		unsignedTx, err := GetTransferUnsignedTx(client, poolAddr, receiveList)
-		if err != nil {
-			return nil, err
-		}
-		wrappedUnSignedTx = &cosmos.WrapUnsignedTx{
-			UnsignedTx: unsignedTx,
-			SnapshotId: showtId,
-			Era:        uint32(sigs.Era),
-			Type:       submodel.OriginalTransfer,
-			Key:        proposalIdHexStr,
-		}
-
-	default:
-		return nil, fmt.Errorf("rebuild from proposalId failed unknown tx type:%s", sigs.TxType)
-	}
-
-	return wrappedUnSignedTx, nil
-}
 
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)

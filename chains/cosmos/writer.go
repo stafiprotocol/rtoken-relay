@@ -110,7 +110,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	//check bond/unbond is needed
 	//bond report if no need
 	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
-		w.log.Info("EvtEraPoolUpdated bond=unbond, no need to bond/unbond")
+		w.log.Info("EvtEraPoolUpdated bond equal to unbond, no need to bond/unbond")
 		callHash := utils.BlakeTwo256([]byte{})
 		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
 			&submodel.MultiOpaqueCall{
@@ -136,15 +136,13 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return false
 	}
 
-	//todo cosmos validator just for test,will got from stafi or cosmos
-	var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 	client := poolClient.GetRpcClient()
-
-	unSignedTx, err := GetBondUnbondUnsignedTx(client, snap.Bond, snap.Unbond, poolAddr, addrValidatorTestnetAteam)
+	height := poolClient.GetHeightByEra(flow.Snap.Era)
+	unSignedTx, err := GetBondUnbondUnsignedTx(client, snap.Bond, snap.Unbond, poolAddr, height)
 	if err != nil {
-		w.log.Error("GenMultiSigRawDelegateTx failed",
+		w.log.Error("GetBondUnbondUnsignedTx failed",
 			"pool address", poolAddr.String(),
-			"validator address", addrValidatorTestnetAteam.String(),
+			"height", height,
 			"err", err)
 		return false
 	}
@@ -158,11 +156,10 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return false
 	}
 
-	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKey())
+	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKeyName())
 	if err != nil {
-		w.log.Error("SignMultiSigRawTx failed",
+		w.log.Error("SignMultiSigRawTxWithSeq failed",
 			"pool address", poolAddr.String(),
-			"validator address", addrValidatorTestnetAteam.String(),
 			"err", err)
 		return false
 	}
@@ -242,7 +239,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKey())
+	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKeyName())
 	if err != nil {
 		w.log.Error("SignMultiSigRawTx failed",
 			"pool address", poolAddr.String(),
@@ -342,7 +339,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKey())
+	sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKeyName())
 	if err != nil {
 		w.log.Error("processActiveReportedEvent SignMultiSigRawTx failed",
 			"pool address", poolAddr.String(),

@@ -43,7 +43,7 @@ func (pc *PoolClient) GetRpcClient() *rpc.Client {
 	return pc.rpcClient
 }
 
-func (pc *PoolClient) GetSubKey() string {
+func (pc *PoolClient) GetSubKeyName() string {
 	return pc.subKeyName
 }
 func (pc *PoolClient) CacheUnsignedTx(key string, tx *WrapUnsignedTx) {
