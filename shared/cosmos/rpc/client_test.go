@@ -7,6 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"github.com/stretchr/testify/assert"
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
@@ -392,4 +393,7 @@ func TestMemo(t *testing.T) {
 	memoTx, ok := tx.(types.TxWithMemo)
 	assert.Equal(t, true, ok)
 	t.Log(memoTx.GetMemo())
+	hb,_:=hexutil.Decode("0x3ecaae3cfadffcc3dbb810f7e28cd70a19ec8762c2b115cd7cdbe3bd5623807f")
+	t.Log(string(hb))
 }
+

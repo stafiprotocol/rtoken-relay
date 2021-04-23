@@ -178,8 +178,8 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 			memoInTx = memoTx.GetMemo()
 		}
 	}
-	if !bytes.Equal([]byte(memoInTx), r.Bonder[:]) {
-		return submodel.TxhashUnmatch, nil
+	if memoInTx != hex.EncodeToString(r.Bonder[:]) {
+		return submodel.PubkeyUnmatch, nil // memo unmatch
 	}
 
 	return submodel.Pass, nil
