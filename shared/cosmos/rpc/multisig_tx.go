@@ -253,10 +253,6 @@ func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromKey
 
 //assemble multiSig tx bytes for broadcast
 func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, txBts []byte, err error) {
-	accountMultiSign, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
-	if err != nil {
-		return nil, nil, err
-	}
 
 	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
 	if err != nil {
