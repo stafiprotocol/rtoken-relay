@@ -95,7 +95,6 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 //2 sign it with subKey
 //3 send signature to stafi
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
-	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination, "content", m.Content)
 	mFlow, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		w.printContentError(m, errors.New("msg cast to MultisigFlow not ok"))
@@ -106,6 +105,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		w.log.Error("processEraPoolUpdated HeadFlow is not EraPoolUpdatedFlow")
 		return false
 	}
+	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination,
+		"era", flow.Era, "shotId", flow.ShotId.Hex(), "symbol", flow.Symbol)
 
 	snap := flow.Snap
 

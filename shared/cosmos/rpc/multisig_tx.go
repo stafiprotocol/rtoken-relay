@@ -216,7 +216,7 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 	if err != nil {
 		return nil, err
 	}
-	xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
+	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromKey
 	if err != nil {
 		return nil, err
 	}
-	xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
+	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
 	if err != nil {
 		return nil, err
 	}
