@@ -286,46 +286,9 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			return w.informChain(m.Destination, m.Source, &mflow)
 		case submodel.OriginalClaimRewards:
 			height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
-			delegationsRes, err := client.QueryDelegations(poolAddr, height)
-			if err != nil {
-				w.log.Error("checkAndSend QueryDelegations failed",
-					"pool hex address", poolAddrHexStr,
-					"err", err)
-				return false
-			}
-			total := types.NewInt(0)
-			for _, dele := range delegationsRes.GetDelegationResponses() {
-				total = total.Add(dele.Balance.Amount)
-			}
-
-			rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
-			if err != nil {
-				w.log.Error("checkAndSend QueryDelegationTotalRewards failed",
-					"pool hex address", poolAddrHexStr,
-					"err", err)
-				return false
-			}
-			rewardTotal := big.NewInt(0)
-			rewardDe := rewardRes.Total.AmountOf(client.GetDenom())
-			if !rewardDe.IsNil() {
-				rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
-			}
-
-			total.Add(types.NewIntFromBigInt(rewardTotal))
-			f := submodel.BondReportedFlow{
-				Symbol: sigs.Symbol,
-				ShotId: wrappedUnSignedTx.SnapshotId,
-				Snap: &submodel.PoolSnapshot{
-					Era:    wrappedUnSignedTx.Era,
-					Symbol: sigs.Symbol,
-					Pool:   sigs.Pool,
-					Active: substrateTypes.NewU128(*total.BigInt())},
-			}
-
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-			w.log.Info("active report", "pool", hexutil.Encode(sigs.Pool),
-				"era", sigs.Era, "active", total.String(), "symbol", sigs.Symbol)
-			return w.activeReport(m.Destination, m.Source, &f)
+			return w.ActiveReport(client, poolAddr, height, sigs.Symbol, sigs.Pool,
+				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
 		case submodel.OriginalTransfer:
 			callHash := utils.BlakeTwo256(sigs.Pool)
 			mflow := submodel.MultiEventFlow{
@@ -349,4 +312,47 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 
 	}
 	return false
+}
+
+func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, height int64,
+	symbol core.RSymbol, poolBts []byte, shotId substrateTypes.Hash, era uint32) bool {
+	delegationsRes, err := client.QueryDelegations(poolAddr, height)
+	if err != nil {
+		w.log.Error("activeReport failed",
+			"pool", poolAddr,
+			"err", err)
+		return false
+	}
+	total := types.NewInt(0)
+	for _, dele := range delegationsRes.GetDelegationResponses() {
+		total = total.Add(dele.Balance.Amount)
+	}
+
+	rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
+	if err != nil {
+		w.log.Error("checkAndSend QueryDelegationTotalRewards failed",
+			"pool", poolAddr,
+			"err", err)
+		return false
+	}
+	rewardTotal := big.NewInt(0)
+	rewardDe := rewardRes.Total.AmountOf(client.GetDenom())
+	if !rewardDe.IsNil() {
+		rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
+	}
+
+	total.Add(types.NewIntFromBigInt(rewardTotal))
+	f := submodel.BondReportedFlow{
+		Symbol: symbol,
+		ShotId: shotId,
+		Snap: &submodel.PoolSnapshot{
+			Era:    era,
+			Symbol: symbol,
+			Pool:   poolBts,
+			Active: substrateTypes.NewU128(*total.BigInt())},
+	}
+
+	w.log.Info("active report", "pool", poolAddr,
+		"era", era, "active", total.String(), "symbol", symbol)
+	return w.activeReport(core.RFIS, symbol, &f)
 }

@@ -17,6 +17,8 @@ import (
 	tendermintTypes "github.com/tendermint/tendermint/types"
 )
 
+var ErrNoMsgs = errors.New("no tx msgs")
+
 //c.clientCtx.FromAddress must be multi sig address
 func (c *Client) GenMultiSigRawTransferTx(toAddr types.AccAddress, amount types.Coins) ([]byte, error) {
 	msg := xBankTypes.NewMsgSend(c.clientCtx.GetFromAddress(), toAddr, amount)
@@ -127,7 +129,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 	}
 	totalReward, err := c.QueryDelegationTotalRewards(delAddr, height)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	rewards := make(map[string]types.Coin)
 	for _, r := range totalReward.Rewards {
@@ -163,6 +165,11 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 
 		msgs = append(msgs, msg2)
 	}
+
+	if len(msgs) == 0 {
+		return nil, ErrNoMsgs
+	}
+
 	return c.GenMultiSigRawTx(msgs...)
 }
 

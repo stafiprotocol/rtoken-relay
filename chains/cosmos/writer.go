@@ -11,6 +11,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -163,6 +164,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("SignMultiSigRawTxWithSeq failed",
 			"pool address", poolAddr.String(),
+			"unsignedTx", string(unSignedTx),
 			"err", err)
 		return false
 	}
@@ -226,12 +228,16 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	height := poolClient.GetHeightByEra(flow.Snap.Era)
 	client := poolClient.GetRpcClient()
 	unSignedTx, err := GetClaimRewardUnsignedTx(client, poolAddr, height)
-	if err != nil {
+	if err != nil && err != rpc.ErrNoMsgs {
 		w.log.Error("GetClaimRewardUnsignedTx failed",
 			"pool address", poolAddr.String(),
 			"height", height,
 			"err", err)
 		return false
+	}
+	if err == rpc.ErrNoMsgs {
+		w.log.Info("no need claim reward", "pool", poolAddr, "era", flow.Snap.Era, "height", height)
+		return w.ActiveReport(client, poolAddr, height, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era)
 	}
 
 	//use current seq
@@ -465,7 +471,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processValidatorUpdatedEvent SignMultiSigRawTx failed",
 			"pool address", poolAddr.String(),
-			"unsignedTx", hexutil.Encode(unSignedTx),
+			"unsignedTx", string(unSignedTx),
 			"err", err)
 		return false
 	}

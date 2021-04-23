@@ -342,7 +342,7 @@ func TestClient_QueryBalance(t *testing.T) {
 func TestClient_QueryDelegationTotalRewards(t *testing.T) {
 	res, err := client.QueryDelegationTotalRewards(addrMultiSig1, 0)
 	assert.NoError(t, err)
-	t.Log(res.Total.AmountOf(client.GetDenom()).TruncateInt())
+	t.Log(res.GetTotal().AmountOf(client.GetDenom()).TruncateInt())
 }
 
 func TestClient_GetSequence(t *testing.T) {
