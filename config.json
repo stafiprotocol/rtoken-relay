@@ -5,35 +5,34 @@
       "type": "substrate",
       "rsymbol": "RFIS",
       "endpoint": "ws://127.0.0.1:9944",
-      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+        "123PKYndfZtuFaQuWkDdAgGvJwUpn6DA1WNafP738oSDvuhj"
       ],
       "latestBlockFlag": false,
       "opts": {
-        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
         "startBlock": "1",
-        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "chainType": "stafi",
-        "cares": ["RDOT"],
+        "cares": ["RATOM"],
         "addressType": "AccountId"
       }
     },
     {
-      "name": "polkadot",
-      "type": "substrate",
-      "rsymbol": "RDOT",
-      "endpoint": "ws://127.0.0.1:9944",
-      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys",
+      "name": "stargate",
+      "type": "cosmos",
+      "endpoint": "http://127.0.0.1:26657",
+      "rsymbol": "RATOM",
       "accounts": [
-        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+        "multiSign1"
       ],
-      "latestBlockFlag": true,
+      "keystorePath": "/Users/tpkeeper/.gaia",
       "opts": {
-        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
-        "blockstorePath": "",
-        "chainType": "polkadot",
-        "addressType": "MultiAddress"
+        "multiSign1": "key1",
+        "chainId": "stargate-final",
+        "denom": "umuon",
+        "gasPrice": "0.000001umuon"
       }
     }
   ]
