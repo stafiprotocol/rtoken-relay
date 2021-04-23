@@ -354,5 +354,5 @@ func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, hei
 
 	w.log.Info("active report", "pool", poolAddr,
 		"era", era, "active", total.String(), "symbol", symbol)
-	return w.activeReport(core.RFIS, symbol, &f)
+	return w.activeReport(symbol, core.RFIS, &f)
 }
