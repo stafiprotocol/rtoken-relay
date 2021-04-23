@@ -263,7 +263,8 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 		return
 	}
 	if multisigInfo.GetType() != keyring.TypeMulti {
-		return nil, nil, fmt.Errorf("%q must be of type %s: %s", c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
+		return nil, nil, fmt.Errorf("%q must be of type %s: %s",
+			c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
 	}
 
 	multiSigPub := multisigInfo.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
@@ -278,8 +279,18 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 	}
 
 	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
+	var useSequence uint64
 	//todo check sig
-	for _, sig := range willUseSigs {
+	for i, sig := range willUseSigs {
+		if i == 0 {
+			useSequence = sig.Sequence
+		} else {
+			if useSequence != sig.Sequence {
+				return nil, nil, fmt.Errorf("sigs sequence not equal sequence 1: %d ,sequence %d: %d",
+					useSequence, i, sig.Sequence)
+			}
+		}
+
 		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
 			return nil, nil, err
 		}
@@ -288,7 +299,7 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 	sigV2 := signing.SignatureV2{
 		PubKey:   multiSigPub,
 		Data:     multiSigData,
-		Sequence: accountMultiSign.GetSequence(),
+		Sequence: useSequence,
 	}
 
 	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
@@ -300,12 +311,11 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 		return nil, nil, err
 	}
 	txBuilder.SetSignatures(sigV2)
-	txBuilder.GetTx()
-	txbts, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
+	txBytes, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {
 		return nil, nil, err
 	}
-	tendermintTx := tendermintTypes.Tx(txbts)
+	tendermintTx := tendermintTypes.Tx(txBytes)
 	return tendermintTx.Hash(), tendermintTx, nil
 }
 

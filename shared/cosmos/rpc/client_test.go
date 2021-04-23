@@ -25,6 +25,7 @@ var addrValidatorTestnet, _ = types.ValAddressFromBech32("cosmosvaloper17tpddyr5
 var addrValidatorTestnet2, _ = types.ValAddressFromBech32("cosmosvaloper19xczxvvdg8h67sk3cccrvxlj0ruyw3360rctfa")
 var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 var addrValidatorTestnetStation, _ = types.ValAddressFromBech32("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu")
+var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
 
 func init() {
 	rpcClient, err := rpcHttp.New("http://127.0.0.1:26657", "/websocket")
@@ -139,7 +140,7 @@ func TestClient_QueryDelegationRewards(t *testing.T) {
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, addrValidatorTestnetAteam, types.NewCoin(client.GetDenom(), types.NewInt(100)))
+	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{addrValidatorTestnetAteam}, types.NewCoin(client.GetDenom(), types.NewInt(100)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -244,7 +245,7 @@ func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
 func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, addrValidatorTestnetAteam, types.NewCoin(client.GetDenom(), types.NewInt(15)))
+	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, []types.ValAddress{addrValidatorTestnetAteam}, types.NewCoin(client.GetDenom(), types.NewInt(15)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
@@ -385,7 +386,7 @@ func TestMaxTransfer(t *testing.T) {
 func TestMemo(t *testing.T) {
 	res, err := client.QueryTxByHash("81DDFF0EBDD89620B73E89427D5BA8EE16384F85DABA9471A3F4D813A108CA41")
 	assert.NoError(t, err)
-	tx,err:=client.GetTxConfig().TxDecoder()(res.Tx.GetValue())
+	tx, err := client.GetTxConfig().TxDecoder()(res.Tx.GetValue())
 	//tx, err := client.GetTxConfig().TxJSONDecoder()(res.Tx.Value)
 	assert.NoError(t, err)
 	memoTx, ok := tx.(types.TxWithMemo)
