@@ -251,12 +251,13 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			w.log.Warn(fmt.Sprintf(
 				"checkAndSend QueryTxByHash failed. will rebroadcast after %f second",
 				BlockRetryInterval.Seconds()),
+				"tx hash", txHashHexStr,
 				"err or res.empty", err)
 
 			//broadcast if not on chain
 			_, err = client.BroadcastTx(txBts)
 			if err != nil && err != errType.ErrTxInMempoolCache {
-				w.log.Warn("checkAndSend BroadcastTx failed",
+				w.log.Warn("checkAndSend BroadcastTx failed  will retry",
 					"err", err)
 			}
 			time.Sleep(BlockRetryInterval)
@@ -271,7 +272,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 
 		//inform stafi
 		switch wrappedUnSignedTx.Type {
-		case submodel.OriginalBond:
+		case submodel.OriginalBond: //bond or unbond
 			callHash := utils.BlakeTwo256(sigs.Pool)
 			mflow := submodel.MultiEventFlow{
 				EventData: &submodel.EraPoolUpdatedFlow{
@@ -336,7 +337,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
 			return w.informChain(m.Destination, m.Source, &mflow)
-		case submodel.OriginalWithdrawUnbond:
+		case submodel.OriginalWithdrawUnbond: //update validator
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
 		default:
 			w.log.Error("checkAndSend failed,unknown unsigned tx type",

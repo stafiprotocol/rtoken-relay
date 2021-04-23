@@ -188,7 +188,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	w.log.Info("processEraPoolUpdatedEvt gen unsigned bond/unbond Tx",
 		"pool address", poolAddr.String(),
-		"proposalId", hex.EncodeToString(proposalId))
+		"proposalId", proposalIdHexStr)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -274,7 +274,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
 		"pool address", poolAddr.String(),
-		"wrapped unsigned tx key", proposalIdHexStr)
+		"proposalId", proposalIdHexStr)
 
 	//send signature to stafi
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
@@ -374,7 +374,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 
 	w.log.Info("processActiveReportedEvent gen unsigned transfer Tx",
 		"pool address", poolAddr.String(),
-		"unsigned tx hash", hex.EncodeToString(proposalId))
+		"proposalId", proposalIdHexStr)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -464,7 +464,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processValidatorUpdatedEvent SignMultiSigRawTx failed",
 			"pool address", poolAddr.String(),
-			"unsignedTx", string(unSignedTx),
+			"unsignedTx", hexutil.Encode(unSignedTx),
 			"err", err)
 		return false
 	}
@@ -490,7 +490,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 
 	w.log.Info("processValidatorUpdatedEvent gen unsigned transfer Tx",
 		"pool address", poolAddr.String(),
-		"unsigned tx hash", hex.EncodeToString(proposalId))
+		"proposalId", proposalIdHexStr)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -504,12 +504,13 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 //	(3)transfer type: report transfer to stafi
 //  (4)redegate type:rm cached unsigned tx
 func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
-	w.log.Trace("processSignatureEnoughEvt", "source", m.Source, "dest", m.Destination, "content", m.Content)
 	sigs, ok := m.Content.(*submodel.SubmitSignatures)
 	if !ok {
 		w.printContentError(m, errors.New("msg cast to SubmitSignatures not ok"))
 		return false
 	}
+	w.log.Trace("processSignatureEnoughEvt", "source", m.Source,
+		"dest", m.Destination, "pool", hexutil.Encode(sigs.Pool), "tx type", sigs.TxType)
 
 	poolAddrHexStr := hex.EncodeToString(sigs.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrHexStr)
