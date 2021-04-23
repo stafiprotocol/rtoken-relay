@@ -104,7 +104,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	//check tx hash
 	txRes, err := c.GetTx(poolClient, hashStr)
 	if err != nil {
-		return submodel.TxhashUnmatch, err
+		return submodel.TxhashUnmatch, nil
 	}
 
 	if txRes.Empty() {
