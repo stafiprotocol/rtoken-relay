@@ -323,7 +323,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			}
 
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-
+			w.log.Info("active report", "pool", hexutil.Encode(sigs.Pool), "active", total.String())
 			return w.activeReport(m.Destination, m.Source, &f)
 		case submodel.OriginalTransfer:
 			callHash := utils.BlakeTwo256(sigs.Pool)
