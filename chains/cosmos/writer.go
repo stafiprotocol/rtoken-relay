@@ -236,7 +236,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 			"err", err)
 		return false
 	}
-	//if no reward will return ErrNoMsgs, just activeReport
+	//will return ErrNoMsgs if no reward or reward of that height is less than now , we just activeReport
 	if err == rpc.ErrNoMsgs {
 		w.log.Info("no need claim reward", "pool", poolAddr, "era", flow.Snap.Era, "height", height)
 		return w.ActiveReport(client, poolAddr, height, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era)

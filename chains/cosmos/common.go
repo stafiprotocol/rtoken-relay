@@ -142,14 +142,26 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 }
 
 func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, height int64) ([]byte, error) {
-	//get reward
+	//get reward of height
 	rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
 	if err != nil {
 		return nil, err
 	}
 	rewardAmount := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 
-	//get balanceAmount
+	//get reward of now
+	rewardResNow, err := client.QueryDelegationTotalRewards(poolAddr, 0)
+	if err != nil {
+		return nil, err
+	}
+	rewardAmountNow := rewardResNow.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
+
+	//if rewardAmount > rewardAmountNow return ErrNoMsgs
+	if rewardAmount.GT(rewardAmountNow) {
+		return nil, rpc.ErrNoMsgs
+	}
+
+	//get balanceAmount of height
 	balanceAmount, err := client.QueryBalance(poolAddr, client.GetDenom(), height)
 	if err != nil {
 		return nil, err
@@ -159,6 +171,8 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 	//(1)if balanceAmount>rewardAmount gen withdraw and delegate tx
 	//(2)if balanceAmount<rewardAmount gen withdraw tx
 	var unSignedTx []byte
+	fmt.Println("balanceAmount",balanceAmount.Balance.Amount.Int64())
+	fmt.Println("rewardAmount",rewardAmount.Int64())
 	if balanceAmount.Balance.Amount.GT(rewardAmount) {
 		unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardThenDeleTx(
 			poolAddr,

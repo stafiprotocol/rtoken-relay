@@ -24,21 +24,29 @@ var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z
 var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
 var addrValidatorTestnet2, _ = types.ValAddressFromBech32("cosmosvaloper19xczxvvdg8h67sk3cccrvxlj0ruyw3360rctfa")
 
-var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
 
 var addrValidatorTestnet, _ = types.ValAddressFromBech32("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc")
-var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 var addrValidatorTestnetStation, _ = types.ValAddressFromBech32("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu")
+var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 
+var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
+var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
+var adrValidatorForbole, _ = types.ValAddressFromBech32("cosmosvaloper1w96rrh9sx0h7n7qak00l90un0kx5wala2prmxt")
 func TestGetAddrHex(t *testing.T) {
-	t.Log("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc",hexutil.Encode(addrValidatorTestnet.Bytes()))
-	t.Log("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p",hexutil.Encode(addrValidatorTestnetAteam.Bytes()))
-	t.Log("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu",hexutil.Encode(addrValidatorTestnetStation.Bytes()))
-	t.Log("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8",hexutil.Encode(adrValidatorTestnetTecos.Bytes()))
-	//client_test.go:34: cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc 0xf2c2d69074f1fac24cb434d1697cf3fabea5a75d
-	//client_test.go:35: cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p 0x7d10cc4910d42b2a3a0580f1633da35d4c7c3904
-	//client_test.go:36: cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu 0x351c8be98e2674f7322d5c2f02b760421c932bed
-	//client_test.go:37: cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8 0x0fb31f4c4b9695bd8fa735d006e7d007e3ffdefc
+	t.Log("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc", hexutil.Encode(addrValidatorTestnet.Bytes()))
+	t.Log("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu", hexutil.Encode(addrValidatorTestnetStation.Bytes()))
+	t.Log("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p", hexutil.Encode(addrValidatorTestnetAteam.Bytes()))
+
+	t.Log("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8", hexutil.Encode(adrValidatorTestnetTecos.Bytes()))
+	t.Log("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3", hexutil.Encode(adrValidatorEverStake.Bytes()))
+	t.Log("cosmosvaloper1w96rrh9sx0h7n7qak00l90un0kx5wala2prmxt", hexutil.Encode(adrValidatorForbole.Bytes()))
+	//client_test.go:36: cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc 0xf2c2d69074f1fac24cb434d1697cf3fabea5a75d
+	//client_test.go:38: cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu 0x351c8be98e2674f7322d5c2f02b760421c932bed
+	//client_test.go:37: cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p 0x7d10cc4910d42b2a3a0580f1633da35d4c7c3904
+
+	//client_test.go:40: cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8 0x0fb31f4c4b9695bd8fa735d006e7d007e3ffdefc
+	//client_test.go:41: cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3 0x5a7f68bf60a3100937e42aad6bdc111f72c55e62
+	//client_test.go:42: cosmosvaloper1w96rrh9sx0h7n7qak00l90un0kx5wala2prmxt 0x717431dcb033efe9f81db3dff2bf937d8d4777fd
 }
 
 func init() {
@@ -406,7 +414,6 @@ func TestMemo(t *testing.T) {
 	memoTx, ok := tx.(types.TxWithMemo)
 	assert.Equal(t, true, ok)
 	t.Log(memoTx.GetMemo())
-	hb,_:=hexutil.Decode("0x3ecaae3cfadffcc3dbb810f7e28cd70a19ec8762c2b115cd7cdbe3bd5623807f")
+	hb, _ := hexutil.Decode("0x3ecaae3cfadffcc3dbb810f7e28cd70a19ec8762c2b115cd7cdbe3bd5623807f")
 	t.Log(string(hb))
 }
-
