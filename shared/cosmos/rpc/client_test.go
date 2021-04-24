@@ -22,11 +22,24 @@ var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78p
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
 var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z7rwu9kcdm4kc7uc4e5y5a2r")
 var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
-var addrValidatorTestnet, _ = types.ValAddressFromBech32("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc")
 var addrValidatorTestnet2, _ = types.ValAddressFromBech32("cosmosvaloper19xczxvvdg8h67sk3cccrvxlj0ruyw3360rctfa")
+
+var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
+
+var addrValidatorTestnet, _ = types.ValAddressFromBech32("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc")
 var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
 var addrValidatorTestnetStation, _ = types.ValAddressFromBech32("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu")
-var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
+
+func TestGetAddrHex(t *testing.T) {
+	t.Log("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc",hexutil.Encode(addrValidatorTestnet.Bytes()))
+	t.Log("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p",hexutil.Encode(addrValidatorTestnetAteam.Bytes()))
+	t.Log("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu",hexutil.Encode(addrValidatorTestnetStation.Bytes()))
+	t.Log("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8",hexutil.Encode(adrValidatorTestnetTecos.Bytes()))
+	//client_test.go:34: cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc 0xf2c2d69074f1fac24cb434d1697cf3fabea5a75d
+	//client_test.go:35: cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p 0x7d10cc4910d42b2a3a0580f1633da35d4c7c3904
+	//client_test.go:36: cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu 0x351c8be98e2674f7322d5c2f02b760421c932bed
+	//client_test.go:37: cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8 0x0fb31f4c4b9695bd8fa735d006e7d007e3ffdefc
+}
 
 func init() {
 	rpcClient, err := rpcHttp.New("http://127.0.0.1:26657", "/websocket")
@@ -335,7 +348,7 @@ func TestClient_QueryDelegations(t *testing.T) {
 }
 
 func TestClient_QueryBalance(t *testing.T) {
-	res, err := client.QueryBalance(addrMultiSig1, "umuon", 0)
+	res, err := client.QueryBalance(addrMultiSig1, "umuon", 440000)
 	assert.NoError(t, err)
 	t.Log(res.Balance.Amount)
 }

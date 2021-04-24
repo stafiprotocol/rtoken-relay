@@ -268,6 +268,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 		w.log.Info("checkAndSend success",
 			"pool hex address", poolAddrHexStr,
 			"tx type", wrappedUnSignedTx.Type,
+			"era", wrappedUnSignedTx.Era,
 			"txHash", txHashHexStr)
 
 		//inform stafi
@@ -303,6 +304,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			return w.informChain(m.Destination, m.Source, &mflow)
 		case submodel.OriginalWithdrawUnbond: //update validator
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
+			return true
 		default:
 			w.log.Error("checkAndSend failed,unknown unsigned tx type",
 				"pool", hex.EncodeToString(sigs.Pool),
