@@ -347,6 +347,9 @@ func TestAddress(t *testing.T) {
 	t.Log(hex.EncodeToString(addrKey1.Bytes()))
 	t.Log(hex.EncodeToString(addrKey2.Bytes()))
 	t.Log(hex.EncodeToString(addrKey3.Bytes()))
+	//client_test.go:347: e9f6828e559dbf7dbac9a319d3b58b41abcc34a4
+	//client_test.go:348: 12c1c15c36667d017ca595b88057e792c33bfe7e
+	//client_test.go:349: 5084abedea81b254d42e5f894015d2be3853b27c
 }
 
 func TestClient_QueryDelegations(t *testing.T) {

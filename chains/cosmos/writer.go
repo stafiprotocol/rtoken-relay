@@ -497,7 +497,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	w.log.Info("processValidatorUpdatedEvent gen unsigned transfer Tx",
+	w.log.Info("processValidatorUpdatedEvent gen unsigned redelegate Tx",
 		"pool address", poolAddr.String(),
 		"proposalId", proposalIdHexStr)
 

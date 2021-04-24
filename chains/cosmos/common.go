@@ -107,13 +107,20 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 	if err != nil {
 		return nil, err
 	}
+
+	totalDelegateAmount := types.NewInt(0)
 	valAddrs := make([]types.ValAddress, 0)
 	for _, dele := range deleRes.GetDelegationResponses() {
+		//filter old validator
+		if dele.GetBalance().Amount.LT(types.NewInt(1)) {
+			continue
+		}
 		valAddr, err := types.ValAddressFromBech32(dele.GetDelegation().ValidatorAddress)
 		if err != nil {
 			return nil, err
 		}
 		valAddrs = append(valAddrs, valAddr)
+		totalDelegateAmount = totalDelegateAmount.Add(dele.GetBalance().Amount)
 	}
 
 	valAddrsLen := len(valAddrs)
@@ -131,6 +138,12 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
 	} else {
 		val := unbond.Int.Sub(unbond.Int, bond.Int)
+
+		if val.Cmp(totalDelegateAmount.BigInt()) > 0 {
+			return nil, fmt.Errorf("unbond less than totalDelegateAmount,unbond: %s,totalDelegateAmount: %s",
+				val.Text(10), totalDelegateAmount.BigInt().Text(10))
+		}
+
 		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
 		unSignedTx, err = client.GenMultiSigRawUnDelegateTx(
 			poolAddr,
@@ -171,8 +184,6 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 	//(1)if balanceAmount>rewardAmount gen withdraw and delegate tx
 	//(2)if balanceAmount<rewardAmount gen withdraw tx
 	var unSignedTx []byte
-	fmt.Println("balanceAmount",balanceAmount.Balance.Amount.Int64())
-	fmt.Println("rewardAmount",rewardAmount.Int64())
 	if balanceAmount.Balance.Amount.GT(rewardAmount) {
 		unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardThenDeleTx(
 			poolAddr,
