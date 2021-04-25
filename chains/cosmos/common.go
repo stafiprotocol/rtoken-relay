@@ -138,10 +138,9 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
 	} else {
 		val := unbond.Int.Sub(unbond.Int, bond.Int)
-
+		//make val <= totalDelegateAmount
 		if val.Cmp(totalDelegateAmount.BigInt()) > 0 {
-			return nil, fmt.Errorf("unbond less than totalDelegateAmount,unbond: %s,totalDelegateAmount: %s",
-				val.Text(10), totalDelegateAmount.BigInt().Text(10))
+			val = totalDelegateAmount.BigInt()
 		}
 
 		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
