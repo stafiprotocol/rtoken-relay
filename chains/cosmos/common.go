@@ -112,7 +112,7 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 	valAddrs := make([]types.ValAddress, 0)
 	for _, dele := range deleRes.GetDelegationResponses() {
 		//filter old validator
-		if dele.GetBalance().Amount.LT(types.NewInt(1)) {
+		if dele.GetBalance().Amount.LT(types.NewInt(2)) {
 			continue
 		}
 		valAddr, err := types.ValAddressFromBech32(dele.GetDelegation().ValidatorAddress)
@@ -314,7 +314,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
 			return w.ActiveReport(client, poolAddr, height, sigs.Symbol, sigs.Pool,
-				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
+				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era,wrappedUnSignedTx.Bond,wrappedUnSignedTx.Unbond)
 		case submodel.OriginalTransfer:
 			callHash := utils.BlakeTwo256(sigs.Pool)
 			mflow := submodel.MultiEventFlow{
@@ -342,7 +342,8 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 }
 
 func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, height int64,
-	symbol core.RSymbol, poolBts []byte, shotId substrateTypes.Hash, era uint32) bool {
+	symbol core.RSymbol, poolBts []byte, shotId substrateTypes.Hash, era uint32,
+	bond substrateTypes.U128, Unbond substrateTypes.U128) bool {
 	delegationsRes, err := client.QueryDelegations(poolAddr, height)
 	if err != nil {
 		w.log.Error("activeReport failed",
@@ -367,8 +368,18 @@ func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, hei
 	if !rewardDe.IsNil() {
 		rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
 	}
+	//reward
+	total = total.Add(types.NewIntFromBigInt(rewardTotal))
 
-	total.Add(types.NewIntFromBigInt(rewardTotal))
+	//bond/unbond
+	if bond.Cmp(Unbond.Int) > 0 {
+		willBond := bond.Sub(bond.Int, Unbond.Int)
+		total = total.Add(types.NewIntFromBigInt(willBond))
+	} else {
+		willUnBond := bond.Sub(Unbond.Int, bond.Int)
+		total = total.Sub(types.NewIntFromBigInt(willUnBond))
+	}
+
 	f := submodel.BondReportedFlow{
 		Symbol: symbol,
 		ShotId: shotId,

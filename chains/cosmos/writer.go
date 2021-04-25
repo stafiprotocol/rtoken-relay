@@ -239,7 +239,8 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	//will return ErrNoMsgs if no reward or reward of that height is less than now , we just activeReport
 	if err == rpc.ErrNoMsgs {
 		w.log.Info("no need claim reward", "pool", poolAddr, "era", flow.Snap.Era, "height", height)
-		return w.ActiveReport(client, poolAddr, height, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era)
+		return w.ActiveReport(client, poolAddr, height, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era,
+			flow.Snap.Bond, flow.Snap.Unbond)
 	}
 
 	//use current seq
@@ -268,6 +269,8 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Key:        proposalIdHexStr,
 		SnapshotId: flow.ShotId,
 		Era:        flow.Snap.Era,
+		Bond:       flow.Snap.Bond,
+		Unbond:     flow.Snap.Unbond,
 		Type:       submodel.OriginalClaimRewards}
 
 	poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)

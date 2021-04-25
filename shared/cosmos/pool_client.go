@@ -28,6 +28,8 @@ type WrapUnsignedTx struct {
 	Key        string
 	SnapshotId subTypes.Hash
 	Era        uint32
+	Bond       subTypes.U128
+	Unbond     subTypes.U128
 	Type       submodel.OriginalTx
 }
 

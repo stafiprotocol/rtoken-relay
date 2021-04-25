@@ -12,7 +12,7 @@
       "latestBlockFlag": false,
       "opts": {
         "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
-        "startBlock": "3913",
+        "startBlock": "21856",
         "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "chainType": "stafi",
         "cares": ["RATOM"],
