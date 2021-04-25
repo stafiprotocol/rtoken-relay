@@ -17,6 +17,7 @@ import (
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -50,6 +51,17 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	if !ok || len(gasPrice) == 0 {
 		return nil, errors.New("config must has gasPrice")
 	}
+	eraBlockNumberStr, ok := cfg.Opts[config.EraBlockNumber].(string)
+	if !ok {
+		return nil, errors.New("config must has eraBlockNumber")
+	}
+	eraBlockNumber, err := strconv.ParseInt(eraBlockNumberStr, 10, 64)
+	if err != nil {
+		return nil, errors.New("config parse eraBlockNumber failed")
+	}
+	if eraBlockNumber == 0 {
+		return nil, errors.New("eraBlockNumber is zero")
+	}
 
 	subClients := make(map[string]*cosmos.PoolClient)
 	keys := make([]string, 0)
@@ -60,7 +72,6 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, err
 	}
 
-	//todo some params just for test
 	for _, account := range cfg.Accounts {
 		rpcClient, err := rpcHttp.New(cfg.Endpoint, "/websocket")
 		if err != nil {
@@ -77,7 +88,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 		addrHexStr := hex.EncodeToString(keyInfo.GetAddress().Bytes())
-		subClients[addrHexStr] = cosmos.NewPoolClient(log, client, subKeys[account])
+		subClients[addrHexStr] = cosmos.NewPoolClient(log, client, subKeys[account], eraBlockNumber)
 		keys = append(keys, addrHexStr)
 	}
 
@@ -202,20 +213,6 @@ func (c *Connection) GetPoolClient(poolAddrHexStr string) (*cosmos.PoolClient, e
 		return sub, nil
 	}
 	return nil, errors.New("subClient of this pool not exist")
-}
-
-func (c *Connection) GetCurrentEra() (uint32, error) {
-	client, err := c.GetOnePoolClient()
-	if err != nil {
-		return 0, err
-	}
-
-	status, err := client.GetRpcClient().GetStatus()
-	if err != nil {
-		return 0, err
-	}
-	era := uint32(status.SyncInfo.LatestBlockHeight / cosmos.EraBlockNumber)
-	return era, nil
 }
 
 func (c *Connection) GetTx(poolClient *cosmos.PoolClient, txHash string) (*types.TxResponse, error) {

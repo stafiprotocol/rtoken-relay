@@ -15,7 +15,9 @@
         "startBlock": "21856",
         "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "chainType": "stafi",
-        "cares": ["RATOM"],
+        "cares": [
+          "RATOM"
+        ],
         "addressType": "AccountId"
       }
     },
@@ -32,7 +34,8 @@
         "multiSign1": "key1",
         "chainId": "stargate-final",
         "denom": "umuon",
-        "gasPrice": "0.000001umuon"
+        "gasPrice": "0.000001umuon",
+        "eraBlockNumber": "100"
       }
     }
   ]
