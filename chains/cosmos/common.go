@@ -313,7 +313,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
 			return w.ActiveReport(client, poolAddr, height, sigs.Symbol, sigs.Pool,
-				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era,wrappedUnSignedTx.Bond,wrappedUnSignedTx.Unbond)
+				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era, wrappedUnSignedTx.Bond, wrappedUnSignedTx.Unbond)
 		case submodel.OriginalTransfer:
 			callHash := utils.BlakeTwo256(sigs.Pool)
 			mflow := submodel.MultiEventFlow{
@@ -342,7 +342,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 
 func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, height int64,
 	symbol core.RSymbol, poolBts []byte, shotId substrateTypes.Hash, era uint32,
-	bond substrateTypes.U128, Unbond substrateTypes.U128) bool {
+	bond substrateTypes.U128, unBond substrateTypes.U128) bool {
 	delegationsRes, err := client.QueryDelegations(poolAddr, height)
 	if err != nil {
 		w.log.Error("activeReport failed",
@@ -363,19 +363,18 @@ func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, hei
 		return false
 	}
 	rewardTotal := big.NewInt(0)
-	rewardDe := rewardRes.Total.AmountOf(client.GetDenom())
+	rewardDe := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 	if !rewardDe.IsNil() {
 		rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
 	}
 	//reward
 	total = total.Add(types.NewIntFromBigInt(rewardTotal))
-
 	//bond/unbond
-	if bond.Cmp(Unbond.Int) > 0 {
-		willBond := bond.Sub(bond.Int, Unbond.Int)
+	if bond.Cmp(unBond.Int) > 0 {
+		willBond := bond.Sub(bond.Int, unBond.Int)
 		total = total.Add(types.NewIntFromBigInt(willBond))
 	} else {
-		willUnBond := bond.Sub(Unbond.Int, bond.Int)
+		willUnBond := unBond.Sub(unBond.Int, bond.Int)
 		total = total.Sub(types.NewIntFromBigInt(willUnBond))
 	}
 
