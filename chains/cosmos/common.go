@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	errType "github.com/cosmos/cosmos-sdk/types/errors"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -198,14 +199,13 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 	return unSignedTx, nil
 }
 
-func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receives []*submodel.Receive) ([]byte, error) {
+func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receives []*submodel.Receive, logger log15.Logger) ([]byte, error) {
 	outPuts := make([]xBankTypes.Output, 0)
 	for _, receive := range receives {
 		hexAccountStr := hex.EncodeToString(receive.Recipient[:20])
 		addr, err := types.AccAddressFromHex(hexAccountStr)
 		if err != nil {
-			//todo record or log err addr
-			fmt.Println("AccAddressFromHex err", err)
+			logger.Error("GetTransferUnsignedTx AccAddressFromHex failed", "hexAccount", hexAccountStr, "err", err)
 			continue
 		}
 		valueBigInt := big.Int(receive.Value)

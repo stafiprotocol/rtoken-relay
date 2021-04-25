@@ -14,10 +14,10 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
-	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -73,16 +73,11 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	for _, account := range cfg.Accounts {
-		rpcClient, err := rpcHttp.New(cfg.Endpoint, "/websocket")
-		if err != nil {
-			panic(err)
-		}
-		client, err := rpc.NewClient(rpcClient, key, chainId, account)
+		client, err := rpc.NewClient(key, chainId, account, gasPrice, denom, cfg.Endpoint)
 		if err != nil {
 			return nil, err
 		}
-		client.SetGasPrice(gasPrice)
-		client.SetDenom(denom)
+
 		keyInfo, err := key.Key(account)
 		if err != nil {
 			return nil, err
@@ -198,7 +193,6 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 
 //fetch one for query
 func (c *Connection) GetOnePoolClient() (*cosmos.PoolClient, error) {
-	//todo check connect state
 	for _, sub := range c.poolClients {
 		if sub != nil {
 			return sub, nil
@@ -208,7 +202,6 @@ func (c *Connection) GetOnePoolClient() (*cosmos.PoolClient, error) {
 }
 
 func (c *Connection) GetPoolClient(poolAddrHexStr string) (*cosmos.PoolClient, error) {
-	//todo check connect state
 	if sub, exist := c.poolClients[poolAddrHexStr]; exist {
 		return sub, nil
 	}
@@ -230,7 +223,8 @@ func (c *Connection) GetTx(poolClient *cosmos.PoolClient, txHash string) (*types
 			retryTx++
 			continue
 		}
-		if txRes.Height+BlockConfirmNumber > c.currentHeight {
+		currentHeight := atomic.LoadInt64(&c.currentHeight)
+		if txRes.Height+BlockConfirmNumber > currentHeight {
 			c.log.Warn(fmt.Sprintf("confirm number is smaller than %d ,will retry queryTx after %f second", BlockConfirmNumber, BlockRetryInterval.Seconds()))
 			time.Sleep(BlockRetryInterval)
 			retryTx++

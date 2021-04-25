@@ -6,6 +6,7 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,11 +25,10 @@ type listener struct {
 	blockstore blockstore.Blockstorer
 	conn       *Connection
 	//subscriptions map[*eventId]eventHandler // Handlers for specific events
-	router     chains.Router
-	log        log15.Logger
-	stop       <-chan int
-	sysErr     chan<- error
-	currentEra uint32
+	router chains.Router
+	log    log15.Logger
+	stop   <-chan int
+	sysErr chan<- error
 }
 
 func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
@@ -39,10 +39,9 @@ func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockst
 		blockstore: bs,
 		conn:       conn,
 		//subscriptions: make(map[*eventId]eventHandler),
-		log:        log,
-		stop:       stop,
-		sysErr:     sysErr,
-		currentEra: 0,
+		log:    log,
+		stop:   stop,
+		sysErr: sysErr,
 	}
 }
 
@@ -95,9 +94,8 @@ func (l *listener) updateEra() error {
 	if err != nil {
 		return err
 	}
-	//update height era
-	l.conn.currentHeight = height
-	l.currentEra = era
+	//update height
+	atomic.StoreInt64(&l.conn.currentHeight, height)
 
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)

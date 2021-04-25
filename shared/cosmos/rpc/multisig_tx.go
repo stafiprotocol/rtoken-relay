@@ -203,7 +203,7 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 }
 
 //c.clientCtx.FromAddress  must be multi sig address
-func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []byte, err error) {
+func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature []byte, err error) {
 	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
 		return nil, err
@@ -223,7 +223,7 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 	if err != nil {
 		return nil, err
 	}
-	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
+	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromSubKey, txBuilder, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromKey string) (signature []by
 }
 
 //c.clientCtx.FromAddress  must be multi sig address
-func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromKey string) (signature []byte, err error) {
+func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromSubKey string) (signature []byte, err error) {
 	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
 	if err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromKey
 	if err != nil {
 		return nil, err
 	}
-	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromKey, txBuilder, true, true)
+	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromSubKey, txBuilder, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -319,59 +319,5 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 		return nil, nil, err
 	}
 	tendermintTx := tendermintTypes.Tx(txBytes)
-	return tendermintTx.Hash(), tendermintTx, nil
-}
-
-//assemble multiSig tx bytes for broadcast
-func (c *Client) AssembleMultiSigTxWithSeq(sequence uint64, rawTx []byte, signatures [][]byte) (txHash, txBts []byte, err error) {
-
-	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
-	if err != nil {
-		return
-	}
-	if multisigInfo.GetType() != keyring.TypeMulti {
-		return nil, nil, fmt.Errorf("%q must be of type %s: %s", c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
-	}
-
-	multiSigPub := multisigInfo.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
-
-	willUseSigs := make([]signing.SignatureV2, 0)
-	for _, s := range signatures {
-		ss, err := c.clientCtx.TxConfig.UnmarshalSignatureJSON(s)
-		if err != nil {
-			return nil, nil, err
-		}
-		willUseSigs = append(willUseSigs, ss...)
-	}
-
-	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
-	//todo check sig
-	for _, sig := range willUseSigs {
-		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	sigV2 := signing.SignatureV2{
-		PubKey:   multiSigPub,
-		Data:     multiSigData,
-		Sequence: sequence,
-	}
-
-	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
-	if err != nil {
-		return nil, nil, err
-	}
-	txBuilder, err := c.clientCtx.TxConfig.WrapTxBuilder(tx)
-	if err != nil {
-		return nil, nil, err
-	}
-	txBuilder.SetSignatures(sigV2)
-	txBuilder.GetTx()
-	txbts, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
-	if err != nil {
-		return nil, nil, err
-	}
-	tendermintTx := tendermintTypes.Tx(txbts)
 	return tendermintTx.Hash(), tendermintTx, nil
 }

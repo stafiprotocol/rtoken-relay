@@ -7,9 +7,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/crypto/types"
+	cryptoTypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/types"
 	xAuthTypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	rpcClient "github.com/tendermint/tendermint/rpc/client"
+	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
 	rpcCoreTypes "github.com/tendermint/tendermint/rpc/core/types"
 	"os"
 )
@@ -20,14 +22,20 @@ type Client struct {
 	rpcClient rpcClient.Client
 	gasPrice  string
 	denom     string
+	endPoint  string
 }
 
-func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName string) (*Client, error) {
+func NewClient( k keyring.Keyring, chainId, fromName, gasPrice, denom,endPoint string) (*Client, error) {
 	encodingConfig := MakeEncodingConfig()
 	info, err := k.Key(fromName)
 	if err != nil {
 		return nil, fmt.Errorf("keyring get address from name:%s err: %s", fromName, err)
 	}
+	rpcClient, err := rpcHttp.New(endPoint, "/websocket")
+	if err != nil {
+		return nil,err
+	}
+
 
 	initClientCtx := client.Context{}.
 		WithJSONMarshaler(encodingConfig.Marshaler).
@@ -44,10 +52,16 @@ func NewClient(rpcClient rpcClient.Client, k keyring.Keyring, chainId, fromName 
 		WithFromAddress(info.GetAddress()). //accountRetriever need FromAddress
 		WithKeyring(k)
 
-	return &Client{
+	client := &Client{
 		clientCtx: initClientCtx,
 		rpcClient: rpcClient,
-	}, nil
+	}
+	client.setDenom(denom)
+	err = client.setGasPrice(gasPrice)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 //update clientCtx.FromName and clientCtx.FromAddress
@@ -65,13 +79,16 @@ func (c *Client) GetFromName() string {
 	return c.clientCtx.FromName
 }
 
-func (c *Client) SetGasPrice(gasPrice string) error {
-	//todo check value
+func (c *Client) setGasPrice(gasPrice string) error {
+	_, err := types.ParseDecCoins(gasPrice)
+	if err != nil {
+		return err
+	}
 	c.gasPrice = gasPrice
 	return nil
 }
 
-func (c *Client) SetDenom(denom string) {
+func (c *Client) setDenom(denom string) {
 	c.denom = denom
 }
 
@@ -91,6 +108,6 @@ func (c *Client) GetStatus() (*rpcCoreTypes.ResultStatus, error) {
 	return c.clientCtx.Client.Status(context.Background())
 }
 
-func (c *Client) Sign(fromName string, toBeSigned []byte) ([]byte, types.PubKey, error) {
+func (c *Client) Sign(fromName string, toBeSigned []byte) ([]byte, cryptoTypes.PubKey, error) {
 	return c.clientCtx.Keyring.Sign(fromName, toBeSigned)
 }

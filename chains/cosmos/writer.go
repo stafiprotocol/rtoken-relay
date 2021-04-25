@@ -328,7 +328,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 	client := poolClient.GetRpcClient()
 
-	unSignedTx, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives)
+	unSignedTx, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives,w.log)
 	if err != nil && err != ErrNoOutPuts {
 		w.log.Error("GetTransferUnsignedTx failed", "pool hex address", poolAddrHexStr, "err", err)
 		return false
