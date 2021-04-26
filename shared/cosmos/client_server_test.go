@@ -17,7 +17,7 @@ var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e3
 var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
 
 func init() {
-	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, "/home/stafi/ratom/keys", strings.NewReader("12345678\n"))
+	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, "/home/stafi/ratom/keys/keys/cosmos", strings.NewReader("12345678\n"))
 	if err != nil {
 		panic(err)
 	}
