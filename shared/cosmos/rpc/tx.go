@@ -20,7 +20,7 @@ func (c *Client) SingleTransferTo(toAddr types.AccAddress, amount types.Coins) e
 
 func (c *Client) SingleReDelegate(srcValAddr, desValAddr types.ValAddress, amount types.Coin) (string, error) {
 	msg := xStakeTypes.NewMsgBeginRedelegate(c.clientCtx.GetFromAddress(), srcValAddr, desValAddr, amount)
-	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+	account, err := c.GetAccount()
 	if err != nil {
 		return "", err
 	}

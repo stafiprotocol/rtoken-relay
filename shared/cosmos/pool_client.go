@@ -5,7 +5,6 @@ import (
 	subTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
-	"math/big"
 	"sync"
 
 	"github.com/ChainSafe/log15"
@@ -82,9 +81,4 @@ func (pc *PoolClient) GetCurrentEra() (int64, uint32, error) {
 	era := uint32(height / pc.eraBlockNumber)
 	return height, era, nil
 }
-func (pc *PoolClient) bond(val *big.Int) error {
-	return nil
-}
-func (pc *PoolClient) unbond(val *big.Int) error {
-	return nil
-}
+

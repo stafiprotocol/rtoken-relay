@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -10,7 +11,11 @@ import (
 	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	xStakeTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"time"
 )
+
+const retryLimit = 10
+const waitTime = time.Millisecond * 500
 
 //no 0x prefix
 func (c *Client) QueryTxByHash(hashHexStr string) (*types.TxResponse, error) {
@@ -70,7 +75,16 @@ func (c *Client) QueryBlock(height int64) (*ctypes.ResultBlock, error) {
 }
 
 func (c *Client) QueryAccount(addr types.AccAddress) (client.Account, error) {
-	return c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
+	for i := 0; i < retryLimit; i++ {
+		account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
+		if err != nil {
+			time.Sleep(waitTime)
+			continue
+		} else {
+			return account, err
+		}
+	}
+	return nil, errors.New("reach retry limit")
 }
 
 func (c *Client) GetSequence(height int64, addr types.AccAddress) (uint64, error) {
@@ -96,4 +110,21 @@ func (c *Client) GetCurrentBLockHeight() (int64, error) {
 		return 0, err
 	}
 	return status.SyncInfo.LatestBlockHeight, nil
+}
+
+func (c *Client) GetStatus() (*ctypes.ResultStatus, error) {
+	return c.clientCtx.Client.Status(context.Background())
+}
+
+func (c *Client) GetAccount() (client.Account, error) {
+	for i := 0; i < retryLimit; i++ {
+		account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+		if err != nil {
+			time.Sleep(waitTime)
+			continue
+		} else {
+			return account, err
+		}
+	}
+	return nil, errors.New("reach retry limit")
 }
