@@ -11,6 +11,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"github.com/stretchr/testify/assert"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -412,4 +413,22 @@ func TestMemo(t *testing.T) {
 	t.Log(memoTx.GetMemo())
 	hb, _ := hexutil.Decode("0x3ecaae3cfadffcc3dbb810f7e28cd70a19ec8762c2b115cd7cdbe3bd5623807f")
 	t.Log(string(hb))
+}
+
+func TestMultiThread(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(50)
+
+	for i := 0; i < 50; i++ {
+		go func(i int) {
+			height, err := client.GetAccount()
+			if err != nil {
+				t.Log("fail", i, err)
+			} else {
+				t.Log("success", i, height.GetSequence())
+			}
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
 }

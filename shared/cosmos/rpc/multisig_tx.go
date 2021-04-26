@@ -175,7 +175,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 
 //c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
-	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+	account, err := c.GetAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -188,13 +188,6 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 		WithGas(5000000).
 		WithSimulateAndExecute(true)
 
-	//todo fix auto cal gas
-	//_, adjusted, err := clientTx.CalculateGas(c.clientCtx.QueryWithData, txf, msgs...)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//txf = txf.WithGas(adjusted)
-
 	txBuilderRaw, err := clientTx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {
 		return nil, err
@@ -204,7 +197,7 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 
 //c.clientCtx.FromAddress  must be multi sig address
 func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature []byte, err error) {
-	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+	account, err := c.GetAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +225,7 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature [
 
 //c.clientCtx.FromAddress  must be multi sig address
 func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromSubKey string) (signature []byte, err error) {
-	account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+	account, err := c.GetAccount()
 	if err != nil {
 		return nil, err
 	}

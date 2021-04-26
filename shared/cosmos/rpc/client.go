@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -12,7 +11,6 @@ import (
 	xAuthTypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	rpcClient "github.com/tendermint/tendermint/rpc/client"
 	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
-	rpcCoreTypes "github.com/tendermint/tendermint/rpc/core/types"
 	"os"
 )
 
@@ -104,9 +102,6 @@ func (c *Client) GetLegacyAmino() *codec.LegacyAmino {
 	return c.clientCtx.LegacyAmino
 }
 
-func (c *Client) GetStatus() (*rpcCoreTypes.ResultStatus, error) {
-	return c.clientCtx.Client.Status(context.Background())
-}
 
 func (c *Client) Sign(fromName string, toBeSigned []byte) ([]byte, cryptoTypes.PubKey, error) {
 	return c.clientCtx.Keyring.Sign(fromName, toBeSigned)
