@@ -34,7 +34,7 @@ func TestClient_SendTo(t *testing.T) {
 }
 
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
-	err := client.SetFromName("multiSign1")
+	err := client.SetFromName("multikey1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiKey1, []types.ValAddress{adrValidatorTestnetTecos, adrValidatorEverStake},
 		types.NewCoin(client.GetDenom(), types.NewInt(10000000)))
