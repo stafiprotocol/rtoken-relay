@@ -54,7 +54,7 @@ func init() {
 		panic(err)
 	}
 
-	client, _ = rpc.NewClient(key, "stargate-final", "recipient", "umuon", "0.04umuon", "http://127.0.0.1:26657")
+	client, _ = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
 }
 
 //{"height":"901192","txhash":"327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"100umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"100umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51169","tx":null,"timestamp":""}
@@ -154,7 +154,7 @@ func TestClient_QueryDelegationRewards(t *testing.T) {
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{addrValidatorTestnetAteam}, types.NewCoin(client.GetDenom(), types.NewInt(100)))
+	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorForbole}, types.NewCoin(client.GetDenom(), types.NewInt(1)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -167,8 +167,9 @@ func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
 	assert.NoError(t, err)
 
-	_, err = client.BroadcastTx(tx)
+	hash, err := client.BroadcastTx(tx)
 	assert.NoError(t, err)
+	t.Log("hash", hash)
 }
 
 func TestClient_GenMultiSigRawReDelegateTx(t *testing.T) {
