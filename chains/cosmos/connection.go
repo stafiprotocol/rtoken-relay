@@ -24,7 +24,7 @@ import (
 type Connection struct {
 	url           string
 	symbol        core.RSymbol
-	currentHeight int64                         //todo enable automic
+	currentHeight int64
 	poolClients   map[string]*cosmos.PoolClient //map[addressHexStr]subClient
 	log           log15.Logger
 	stop          <-chan int

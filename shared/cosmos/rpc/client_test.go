@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"github.com/stretchr/testify/assert"
-	rpcHttp "github.com/tendermint/tendermint/rpc/client/http"
 	"strings"
 	"testing"
 )
@@ -24,7 +23,6 @@ var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z
 var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
 var addrValidatorTestnet2, _ = types.ValAddressFromBech32("cosmosvaloper19xczxvvdg8h67sk3cccrvxlj0ruyw3360rctfa")
 
-
 var addrValidatorTestnet, _ = types.ValAddressFromBech32("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc")
 var addrValidatorTestnetStation, _ = types.ValAddressFromBech32("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu")
 var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105gvcjgs6s4j5ws9srckx0drt4x8cwgywplh7p")
@@ -32,6 +30,7 @@ var addrValidatorTestnetAteam, _ = types.ValAddressFromBech32("cosmosvaloper105g
 var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
 var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
 var adrValidatorForbole, _ = types.ValAddressFromBech32("cosmosvaloper1w96rrh9sx0h7n7qak00l90un0kx5wala2prmxt")
+
 func TestGetAddrHex(t *testing.T) {
 	t.Log("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc", hexutil.Encode(addrValidatorTestnet.Bytes()))
 	t.Log("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu", hexutil.Encode(addrValidatorTestnetStation.Bytes()))
@@ -50,18 +49,12 @@ func TestGetAddrHex(t *testing.T) {
 }
 
 func init() {
-	rpcClient, err := rpcHttp.New("http://127.0.0.1:26657", "/websocket")
-	if err != nil {
-		panic(err)
-	}
 	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, "/Users/tpkeeper/.gaia", strings.NewReader("tpkeeper\n"))
 	if err != nil {
 		panic(err)
 	}
 
-	client, _ = rpc.NewClient(rpcClient, key, "stargate-final", "recipient")
-	client.SetGasPrice("0.04umuon")
-	client.SetDenom("umuon")
+	client, _ = rpc.NewClient(key, "stargate-final", "recipient", "umuon", "0.04umuon", "http://127.0.0.1:26657")
 }
 
 //{"height":"901192","txhash":"327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"100umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"100umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51169","tx":null,"timestamp":""}
@@ -114,8 +107,7 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 	//signature3, err := client.SignMultiSigRawTxWithSeq(56, rawTx, "key2")
 	//assert.NoError(t, err)
 	//t.Log(string(signature2))
-
-	hash, tx, err := client.AssembleMultiSigTxWithSeq(50, rawTx, [][]byte{signature2, signature1})
+	hash, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature2, signature1})
 	assert.NoError(t, err)
 	t.Log(hex.EncodeToString(hash))
 	t.Log(string(tx))
