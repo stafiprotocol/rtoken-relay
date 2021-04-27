@@ -16,14 +16,15 @@ import (
 
 //cosmos client
 type Client struct {
-	clientCtx client.Context
-	rpcClient rpcClient.Client
-	gasPrice  string
-	denom     string
-	endPoint  string
+	clientCtx     client.Context
+	rpcClient     rpcClient.Client
+	gasPrice      string
+	denom         string
+	endPoint      string
+	accountNumber uint64
 }
 
-func NewClient( k keyring.Keyring, chainId, fromName, gasPrice, denom,endPoint string) (*Client, error) {
+func NewClient(k keyring.Keyring, chainId, fromName, gasPrice, denom, endPoint string) (*Client, error) {
 	encodingConfig := MakeEncodingConfig()
 	info, err := k.Key(fromName)
 	if err != nil {
@@ -31,9 +32,8 @@ func NewClient( k keyring.Keyring, chainId, fromName, gasPrice, denom,endPoint s
 	}
 	rpcClient, err := rpcHttp.New(endPoint, "/websocket")
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-
 
 	initClientCtx := client.Context{}.
 		WithJSONMarshaler(encodingConfig.Marshaler).
@@ -54,6 +54,13 @@ func NewClient( k keyring.Keyring, chainId, fromName, gasPrice, denom,endPoint s
 		clientCtx: initClientCtx,
 		rpcClient: rpcClient,
 	}
+
+	account, err := client.GetAccount()
+	if err != nil {
+		return nil, err
+	}
+	client.accountNumber = account.GetAccountNumber()
+
 	client.setDenom(denom)
 	err = client.setGasPrice(gasPrice)
 	if err != nil {
@@ -70,6 +77,12 @@ func (c *Client) SetFromName(fromName string) error {
 	}
 
 	c.clientCtx = c.clientCtx.WithFromName(fromName).WithFromAddress(info.GetAddress())
+
+	account, err := c.GetAccount()
+	if err != nil {
+		return err
+	}
+	c.accountNumber = account.GetAccountNumber()
 	return nil
 }
 
@@ -101,7 +114,6 @@ func (c *Client) GetTxConfig() client.TxConfig {
 func (c *Client) GetLegacyAmino() *codec.LegacyAmino {
 	return c.clientCtx.LegacyAmino
 }
-
 
 func (c *Client) Sign(fromName string, toBeSigned []byte) ([]byte, cryptoTypes.PubKey, error) {
 	return c.clientCtx.Keyring.Sign(fromName, toBeSigned)

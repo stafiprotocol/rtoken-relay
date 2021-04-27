@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xAuthClient "github.com/cosmos/cosmos-sdk/x/auth/client"
+	xAuthSigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	xStakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -175,13 +176,9 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 
 //c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
-	account, err := c.GetAccount()
-	if err != nil {
-		return nil, err
-	}
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
-	txf = txf.WithAccountNumber(account.GetAccountNumber()).
+	txf = txf.WithAccountNumber(c.accountNumber).
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON). //multi sig need this mod
 		WithGasAdjustment(1.5).
 		WithGasPrices(c.gasPrice).
@@ -225,15 +222,10 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature [
 
 //c.clientCtx.FromAddress  must be multi sig address
 func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromSubKey string) (signature []byte, err error) {
-	account, err := c.GetAccount()
-	if err != nil {
-		return nil, err
-	}
-
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
 	txf = txf.WithSequence(sequence).
-		WithAccountNumber(account.GetAccountNumber()).
+		WithAccountNumber(c.accountNumber).
 		WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON) //multi sig need this mod
 
 	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
@@ -262,8 +254,16 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 		return nil, nil, fmt.Errorf("%q must be of type %s: %s",
 			c.clientCtx.FromName, keyring.TypeMulti, multisigInfo.GetType())
 	}
-
 	multiSigPub := multisigInfo.GetPubKey().(*kMultiSig.LegacyAminoPubKey)
+
+	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
+	if err != nil {
+		return nil, nil, err
+	}
+	txBuilder, err := c.clientCtx.TxConfig.WrapTxBuilder(tx)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	willUseSigs := make([]signing.SignatureV2, 0)
 	for _, s := range signatures {
@@ -277,7 +277,6 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
 	var useSequence uint64
 
-	//skip check sig here
 	for i, sig := range willUseSigs {
 		//check sequence
 		if i == 0 {
@@ -287,6 +286,17 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 				return nil, nil, fmt.Errorf("sigs sequence not equal sequence 1: %d ,sequence %d: %d",
 					useSequence, i, sig.Sequence)
 			}
+		}
+		//check sig
+		signingData := xAuthSigning.SignerData{
+			ChainID:       c.clientCtx.ChainID,
+			AccountNumber: c.accountNumber,
+			Sequence:      useSequence,
+		}
+
+		err = xAuthSigning.VerifySignature(sig.PubKey, signingData, sig.Data, c.clientCtx.TxConfig.SignModeHandler(), txBuilder.GetTx())
+		if err != nil {
+			return nil, nil, fmt.Errorf("couldn't verify signature: %w", err)
 		}
 
 		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
@@ -300,14 +310,6 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 		Sequence: useSequence,
 	}
 
-	tx, err := c.clientCtx.TxConfig.TxJSONDecoder()(rawTx)
-	if err != nil {
-		return nil, nil, err
-	}
-	txBuilder, err := c.clientCtx.TxConfig.WrapTxBuilder(tx)
-	if err != nil {
-		return nil, nil, err
-	}
 	txBuilder.SetSignatures(sigV2)
 	txBytes, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {
