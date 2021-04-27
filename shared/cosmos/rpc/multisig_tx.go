@@ -276,8 +276,10 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 
 	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
 	var useSequence uint64
-	//todo check sig
+
+	//skip check sig here
 	for i, sig := range willUseSigs {
+		//check sequence
 		if i == 0 {
 			useSequence = sig.Sequence
 		} else {
