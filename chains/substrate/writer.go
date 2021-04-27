@@ -605,8 +605,8 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 	for _, call := range evt.OpaqueCalls {
 		if call.CallHash == flow.CallHashStr {
 			call.TimePoint = flow.TimePoint
+			delete(evt.NewMulCallHashs, flow.CallHashStr)
 		}
-		delete(evt.NewMulCallHashs, call.CallHash)
 	}
 
 	if len(evt.NewMulCallHashs) != 0 {
