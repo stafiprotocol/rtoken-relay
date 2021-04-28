@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var client *rpc.Client
@@ -55,7 +56,10 @@ func init() {
 		panic(err)
 	}
 
-	client, _ = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
+	client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
+	if err != nil {
+		panic(err)
+	}
 }
 
 //{"height":"901192","txhash":"327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"100umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"100umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51169","tx":null,"timestamp":""}
@@ -218,7 +222,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawWithdrawAllRewardThenDeleTx(addrMultiSig1, 1035322)
+	rawTx, err := client.GenMultiSigRawWithdrawAllRewardThenDeleTx(addrMultiSig1, 0)
 	assert.NoError(t, err)
 	t.Log(string(rawTx))
 
@@ -239,7 +243,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
 func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawWithdrawAllRewardTx(addrMultiSig1, 1037755)
+	rawTx, err := client.GenMultiSigRawWithdrawAllRewardTx(addrMultiSig1, 0)
 	assert.NoError(t, err)
 	t.Log(string(rawTx))
 
@@ -338,9 +342,11 @@ func TestAddress(t *testing.T) {
 	addrKey1, _ := types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
 	addrKey2, _ := types.AccAddressFromBech32("cosmos1ztquzhpkve7szl99jkugq4l8jtpnhln76aetam")
 	addrKey3, _ := types.AccAddressFromBech32("cosmos12zz2hm02sxe9f4pwt7y5q9wjhcu98vnuwmjz4x")
+	addrKey4, _ := types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
 	t.Log(hex.EncodeToString(addrKey1.Bytes()))
 	t.Log(hex.EncodeToString(addrKey2.Bytes()))
 	t.Log(hex.EncodeToString(addrKey3.Bytes()))
+	t.Log(hex.EncodeToString(addrKey4.Bytes()))
 	//client_test.go:347: e9f6828e559dbf7dbac9a319d3b58b41abcc34a4
 	//client_test.go:348: 12c1c15c36667d017ca595b88057e792c33bfe7e
 	//client_test.go:349: 5084abedea81b254d42e5f894015d2be3853b27c
@@ -421,7 +427,16 @@ func TestMultiThread(t *testing.T) {
 
 	for i := 0; i < 50; i++ {
 		go func(i int) {
+			t.Log(i)
+			time.Sleep(5 * time.Second)
 			height, err := client.GetAccount()
+			if err != nil {
+				t.Log("fail", i, err)
+			} else {
+				t.Log("success", i, height.GetSequence())
+			}
+			time.Sleep(15 * time.Second)
+			height, err = client.GetAccount()
 			if err != nil {
 				t.Log("fail", i, err)
 			} else {

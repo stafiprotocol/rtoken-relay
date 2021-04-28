@@ -19,7 +19,13 @@ const waitTime = time.Millisecond * 500
 
 //no 0x prefix
 func (c *Client) QueryTxByHash(hashHexStr string) (*types.TxResponse, error) {
-	return xAuthClient.QueryTx(c.clientCtx, hashHexStr)
+	cc, err := retry(func() (interface{}, error) {
+		return xAuthClient.QueryTx(c.clientCtx, hashHexStr)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*types.TxResponse), nil
 }
 
 func (c *Client) QueryDelegation(delegatorAddr types.AccAddress, validatorAddr types.ValAddress, height int64) (*xStakeTypes.QueryDelegationResponse, error) {
@@ -30,7 +36,13 @@ func (c *Client) QueryDelegation(delegatorAddr types.AccAddress, validatorAddr t
 		ValidatorAddr: validatorAddr.String(),
 	}
 
-	return queryClient.Delegation(context.Background(), params)
+	cc, err := retry(func() (interface{}, error) {
+		return queryClient.Delegation(context.Background(), params)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*xStakeTypes.QueryDelegationResponse), nil
 }
 
 func (c *Client) QueryDelegations(delegatorAddr types.AccAddress, height int64) (*xStakeTypes.QueryDelegatorDelegationsResponse, error) {
@@ -40,26 +52,44 @@ func (c *Client) QueryDelegations(delegatorAddr types.AccAddress, height int64) 
 		DelegatorAddr: delegatorAddr.String(),
 		Pagination:    &query.PageRequest{},
 	}
-
-	return queryClient.DelegatorDelegations(context.Background(), params)
+	cc, err := retry(func() (interface{}, error) {
+		return queryClient.DelegatorDelegations(context.Background(), params)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*xStakeTypes.QueryDelegatorDelegationsResponse), nil
 }
 
 func (c *Client) QueryDelegationRewards(delegatorAddr types.AccAddress, validatorAddr types.ValAddress, height int64) (*xDistriTypes.QueryDelegationRewardsResponse, error) {
 	client := c.clientCtx.WithHeight(height)
 	queryClient := xDistriTypes.NewQueryClient(client)
-	return queryClient.DelegationRewards(
-		context.Background(),
-		&xDistriTypes.QueryDelegationRewardsRequest{DelegatorAddress: delegatorAddr.String(), ValidatorAddress: validatorAddr.String()},
-	)
+	cc, err := retry(func() (interface{}, error) {
+		return queryClient.DelegationRewards(
+			context.Background(),
+			&xDistriTypes.QueryDelegationRewardsRequest{DelegatorAddress: delegatorAddr.String(), ValidatorAddress: validatorAddr.String()},
+		)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*xDistriTypes.QueryDelegationRewardsResponse), nil
 }
 
 func (c *Client) QueryDelegationTotalRewards(delegatorAddr types.AccAddress, height int64) (*xDistriTypes.QueryDelegationTotalRewardsResponse, error) {
 	client := c.clientCtx.WithHeight(height)
 	queryClient := xDistriTypes.NewQueryClient(client)
-	return queryClient.DelegationTotalRewards(
-		context.Background(),
-		&xDistriTypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr.String()},
-	)
+
+	cc, err := retry(func() (interface{}, error) {
+		return queryClient.DelegationTotalRewards(
+			context.Background(),
+			&xDistriTypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr.String()},
+		)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*xDistriTypes.QueryDelegationTotalRewardsResponse), nil
 }
 
 func (c *Client) QueryBlock(height int64) (*ctypes.ResultBlock, error) {
@@ -68,32 +98,24 @@ func (c *Client) QueryBlock(height int64) (*ctypes.ResultBlock, error) {
 		return nil, err
 	}
 
-	// header -> BlockchainInfo
-	// header, tx -> Block
-	// results -> BlockResults
-	return node.Block(context.Background(), &height)
+	cc, err := retry(func() (interface{}, error) {
+		return node.Block(context.Background(), &height)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*ctypes.ResultBlock), nil
 }
 
 func (c *Client) QueryAccount(addr types.AccAddress) (client.Account, error) {
-	for i := 0; i < retryLimit; i++ {
-		account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, addr)
-		if err != nil {
-			time.Sleep(waitTime)
-			continue
-		} else {
-			return account, err
-		}
-	}
-	return nil, errors.New("reach retry limit")
+	return c.getAccount(0, addr)
 }
 
 func (c *Client) GetSequence(height int64, addr types.AccAddress) (uint64, error) {
-	client := c.clientCtx.WithHeight(height)
-	account, err := client.AccountRetriever.GetAccount(client, addr)
+	account, err := c.getAccount(height, addr)
 	if err != nil {
 		return 0, err
 	}
-
 	return account.GetSequence(), nil
 }
 
@@ -101,7 +123,14 @@ func (c *Client) QueryBalance(addr types.AccAddress, denom string, height int64)
 	client := c.clientCtx.WithHeight(height)
 	queryClient := xBankTypes.NewQueryClient(client)
 	params := xBankTypes.NewQueryBalanceRequest(addr, denom)
-	return queryClient.Balance(context.Background(), params)
+
+	cc, err := retry(func() (interface{}, error) {
+		return queryClient.Balance(context.Background(), params)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*xBankTypes.QueryBalanceResponse), nil
 }
 
 func (c *Client) GetCurrentBLockHeight() (int64, error) {
@@ -113,17 +142,38 @@ func (c *Client) GetCurrentBLockHeight() (int64, error) {
 }
 
 func (c *Client) GetStatus() (*ctypes.ResultStatus, error) {
-	return c.clientCtx.Client.Status(context.Background())
+	cc, err := retry(func() (interface{}, error) {
+		return c.clientCtx.Client.Status(context.Background())
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*ctypes.ResultStatus), nil
 }
 
 func (c *Client) GetAccount() (client.Account, error) {
+	return c.getAccount(0, c.clientCtx.FromAddress)
+}
+
+func (c *Client) getAccount(height int64, addr types.AccAddress) (client.Account, error) {
+	cc, err := retry(func() (interface{}, error) {
+		client := c.clientCtx.WithHeight(height)
+		return client.AccountRetriever.GetAccount(c.clientCtx, addr)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(client.Account), nil
+}
+
+func retry(f func() (interface{}, error)) (interface{}, error) {
 	for i := 0; i < retryLimit; i++ {
-		account, err := c.clientCtx.AccountRetriever.GetAccount(c.clientCtx, c.clientCtx.GetFromAddress())
+		i, err := f()
 		if err != nil {
 			time.Sleep(waitTime)
 			continue
 		} else {
-			return account, err
+			return i, err
 		}
 	}
 	return nil, errors.New("reach retry limit")
