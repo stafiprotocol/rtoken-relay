@@ -267,6 +267,14 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 		if retry <= 0 {
 			w.log.Error("checkAndSend broadcast tx reach retry limit",
 				"pool hex address", poolAddrHexStr)
+
+			if wrappedUnSignedTx.Type == submodel.OriginalClaimRewards {
+				w.log.Info("claimRewards failed we still active report")
+				height := poolClient.GetHeightByEra(wrappedUnSignedTx.Era)
+				poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
+				return w.ActiveReport(client, poolAddr, height, sigs.Symbol, sigs.Pool,
+					wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era, wrappedUnSignedTx.Bond, wrappedUnSignedTx.Unbond)
+			}
 			break
 		}
 		//check on chain
