@@ -168,12 +168,12 @@ func (c *Client) getAccount(height int64, addr types.AccAddress) (client.Account
 
 func retry(f func() (interface{}, error)) (interface{}, error) {
 	for i := 0; i < retryLimit; i++ {
-		i, err := f()
+		result, err := f()
 		if err != nil {
 			time.Sleep(waitTime)
 			continue
 		} else {
-			return i, err
+			return result, err
 		}
 	}
 	return nil, errors.New("reach retry limit")
