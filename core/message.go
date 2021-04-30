@@ -22,6 +22,7 @@ const (
 	ActiveReport           = Reason("ActiveReport")
 	ActiveReportedEvent    = Reason("ActiveReportedEvent")
 	WithdrawReportedEvent  = Reason("WithdrawReportedEvent")
+	TransferReportedEvent  = Reason("TransferReportedEvent")
 	NominationUpdatedEvent = Reason("NominationUpdatedEvent")
 	NewMultisig            = Reason("AsMulti")
 	MultisigExecuted       = Reason("MultisigExecuted")

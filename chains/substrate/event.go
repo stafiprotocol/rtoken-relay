@@ -21,6 +21,7 @@ var (
 	BondStateNotBondReportedError     = errors.New("BondStateNotBondReportedError")
 	BondStateNotActiveReportedError   = errors.New("BondStateNotActiveReportedError")
 	BondStateNotWithdrawReportedError = errors.New("BondStateNotWithdrawReportedError")
+	BondStateNotTransferReportedError = errors.New("BondStateNotTransferReportedError")
 )
 
 func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submodel.BondFlow, error) {
@@ -241,6 +242,35 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		Threshold:   th,
 		SubAccounts: sub,
 	}, nil
+}
+
+func (l *listener) processTransferReportedEvt(evt *submodel.ChainEvent) (*submodel.TransferReportedFlow, error) {
+	flow, err := submodel.EventTransferReported(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
+	if err != nil {
+		return nil, err
+	}
+
+	if snap.BondState != submodel.TransferReported {
+		l.log.Warn("processTransferReportedEvt: bondState not TransferReported",
+			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		return nil, BondStateNotWithdrawReportedError
+	}
+
+	receives, total, err := l.unbondings(snap.Symbol, snap.Pool, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.Snap = snap
+	flow.Receives = receives
+	flow.TotalAmount = total
+
+	return flow, nil
 }
 
 func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {

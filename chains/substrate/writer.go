@@ -22,38 +22,49 @@ import (
 )
 
 type writer struct {
-	symbol          core.RSymbol
-	conn            *Connection
-	router          chains.Router
-	log             log15.Logger
-	sysErr          chan<- error
-	eventMtx        sync.RWMutex
-	newMulTicsMtx   sync.RWMutex
-	bondedPoolsMtx  sync.RWMutex
-	events          map[string]*submodel.MultiEventFlow
-	newMultics      map[string]*submodel.EventNewMultisig
-	bondedPools     map[string]bool
-	liquidityBonds  chan *core.Message
-	currentChainEra uint32
-	stop            <-chan int
+	symbol                 core.RSymbol
+	conn                   *Connection
+	router                 chains.Router
+	log                    log15.Logger
+	sysErr                 chan<- error
+	eventMtx               sync.RWMutex
+	newMulTicsMtx          sync.RWMutex
+	bondedPoolsMtx         sync.RWMutex
+	events                 map[string]*submodel.MultiEventFlow
+	newMultics             map[string]*submodel.EventNewMultisig
+	bondedPools            map[string]bool
+	liquidityBonds         chan *core.Message
+	currentChainEra        uint32
+	stop                   <-chan int
+	transferRecordFilePath string
 }
 
 const (
 	bondFlowLimit = 2048
 )
 
-func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+	transferRecordFilePath := ""
+	if symbol != core.RFIS {
+		path, ok := opts["transferRecordFilePath"].(string)
+		if !ok {
+			panic("no transferRecordFilePath for RFIS")
+		}
+		transferRecordFilePath = path
+	}
+
 	return &writer{
-		symbol:          symbol,
-		conn:            conn,
-		log:             log,
-		sysErr:          sysErr,
-		events:          make(map[string]*submodel.MultiEventFlow),
-		newMultics:      make(map[string]*submodel.EventNewMultisig),
-		bondedPools:     make(map[string]bool),
-		liquidityBonds:  make(chan *core.Message, bondFlowLimit),
-		currentChainEra: 0,
-		stop:            stop,
+		symbol:                 symbol,
+		conn:                   conn,
+		log:                    log,
+		sysErr:                 sysErr,
+		events:                 make(map[string]*submodel.MultiEventFlow),
+		newMultics:             make(map[string]*submodel.EventNewMultisig),
+		bondedPools:            make(map[string]bool),
+		liquidityBonds:         make(chan *core.Message, bondFlowLimit),
+		currentChainEra:        0,
+		stop:                   stop,
+		transferRecordFilePath: transferRecordFilePath,
 	}
 }
 
@@ -87,6 +98,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processActiveReported(m)
 	case core.WithdrawReportedEvent:
 		return w.processWithdrawReportedEvent(m)
+	case core.TransferReportedEvent:
+		return w.processTransferReportedEvent(m)
 	case core.NominationUpdatedEvent:
 		return w.processNominationUpdatedEvent(m)
 	case core.GetEraNominated:
@@ -418,7 +431,8 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 	least := utils.AddU128(flow.TotalAmount, e)
 	if balance.Cmp(least.Int) < 0 {
-		w.log.Error("free balance not enough for transfer back")
+		w.sysErr <- fmt.Errorf("free balance not enough for transfer back, symbol: %s, pool: %s, least: %s", flow.Symbol, hexutil.Encode(flow.Snap.Pool), least.Int.String())
+		return false
 	}
 
 	key, others := w.conn.FoundFirstSubAccount(mef.SubAccounts)
@@ -433,59 +447,102 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 	mef.Key, mef.Others = key, others
 
-	calls, hashs1, hashs2, err := w.conn.TransferCalls(flow.Receives)
+	call, err := w.conn.TransferCall(flow.LastVoter[:], types.NewUCompact(flow.TotalAmount.Int))
 	if err != nil {
-		w.log.Error("TransferCalls error", "symbol", m.Source)
+		w.log.Error("TransferCall error", "symbol", m.Source)
 		return false
 	}
 
-	info, err := w.conn.PaymentQueryInfo(calls[0].Extrinsic)
+	info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
 	if err != nil {
-		w.log.Error("PaymentQueryInfo error", "err", err, "Extrinsic", calls[0].Extrinsic)
+		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return false
 	}
-
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = calls
-	mef.NewMulCallHashs = hashs1
-	mef.MulExeCallHashs = hashs2
-	for _, call := range calls {
-		if flow.LastVoterFlag {
-			call.TimePoint = submodel.NewOptionTimePointEmpty()
-		}
-		w.setEvents(call.CallHash, mef)
-	}
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
+	callhash := call.CallHash
+	mef.NewMulCallHashs = map[string]bool{callhash: true}
+	mef.MulExeCallHashs = map[string]bool{callhash: true}
+	w.setEvents(call.CallHash, mef)
 
 	if flow.LastVoterFlag {
+		call.TimePoint = submodel.NewOptionTimePointEmpty()
 		err = w.conn.AsMulti(mef)
 		if err != nil {
-			w.log.Error("AsMulti error", "err", err, "first callhash", mef.OpaqueCalls[0].CallHash)
+			w.log.Error("AsMulti error", "err", err, "callHash", callhash)
 			return false
 		}
-		w.log.Error("AsMulti success", "first callhash", mef.OpaqueCalls[0].CallHash)
+		w.log.Error("AsMulti success", "callHash", callhash)
 		return true
 	}
 
-	for _, call := range calls {
-		newMuls, ok := w.getNewMultics(call.CallHash)
-		if ok {
-			call.TimePoint = newMuls.TimePoint
-			delete(mef.NewMulCallHashs, call.CallHash)
-		}
-	}
-
-	if len(mef.NewMulCallHashs) != 0 {
+	newMuls, ok := w.getNewMultics(callhash)
+	if !ok {
 		w.log.Info("not last voter, wait for NewMultisigEvent")
+		w.setEvents(call.CallHash, mef)
 		return true
 	}
+	call.TimePoint = newMuls.TimePoint
 
 	err = w.conn.AsMulti(mef)
 	if err != nil {
-		w.log.Error("AsMulti error", "err", err, "eventId", mef.EventId)
+		w.log.Error("AsMulti error", "err", err, "callHash", callhash)
 		return false
 	}
 
-	w.log.Info("AsMulti success", "eventId", mef.EventId)
+	w.log.Info("AsMulti success", "callHash", callhash)
+	return true
+}
+
+func (w *writer) processTransferReportedEvent(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.TransferReportedFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Era: string(flow.Snap.Era)}
+	exist := IsTransferbackExist(w.transferRecordFilePath, tb)
+	if !exist {
+		w.log.Debug("processTransferReportedEvent: transfer back not exist", "")
+		return true
+	}
+
+	voter := flow.Snap.LastVoter[:]
+	client := w.conn.KeyIndex(voter)
+	if client == nil {
+		w.sysErr <- fmt.Errorf("found transfer back record but do not have key of lastVoter, symbol: %s, LastVoter: %s", flow.Symbol, hexutil.Encode(voter))
+		return false
+	}
+
+	balance, err := w.conn.FreeBalance(flow.Snap.LastVoter[:])
+	if err != nil {
+		w.log.Error("FreeBalance error", "err", err, "LastVoter", hexutil.Encode(voter))
+		return false
+	}
+	e, err := w.conn.ExistentialDeposit()
+	if err != nil {
+		w.log.Error("ExistentialDeposit error", "err", err, "LastVoter", hexutil.Encode(voter))
+		return false
+	}
+	least := utils.AddU128(flow.TotalAmount, e)
+	if balance.Cmp(least.Int) < 0 {
+		w.sysErr <- fmt.Errorf("free balance not enough for transfer back, symbol: %s, LastVoter: %s, least: %s", flow.Symbol, hexutil.Encode(voter), least.Int.String())
+		return false
+	}
+
+	err = client.BatchTransfer(flow.Receives)
+	if err != nil {
+		w.sysErr <- fmt.Errorf("TransferBack error: %s, symbol: %s, LastVoter: %s", err, flow.Symbol, hexutil.Encode(flow.Snap.LastVoter[:]))
+		return false
+	}
+
+	err = DeleteTransferback(w.transferRecordFilePath, tb)
+	if err != nil {
+		w.sysErr <- fmt.Errorf("TransferBack succeed but failed to delete Transferback: %s, symbol: %s, LastVoter: %s", err, flow.Symbol, hexutil.Encode(flow.Snap.LastVoter[:]))
+		return false
+	}
+
 	return true
 }
 
@@ -705,6 +762,15 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	}
 
 	if data, ok := flow.EventData.(*submodel.WithdrawReportedFlow); ok {
+		if data.LastVoterFlag {
+			tb := &TransferBack{Symbol: string(data.Symbol), Pool: hexutil.Encode(data.Snap.Pool), Era: string(data.Snap.Era)}
+			err := CreateTransferback(w.transferRecordFilePath, tb)
+			if err != nil {
+				w.sysErr <- fmt.Errorf("processInformChain: CreateTransferback error: %s", err)
+				return false
+			}
+		}
+
 		prop, err := w.conn.CommonReportProposal(config.MethodTransferReport, m.Source, bondId, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodTransferReportProposal", "error", err)

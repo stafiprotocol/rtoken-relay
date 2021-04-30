@@ -4,6 +4,7 @@
 package substrate
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -367,6 +368,15 @@ func (c *Connection) FoundIndexOfSubAccount(accounts []types.Bytes) (int, *subst
 	return -1, nil
 }
 
+func (c *Connection) KeyIndex(voter []byte) *substrate.GsrpcClient {
+	for _, key := range c.keys {
+		if hexutil.Encode(key.PublicKey) == hexutil.Encode(voter) {
+			return c.gcs[key]
+		}
+	}
+	return nil
+}
+
 func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.MultiOpaqueCall, error) {
 	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
@@ -375,22 +385,8 @@ func (c *Connection) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
 	return c.gc.WithdrawCall()
 }
 
-func (c *Connection) TransferCalls(receives []*submodel.Receive) ([]*submodel.MultiOpaqueCall, map[string]bool, map[string]bool, error) {
-	calls := make([]*submodel.MultiOpaqueCall, 0)
-	hashs1 := make(map[string]bool)
-	hashs2 := make(map[string]bool)
-	for _, rec := range receives {
-		call, err := c.gc.TransferCall(rec.Recipient, rec.Value)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		hashs1[call.CallHash] = true
-		hashs2[call.CallHash] = true
-		calls = append(calls, call)
-	}
-
-	return calls, hashs1, hashs2, nil
+func (c *Connection) TransferCall(recipient []byte, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
+	return c.gc.TransferCall(recipient, value)
 }
 
 func (c *Connection) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
@@ -456,10 +452,6 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 }
 
 func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validatorFromStafi []types.AccountID) error {
-	//targets from kusama is new targets,maybe different from old era`s
-	//1 get target from stafi
-	//2 if target not exist instafi then get from kusama
-
 	fullTargets := make([]types.AccountID, 0)
 	if len(validatorFromStafi) != 0 {
 		fullTargets = validatorFromStafi
@@ -473,13 +465,13 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validat
 		}
 	}
 
-	bz, err := types.EncodeToBytes(flow.LastEra)
+	eraBz, err := types.EncodeToBytes(flow.LastEra)
 	if err != nil {
 		return err
 	}
 
 	points := new(submodel.EraRewardPoints)
-	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, points)
+	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, eraBz, nil, points)
 	if err != nil {
 		return err
 	}
@@ -489,16 +481,38 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validat
 		return nil
 	}
 
-	pointedTargets := make([]types.AccountID, 0)
+	targets := make([]types.AccountID, 0)
 	for _, tgt := range fullTargets {
+		pointedFlag := false
 		for _, idv := range points.Individuals {
 			if hexutil.Encode(tgt[:]) == hexutil.Encode(idv.Validator[:]) {
-				pointedTargets = append(pointedTargets, tgt)
+				pointedFlag = true
+			}
+		}
+
+		if !pointedFlag {
+			continue
+		}
+
+		ep := new(submodel.Exposure)
+		exist, err := c.QueryStorage(config.StakingModuleId, config.StorageErasStakersClipped, eraBz, tgt[:], ep)
+		if err != nil {
+			return err
+		}
+
+		if !exist {
+			c.log.Info("ErasStakersClipped not exits", "LastEra", flow.LastEra, "symbol", flow.Symbol, "Validator", hexutil.Encode(tgt[:]))
+			continue
+		}
+
+		for _, other := range ep.Others {
+			if bytes.Equal(other.Who[:], flow.Snap.Pool[:]) {
+				targets = append(targets, tgt)
 			}
 		}
 	}
 
-	flow.Stashes = pointedTargets
+	flow.Stashes = targets
 	return nil
 }
 

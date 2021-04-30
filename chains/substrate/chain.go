@@ -59,7 +59,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	// Setup listener & writer
 	l := NewListener(cfg.Name, cfg.Symbol, cfg.Opts, blk, bs, conn, logger, stop, sysErr)
-	w := NewWriter(cfg.Symbol, conn, logger, sysErr, stop)
+	w := NewWriter(cfg.Symbol, cfg.Opts, conn, logger, sysErr, stop)
 	return &Chain{cfg: cfg, conn: conn, listener: l, writer: w, stop: stop}, nil
 }
 

@@ -16,7 +16,7 @@
         "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
         "chainType": "stafi",
         "cares": ["RDOT"],
-        "addressType": "AccountId"
+        "addressType": "AccountId",
       }
     },
     {
@@ -33,7 +33,8 @@
         "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
         "blockstorePath": "",
         "chainType": "polkadot",
-        "addressType": "MultiAddress"
+        "addressType": "MultiAddress",
+        "transferRecordFilePath": "/Users/fwj/Go/stafi/rtoken-relay/datas/transfers.csv"
       }
     }
   ]

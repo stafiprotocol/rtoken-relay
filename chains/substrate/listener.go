@@ -267,6 +267,18 @@ func (l *listener) processEvents(blockNum uint64) error {
 				if l.cared(flow.Symbol) && l.subscriptions[WithdrawReported] != nil {
 					l.submitMessage(l.subscriptions[WithdrawReported](flow))
 				}
+			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.TransferReportedEventId {
+				l.log.Trace("Handling TransferReportedEvent", "block", blockNum)
+				flow, err := l.processTransferReportedEvt(evt)
+				if err != nil {
+					if err.Error() == BondStateNotTransferReportedError.Error() {
+						continue
+					}
+					return err
+				}
+				if l.cared(flow.Symbol) && l.subscriptions[TransferReported] != nil {
+					l.submitMessage(l.subscriptions[TransferReported](flow))
+				}
 			} else if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.NominationUpdatedEventId {
 				l.log.Trace("Handling NominationUpdatedEvent", "block", blockNum)
 				flow, err := l.processNominationUpdated(evt)

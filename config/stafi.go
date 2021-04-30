@@ -23,6 +23,7 @@ const (
 	BondReportedEventId        = "BondReported"
 	ActiveReportedEventId      = "ActiveReported"
 	WithdrawReportedEventId    = "WithdrawReported"
+	TransferReportedEventId    = "TransferReported"
 	StorageSubAccounts         = "SubAccounts"
 	StorageMultiThresholds     = "MultiThresholds"
 	StorageBondedPools         = "BondedPools"

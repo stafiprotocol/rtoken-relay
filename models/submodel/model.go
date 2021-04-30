@@ -230,6 +230,14 @@ type WithdrawReportedFlow struct {
 	TotalAmount   types.U128
 }
 
+type TransferReportedFlow struct {
+	Symbol      core.RSymbol
+	ShotId      types.Hash
+	Snap        *PoolSnapshot
+	Receives    []*Receive
+	TotalAmount types.U128
+}
+
 type NominationUpdatedFlow struct {
 	Symbol        core.RSymbol
 	Pool          []byte
@@ -328,14 +336,14 @@ type Individual struct {
 }
 
 type Exposure struct {
-	Total  types.U128
-	Own    types.U128
+	Total  types.UCompact
+	Own    types.UCompact
 	Others []*IndividualExposure
 }
 
 type IndividualExposure struct {
 	Who   types.AccountID
-	Value types.U128
+	Value types.UCompact
 }
 
 type StakingLedger struct {

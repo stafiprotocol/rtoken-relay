@@ -22,6 +22,7 @@ const (
 	BondReported      = eventName(config.BondReportedEventId)
 	ActiveReported    = eventName(config.ActiveReportedEventId)
 	WithdrawReported  = eventName(config.WithdrawReportedEventId)
+	TransferReported  = eventName(config.TransferReportedEventId)
 	NominationUpdated = eventName(config.NominationUpdatedEventId)
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
@@ -34,6 +35,7 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{BondReported, bondReportedHandler},
 	{ActiveReported, activeReportedHandler},
 	{WithdrawReported, withdrawReportedHandler},
+	{TransferReported, transferReportedHandler},
 	{NominationUpdated, nominationUpdatedHandler},
 }
 
@@ -97,6 +99,15 @@ func withdrawReportedHandler(data interface{}) (*core.Message, error) {
 	}
 
 	return &core.Message{Destination: d.Symbol, Reason: core.WithdrawReportedEvent, Content: d}, nil
+}
+
+func transferReportedHandler(data interface{}) (*core.Message, error) {
+	d, ok := data.(*submodel.TransferReportedFlow)
+	if !ok {
+		return nil, fmt.Errorf("transferReportedHandler: failed to cast TransferReportedFlow")
+	}
+
+	return &core.Message{Destination: d.Symbol, Reason: core.TransferReportedEvent, Content: d}, nil
 }
 
 func nominationUpdatedHandler(data interface{}) (*core.Message, error) {

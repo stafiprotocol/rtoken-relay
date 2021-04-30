@@ -390,6 +390,44 @@ func (gc *GsrpcClient) TransferCall(accountId []byte, value types.UCompact) (*su
 	return OpaqueCall(ext)
 }
 
+func (gc *GsrpcClient) BatchTransfer(receives []*submodel.Receive) error {
+	calls := make([]types.Call, 0)
+	meta, err := gc.GetLatestMetadata()
+	if err != nil {
+		return err
+	}
+
+	for _, rec := range receives {
+		var addr interface{}
+		switch gc.addressType {
+		case AddressTypeAccountId:
+			addr = types.NewAddressFromAccountID(rec.Recipient)
+		case AddressTypeMultiAddress:
+			addr = types.NewMultiAddressFromAccountID(rec.Recipient)
+		default:
+			return fmt.Errorf("addressType not supported: %s", gc.addressType)
+		}
+
+		call, err := types.NewCall(
+			meta,
+			config.MethodTransferKeepAlive,
+			addr,
+			rec.Value,
+		)
+		if err != nil {
+			return err
+		}
+		calls = append(calls, call)
+	}
+
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	if err != nil {
+		return err
+	}
+
+	return gc.SignAndSubmitTx(ext)
+}
+
 func (gc *GsrpcClient) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
 	targets := make([]interface{}, 0)
 	switch gc.addressType {

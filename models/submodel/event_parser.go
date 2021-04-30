@@ -198,28 +198,49 @@ func EventActiveReported(evt *ChainEvent) (*ActiveReportedFlow, error) {
 
 func EventWithdrawReported(evt *ChainEvent) (*WithdrawReportedFlow, error) {
 	if len(evt.Params) != 3 {
-		return nil, fmt.Errorf("EventActiveReported params number not right: %d, expected: 3", len(evt.Params))
+		return nil, fmt.Errorf("EventWithdrawReported params number not right: %d, expected: 3", len(evt.Params))
 	}
 
 	symbol, err := parseRsymbol(evt.Params[0].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[0] -> RSymbol error: %s", err)
+		return nil, fmt.Errorf("EventWithdrawReported params[0] -> RSymbol error: %s", err)
 	}
 
 	shot, err := parseHash(evt.Params[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[1] -> shot_id error: %s", err)
+		return nil, fmt.Errorf("EventWithdrawReported params[1] -> shot_id error: %s", err)
 	}
 
 	voter, err := parseAccountId(evt.Params[2].Value)
 	if err != nil {
-		return nil, fmt.Errorf("EventActiveReported params[2] -> lastVoter error: %s", err)
+		return nil, fmt.Errorf("EventWithdrawReported params[2] -> lastVoter error: %s", err)
 	}
 
 	return &WithdrawReportedFlow{
 		Symbol:    symbol,
 		ShotId:    shot,
 		LastVoter: voter,
+	}, nil
+}
+
+func EventTransferReported(evt *ChainEvent) (*TransferReportedFlow, error) {
+	if len(evt.Params) != 2 {
+		return nil, fmt.Errorf("EventTransferReported params number not right: %d, expected: 3", len(evt.Params))
+	}
+
+	symbol, err := parseRsymbol(evt.Params[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventTransferReported params[0] -> RSymbol error: %s", err)
+	}
+
+	shot, err := parseHash(evt.Params[1].Value)
+	if err != nil {
+		return nil, fmt.Errorf("EventTransferReported params[1] -> shot_id error: %s", err)
+	}
+
+	return &TransferReportedFlow{
+		Symbol: symbol,
+		ShotId: shot,
 	}, nil
 }
 

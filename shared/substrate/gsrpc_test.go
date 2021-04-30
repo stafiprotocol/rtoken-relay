@@ -318,6 +318,49 @@ func TestBatchTransfer(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestBatchTransfer1(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+	jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+
+	addrs := []types.Address{less, jun, wen, bao}
+	receives := make([]*submodel.Receive, 0)
+	for i, addr := range addrs {
+		var value types.UCompact
+		if i == 0 {
+			amount, _ := utils.StringToBigint("1000" + "000000000000")
+			value = types.NewUCompact(amount)
+		}
+		if i == 1 {
+			amount, _ := utils.StringToBigint("2000" + "000000000000")
+			value = types.NewUCompact(amount)
+		}
+		if i == 2 {
+			amount, _ := utils.StringToBigint("3000" + "000000000000")
+			value = types.NewUCompact(amount)
+		}
+		if i == 3 {
+			amount, _ := utils.StringToBigint("4000" + "000000000000")
+			value = types.NewUCompact(amount)
+		}
+		func(addr types.Address) {
+			rec := &submodel.Receive{Recipient: addr.AsAccountID[:], Value: value}
+			receives = append(receives, rec)
+		}(addr)
+	}
+	for _, rec := range receives {
+		t.Log(*rec)
+	}
+
+	err = gc.BatchTransfer(receives)
+	assert.NoError(t, err)
+}
+
 func TestMultiBatch(t *testing.T) {
 	password := "123456"
 	os.Setenv(keystore.EnvPassword, password)
