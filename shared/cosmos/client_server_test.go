@@ -13,6 +13,8 @@ var client *rpc.Client
 
 var addrMultiKey1, _ = types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
 
+var addrAccount1, _ = types.AccAddressFromBech32("cosmos1pvcd540364cm0q97ntux8lavrdv0mmt88ckvzl")
+
 var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
 var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
 
@@ -29,7 +31,7 @@ func init() {
 }
 
 func TestClient_SendTo(t *testing.T) {
-	err := client.SingleTransferTo(addrMultiKey1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 100000000)))
+	err := client.SingleTransferTo(addrAccount1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 100000000)))
 	assert.NoError(t, err)
 }
 
