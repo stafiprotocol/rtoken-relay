@@ -13,7 +13,7 @@ var client *rpc.Client
 
 var addrMultiKey1, _ = types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
 
-var addrAccount1, _ = types.AccAddressFromBech32("cosmos1pvcd540364cm0q97ntux8lavrdv0mmt88ckvzl")
+var addrAccount1, _ = types.AccAddressFromBech32("cosmos12wrv225462drlz4dk3yg9hc8vavwjkmckshz7c")
 
 var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8")
 var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
