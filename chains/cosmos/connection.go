@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ChainSafe/log15"
+	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -184,7 +185,13 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 			memoInTx = memoTx.GetMemo()
 		}
 	}
-	if memoInTx != hex.EncodeToString(r.Bonder[:]) {
+
+	bonderAddr, err := ss58.Encode(r.Bonder[:], ss58.StafiPrefix)
+	if err != nil {
+		return submodel.PubkeyUnmatch, nil // memo unmatch
+	}
+
+	if memoInTx != bonderAddr {
 		return submodel.PubkeyUnmatch, nil // memo unmatch
 	}
 
