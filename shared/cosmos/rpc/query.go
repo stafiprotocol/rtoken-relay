@@ -195,7 +195,6 @@ func isConnectionError(err error) bool {
 
 	switch t := err.(type) {
 	case *net.OpError:
-		fmt.Println("operror", t.Op)
 		if t.Op == "dial" || t.Op == "read" {
 			return true
 		}
@@ -209,7 +208,6 @@ func isConnectionError(err error) bool {
 
 	switch t := err.(type) {
 	case wrapError:
-		fmt.Println("wrapError")
 		newErr := t.Unwrap()
 		return isConnectionError(newErr)
 	}
