@@ -129,12 +129,7 @@ func (l *listener) pollBlocks() error {
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
-				if l.symbol == core.RFIS {
-					l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.symbol)
-				} else {
-					l.log.Error("pollBlocks error", "symbol", l.symbol)
-				}
-
+				l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.symbol)
 				return nil
 			}
 
