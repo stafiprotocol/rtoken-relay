@@ -125,7 +125,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	//check block hash
 	blockRes, err := c.GetBlock(poolClient, txRes.Height)
 	if err != nil {
-		return submodel.BlockhashUnmatch, err
+		return submodel.BondReasonDefault, err
 	}
 	if !bytes.Equal(blockRes.BlockID.Hash, r.Blockhash) {
 		return submodel.BlockhashUnmatch, nil
@@ -166,11 +166,11 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	//check pubkey
 	fromAddress, err := types.AccAddressFromBech32(fromAddressStr)
 	if err != nil {
-		return submodel.PubkeyUnmatch, err
+		return submodel.BondReasonDefault, err
 	}
 	accountRes, err := poolClient.GetRpcClient().QueryAccount(fromAddress)
 	if err != nil {
-		return submodel.PubkeyUnmatch, err
+		return submodel.BondReasonDefault, err
 	}
 
 	if !bytes.Equal(accountRes.GetPubKey().Bytes(), r.Pubkey) {
