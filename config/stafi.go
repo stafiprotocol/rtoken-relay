@@ -6,6 +6,7 @@ const (
 	NominationUpdatedEventId = "NominationUpdated"
 	ValidatorUpdatedEventId  = "ValidatorUpdated"
 	StorageBondRecords       = "BondRecords"
+	StorageBondStates        = "BondStates"
 	MethodExecuteBondRecord  = "RTokenSeries.execute_bond_record"
 
 	RtokenVoteModuleId         = "RTokenVotes"

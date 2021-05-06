@@ -18,11 +18,17 @@ type EvtLiquidityBond struct {
 	BondId    types.Hash
 }
 
+type BondStateKey struct {
+	BlockHash types.Bytes
+	TxHash    types.Bytes
+}
+
 type BondFlow struct {
 	Symbol core.RSymbol
 	BondId types.Hash
 	Record *BondRecord
 	Reason BondReason
+	State  BondState
 }
 
 type BondRecord struct {
@@ -33,6 +39,47 @@ type BondRecord struct {
 	Blockhash types.Bytes
 	Txhash    types.Bytes
 	Amount    types.U128
+}
+
+type BondState string
+
+const (
+	Dealing = BondState("Dealing")
+	Fail    = BondState("Fail")
+	Success = BondState("Success")
+)
+
+func (bs BondState) Encode(encoder scale.Encoder) error {
+	switch bs {
+	case Dealing:
+		return encoder.PushByte(0)
+	case Fail:
+		return encoder.PushByte(1)
+	case Success:
+		return encoder.PushByte(2)
+	default:
+		return fmt.Errorf("BondState %s not supported", bs)
+	}
+}
+
+func (bs *BondState) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*bs = Dealing
+	case 1:
+		*bs = Fail
+	case 2:
+		*bs = Success
+	default:
+		return fmt.Errorf("BondState decode error: %d", b)
+	}
+
+	return nil
 }
 
 type BondReason string
