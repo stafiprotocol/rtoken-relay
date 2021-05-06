@@ -674,3 +674,21 @@ func TestGsrpcClient_Address(t *testing.T) {
 	}
 	t.Log(ledger)
 }
+
+func TestGsrpcClient_QueryBondstate(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://mainnet-rpc.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	bh, _ := types.NewHashFromHexString("0x9373e80a7690ee88e9e78a867bafaa9d9bc9e8f0d445fbc93e27baf4083fdadc")
+	th, _ := types.NewHashFromHexString("0xf5f1e2e19b56467f4edd425ac7cdef88dcd56b46b80f40844571e8063cc2439b")
+
+	bsk := submodel.BondStateKey{BlockHash: bh[:], TxHash: th[:]}
+	symbz, _ := types.EncodeToBytes(core.RDOT)
+	bz, _ := types.EncodeToBytes(bsk)
+	var bs submodel.BondState
+	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondStates, symbz, bz, &bs)
+	assert.NoError(t, err)
+	assert.True(t, exist)
+	assert.Equal(t, submodel.Success, bs)
+}

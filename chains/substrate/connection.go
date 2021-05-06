@@ -146,7 +146,6 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 		return submodel.BondReasonDefault, err
 	}
 
-
 	if blkNum == 0 {
 		for i := 0; i < 10; i++ {
 			time.Sleep(BlockInterval)

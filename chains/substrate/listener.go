@@ -13,6 +13,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
 type listener struct {
@@ -198,7 +199,16 @@ func (l *listener) processEvents(blockNum uint64) error {
 
 	evts, err := l.conn.GetEvents(blockNum)
 	if err != nil {
-		return err
+		for i := 0; i < 10; i++ {
+			time.Sleep(2 * time.Second)
+			evts, err = l.conn.GetEvents(blockNum)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, evt := range evts {
@@ -209,6 +219,10 @@ func (l *listener) processEvents(blockNum uint64) error {
 				flow, err := l.processLiquidityBondEvent(evt)
 				if err != nil {
 					return err
+				}
+				if flow.State == submodel.Success {
+					l.log.Info("bond flow already succeeded, will ignore", "symbol", flow.Symbol, "bondId", flow.BondId.Hex())
+					continue
 				}
 				if l.cared(flow.Record.Symbol) && l.subscriptions[LiquidityBond] != nil {
 					l.submitMessage(l.subscriptions[LiquidityBond](flow))
