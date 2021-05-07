@@ -28,12 +28,17 @@ type listener struct {
 	log           log15.Logger
 	stop          <-chan int
 	sysErr        chan<- error
+	lastEraBlock  uint64
 }
 
 // Frequency of polling for a new block
 var (
-	BlockRetryInterval = time.Second * 5
-	BlockRetryLimit    = 5
+	OneBlockTime              = 5 * time.Second
+	BlockRetryInterval        = time.Second * 1
+	BlockRetryLimit           = 5
+	BlockIntervalToProcessEra = uint64(10)
+	EventRetryLimit           = 10
+	EventRetryInterval        = 100 * time.Millisecond
 )
 
 func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
@@ -64,6 +69,7 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 		log:           log,
 		stop:          stop,
 		sysErr:        sysErr,
+		lastEraBlock:  0,
 	}
 }
 
@@ -147,11 +153,12 @@ func (l *listener) pollBlocks() error {
 				if currentBlock%100 == 0 {
 					l.log.Trace("Block not yet finalized", "target", currentBlock, "finalBlk", finalBlk)
 				}
-				time.Sleep(BlockRetryInterval)
+				time.Sleep(OneBlockTime)
 				continue
 			}
 
-			if l.symbol != core.RFIS {
+			if l.symbol != core.RFIS && l.lastEraBlock+BlockIntervalToProcessEra < currentBlock {
+				l.lastEraBlock = currentBlock
 				err = l.processEra()
 				if err != nil {
 					l.log.Error("Failed to processEra", "err", err)
@@ -196,11 +203,13 @@ func (l *listener) processEvents(blockNum uint64) error {
 	if blockNum%100 == 0 {
 		l.log.Debug("processEvents", "blockNum", blockNum)
 	}
-
+	if l.symbol != core.RFIS {
+		l.log.Trace("processEvents", "blockNum", blockNum)
+	}
 	evts, err := l.conn.GetEvents(blockNum)
 	if err != nil {
-		for i := 0; i < 15; i++ {
-			time.Sleep(100*time.Millisecond)
+		for i := 0; i < EventRetryLimit; i++ {
+			time.Sleep(EventRetryInterval)
 			evts, err = l.conn.GetEvents(blockNum)
 			if err == nil {
 				break

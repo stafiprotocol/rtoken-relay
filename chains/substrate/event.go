@@ -284,9 +284,15 @@ func (l *listener) processTransferReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
+	_, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	if err != nil {
+		return nil, err
+	}
+
 	flow.Snap = snap
 	flow.Receives = receives
 	flow.TotalAmount = total
+	flow.SubAccounts = sub
 
 	return flow, nil
 }

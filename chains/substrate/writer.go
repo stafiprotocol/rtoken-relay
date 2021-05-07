@@ -6,6 +6,7 @@ package substrate
 import (
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 
@@ -51,6 +52,12 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 			panic("no transferRecordFilePath for RFIS")
 		}
 		transferRecordFilePath = path
+		if _, err := os.Stat(transferRecordFilePath); os.IsNotExist(err) {
+			err = utils.WriteCSV(transferRecordFilePath, [][]string{})
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
 
 	return &writer{
@@ -120,6 +127,10 @@ func (w *writer) processGetEraNominated(m *core.Message) bool {
 	validator, err := w.conn.GetEraNominated(flow.Symbol, flow.Pool, flow.Era)
 	if err != nil {
 		w.log.Warn("GetEraNominated failed", "err", err)
+		if err.Error() == NotExistError.Error() {
+			flow.NewValidators <- make([]types.AccountID, 0)
+			return true
+		}
 	}
 	flow.NewValidators <- validator
 	return true
@@ -466,13 +477,23 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	w.setEvents(call.CallHash, mef)
 
 	if flow.LastVoterFlag {
+		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: mef.Key.Address, Era: fmt.Sprint(flow.Snap.Era)}
+		w.log.Info("processWithdrawReportedEvent: lastVoter prepare to create transfer back", "TransferBack", *tb)
+		err := CreateTransferback(w.transferRecordFilePath, tb)
+		if err != nil {
+			w.sysErr <- fmt.Errorf("processInformChain: CreateTransferback error: %s", err)
+			return false
+		}
+		w.log.Info("processWithdrawReportedEvent: create transfer back succeed")
+
 		call.TimePoint = submodel.NewOptionTimePointEmpty()
 		err = w.conn.AsMulti(mef)
 		if err != nil {
 			w.log.Error("AsMulti error", "err", err, "callHash", callhash)
 			return false
 		}
-		w.log.Error("AsMulti success", "callHash", callhash)
+		w.log.Info("AsMulti success", "callHash", callhash)
+
 		return true
 	}
 
@@ -501,45 +522,51 @@ func (w *writer) processTransferReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Era: string(flow.Snap.Era)}
-	exist := IsTransferbackExist(w.transferRecordFilePath, tb)
-	if !exist {
-		w.log.Debug("processTransferReportedEvent: transfer back not exist", "")
+	key, _ := w.conn.FoundFirstSubAccount(flow.SubAccounts)
+	if key == nil {
+		w.log.Info("TransferReportedEvent ignored for no key")
 		return true
 	}
 
-	voter := flow.Snap.LastVoter[:]
-	client := w.conn.KeyIndex(voter)
+	tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: key.Address, Era: fmt.Sprint(flow.Snap.Era)}
+	w.log.Info("processTransferReportedEvent", "TransferBack", *tb)
+	exist := IsTransferbackExist(w.transferRecordFilePath, tb)
+	if !exist {
+		w.log.Info("processTransferReportedEvent: transfer back not exist, will ignore", "TransferBack", tb)
+		return true
+	}
+
+	client := w.conn.KeyIndex(key)
 	if client == nil {
-		w.sysErr <- fmt.Errorf("found transfer back record but do not have key of lastVoter, symbol: %s, LastVoter: %s", flow.Symbol, hexutil.Encode(voter))
+		w.sysErr <- fmt.Errorf("found transfer back record but do not have key of lastVoter, symbol: %s, Address: %s", flow.Symbol, key.Address)
 		return false
 	}
 
-	balance, err := w.conn.FreeBalance(flow.Snap.LastVoter[:])
+	balance, err := w.conn.FreeBalance(key.PublicKey)
 	if err != nil {
-		w.log.Error("FreeBalance error", "err", err, "LastVoter", hexutil.Encode(voter))
+		w.log.Error("FreeBalance error", "err", err, "Address", key.Address)
 		return false
 	}
 	e, err := w.conn.ExistentialDeposit()
 	if err != nil {
-		w.log.Error("ExistentialDeposit error", "err", err, "LastVoter", hexutil.Encode(voter))
+		w.log.Error("ExistentialDeposit error", "err", err, "Address", key.Address)
 		return false
 	}
 	least := utils.AddU128(flow.TotalAmount, e)
 	if balance.Cmp(least.Int) < 0 {
-		w.sysErr <- fmt.Errorf("free balance not enough for transfer back, symbol: %s, LastVoter: %s, least: %s", flow.Symbol, hexutil.Encode(voter), least.Int.String())
+		w.sysErr <- fmt.Errorf("free balance not enough for transfer back, symbol: %s, Address: %s, balance: %s, least: %s", flow.Symbol, key.Address, balance.String(), least.Int.String())
 		return false
 	}
 
 	err = client.BatchTransfer(flow.Receives)
 	if err != nil {
-		w.sysErr <- fmt.Errorf("TransferBack error: %s, symbol: %s, LastVoter: %s", err, flow.Symbol, hexutil.Encode(flow.Snap.LastVoter[:]))
+		w.sysErr <- fmt.Errorf("TransferBack error: %s, symbol: %s, Address: %s", err, flow.Symbol, key.Address)
 		return false
 	}
 
 	err = DeleteTransferback(w.transferRecordFilePath, tb)
 	if err != nil {
-		w.sysErr <- fmt.Errorf("TransferBack succeed but failed to delete Transferback: %s, symbol: %s, LastVoter: %s", err, flow.Symbol, hexutil.Encode(flow.Snap.LastVoter[:]))
+		w.sysErr <- fmt.Errorf("TransferBack succeed but failed to delete Transferback: %s, %+v", err, *tb)
 		return false
 	}
 
@@ -762,15 +789,6 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	}
 
 	if data, ok := flow.EventData.(*submodel.WithdrawReportedFlow); ok {
-		if data.LastVoterFlag {
-			tb := &TransferBack{Symbol: string(data.Symbol), Pool: hexutil.Encode(data.Snap.Pool), Era: string(data.Snap.Era)}
-			err := CreateTransferback(w.transferRecordFilePath, tb)
-			if err != nil {
-				w.sysErr <- fmt.Errorf("processInformChain: CreateTransferback error: %s", err)
-				return false
-			}
-		}
-
 		prop, err := w.conn.CommonReportProposal(config.MethodTransferReport, m.Source, bondId, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodTransferReportProposal", "error", err)

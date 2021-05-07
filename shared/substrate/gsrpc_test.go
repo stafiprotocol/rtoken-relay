@@ -330,24 +330,9 @@ func TestBatchTransfer1(t *testing.T) {
 
 	addrs := []types.Address{less, jun, wen, bao}
 	receives := make([]*submodel.Receive, 0)
-	for i, addr := range addrs {
-		var value types.UCompact
-		if i == 0 {
-			amount, _ := utils.StringToBigint("1000" + "000000000000")
-			value = types.NewUCompact(amount)
-		}
-		if i == 1 {
-			amount, _ := utils.StringToBigint("2000" + "000000000000")
-			value = types.NewUCompact(amount)
-		}
-		if i == 2 {
-			amount, _ := utils.StringToBigint("3000" + "000000000000")
-			value = types.NewUCompact(amount)
-		}
-		if i == 3 {
-			amount, _ := utils.StringToBigint("4000" + "000000000000")
-			value = types.NewUCompact(amount)
-		}
+	amount, _ := utils.StringToBigint("3000" + "000000000000")
+	value := types.NewUCompact(amount)
+	for _, addr := range addrs {
 		func(addr types.Address) {
 			rec := &submodel.Receive{Recipient: addr.AsAccountID[:], Value: value}
 			receives = append(receives, rec)

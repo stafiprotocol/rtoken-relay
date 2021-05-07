@@ -59,12 +59,12 @@ func (gc *GsrpcClient) FlashApi() (*gsrpc.SubstrateAPI, error) {
 	_, err := gc.api.RPC.Chain.GetBlockHashLatest()
 	if err != nil {
 		var api *gsrpc.SubstrateAPI
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 3; i++ {
 			api, err = gsrpc.NewSubstrateAPI(gc.endpoint)
 			if err == nil {
 				break
 			} else {
-				time.Sleep(time.Millisecond * 500)
+				time.Sleep(time.Millisecond * 100)
 			}
 		}
 		if api != nil {

@@ -35,3 +35,4 @@ config3.json
 *.block
 /cfgBuilder/*.toml
 relay_log*.json
+datas/

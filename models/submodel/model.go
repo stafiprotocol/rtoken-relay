@@ -283,6 +283,7 @@ type TransferReportedFlow struct {
 	Snap        *PoolSnapshot
 	Receives    []*Receive
 	TotalAmount types.U128
+	SubAccounts []types.Bytes
 }
 
 type NominationUpdatedFlow struct {
@@ -385,7 +386,7 @@ type Individual struct {
 type Exposure struct {
 	Total  types.UCompact
 	Own    types.UCompact
-	Others []*IndividualExposure
+	Others []IndividualExposure
 }
 
 type IndividualExposure struct {

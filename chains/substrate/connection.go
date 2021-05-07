@@ -36,6 +36,7 @@ type Connection struct {
 
 var (
 	TargetNotExistError = errors.New("TargetNotExistError")
+	NotExistError       = errors.New("not exist")
 	BlockInterval       = 6 * time.Second
 	WaitUntilFinalized  = 10 * BlockInterval
 )
@@ -328,7 +329,7 @@ func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint3
 		return nil, err
 	}
 	if !exist {
-		return nil, errors.New("not exist")
+		return nil, NotExistError
 	}
 	return validators, nil
 }
@@ -383,13 +384,8 @@ func (c *Connection) FoundIndexOfSubAccount(accounts []types.Bytes) (int, *subst
 	return -1, nil
 }
 
-func (c *Connection) KeyIndex(voter []byte) *substrate.GsrpcClient {
-	for _, key := range c.keys {
-		if hexutil.Encode(key.PublicKey) == hexutil.Encode(voter) {
-			return c.gcs[key]
-		}
-	}
-	return nil
+func (c *Connection) KeyIndex(key *signature.KeyringPair) *substrate.GsrpcClient {
+	return c.gcs[key]
 }
 
 func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.MultiOpaqueCall, error) {

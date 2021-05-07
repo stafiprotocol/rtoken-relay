@@ -41,6 +41,22 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	}
 }
 
+func TestSarpcClient_GetChainEvents1(t *testing.T) {
+	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	assert.NoError(t, err)
+
+	evts, err := sc.GetEvents(215486)
+	assert.NoError(t, err)
+	for _, evt := range evts {
+		fmt.Println(evt.ModuleId)
+		fmt.Println(evt.EventId)
+		fmt.Println(evt.Params)
+	}
+}
+
 func TestSarpcClient_GetExtrinsics(t *testing.T) {
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
