@@ -9,8 +9,8 @@ import (
 )
 
 var client *rpc.Client
-var keyDir = "/Users/tpkeeper/.gaia"
-var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu")
+var keyDir = "/home/stafi/ratom/keys/keys/cosmos"
+var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
 var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
 
 func init() {
@@ -20,7 +20,7 @@ func init() {
 		panic(err)
 	}
 
-	client, _ = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
+	client, _ = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
 }
 
 func main() {
@@ -30,22 +30,21 @@ func main() {
 	}
 }
 func GenMultiSigRawDelegateTx() error {
-	err := client.SetFromName("multiSign1")
+	err := client.SetFromName("multikey1")
 	if err != nil {
 		return err
 	}
 	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorEverStake},
-		types.NewCoin(client.GetDenom(), types.NewInt(1)))
+		types.NewCoin(client.GetDenom(), types.NewInt(5000000)))
 
 	if err != nil {
 		return err
 	}
 
-	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
-	signature2, err := client.SignMultiSigRawTx(rawTx, "key2")
-	signature3, err := client.SignMultiSigRawTx(rawTx, "key3")
+	signature1, err := client.SignMultiSigRawTx(rawTx, "multisubkey1")
+	signature2, err := client.SignMultiSigRawTx(rawTx, "multisubkey2")
 
-	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2, signature3})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	if err != nil {
 		return err
 	}
