@@ -146,8 +146,22 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	if err != nil {
 		return submodel.BondReasonDefault, err
 	}
+
 	if blkNum == 0 {
-		return submodel.BlockhashUnmatch, nil
+		for i := 0; i < 10; i++ {
+			time.Sleep(BlockInterval)
+			blkNum, err = c.GetBlockNumber(hash)
+			if err != nil {
+				return submodel.BondReasonDefault, err
+			}
+			if blkNum != 0 {
+				break
+			}
+		}
+		if blkNum == 0 {
+			c.log.Warn("After waiting more than one minute, blkNum is still zero")
+			return submodel.BlockhashUnmatch, nil
+		}
 	}
 
 	final, err := c.FinalizedBlockNumber()
@@ -169,12 +183,13 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 
 	exts, err := c.GetExtrinsics(bh)
 	if err != nil {
-		return submodel.BlockhashUnmatch, nil
+		c.log.Warn("TransferVerify: get extrinsics error", "err", err, "blockHash", bh)
+		return submodel.BondReasonDefault, err
 	}
 
 	th := hexutil.Encode(r.Txhash)
 	for _, ext := range exts {
-		c.log.Info("TransferVerify", "ext", ext)
+		c.log.Info("TransferVerify loop extrinsics", "ext", ext)
 		txhash := utiles.AddHex(ext.ExtrinsicHash)
 		if th != txhash {
 			c.log.Info("txhash not equal", "expected", th, "got", txhash)
