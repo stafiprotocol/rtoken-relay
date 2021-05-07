@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -11,10 +11,13 @@ import (
 	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	xStakeTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"net"
+	"net/url"
+	"syscall"
 	"time"
 )
 
-const retryLimit = 10
+const retryLimit = 60
 const waitTime = time.Millisecond * 500
 
 //no 0x prefix
@@ -166,15 +169,52 @@ func (c *Client) getAccount(height int64, addr types.AccAddress) (client.Account
 	return cc.(client.Account), nil
 }
 
+//only retry func when return connection err here
 func retry(f func() (interface{}, error)) (interface{}, error) {
+	var err error
+	var result interface{}
 	for i := 0; i < retryLimit; i++ {
-		result, err := f()
-		if err != nil {
+		result, err = f()
+		if err != nil && isConnectionError(err) {
 			time.Sleep(waitTime)
 			continue
-		} else {
-			return result, err
+		}
+		return result, err
+	}
+	panic(fmt.Sprintf("reach retry limit. err: %s", err))
+}
+
+func isConnectionError(err error) bool {
+	switch t := err.(type) {
+	case *url.Error:
+		if t.Timeout() || t.Temporary() {
+			return true
+		}
+		return isConnectionError(t.Err)
+	}
+
+	switch t := err.(type) {
+	case *net.OpError:
+		if t.Op == "dial" || t.Op == "read" {
+			return true
+		}
+		return isConnectionError(t.Err)
+
+	case syscall.Errno:
+		if t == syscall.ECONNREFUSED {
+			return true
 		}
 	}
-	return nil, errors.New("reach retry limit")
+
+	switch t := err.(type) {
+	case wrapError:
+		newErr := t.Unwrap()
+		return isConnectionError(newErr)
+	}
+
+	return false
+}
+
+type wrapError interface {
+	Unwrap() error
 }

@@ -45,9 +45,28 @@ func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submode
 		return nil, fmt.Errorf("failed to get bondrecord, symbol: %s, bondId: %s", data.Symbol, data.BondId.Hex())
 	}
 
-	l.log.Info("BondRecord", "bonder", hexutil.Encode(br.Bonder[:]), "symbol", br.Symbol,
-		"pubkey", hexutil.Encode(br.Pubkey), "pool", hexutil.Encode(br.Pool), "blockHash", hexutil.Encode(br.Blockhash),
-		"txHash", hexutil.Encode(br.Txhash), "amount", br.Amount.Int)
+	bsk := submodel.BondStateKey{BlockHash: br.Blockhash, TxHash: br.Txhash}
+	bskBz, err := types.EncodeToBytes(bsk)
+	if err != nil {
+		return nil, err
+	}
+
+	var bs submodel.BondState
+	exist, err = l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondStates, symBz, bskBz, &bs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("failed to get bondstate, symbol: %s, bondId: %s, BlockHash: %s, TxHash: %s",
+			data.Symbol, data.BondId.Hex(), hexutil.Encode(br.Blockhash), hexutil.Encode(br.Txhash))
+	}
+
+	if l.cared(br.Symbol) {
+		l.log.Info("BondRecord", "bonder", hexutil.Encode(br.Bonder[:]), "symbol", br.Symbol,
+			"pubkey", hexutil.Encode(br.Pubkey), "pool", hexutil.Encode(br.Pool), "blockHash", hexutil.Encode(br.Blockhash),
+			"txHash", hexutil.Encode(br.Txhash), "amount", br.Amount.Int, "BondState", bs)
+	}
 
 	if br.Bonder != data.AccountId {
 		return nil, fmt.Errorf("bonder not matched: %s, %s", hexutil.Encode(br.Bonder[:]), hexutil.Encode(data.AccountId[:]))
@@ -58,6 +77,7 @@ func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submode
 		BondId: data.BondId,
 		Record: br,
 		Reason: submodel.BondReasonDefault,
+		State:  bs,
 	}, nil
 }
 

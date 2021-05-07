@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -56,7 +57,7 @@ func init() {
 		panic(err)
 	}
 
-	client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
+	client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
 	if err != nil {
 		panic(err)
 	}
@@ -310,7 +311,8 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 }
 
 func TestGetPubKey(t *testing.T) {
-	account, _ := client.QueryAccount(addrReceive)
+	test,_:=types.AccAddressFromBech32("cosmos12wrv225462drlz4dk3yg9hc8vavwjkmckshz7c")
+	account, _ := client.QueryAccount(test)
 	t.Log(hex.EncodeToString(account.GetPubKey().Bytes()))
 
 	res, err := client.QueryTxByHash("327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1")
@@ -409,7 +411,7 @@ func TestMaxTransfer(t *testing.T) {
 }
 
 func TestMemo(t *testing.T) {
-	res, err := client.QueryTxByHash("81DDFF0EBDD89620B73E89427D5BA8EE16384F85DABA9471A3F4D813A108CA41")
+	res, err := client.QueryTxByHash("c7e3f7baf5a5f1d8cbc112080f32070dddd7cca5fe4272e06f8d42c17b25193f")
 	assert.NoError(t, err)
 	tx, err := client.GetTxConfig().TxDecoder()(res.Tx.GetValue())
 	//tx, err := client.GetTxConfig().TxJSONDecoder()(res.Tx.Value)
@@ -417,8 +419,10 @@ func TestMemo(t *testing.T) {
 	memoTx, ok := tx.(types.TxWithMemo)
 	assert.Equal(t, true, ok)
 	t.Log(memoTx.GetMemo())
-	hb, _ := hexutil.Decode("0x3ecaae3cfadffcc3dbb810f7e28cd70a19ec8762c2b115cd7cdbe3bd5623807f")
-	t.Log(string(hb))
+	hb, _ := hexutil.Decode("0xbebd0355ae360c8e6a7ed940a819838c66ca7b8f581f9c0e81dbb5faff346a30")
+	//t.Log(string(hb))
+	bonderAddr, err := ss58.Encode(hb, ss58.StafiPrefix)
+	t.Log(bonderAddr)
 }
 
 func TestMultiThread(t *testing.T) {
