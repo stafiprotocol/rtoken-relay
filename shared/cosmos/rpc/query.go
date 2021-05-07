@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-const retryLimit = 10
+const retryLimit = 60
 const waitTime = time.Millisecond * 500
 
 //no 0x prefix

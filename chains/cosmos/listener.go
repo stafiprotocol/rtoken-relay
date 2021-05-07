@@ -13,7 +13,7 @@ import (
 // Frequency of polling for a new block
 var (
 	BlockRetryInterval = time.Second * 6
-	BlockRetryLimit    = 15
+	BlockRetryLimit    = 50
 	BlockConfirmNumber = int64(6)
 )
 
