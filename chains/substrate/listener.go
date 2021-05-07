@@ -199,8 +199,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 
 	evts, err := l.conn.GetEvents(blockNum)
 	if err != nil {
-		for i := 0; i < 10; i++ {
-			time.Sleep(2 * time.Second)
+		for i := 0; i < 15; i++ {
+			time.Sleep(100*time.Millisecond)
 			evts, err = l.conn.GetEvents(blockNum)
 			if err == nil {
 				break

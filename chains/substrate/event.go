@@ -62,9 +62,11 @@ func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submode
 			data.Symbol, data.BondId.Hex(), hexutil.Encode(br.Blockhash), hexutil.Encode(br.Txhash))
 	}
 
-	l.log.Info("BondRecord", "bonder", hexutil.Encode(br.Bonder[:]), "symbol", br.Symbol,
-		"pubkey", hexutil.Encode(br.Pubkey), "pool", hexutil.Encode(br.Pool), "blockHash", hexutil.Encode(br.Blockhash),
-		"txHash", hexutil.Encode(br.Txhash), "amount", br.Amount.Int, "BondState", bs)
+	if l.cared(br.Symbol) {
+		l.log.Info("BondRecord", "bonder", hexutil.Encode(br.Bonder[:]), "symbol", br.Symbol,
+			"pubkey", hexutil.Encode(br.Pubkey), "pool", hexutil.Encode(br.Pool), "blockHash", hexutil.Encode(br.Blockhash),
+			"txHash", hexutil.Encode(br.Txhash), "amount", br.Amount.Int, "BondState", bs)
+	}
 
 	if br.Bonder != data.AccountId {
 		return nil, fmt.Errorf("bonder not matched: %s, %s", hexutil.Encode(br.Bonder[:]), hexutil.Encode(data.AccountId[:]))
