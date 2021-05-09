@@ -76,6 +76,25 @@ func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddrs [
 	return c.GenMultiSigRawTx(msgs...)
 }
 
+//generate unsigned unDelegate tx
+func (c *Client) GenMultiSigRawUnDelegateTxV2(delAddr types.AccAddress, valAddrs []types.ValAddress,
+	 amounts map[string]types.Int) ([]byte, error) {
+
+	if len(valAddrs) == 0 {
+		return nil, errors.New("no valAddrs")
+	}
+	msgs := make([]types.Msg, 0)
+	for _, valAddr := range valAddrs {
+		amount:=types.NewCoin(c.GetDenom(), amounts[valAddr.String()])
+		if amount.IsZero() {
+			return nil, errors.New("amount is zero")
+		}
+		msg := xStakingTypes.NewMsgUndelegate(delAddr, valAddr, amount)
+		msgs = append(msgs, msg)
+	}
+	return c.GenMultiSigRawTx(msgs...)
+}
+
 //generate unsigned reDelegate tx
 func (c *Client) GenMultiSigRawReDelegateTx(delAddr types.AccAddress, valSrcAddr, valDstAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xStakingTypes.NewMsgBeginRedelegate(delAddr, valSrcAddr, valDstAddr, amount)

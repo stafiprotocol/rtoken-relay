@@ -6,6 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"sort"
+	"time"
+
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	errType "github.com/cosmos/cosmos-sdk/types/errors"
@@ -18,8 +22,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
-	"time"
 )
 
 var ErrNoOutPuts = errors.New("outputs length is zero")
@@ -98,8 +100,13 @@ func GetValidatorUpdateProposalId(content []byte) []byte {
 	hash := utils.BlakeTwo256(content)
 	return hash[:]
 }
+
+//if bond == unbond return err
+//if bond > unbond gen delegate tx
+//if bond < unbond gen undelegate tx
 func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U128,
 	poolAddr types.AccAddress, height int64) (unSignedTx []byte, err error) {
+	//check bond unbond
 	if bond.Int.Cmp(unbond.Int) == 0 {
 		return nil, errors.New("bond equal to unbond")
 	}
@@ -111,22 +118,31 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 
 	totalDelegateAmount := types.NewInt(0)
 	valAddrs := make([]types.ValAddress, 0)
+	deleAmount := make(map[string]types.Int)
+	//get validators amount>=3
 	for _, dele := range deleRes.GetDelegationResponses() {
-		//filter old validator
-		if dele.GetBalance().Amount.LT(types.NewInt(2)) {
+		//filter old validator,we say validator is old if amount < 3 uatom
+		if dele.GetBalance().Amount.LT(types.NewInt(3)) {
 			continue
 		}
+
 		valAddr, err := types.ValAddressFromBech32(dele.GetDelegation().ValidatorAddress)
 		if err != nil {
 			return nil, err
 		}
 		valAddrs = append(valAddrs, valAddr)
 		totalDelegateAmount = totalDelegateAmount.Add(dele.GetBalance().Amount)
+		deleAmount[valAddr.String()] = dele.GetBalance().Amount
 	}
 
 	valAddrsLen := len(valAddrs)
+	//check valAddrs length
 	if valAddrsLen == 0 {
 		return nil, fmt.Errorf("no valAddrs,pool: %s", poolAddr)
+	}
+	//check totalDelegateAmount
+	if totalDelegateAmount.LT(types.NewInt(3 * int64(valAddrsLen))) {
+		return nil, fmt.Errorf("validators have no reserve value to unbond")
 	}
 
 	//bond or unbond to their validators average
@@ -138,17 +154,46 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 			valAddrs,
 			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
 	} else {
+
+		//make val <= totalDelegateAmount-3*len and we revserve 3 uatom
 		val := unbond.Int.Sub(unbond.Int, bond.Int)
-		//make val <= totalDelegateAmount
-		if val.Cmp(totalDelegateAmount.BigInt()) > 0 {
-			val = totalDelegateAmount.BigInt()
+		willUsetotalDelegateAmount := totalDelegateAmount.Sub(types.NewInt(3 * int64(valAddrsLen)))
+		if val.Cmp(willUsetotalDelegateAmount.BigInt()) >= 0 {
+			val = willUsetotalDelegateAmount.BigInt()
+		}
+		willUseTotalVal := types.NewIntFromBigInt(val)
+
+		//sort validators by delegate amount
+		sort.Slice(valAddrs, func(i int, j int) bool {
+			return deleAmount[valAddrs[i].String()].
+				GT(deleAmount[valAddrs[j].String()])
+		})
+
+		//choose validators to be undelegated
+		choosedVals := make([]types.ValAddress, 0)
+		choosedAmount := make(map[string]types.Int)
+
+		selectedAmount := types.NewInt(0)
+		for _, validator := range valAddrs {
+			nowValMaxUnDeleAmount := deleAmount[validator.String()].Sub(types.NewInt(3))
+			if selectedAmount.Add(nowValMaxUnDeleAmount).GTE(willUseTotalVal) {
+				willUseChoosedAmount := willUseTotalVal.Sub(selectedAmount)
+
+				choosedVals = append(choosedVals, validator)
+				choosedAmount[validator.String()] = willUseChoosedAmount
+				selectedAmount = selectedAmount.Add(willUseChoosedAmount)
+				break
+			}
+
+			choosedVals = append(choosedVals, validator)
+			choosedAmount[validator.String()] = nowValMaxUnDeleAmount
+			selectedAmount = selectedAmount.Add(nowValMaxUnDeleAmount)
 		}
 
-		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
-		unSignedTx, err = client.GenMultiSigRawUnDelegateTx(
+		unSignedTx, err = client.GenMultiSigRawUnDelegateTxV2(
 			poolAddr,
-			valAddrs,
-			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
+			choosedVals,
+			choosedAmount)
 	}
 
 	return

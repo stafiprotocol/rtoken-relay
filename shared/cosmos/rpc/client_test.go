@@ -4,6 +4,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -11,10 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 )
 
 var client *rpc.Client
@@ -452,4 +454,11 @@ func TestMultiThread(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestSort(t *testing.T) {
+	a := []uint64{5, 9, 8, 3, 1, 100, 0}
+	t.Log(a)
+	sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
+	t.Log(a)
 }
