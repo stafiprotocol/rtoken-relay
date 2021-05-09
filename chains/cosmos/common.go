@@ -154,7 +154,16 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 	return
 }
 
-func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, height int64) ([]byte, error) {
+//if bond > unbond only gen delegate tx  (so delegate tx)
+
+//if bond < unbond  (so withdraw and delegate tx)
+//	(1) unbond validator gen delegate tx
+//	(2) orther validator gen withdraw and delegate tx
+//if bond == unbond  (so withdraw and delegate tx)
+//	(1)if balanceAmount > rewardAmount of era height ,gen withdraw and delegate tx
+//	(2)if balanceAmount < rewardAmount of era height, gen withdraw tx
+func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, height int64,
+	bond substrateTypes.U128, unBond substrateTypes.U128) ([]byte, error) {
 	//get reward of height
 	rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
 	if err != nil {
@@ -162,16 +171,20 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 	}
 	rewardAmount := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 
-	//get reward of now
-	rewardResNow, err := client.QueryDelegationTotalRewards(poolAddr, 0)
-	if err != nil {
-		return nil, err
-	}
-	rewardAmountNow := rewardResNow.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
+	bondCmpUnbond := bond.Cmp(unBond.Int)
 
-	//if rewardAmount > rewardAmountNow return ErrNoMsgs
-	if rewardAmount.GT(rewardAmountNow) {
-		return nil, rpc.ErrNoMsgs
+	//check when we behind several eras,only bond==unbond we can check this
+	// if rewardAmount > rewardAmountNow no need claim and delegate just return ErrNoMsgs
+	if bondCmpUnbond == 0 {
+		//get reward of now
+		rewardResNow, err := client.QueryDelegationTotalRewards(poolAddr, 0)
+		if err != nil {
+			return nil, err
+		}
+		rewardAmountNow := rewardResNow.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
+		if rewardAmount.GT(rewardAmountNow) {
+			return nil, rpc.ErrNoMsgs
+		}
 	}
 
 	//get balanceAmount of height
@@ -180,19 +193,35 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 		return nil, err
 	}
 
-	//check balanceAmount and rewardAmount
-	//(1)if balanceAmount>rewardAmount gen withdraw and delegate tx
-	//(2)if balanceAmount<rewardAmount gen withdraw tx
 	var unSignedTx []byte
-	if balanceAmount.Balance.Amount.GT(rewardAmount) {
-		unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardThenDeleTx(
-			poolAddr,
-			height)
+	if bondCmpUnbond <= 0 {
+		//check balanceAmount and rewardAmount
+		//(1)if balanceAmount>rewardAmount gen withdraw and delegate tx
+		//(2)if balanceAmount<rewardAmount gen withdraw tx
+		if balanceAmount.Balance.Amount.GT(rewardAmount) {
+			unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardThenDeleTx(
+				poolAddr,
+				height)
+		} else {
+			unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardTx(
+				poolAddr,
+				height)
+		}
 	} else {
-		unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardTx(
-			poolAddr,
-			height)
+		//check balanceAmount and rewardAmount
+		//(1)if balanceAmount>rewardAmount gen delegate tx
+		//(2)if balanceAmount<rewardAmount gen withdraw tx
+		if balanceAmount.Balance.Amount.GT(rewardAmount) {
+			unSignedTx, err = client.GenMultiSigRawDeleRewardTx(
+				poolAddr,
+				height)
+		} else {
+			unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardTx(
+				poolAddr,
+				height)
+		}
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +376,6 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 	}
 	return false
 }
-
 
 //get total delegation of now and report
 func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, height int64,

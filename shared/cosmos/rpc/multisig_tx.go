@@ -160,7 +160,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 
 		//gen delegate
 		msg2 := xStakingTypes.NewMsgDelegate(delAddr, val, rewards[valAddr])
-		if err := msg.ValidateBasic(); err != nil {
+		if err := msg2.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
@@ -173,6 +173,54 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 
 	return c.GenMultiSigRawTx(msgs...)
 }
+
+//generate unsigned delegate reward tx
+func (c *Client) GenMultiSigRawDeleRewardTx(delAddr types.AccAddress, height int64) ([]byte, error) {
+	delValsRes, err := c.QueryDelegations(delAddr, height)
+	if err != nil {
+		return nil, err
+	}
+	totalReward, err := c.QueryDelegationTotalRewards(delAddr, height)
+	if err != nil {
+		return nil, err
+	}
+	rewards := make(map[string]types.Coin)
+	for _, r := range totalReward.Rewards {
+		rewards[r.ValidatorAddress] = types.NewCoin(c.GetDenom(), r.Reward.AmountOf(c.GetDenom()).TruncateInt())
+	}
+
+	delegations := delValsRes.GetDelegationResponses()
+	// build multi-message transaction
+	msgs := make([]types.Msg, 0)
+	for _, delegation := range delegations {
+		valAddr := delegation.Delegation.ValidatorAddress
+		//must filter zero value or tx will failure
+		if rewards[valAddr].IsZero() {
+			continue
+		}
+
+		val, err := types.ValAddressFromBech32(valAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		//gen delegate
+		msg2 := xStakingTypes.NewMsgDelegate(delAddr, val, rewards[valAddr])
+		if err := msg2.ValidateBasic(); err != nil {
+			return nil, err
+		}
+
+		msgs = append(msgs, msg2)
+	}
+
+	if len(msgs) == 0 {
+		return nil, ErrNoMsgs
+	}
+
+	return c.GenMultiSigRawTx(msgs...)
+}
+
+
 
 //c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {

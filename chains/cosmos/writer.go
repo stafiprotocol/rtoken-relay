@@ -228,7 +228,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	height := poolClient.GetHeightByEra(flow.Snap.Era)
 	client := poolClient.GetRpcClient()
-	unSignedTx, err := GetClaimRewardUnsignedTx(client, poolAddr, height)
+	unSignedTx, err := GetClaimRewardUnsignedTx(client, poolAddr, height, flow.Snap.Bond, flow.Snap.Unbond)
 	if err != nil && err != rpc.ErrNoMsgs {
 		w.log.Error("GetClaimRewardUnsignedTx failed",
 			"pool address", poolAddr.String(),
@@ -328,7 +328,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 	client := poolClient.GetRpcClient()
 
-	unSignedTx, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives,w.log)
+	unSignedTx, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives, w.log)
 	if err != nil && err != ErrNoOutPuts {
 		w.log.Error("GetTransferUnsignedTx failed", "pool hex address", poolAddrHexStr, "err", err)
 		return false
