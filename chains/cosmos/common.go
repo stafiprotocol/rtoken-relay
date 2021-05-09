@@ -348,10 +348,13 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 	return false
 }
 
+
+//get total delegation of now and report
 func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, height int64,
 	symbol core.RSymbol, poolBts []byte, shotId substrateTypes.Hash, era uint32,
 	bond substrateTypes.U128, unBond substrateTypes.U128) bool {
-	delegationsRes, err := client.QueryDelegations(poolAddr, height)
+
+	delegationsRes, err := client.QueryDelegations(poolAddr, 0)
 	if err != nil {
 		w.log.Error("activeReport failed",
 			"pool", poolAddr,
@@ -363,28 +366,28 @@ func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress, hei
 		total = total.Add(dele.Balance.Amount)
 	}
 
-	rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
-	if err != nil {
-		w.log.Error("checkAndSend QueryDelegationTotalRewards failed",
-			"pool", poolAddr,
-			"err", err)
-		return false
-	}
-	rewardTotal := big.NewInt(0)
-	rewardDe := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
-	if !rewardDe.IsNil() {
-		rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
-	}
-	//reward
-	total = total.Add(types.NewIntFromBigInt(rewardTotal))
-	//bond/unbond
-	if bond.Cmp(unBond.Int) > 0 {
-		willBond := bond.Sub(bond.Int, unBond.Int)
-		total = total.Add(types.NewIntFromBigInt(willBond))
-	} else {
-		willUnBond := unBond.Sub(unBond.Int, bond.Int)
-		total = total.Sub(types.NewIntFromBigInt(willUnBond))
-	}
+	// rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
+	// if err != nil {
+	// 	w.log.Error("checkAndSend QueryDelegationTotalRewards failed",
+	// 		"pool", poolAddr,
+	// 		"err", err)
+	// 	return false
+	// }
+	// rewardTotal := big.NewInt(0)
+	// rewardDe := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
+	// if !rewardDe.IsNil() {
+	// 	rewardTotal = rewardTotal.Add(rewardTotal, rewardDe.BigInt())
+	// }
+	// //reward
+	// total = total.Add(types.NewIntFromBigInt(rewardTotal))
+	// //bond/unbond
+	// if bond.Cmp(unBond.Int) > 0 {
+	// 	willBond := bond.Sub(bond.Int, unBond.Int)
+	// 	total = total.Add(types.NewIntFromBigInt(willBond))
+	// } else {
+	// 	willUnBond := unBond.Sub(unBond.Int, bond.Int)
+	// 	total = total.Sub(types.NewIntFromBigInt(willUnBond))
+	// }
 
 	f := submodel.BondReportedFlow{
 		Symbol: symbol,

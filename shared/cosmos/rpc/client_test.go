@@ -160,7 +160,7 @@ func TestClient_QueryDelegationRewards(t *testing.T) {
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorForbole}, types.NewCoin(client.GetDenom(), types.NewInt(1)))
+	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorEverStake}, types.NewCoin(client.GetDenom(), types.NewInt(1)))
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
@@ -266,7 +266,9 @@ func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
 func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
-	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, []types.ValAddress{addrValidatorTestnetAteam}, types.NewCoin(client.GetDenom(), types.NewInt(15)))
+	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorEverStake},
+		types.NewCoin(client.GetDenom(), types.NewInt(10)))
+
 	assert.NoError(t, err)
 
 	signature1, err := client.SignMultiSigRawTx(rawTx, "key2")
@@ -311,7 +313,7 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 }
 
 func TestGetPubKey(t *testing.T) {
-	test,_:=types.AccAddressFromBech32("cosmos12wrv225462drlz4dk3yg9hc8vavwjkmckshz7c")
+	test, _ := types.AccAddressFromBech32("cosmos12wrv225462drlz4dk3yg9hc8vavwjkmckshz7c")
 	account, _ := client.QueryAccount(test)
 	t.Log(hex.EncodeToString(account.GetPubKey().Bytes()))
 
