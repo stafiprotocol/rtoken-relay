@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -62,9 +63,11 @@ func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submode
 			data.Symbol, data.BondId.Hex(), hexutil.Encode(br.Blockhash), hexutil.Encode(br.Txhash))
 	}
 
-	l.log.Info("BondRecord", "bonder", hexutil.Encode(br.Bonder[:]), "symbol", br.Symbol,
-		"pubkey", hexutil.Encode(br.Pubkey), "pool", hexutil.Encode(br.Pool), "blockHash", hexutil.Encode(br.Blockhash),
-		"txHash", hexutil.Encode(br.Txhash), "amount", br.Amount.Int, "BondState", bs)
+	if l.cared(br.Symbol) {
+		l.log.Info("BondRecord", "bonder", hexutil.Encode(br.Bonder[:]), "symbol", br.Symbol,
+			"pubkey", hexutil.Encode(br.Pubkey), "pool", hexutil.Encode(br.Pool), "blockHash", hexutil.Encode(br.Blockhash),
+			"txHash", hexutil.Encode(br.Txhash), "amount", br.Amount.Int, "BondState", bs)
+	}
 
 	if br.Bonder != data.AccountId {
 		return nil, fmt.Errorf("bonder not matched: %s, %s", hexutil.Encode(br.Bonder[:]), hexutil.Encode(data.AccountId[:]))
@@ -94,7 +97,9 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
 		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
-			l.log.Error("failed to get CurrentChainEra", "error", err)
+			if l.cared(snap.Symbol) {
+				l.log.Error("failed to get CurrentChainEra", "error", err)
+			}
 			return nil, err
 		}
 	}
@@ -103,8 +108,10 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	}
 
 	if snap.BondState != submodel.EraUpdated {
-		l.log.Warn("processEraPoolUpdatedEvt: bondState not EraUpdated",
-			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		if l.cared(snap.Symbol) {
+			l.log.Warn("processEraPoolUpdatedEvt: bondState not EraUpdated",
+				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		}
 		return nil, BondStateNotEraUpdatedError
 	}
 
@@ -139,7 +146,9 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
 		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
-			l.log.Error("failed to get CurrentChainEra", "error", err)
+			if l.cared(snap.Symbol) {
+				l.log.Error("failed to get CurrentChainEra", "error", err)
+			}
 			return nil, err
 		}
 	}
@@ -148,8 +157,10 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	}
 
 	if snap.BondState != submodel.BondReported {
-		l.log.Warn("processBondReportedEvt: bondState not BondReported",
-			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		if l.cared(snap.Symbol) {
+			l.log.Warn("processBondReportedEvt: bondState not BondReported",
+				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		}
 		return nil, BondStateNotBondReportedError
 	}
 
@@ -172,6 +183,11 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	//turn to processActiveReportedEvtForRAtom
+	if flow.Symbol == core.RATOM {
+		return l.processActiveReportedEvtForRAtom(evt)
+	}
+
 	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
 		return nil, err
@@ -180,7 +196,9 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
 		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
-			l.log.Error("failed to get CurrentChainEra", "error", err)
+			if l.cared(snap.Symbol) {
+				l.log.Error("failed to get CurrentChainEra", "error", err)
+			}
 			return nil, err
 		}
 	}
@@ -189,8 +207,10 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	}
 
 	if snap.BondState != submodel.ActiveReported {
-		l.log.Warn("processActiveReportedEvt: bondState not ActiveReported",
-			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		if l.cared(snap.Symbol) {
+			l.log.Warn("processActiveReportedEvt: bondState not ActiveReported",
+				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		}
 		return nil, BondStateNotActiveReportedError
 	}
 
@@ -201,6 +221,62 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
+
+	return &submodel.MultiEventFlow{
+		EventId:     config.ActiveReportedEventId,
+		Symbol:      snap.Symbol,
+		EventData:   flow,
+		Threshold:   th,
+		SubAccounts: sub,
+	}, nil
+}
+
+func (l *listener) processActiveReportedEvtForRAtom(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+	flow, err := submodel.EventWithdrawReported(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
+	if err != nil {
+		return nil, err
+	}
+
+	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
+	if err != nil {
+		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
+			if l.cared(snap.Symbol) {
+				l.log.Error("failed to get CurrentChainEra", "error", err)
+			}
+			return nil, err
+		}
+	}
+	if curEra != snap.Era {
+		return nil, EventEraIsOldError
+	}
+
+	if snap.BondState != submodel.ActiveReported {
+		if l.cared(snap.Symbol) {
+			l.log.Warn("processWithdrawReportedEvt: bondState not WithdrawReported",
+				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		}
+		return nil, BondStateNotActiveReportedError
+	}
+
+	receives, total, err := l.unbondings(snap.Symbol, snap.Pool, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	flow.Snap = snap
+	flow.Receives = receives
+	flow.TotalAmount = total
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.ActiveReportedEventId,
@@ -225,7 +301,9 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
 		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
-			l.log.Error("failed to get CurrentChainEra", "error", err)
+			if l.cared(snap.Symbol) {
+				l.log.Error("failed to get CurrentChainEra", "error", err)
+			}
 			return nil, err
 		}
 	}
@@ -234,8 +312,10 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 	}
 
 	if snap.BondState != submodel.WithdrawReported {
-		l.log.Warn("processWithdrawReportedEvt: bondState not WithdrawReported",
-			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		if l.cared(snap.Symbol) {
+			l.log.Warn("processWithdrawReportedEvt: bondState not WithdrawReported",
+				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
+		}
 		return nil, BondStateNotWithdrawReportedError
 	}
 
@@ -317,6 +397,73 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
+	}, nil
+}
+
+func (l *listener) processValidatorUpdated(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+	flow, err := submodel.EventValidatorUpdated(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.MultiEventFlow{
+		EventId:   config.ValidatorUpdatedEventId,
+		Symbol:    flow.Symbol,
+		EventData: flow,
+	}, nil
+}
+
+func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submodel.SubmitSignatures, error) {
+	data, err := submodel.SignatureEnoughData(evt)
+	if err != nil {
+		return nil, err
+	}
+
+	symBz, err := types.EncodeToBytes(data.RSymbol)
+	if err != nil {
+		return nil, err
+	}
+
+	sk := submodel.SignaturesKey{
+		Era:        data.Era,
+		Pool:       data.Pool,
+		TxType:     data.TxType,
+		ProposalId: data.ProposalId,
+	}
+
+	skBz, err := types.EncodeToBytes(sk)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigs []types.Bytes
+	exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("unable to get signatures: signature key %+v ", sk)
+	}
+
+	th, err := l.threshold(data.RSymbol, data.Pool)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get threshold: pool %s ", hex.EncodeToString(data.Pool))
+	}
+
+	//check sigs
+	if len(sigs) < int(th) {
+		return nil, fmt.Errorf("sigs len < threshold,sigs len: %d ,threshold: %d", len(sigs), th)
+	}
+	useSigs := sigs[:th]
+
+	return &submodel.SubmitSignatures{
+		Symbol:     data.RSymbol,
+		Era:        types.NewU32(data.Era),
+		Pool:       data.Pool,
+		TxType:     data.TxType,
+		ProposalId: data.ProposalId,
+		Signature:  useSigs,
 	}, nil
 }
 
@@ -402,6 +549,27 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 	}
 
 	return threshold, subs, nil
+}
+
+func (l *listener) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return 0, err
+	}
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return 0, err
+	}
+
+	var threshold uint16
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
+	if err != nil {
+		return 0, err
+	}
+	if !exist {
+		return 0, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+	}
+	return threshold, nil
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {

@@ -2,7 +2,6 @@ package substrate
 
 import (
 	"fmt"
-
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -27,6 +26,9 @@ const (
 
 	NewMultisig      = eventName(config.NewMultisigEventId)
 	MultisigExecuted = eventName(config.MultisigExecutedEventId)
+
+	SignatureEnough  = eventName(config.SignaturesEnoughEventId)
+	ValidaterUpdated = eventName(config.ValidatorUpdatedEventId)
 )
 
 var MainSubscriptions = []eventHandlerSubscriptions{
@@ -37,6 +39,8 @@ var MainSubscriptions = []eventHandlerSubscriptions{
 	{WithdrawReported, withdrawReportedHandler},
 	{TransferReported, transferReportedHandler},
 	{NominationUpdated, nominationUpdatedHandler},
+	{SignatureEnough, signatureEnoughHandler},
+	{ValidaterUpdated, validatorUpdatedHandler},
 }
 
 var OtherSubscriptions = []eventHandlerSubscriptions{
@@ -121,6 +125,28 @@ func nominationUpdatedHandler(data interface{}) (*core.Message, error) {
 	}
 
 	return &core.Message{Destination: d.Symbol, Reason: core.NominationUpdatedEvent, Content: d}, nil
+}
+
+func validatorUpdatedHandler(data interface{}) (*core.Message, error) {
+	d, ok := data.(*submodel.MultiEventFlow)
+	if !ok {
+		return nil, fmt.Errorf("validatorUpdatedHandler: failed to cast MultiEventFlow")
+	}
+
+	if d.EventId != config.ValidatorUpdatedEventId {
+		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.ValidatorUpdatedEventId, d.EventId)
+	}
+
+	return &core.Message{Destination: d.Symbol, Reason: core.ValidatorUpdatedEvent, Content: d}, nil
+}
+
+func signatureEnoughHandler(data interface{}) (*core.Message, error) {
+	d, ok := data.(*submodel.SubmitSignatures)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast submitSignatures")
+	}
+
+	return &core.Message{Destination: d.Symbol, Reason: core.SignatureEnough, Content: d}, nil
 }
 
 func newMultisigHandler(data interface{}) (*core.Message, error) {

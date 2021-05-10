@@ -4,6 +4,7 @@ const (
 	RTokenSeriesModuleId     = "RTokenSeries"
 	LiquidityBondEventId     = "LiquidityBond"
 	NominationUpdatedEventId = "NominationUpdated"
+	ValidatorUpdatedEventId  = "ValidatorUpdated"
 	StorageBondRecords       = "BondRecords"
 	StorageBondStates        = "BondStates"
 	MethodExecuteBondRecord  = "RTokenSeries.execute_bond_record"
@@ -30,4 +31,7 @@ const (
 	StorageBondedPools         = "BondedPools"
 	StorageSnapshots           = "Snapshots"
 	StoragePoolUnbonds         = "PoolUnbonds"
+	SignaturesEnoughEventId    = "SignaturesEnough"
+	StorageSignatures          = "Signatures"
+	SubmitSignatures           = "RTokenSeries.submit_signatures"
 )

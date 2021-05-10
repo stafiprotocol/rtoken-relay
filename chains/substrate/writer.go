@@ -127,6 +127,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processNominationUpdatedEvent(m)
 	case core.GetEraNominated:
 		return w.processGetEraNominated(m)
+	case core.SubmitSignature:
+		return w.processSubmitSignature(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
@@ -150,6 +152,17 @@ func (w *writer) processGetEraNominated(m *core.Message) bool {
 	}
 	flow.NewValidators <- validator
 	return true
+}
+
+func (w *writer) processSubmitSignature(m *core.Message) bool {
+	param, ok := m.Content.(submodel.SubmitSignatureParams)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+	result := w.conn.submitSignature(&param)
+	w.log.Info("submitSignature", "rsymbol", m.Source, "result", result)
+	return result
 }
 
 func (w *writer) processLiquidityBond(m *core.Message) bool {

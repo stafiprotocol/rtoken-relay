@@ -1,0 +1,42 @@
+{
+  "chains": [
+    {
+      "name": "Stafi",
+      "type": "substrate",
+      "rsymbol": "RFIS",
+      "endpoint": "ws://127.0.0.1:9944",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
+      "accounts": [
+        "123PKYndfZtuFaQuWkDdAgGvJwUpn6DA1WNafP738oSDvuhj"
+      ],
+      "latestBlockFlag": false,
+      "opts": {
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
+        "startBlock": "21856",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
+        "chainType": "stafi",
+        "cares": [
+          "RATOM"
+        ],
+        "addressType": "AccountId"
+      }
+    },
+    {
+      "name": "stargate",
+      "type": "cosmos",
+      "endpoint": "http://127.0.0.1:26657",
+      "rsymbol": "RATOM",
+      "accounts": [
+        "multiSign1"
+      ],
+      "keystorePath": "/Users/tpkeeper/.gaia",
+      "opts": {
+        "multiSign1": "key1",
+        "chainId": "stargate-final",
+        "denom": "umuon",
+        "gasPrice": "0.05umuon",
+        "eraBlockNumber": "100"
+      }
+    }
+  ]
+}
