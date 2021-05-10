@@ -14,6 +14,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	errType "github.com/cosmos/cosmos-sdk/types/errors"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	xStakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -199,20 +200,16 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 	return
 }
 
-//if bond > unbond only gen delegate tx  (so delegate tx)
-
-//if bond < unbond  (so withdraw and delegate tx)
-//	(1) unbond validator gen delegate tx
-//	(2) orther validator gen withdraw and delegate tx
-//if bond == unbond  (so withdraw and delegate tx)
-//	(1)if balanceAmount > rewardAmount of era height ,gen withdraw and delegate tx
-//	(2)if balanceAmount < rewardAmount of era height, gen withdraw tx
+//if bond > unbond only gen delegate tx  (txType: 2)
+//if bond <= unbond
+//	(1)if balanceAmount > rewardAmount of era height ,gen withdraw and delegate tx  (txType: 3)
+//	(2)if balanceAmount < rewardAmount of era height, gen withdraw tx  (txTpye: 1)
 func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, height int64,
-	bond substrateTypes.U128, unBond substrateTypes.U128) ([]byte, error) {
+	bond substrateTypes.U128, unBond substrateTypes.U128) ([]byte, int, *types.Int, error) {
 	//get reward of height
 	rewardRes, err := client.QueryDelegationTotalRewards(poolAddr, height)
 	if err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
 	rewardAmount := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 
@@ -224,20 +221,21 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 		//get reward of now
 		rewardResNow, err := client.QueryDelegationTotalRewards(poolAddr, 0)
 		if err != nil {
-			return nil, err
+			return nil, 0, nil, err
 		}
 		rewardAmountNow := rewardResNow.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 		if rewardAmount.GT(rewardAmountNow) {
-			return nil, rpc.ErrNoMsgs
+			return nil, 0, nil, rpc.ErrNoMsgs
 		}
 	}
 
 	//get balanceAmount of height
 	balanceAmount, err := client.QueryBalance(poolAddr, client.GetDenom(), height)
 	if err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
 
+	txType := 0
 	var unSignedTx []byte
 	if bondCmpUnbond <= 0 {
 		//check balanceAmount and rewardAmount
@@ -247,10 +245,12 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 			unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardThenDeleTx(
 				poolAddr,
 				height)
+			txType = 3
 		} else {
 			unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardTx(
 				poolAddr,
 				height)
+			txType = 1
 		}
 	} else {
 		//check balanceAmount and rewardAmount
@@ -260,20 +260,38 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 			unSignedTx, err = client.GenMultiSigRawDeleRewardTx(
 				poolAddr,
 				height)
+			txType = 2
 		} else {
 			unSignedTx, err = client.GenMultiSigRawWithdrawAllRewardTx(
 				poolAddr,
 				height)
+			txType = 1
 		}
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
-	return unSignedTx, nil
+
+	decodedTx, err := client.GetTxConfig().TxJSONDecoder()(unSignedTx)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	totalAmountRet := types.NewInt(0)
+	for _, msg := range decodedTx.GetMsgs() {
+		if msg.Type() == xStakingTypes.TypeMsgDelegate {
+			if m, ok := msg.(*xStakingTypes.MsgDelegate); ok {
+				totalAmountRet = totalAmountRet.Add(m.Amount.Amount)
+			}
+		}
+	}
+
+	return unSignedTx, txType, &totalAmountRet, nil
 }
 
-func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receives []*submodel.Receive, logger log15.Logger) ([]byte, error) {
+func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receives []*submodel.Receive,
+	logger log15.Logger) ([]byte, []xBankTypes.Output, error) {
+
 	outPuts := make([]xBankTypes.Output, 0)
 	for _, receive := range receives {
 		hexAccountStr := hex.EncodeToString(receive.Recipient[:20])
@@ -290,10 +308,14 @@ func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receiv
 		outPuts = append(outPuts, out)
 	}
 	if len(outPuts) == 0 {
-		return nil, ErrNoOutPuts
+		return nil, nil, ErrNoOutPuts
 	}
 
-	return client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
+	txBts, err := client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
+	if err != nil {
+		return nil, nil, ErrNoOutPuts
+	}
+	return txBts, outPuts, nil
 }
 
 func (w *writer) printContentError(m *core.Message, err error) {

@@ -3,6 +3,8 @@ package cosmos
 import (
 	"encoding/hex"
 	"errors"
+	"math/big"
+
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -114,7 +116,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	//check bond/unbond is needed
 	//bond report if no need
-	if snap.Bond.Int.Cmp(snap.Unbond.Int) == 0 {
+	bondCmpUnbondResult := snap.Bond.Int.Cmp(snap.Unbond.Int)
+	if bondCmpUnbondResult == 0 {
 		w.log.Info("EvtEraPoolUpdated bond equal to unbond, no need to bond/unbond")
 		callHash := utils.BlakeTwo256([]byte{})
 		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
@@ -142,7 +145,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	client := poolClient.GetRpcClient()
-	height := poolClient.GetHeightByEra(flow.Snap.Era)
+	height := poolClient.GetHeightByEra(snap.Era)
 	unSignedTx, err := GetBondUnbondUnsignedTx(client, snap.Bond, snap.Unbond, poolAddr, height)
 	if err != nil {
 		w.log.Error("GetBondUnbondUnsignedTx failed",
@@ -176,6 +179,9 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
 		SnapshotId: flow.ShotId,
+		Era:        snap.Era,
+		Bond:       snap.Bond,
+		Unbond:     snap.Unbond,
 		Key:        proposalIdHexStr,
 		Type:       submodel.OriginalBond}
 
@@ -190,9 +196,17 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	w.log.Info("processEraPoolUpdatedEvt gen unsigned bond/unbond Tx",
-		"pool address", poolAddr.String(),
-		"proposalId", proposalIdHexStr)
+	if bondCmpUnbondResult > 0 {
+		w.log.Info("processEraPoolUpdatedEvt gen unsigned bond Tx",
+			"pool address", poolAddr.String(),
+			"bond amount", new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int).String(),
+			"proposalId", proposalIdHexStr)
+	} else {
+		w.log.Info("processEraPoolUpdatedEvt gen unsigned unbond Tx",
+			"pool address", poolAddr.String(),
+			"unbond amount", new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int).String(),
+			"proposalId", proposalIdHexStr)
+	}
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -228,7 +242,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	height := poolClient.GetHeightByEra(flow.Snap.Era)
 	client := poolClient.GetRpcClient()
-	unSignedTx, err := GetClaimRewardUnsignedTx(client, poolAddr, height, flow.Snap.Bond, flow.Snap.Unbond)
+	unSignedTx, genTxType, totalDeleAmount, err := GetClaimRewardUnsignedTx(client, poolAddr, height, flow.Snap.Bond, flow.Snap.Unbond)
 	if err != nil && err != rpc.ErrNoMsgs {
 		w.log.Error("GetClaimRewardUnsignedTx failed",
 			"pool address", poolAddr.String(),
@@ -283,9 +297,26 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
-		"pool address", poolAddr.String(),
-		"proposalId", proposalIdHexStr)
+	switch genTxType {
+	case 1:
+		w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
+			"pool address", poolAddr.String(),
+			"total delegate amount", totalDeleAmount.String(),
+			"proposalId", proposalIdHexStr)
+
+	case 2:
+		w.log.Info("processBondReportEvent gen unsigned delegate reward Tx",
+			"pool address", poolAddr.String(),
+			"total delegate amount", totalDeleAmount.String(),
+			"proposalId", proposalIdHexStr)
+
+	case 3:
+		w.log.Info("processBondReportEvent gen unsigned claim and delegate reward Tx",
+			"pool address", poolAddr.String(),
+			"total delegate amount", totalDeleAmount.String(),
+			"proposalId", proposalIdHexStr)
+
+	}
 
 	//send signature to stafi
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
@@ -327,12 +358,16 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 	client := poolClient.GetRpcClient()
 
-	unSignedTx, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives, w.log)
+	unSignedTx, outPuts, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives, w.log)
 	if err != nil && err != ErrNoOutPuts {
 		w.log.Error("GetTransferUnsignedTx failed", "pool hex address", poolAddrHexStr, "err", err)
 		return false
 	}
 	if err == ErrNoOutPuts {
+		w.log.Info("processActiveReportedEvent no need transfer Tx",
+			"pool address", poolAddr.String(),
+			"era", flow.Snap.Era,
+			"snapId", flow.ShotId)
 		callHash := utils.BlakeTwo256(flow.Snap.Pool)
 		mflow := submodel.MultiEventFlow{
 			EventData: &submodel.WithdrawReportedFlow{
@@ -385,6 +420,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 
 	w.log.Info("processActiveReportedEvent gen unsigned transfer Tx",
 		"pool address", poolAddr.String(),
+		"out put", outPuts,
 		"proposalId", proposalIdHexStr)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
