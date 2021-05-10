@@ -510,7 +510,8 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
-	w.setEvents(call.CallHash, mef)
+	w.setEvents(callhash, mef)
+	w.log.Info("processWithdrawReportedEvent: event set", "callHash", callhash)
 
 	if flow.LastVoterFlag {
 		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: key.Address, Era: fmt.Sprint(flow.Snap.Era)}
@@ -542,7 +543,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 
 	newMuls, ok := w.getNewMultics(callhash)
 	if !ok {
-		w.log.Info("not last voter, wait for NewMultisigEvent")
+		w.log.Info("not last voter, wait for NewMultisigEvent", "callHash", callhash)
 		w.setEvents(call.CallHash, mef)
 		return true
 	}
