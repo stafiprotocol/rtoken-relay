@@ -164,14 +164,21 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 		return false
 	}
 
-	bondReason, err := w.conn.TransferVerify(flow.Record)
-	if err != nil {
-		w.log.Error("TransferVerify error", "err", err, "bondId", flow.BondId.Hex())
-		w.liquidityBonds <- m
-		w.log.Info("processLiquidityBond", "size of liquidityBonds", len(w.liquidityBonds))
-		return false
+	var bondReason submodel.BondReason
+	var err error
+	if flow.VerifyTimes >= 5 {
+		bondReason = submodel.BlockhashUnmatch
+	} else {
+		bondReason, err = w.conn.TransferVerify(flow.Record)
+		if err != nil {
+			w.log.Error("TransferVerify error", "err", err, "bondId", flow.BondId.Hex())
+			flow.VerifyTimes += 1
+			w.liquidityBonds <- m
+			w.log.Info("processLiquidityBond", "size of liquidityBonds", len(w.liquidityBonds))
+			return false
+		}
 	}
-	w.log.Info("processLiquidityBond", "bondReason", bondReason)
+	w.log.Info("processLiquidityBond", "bondId", flow.BondId.Hex(), "bondReason", bondReason, "VerifyTimes", flow.VerifyTimes)
 	flow.Reason = bondReason
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.LiquidityBondResult, Content: flow}
@@ -474,7 +481,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 	mef.Key, mef.Others = key, others
 
-	call, err := w.conn.TransferCall(flow.LastVoter[:], types.NewUCompact(flow.TotalAmount.Int))
+	call, err := w.conn.TransferCall(key.PublicKey, types.NewUCompact(flow.TotalAmount.Int))
 	if err != nil {
 		w.log.Error("TransferCall error", "symbol", m.Source)
 		return false
@@ -493,7 +500,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	w.setEvents(call.CallHash, mef)
 
 	if flow.LastVoterFlag {
-		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: mef.Key.Address, Era: fmt.Sprint(flow.Snap.Era)}
+		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: key.Address, Era: fmt.Sprint(flow.Snap.Era)}
 		w.log.Info("processWithdrawReportedEvent: lastVoter prepare to create transfer back", "TransferBack", *tb)
 		err := CreateTransferback(w.transferRecord, tb)
 		if err != nil {

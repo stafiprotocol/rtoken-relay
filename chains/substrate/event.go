@@ -71,11 +71,12 @@ func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submode
 	}
 
 	return &submodel.BondFlow{
-		Symbol: data.Symbol,
-		BondId: data.BondId,
-		Record: br,
-		Reason: submodel.BondReasonDefault,
-		State:  bs,
+		Symbol:      data.Symbol,
+		BondId:      data.BondId,
+		Record:      br,
+		Reason:      submodel.BondReasonDefault,
+		State:       bs,
+		VerifyTimes: 0,
 	}, nil
 }
 

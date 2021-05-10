@@ -160,8 +160,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 			}
 		}
 		if blkNum == 0 {
-			c.log.Warn("After waiting more than one minute, blkNum is still zero")
-			return submodel.BlockhashUnmatch, nil
+			return submodel.BondReasonDefault, errors.New("after waiting more than one minute, blkNum is still zero")
 		}
 	}
 

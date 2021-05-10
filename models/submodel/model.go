@@ -24,11 +24,12 @@ type BondStateKey struct {
 }
 
 type BondFlow struct {
-	Symbol core.RSymbol
-	BondId types.Hash
-	Record *BondRecord
-	Reason BondReason
-	State  BondState
+	Symbol      core.RSymbol
+	BondId      types.Hash
+	Record      *BondRecord
+	Reason      BondReason
+	State       BondState
+	VerifyTimes int
 }
 
 type BondRecord struct {
