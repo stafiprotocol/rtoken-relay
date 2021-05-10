@@ -23,21 +23,22 @@ import (
 )
 
 type writer struct {
-	symbol                 core.RSymbol
-	conn                   *Connection
-	router                 chains.Router
-	log                    log15.Logger
-	sysErr                 chan<- error
-	eventMtx               sync.RWMutex
-	newMulTicsMtx          sync.RWMutex
-	bondedPoolsMtx         sync.RWMutex
-	events                 map[string]*submodel.MultiEventFlow
-	newMultics             map[string]*submodel.EventNewMultisig
-	bondedPools            map[string]bool
-	liquidityBonds         chan *core.Message
-	currentChainEra        uint32
-	stop                   <-chan int
-	transferRecordFilePath string
+	symbol                core.RSymbol
+	conn                  *Connection
+	router                chains.Router
+	log                   log15.Logger
+	sysErr                chan<- error
+	eventMtx              sync.RWMutex
+	newMulTicsMtx         sync.RWMutex
+	bondedPoolsMtx        sync.RWMutex
+	events                map[string]*submodel.MultiEventFlow
+	newMultics            map[string]*submodel.EventNewMultisig
+	bondedPools           map[string]bool
+	liquidityBonds        chan *core.Message
+	currentChainEra       uint32
+	stop                  <-chan int
+	transferRecord        string
+	transferRecordHistory string
 }
 
 const (
@@ -45,15 +46,29 @@ const (
 )
 
 func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
-	transferRecordFilePath := ""
+	transferRecord := ""
+	transferRecordHistory := ""
 	if symbol != core.RFIS {
-		path, ok := opts["transferRecordFilePath"].(string)
+		path, ok := opts["transferRecord"].(string)
 		if !ok {
-			panic("no transferRecordFilePath for RFIS")
+			panic("no filepath to save transferRecord")
 		}
-		transferRecordFilePath = path
-		if _, err := os.Stat(transferRecordFilePath); os.IsNotExist(err) {
-			err = utils.WriteCSV(transferRecordFilePath, [][]string{})
+
+		historyPath, ok := opts["transferRecordHistory"].(string)
+		if !ok {
+			panic("no filepath to save transferRecord history")
+		}
+		transferRecord = path
+		transferRecordHistory = historyPath
+		if _, err := os.Stat(transferRecord); os.IsNotExist(err) {
+			err = utils.WriteCSV(transferRecord, [][]string{})
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		if _, err := os.Stat(transferRecordHistory); os.IsNotExist(err) {
+			err = utils.WriteCSV(transferRecordHistory, [][]string{})
 			if err != nil {
 				panic(err)
 			}
@@ -61,17 +76,18 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 	}
 
 	return &writer{
-		symbol:                 symbol,
-		conn:                   conn,
-		log:                    log,
-		sysErr:                 sysErr,
-		events:                 make(map[string]*submodel.MultiEventFlow),
-		newMultics:             make(map[string]*submodel.EventNewMultisig),
-		bondedPools:            make(map[string]bool),
-		liquidityBonds:         make(chan *core.Message, bondFlowLimit),
-		currentChainEra:        0,
-		stop:                   stop,
-		transferRecordFilePath: transferRecordFilePath,
+		symbol:                symbol,
+		conn:                  conn,
+		log:                   log,
+		sysErr:                sysErr,
+		events:                make(map[string]*submodel.MultiEventFlow),
+		newMultics:            make(map[string]*submodel.EventNewMultisig),
+		bondedPools:           make(map[string]bool),
+		liquidityBonds:        make(chan *core.Message, bondFlowLimit),
+		currentChainEra:       0,
+		stop:                  stop,
+		transferRecord:        transferRecord,
+		transferRecordHistory: transferRecordHistory,
 	}
 }
 
@@ -479,11 +495,18 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	if flow.LastVoterFlag {
 		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: mef.Key.Address, Era: fmt.Sprint(flow.Snap.Era)}
 		w.log.Info("processWithdrawReportedEvent: lastVoter prepare to create transfer back", "TransferBack", *tb)
-		err := CreateTransferback(w.transferRecordFilePath, tb)
+		err := CreateTransferback(w.transferRecord, tb)
 		if err != nil {
-			w.sysErr <- fmt.Errorf("processInformChain: CreateTransferback error: %s", err)
+			w.sysErr <- fmt.Errorf("processInformChain: CreateTransferback error: %s, TransferRecord: %+v", err, *tb)
 			return false
 		}
+
+		err = CreateTransferback(w.transferRecordHistory, tb)
+		if err != nil {
+			w.sysErr <- fmt.Errorf("processInformChain: CreateTransferback history error: %s, TransferRecord: %+v", err, *tb)
+			return false
+		}
+
 		w.log.Info("processWithdrawReportedEvent: create transfer back succeed")
 
 		call.TimePoint = submodel.NewOptionTimePointEmpty()
@@ -530,7 +553,7 @@ func (w *writer) processTransferReportedEvent(m *core.Message) bool {
 
 	tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: key.Address, Era: fmt.Sprint(flow.Snap.Era)}
 	w.log.Info("processTransferReportedEvent", "TransferBack", *tb)
-	exist := IsTransferbackExist(w.transferRecordFilePath, tb)
+	exist := IsTransferbackExist(w.transferRecord, tb)
 	if !exist {
 		w.log.Info("processTransferReportedEvent: transfer back not exist, will ignore", "TransferBack", tb)
 		return true
@@ -564,12 +587,13 @@ func (w *writer) processTransferReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	err = DeleteTransferback(w.transferRecordFilePath, tb)
+	err = DeleteTransferback(w.transferRecord, tb)
 	if err != nil {
 		w.sysErr <- fmt.Errorf("TransferBack succeed but failed to delete Transferback: %s, %+v", err, *tb)
 		return false
 	}
 
+	w.log.Info("TransferBack succeed", "TransferRecord", *tb)
 	return true
 }
 
