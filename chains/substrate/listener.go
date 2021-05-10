@@ -203,9 +203,6 @@ func (l *listener) processEvents(blockNum uint64) error {
 	if blockNum%100 == 0 {
 		l.log.Debug("processEvents", "blockNum", blockNum)
 	}
-	if l.symbol != core.RFIS {
-		l.log.Trace("processEvents", "blockNum", blockNum)
-	}
 	evts, err := l.conn.GetEvents(blockNum)
 	if err != nil {
 		for i := 0; i < EventRetryLimit; i++ {
