@@ -78,14 +78,14 @@ func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddrs [
 
 //generate unsigned unDelegate tx
 func (c *Client) GenMultiSigRawUnDelegateTxV2(delAddr types.AccAddress, valAddrs []types.ValAddress,
-	 amounts map[string]types.Int) ([]byte, error) {
+	amounts map[string]types.Int) ([]byte, error) {
 
 	if len(valAddrs) == 0 {
 		return nil, errors.New("no valAddrs")
 	}
 	msgs := make([]types.Msg, 0)
 	for _, valAddr := range valAddrs {
-		amount:=types.NewCoin(c.GetDenom(), amounts[valAddr.String()])
+		amount := types.NewCoin(c.GetDenom(), amounts[valAddr.String()])
 		if amount.IsZero() {
 			return nil, errors.New("amount is zero")
 		}
@@ -238,8 +238,6 @@ func (c *Client) GenMultiSigRawDeleRewardTx(delAddr types.AccAddress, height int
 
 	return c.GenMultiSigRawTx(msgs...)
 }
-
-
 
 //c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {

@@ -51,7 +51,7 @@ func init() {
 }
 
 func TestConnection_TransferVerify(t *testing.T) {
-	conn := Connection{sc: sc, gc: gc, log: tlog, rsymbol: core.RKSM, stop: make(chan int)}
+	conn := Connection{sc: sc, gc: gc, log: tlog, symbol: core.RKSM, stop: make(chan int)}
 	pool, _ := hexutil.Decode("0x0777f13da6fead588d8662fd63336b0008c4fbe4749e18779c1a4bd89ea50141")
 	bonder, _ := hexutil.Decode("0xb2a90bcb80498a3286b57fadef0f1d2d0dabba41f977fe8f5117da9983a2592a")
 	pubkey, _ := hexutil.Decode("0xb2a90bcb80498a3286b57fadef0f1d2d0dabba41f977fe8f5117da9983a2592a")

@@ -45,8 +45,8 @@ func NewClient(k keyring.Keyring, chainId, fromName, gasPrice, denom, endPoint s
 		WithBroadcastMode(flags.BroadcastBlock).
 		WithChainID(chainId).
 		WithClient(rpcClient).
-		WithSkipConfirmation(true). //skip password confirm
-		WithFromName(fromName). //keyBase need FromName to find key info
+		WithSkipConfirmation(true).         //skip password confirm
+		WithFromName(fromName).             //keyBase need FromName to find key info
 		WithFromAddress(info.GetAddress()). //accountRetriever need FromAddress
 		WithKeyring(k)
 

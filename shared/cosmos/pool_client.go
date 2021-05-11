@@ -81,4 +81,3 @@ func (pc *PoolClient) GetCurrentEra() (int64, uint32, error) {
 	era := uint32(height / pc.eraBlockNumber)
 	return height, era, nil
 }
-

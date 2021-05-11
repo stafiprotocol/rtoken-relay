@@ -96,7 +96,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
-		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
+		if err.Error() != fmt.Sprintf("era of symbol %s not exist", snap.Symbol) {
 			if l.cared(snap.Symbol) {
 				l.log.Error("failed to get CurrentChainEra", "error", err)
 			}
@@ -145,7 +145,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
-		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
+		if err.Error() != fmt.Sprintf("era of symbol %s not exist", snap.Symbol) {
 			if l.cared(snap.Symbol) {
 				l.log.Error("failed to get CurrentChainEra", "error", err)
 			}
@@ -195,7 +195,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
-		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
+		if err.Error() != fmt.Sprintf("era of symbol %s not exist", snap.Symbol) {
 			if l.cared(snap.Symbol) {
 				l.log.Error("failed to get CurrentChainEra", "error", err)
 			}
@@ -244,7 +244,7 @@ func (l *listener) processActiveReportedEvtForRAtom(evt *submodel.ChainEvent) (*
 
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
-		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
+		if err.Error() != fmt.Sprintf("era of symbol %s not exist", snap.Symbol) {
 			if l.cared(snap.Symbol) {
 				l.log.Error("failed to get CurrentChainEra", "error", err)
 			}
@@ -300,7 +300,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 
 	curEra, err := l.conn.CurrentChainEra(snap.Symbol)
 	if err != nil {
-		if err.Error() != fmt.Sprintf("era of rsymbol %s not exist", snap.Symbol) {
+		if err.Error() != fmt.Sprintf("era of symbol %s not exist", snap.Symbol) {
 			if l.cared(snap.Symbol) {
 				l.log.Error("failed to get CurrentChainEra", "error", err)
 			}
@@ -365,15 +365,9 @@ func (l *listener) processTransferReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
-	_, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
-	if err != nil {
-		return nil, err
-	}
-
 	flow.Snap = snap
 	flow.Receives = receives
 	flow.TotalAmount = total
-	flow.SubAccounts = sub
 
 	return flow, nil
 }

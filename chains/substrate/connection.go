@@ -25,13 +25,14 @@ import (
 
 type Connection struct {
 	url     string
-	rsymbol core.RSymbol
+	symbol  core.RSymbol
 	sc      *substrate.SarpcClient
 	gc      *substrate.GsrpcClient
 	keys    []*signature.KeyringPair
 	gcs     map[*signature.KeyringPair]*substrate.GsrpcClient
 	log     log15.Logger
 	stop    <-chan int
+	lastKey *signature.KeyringPair
 }
 
 var (
@@ -39,6 +40,9 @@ var (
 	NotExistError       = errors.New("not exist")
 	BlockInterval       = 6 * time.Second
 	WaitUntilFinalized  = 10 * BlockInterval
+
+	WsRetryLimit    = 240
+	WsRetryInterval = 500 * time.Millisecond
 )
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -69,8 +73,11 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 	keys := make([]*signature.KeyringPair, 0)
 	gcs := make(map[*signature.KeyringPair]*substrate.GsrpcClient)
-	for _, account := range cfg.Accounts {
-		kp, err := keystore.KeypairFromAddress(account, keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
+
+	acSize := len(cfg.Accounts)
+	var lk *signature.KeyringPair
+	for i := 0; i < acSize; i++ {
+		kp, err := keystore.KeypairFromAddress(cfg.Accounts[i], keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
 		if err != nil {
 			return nil, err
 		}
@@ -81,6 +88,10 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		}
 		keys = append(keys, krp)
 		gcs[krp] = gc
+
+		if cfg.Symbol != core.RFIS && i+1 == acSize {
+			lk = krp
+		}
 	}
 
 	if len(keys) == 0 {
@@ -89,13 +100,14 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 	return &Connection{
 		url:     cfg.Endpoint,
-		rsymbol: cfg.Symbol,
+		symbol:  cfg.Symbol,
 		log:     log,
 		stop:    stop,
 		sc:      sc,
 		gc:      gcs[keys[0]],
 		keys:    keys,
 		gcs:     gcs,
+		lastKey: lk,
 	}, nil
 }
 
@@ -268,7 +280,7 @@ func (c *Connection) CurrentEra() (uint32, error) {
 	}
 
 	if !exist {
-		return 0, fmt.Errorf("unable to get activeEraInfo for: %s", c.rsymbol)
+		return 0, fmt.Errorf("unable to get activeEraInfo for: %s", c.symbol)
 	}
 
 	return index, nil
@@ -399,12 +411,25 @@ func (c *Connection) TransferCall(recipient []byte, value types.UCompact) (*subm
 	return c.gc.TransferCall(recipient, value)
 }
 
+func (c *Connection) LastKey() *signature.KeyringPair {
+	return c.lastKey
+}
+
 func (c *Connection) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
 	return c.gc.NominateCall(validators)
 }
 
-func (c *Connection) PaymentQueryInfo(ext string) (*rpc.PaymentQueryInfo, error) {
-	return c.sc.GetPaymentQueryInfo(ext)
+func (c *Connection) PaymentQueryInfo(ext string) (info *rpc.PaymentQueryInfo, err error) {
+	for i := 0; i < WsRetryLimit; i++ {
+		info, err = c.sc.GetPaymentQueryInfo(ext)
+		if err == nil {
+			return
+		}
+
+		time.Sleep(WsRetryInterval)
+	}
+
+	return
 }
 
 func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
@@ -425,7 +450,7 @@ func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
 func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	gc := c.gcs[flow.Key]
 	if gc == nil {
-		panic(fmt.Sprintf("key disappear: %s, symbol: %s", hexutil.Encode(flow.Key.PublicKey), c.rsymbol))
+		panic(fmt.Sprintf("key disappear: %s, symbol: %s", hexutil.Encode(flow.Key.PublicKey), c.symbol))
 	}
 
 	l := len(flow.OpaqueCalls)

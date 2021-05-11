@@ -161,7 +161,7 @@ func (w *writer) processSubmitSignature(m *core.Message) bool {
 		return false
 	}
 	result := w.conn.submitSignature(&param)
-	w.log.Info("submitSignature", "rsymbol", m.Source, "result", result)
+	w.log.Info("submitSignature", "symbol", m.Source, "result", result)
 	return result
 }
 
@@ -494,7 +494,12 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 	mef.Key, mef.Others = key, others
 
-	call, err := w.conn.TransferCall(key.PublicKey, types.NewUCompact(flow.TotalAmount.Int))
+	lastKey := w.conn.LastKey()
+	if lastKey == nil {
+		w.sysErr <- fmt.Errorf("processWithdrawReportedEvent: last key is nil, pool: %s, symbol: %s", hexutil.Encode(flow.Snap.Pool), flow.Snap.Symbol)
+		return false
+	}
+	call, err := w.conn.TransferCall(lastKey.PublicKey, types.NewUCompact(flow.TotalAmount.Int))
 	if err != nil {
 		w.log.Error("TransferCall error", "symbol", m.Source)
 		return false
@@ -514,7 +519,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	w.log.Info("processWithdrawReportedEvent: event set", "callHash", callhash)
 
 	if flow.LastVoterFlag {
-		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: key.Address, Era: fmt.Sprint(flow.Snap.Era)}
+		tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: lastKey.Address, Era: fmt.Sprint(flow.Snap.Era)}
 		w.log.Info("processWithdrawReportedEvent: lastVoter prepare to create transfer back", "TransferBack", *tb)
 		err := CreateTransferback(w.transferRecord, tb)
 		if err != nil {
@@ -566,10 +571,10 @@ func (w *writer) processTransferReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	key, _ := w.conn.FoundFirstSubAccount(flow.SubAccounts)
+	key := w.conn.LastKey()
 	if key == nil {
-		w.log.Info("TransferReportedEvent ignored for no key")
-		return true
+		w.sysErr <- fmt.Errorf("processTransferReportedEvent: last key is nil, pool: %s, symbol: %s", hexutil.Encode(flow.Snap.Pool), flow.Snap.Symbol)
+		return false
 	}
 
 	tb := &TransferBack{Symbol: string(flow.Symbol), Pool: hexutil.Encode(flow.Snap.Pool), Address: key.Address, Era: fmt.Sprint(flow.Snap.Era)}
@@ -745,11 +750,11 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 
 	err := w.conn.AsMulti(evt)
 	if err != nil {
-		w.log.Error("AsMulti error", "err", err, "callHash", flow.CallHash.Hex())
+		w.log.Error("AsMulti error", "err", err, "callHash", flow.CallHashStr)
 		return false
 	}
 
-	w.log.Info("AsMulti success", "callHash", flow.CallHash)
+	w.log.Info("AsMulti success", "callHash", flow.CallHashStr)
 	return true
 }
 

@@ -279,12 +279,12 @@ type WithdrawReportedFlow struct {
 }
 
 type TransferReportedFlow struct {
-	Symbol      core.RSymbol
-	ShotId      types.Hash
-	Snap        *PoolSnapshot
-	Receives    []*Receive
-	TotalAmount types.U128
-	SubAccounts []types.Bytes
+	Symbol        core.RSymbol
+	ShotId        types.Hash
+	Snap          *PoolSnapshot
+	LastVoterFlag bool
+	Receives      []*Receive
+	TotalAmount   types.U128
 }
 
 type NominationUpdatedFlow struct {
