@@ -98,12 +98,13 @@ func TestSarpcClient_GetExtrinsics(t *testing.T) {
 }
 
 func TestSarpcClient_GetExtrinsics1(t *testing.T) {
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
 	assert.NoError(t, err)
 
 	/// polkadot-test
-	exts, err := sc.GetExtrinsics("0x9e4810599ef1ad3a59c916c0bbb16e06252d868a30ee6b3707cb37e775b854ac")
+	exts, err := sc.GetExtrinsics("0xf85b3498c32e3944ddd301b919b110316aa0285d383c9d8dfd351eecce61b2be")
 	assert.NoError(t, err)
 	//exts, err := sc.GetExtrinsics("0x3d55fb40d3ac4f96373f5d2d9860154145c09df9b5b83a88062014cea0da5ad3")
 
