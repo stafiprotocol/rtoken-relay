@@ -1,9 +1,10 @@
 package polkadot
 
 import (
+	"github.com/itering/scale.go/types"
 	"testing"
 )
 
 func TestRegCustomTypes(t *testing.T) {
-	RuntimeType{}.Reg()
+	types.RuntimeType{}.Reg()
 }

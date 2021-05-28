@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/huandu/xstrings"
+	"github.com/itering/scale.go/utiles"
+	"github.com/itering/scale.go/utiles/crypto/ethereum"
+	"github.com/itering/scale.go/utiles/uint128"
+	"github.com/shopspring/decimal"
 	"io"
 	"math"
 	"math/big"
@@ -11,13 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/huandu/xstrings"
-	"github.com/itering/scale.go/utiles"
-	"github.com/itering/scale.go/utiles/crypto/ethereum"
-	"github.com/itering/scale.go/utiles/uint128"
-	"github.com/shopspring/decimal"
-	"github.com/stafiprotocol/rtoken-relay/types"
 )
 
 type HexBytes struct {
@@ -195,14 +193,31 @@ func (v *Vec) Init(data ScaleBytes, option *ScaleDecoderOption) {
 func (v *Vec) Process() {
 	elementCount := v.ProcessAndUpdateData("Compact<u32>").(int)
 	var result []interface{}
-	if elementCount > 20000 {
-		panic(fmt.Sprintf("Vec length %d exceeds %d", elementCount, 1000))
+	if elementCount > 50000 {
+		panic(fmt.Sprintf("Vec length %d exceeds %d", elementCount, 50000))
 	}
 	for i := 0; i < elementCount; i++ {
 		element := v.ProcessAndUpdateData(v.SubType)
 		result = append(result, element)
 	}
 	v.Value = result
+}
+
+type BoundedVec struct {
+	Vec
+}
+
+// BoundedVec<Type, Size> to Vec<Type>
+// https://github.com/paritytech/substrate/pull/8556
+func (v *BoundedVec) Init(data ScaleBytes, option *ScaleDecoderOption) {
+	if option != nil {
+		if BoundedArr := strings.Split(option.SubType, ","); len(BoundedArr) > 2 {
+			size := BoundedArr[len(BoundedArr)-1]
+			v.SubType = strings.Replace(option.SubType, fmt.Sprintf(",%s", size), "", 1)
+			option.SubType = v.SubType
+		}
+	}
+	v.ScaleDecoder.Init(data, option)
 }
 
 type Address struct {
@@ -341,9 +356,10 @@ func (s *BoxProposal) Process() {
 		"call_name":   callModule.Call.Name,
 		"call_module": callModule.Module.Name,
 	}
-	var param []types.ExtrinsicParam
+	var param []ExtrinsicParam
+	s.Module = callModule.Module.Name
 	for _, arg := range callModule.Call.Args {
-		param = append(param, types.ExtrinsicParam{
+		param = append(param, ExtrinsicParam{
 			Name:  arg.Name,
 			Type:  arg.Type,
 			Value: s.ProcessAndUpdateData(arg.Type),
@@ -420,7 +436,7 @@ func (s *Set) Process() {
 type LogDigest struct{ Enum }
 
 func (l *LogDigest) Init(data ScaleBytes, option *ScaleDecoderOption) {
-	l.ValueList = []string{"Other", "AuthoritiesChange", "ChangesTrieRoot", "SealV0", "Consensus", "Seal", "PreRuntime"}
+	l.ValueList = []string{"Other", "AuthoritiesChange", "ChangesTrieRoot", "SealV0", "Consensus", "Seal", "PreRuntime", "ChangesTrieSignal"}
 	l.Enum.Init(data, option)
 }
 
@@ -612,9 +628,10 @@ func (s *Call) Process() {
 		"call_name":   callModule.Call.Name,
 		"call_module": callModule.Module.Name,
 	}
-	var param []types.ExtrinsicParam
+	var param []ExtrinsicParam
+	s.Module = callModule.Module.Name
 	for _, arg := range callModule.Call.Args {
-		param = append(param, types.ExtrinsicParam{
+		param = append(param, ExtrinsicParam{
 			Name:  arg.Name,
 			Type:  arg.Type,
 			Value: s.ProcessAndUpdateData(arg.Type),
@@ -781,3 +798,13 @@ func (b *BTreeMap) Process() {
 	}
 	b.Value = result
 }
+
+type Box struct {
+	ScaleDecoder
+}
+
+func (b *Box) Process() {
+	b.Value = b.ProcessAndUpdateData(b.SubType)
+}
+
+type BTreeSet struct{ Vec }

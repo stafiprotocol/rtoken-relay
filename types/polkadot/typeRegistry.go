@@ -3,15 +3,16 @@ package polkadot
 import (
 	"errors"
 	"fmt"
+	"github.com/itering/scale.go/source"
+	"github.com/itering/scale.go/utiles"
 	"reflect"
 	"regexp"
 	"strings"
-
-	"github.com/itering/scale.go/source"
-	"github.com/itering/scale.go/utiles"
 )
 
-type RuntimeType struct{}
+type RuntimeType struct {
+	Module string
+}
 
 type Special struct {
 	Version  []int
@@ -41,6 +42,7 @@ func (r RuntimeType) Reg() *RuntimeType {
 		&Enum{},
 		&Bytes{},
 		&Vec{},
+		&BoundedVec{},
 		&Set{},
 		&CompactU32{},
 		&Bool{},
@@ -101,18 +103,24 @@ func (r RuntimeType) Reg() *RuntimeType {
 		&MetadataV7Decoder{},
 		&MetadataV7Module{},
 		&MetadataV7ModuleStorage{},
+		&MetadataV13ModuleStorage{},
 		&MetadataV7ModuleConstants{},
 		&MetadataV7ModuleStorageEntry{},
+		&MetadataV13ModuleStorageEntry{},
 		&MetadataV8Module{},
-		&MetadataV8Decoder{},
-		&MetadataV9Decoder{},
-		&MetadataV10Decoder{},
+		// &MetadataV8Decoder{},
+		// &MetadataV9Decoder{},
+		// &MetadataV10Decoder{},
 		&MetadataV11Decoder{},
 		&MetadataV12Decoder{},
+		&MetadataV13Decoder{},
 		&MetadataV12Module{},
+		&MetadataV13Module{},
 		&MetadataModuleError{},
 		&GenericLookupSource{},
 		&BTreeMap{},
+		&BTreeSet{},
+		&Box{},
 	}
 	for _, class := range scales {
 		valueOf := reflect.ValueOf(class)
@@ -148,12 +156,13 @@ func (r RuntimeType) Reg() *RuntimeType {
 
 func (r *RuntimeType) getCodecInstant(t string, spec int) (reflect.Type, reflect.Value, error) {
 	t = strings.ToLower(t)
+	t = r.overrideModuleType(t)
 	rt, err := r.specialVersionCodec(t, spec)
 
 	if err != nil {
 		rt = TypeRegistry[strings.ToLower(t)]
-		if rt == nil && t != "[]" && string(t[0]) == "[" && string(t[len(t)-1:]) == "]" {
-			if typePart := strings.Split(string(t[1:len(t)-1]), ";"); len(typePart) == 2 {
+		if rt == nil && t != "[]" && string(t[0]) == "[" && t[len(t)-1:] == "]" {
+			if typePart := strings.Split(t[1:len(t)-1], ";"); len(typePart) == 2 {
 				fixed := FixedLengthArray{
 					FixedLength: utiles.StringToInt(strings.TrimSpace(typePart[1])),
 					SubType:     strings.TrimSpace(typePart[0]),
@@ -179,6 +188,7 @@ func (r *RuntimeType) DecoderClass(typeString string, spec int) (reflect.Type, r
 	var typeParts []string
 	typeString = ConvertType(typeString, true)
 
+	// complex
 	if typeString[len(typeString)-1:] == ">" {
 		decoderClass, rc, err := r.getCodecInstant(typeString, spec)
 		if err == nil {
@@ -200,6 +210,7 @@ func (r *RuntimeType) DecoderClass(typeString string, spec int) (reflect.Type, r
 		}
 	}
 
+	// Tuple
 	if typeString != "()" && string(typeString[0]) == "(" && typeString[len(typeString)-1:] == ")" {
 		decoderClass, rc, _ := r.getCodecInstant("Struct", spec)
 		s := rc.Interface().(*Struct)
@@ -207,6 +218,16 @@ func (r *RuntimeType) DecoderClass(typeString string, spec int) (reflect.Type, r
 		s.buildStruct()
 		return decoderClass, rc, ""
 	}
+
+	// namespace
+	if strings.Contains(typeString, "::") && typeString != "::" {
+		namespaceSlice := strings.Split(typeString, "::")
+		class, rc, err := r.getCodecInstant(namespaceSlice[len(namespaceSlice)-1], spec)
+		if err == nil {
+			return class, rc, ""
+		}
+	}
+
 	return nil, reflect.ValueOf((*error)(nil)).Elem(), ""
 }
 
@@ -222,4 +243,25 @@ func (r *RuntimeType) specialVersionCodec(t string, spec int) (interface{}, erro
 		}
 	}
 	return rt, fmt.Errorf("not found")
+}
+
+var typesModules = map[string]map[string]string{
+	"parasInclusion": {"validatorindex": "ParaValidatorIndex"},
+	"inclusion":      {"validatorindex": "ParaValidatorIndex"},
+	"parasScheduler": {"validatorindex": "ParaValidatorIndex"},
+	"parasShared":    {"validatorindex": "ParaValidatorIndex"},
+	"scheduler":      {"validatorindex": "ParaValidatorIndex"},
+	"shared":         {"validatorindex": "ParaValidatorIndex"},
+	"assets":         {"approval": "AssetApproval", "approvalkey": "AssetApprovalKey", "balance": "TAssetBalance", "destroywitness": "AssetDestroyWitness"},
+}
+
+func (r *RuntimeType) overrideModuleType(t string) string {
+	moduleTypes, ok := typesModules[strings.ToLower(r.Module)]
+	if !ok {
+		return t
+	}
+	if overrideType, ok := moduleTypes[t]; ok {
+		return overrideType
+	}
+	return t
 }

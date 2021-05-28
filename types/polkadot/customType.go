@@ -1,11 +1,10 @@
 package polkadot
 
 import (
-	"regexp"
-	"strings"
-
 	"github.com/itering/scale.go/source"
 	"github.com/itering/scale.go/utiles"
+	"regexp"
+	"strings"
 )
 
 func newStruct(names, typeString []string) *TypeMapping {
