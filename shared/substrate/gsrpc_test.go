@@ -720,3 +720,21 @@ func TestGsrpcClient_QueryBondstate(t *testing.T) {
 	assert.True(t, exist)
 	assert.Equal(t, submodel.Success, bs)
 }
+
+func TestPolkaQueryStorage(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://kusama-rpc.polkadot.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	var index uint32
+	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageActiveEra, nil, nil, &index)
+	if err != nil {
+		panic(err)
+	}
+
+	if !exist {
+		panic("not exist")
+	}
+
+	t.Log(index)
+}
