@@ -26,7 +26,7 @@ var (
 	From2        = "1TgYb5x8xjsZRyL5bwvxUoAWBn36psr4viSMHbRXA8bkB2h"
 	Wen          = "1swvN162p1siDjm63UhhWoa59bpPZTSNKGVcbCwHUYkfRRW"
 	Jun          = "33RQ73d9XfPTaE2SV7dzdhQQ17YaeMQ4yzhzAQhhFVenxMuJ"
-	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys"
+	KeystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys/stafi"
 )
 
 func TestGsrpcClient(t *testing.T) {
@@ -737,4 +737,59 @@ func TestPolkaQueryStorage(t *testing.T) {
 	}
 
 	t.Log(index)
+}
+
+func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(Jun, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://kusama-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
+	assert.NoError(t, err)
+
+	//pool, err := hexutil.Decode("ac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c")
+	//assert.NoError(t, err)
+
+	threshold := uint16(2)
+	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	//jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+
+	others := []types.AccountID{
+		wen.AsAccountID,
+		bao.AsAccountID,
+	}
+
+	//for _, oth := range others {
+	//	fmt.Println(hexutil.Encode(oth[:]))
+	//}
+
+	bond, _ := utils.StringToBigint("10000000000000")
+	unbond := big.NewInt(0)
+
+	call, err := gc.BondOrUnbondCall(bond, unbond)
+	assert.NoError(t, err)
+	fmt.Println(call.Extrinsic)
+	fmt.Println(hexutil.Encode(call.Opaque))
+	h := utils.BlakeTwo256(call.Opaque)
+	fmt.Println("callHash", hexutil.Encode(h[:]))
+
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", polkaTypesFile, tlog)
+	assert.NoError(t, err)
+
+	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	assert.NoError(t, err)
+	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
+
+	optp := types.TimePoint{Height:361, Index:1}
+	tp := submodel.NewOptionTimePoint(optp)
+	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
+	err = gc.SignAndSubmitTx(ext)
+	assert.NoError(t, err)
 }

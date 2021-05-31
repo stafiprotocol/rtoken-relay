@@ -9,6 +9,7 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
+	gsrpcConfig "github.com/stafiprotocol/go-substrate-rpc-client/config"
 	"github.com/stafiprotocol/go-substrate-rpc-client/rpc/author"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -38,6 +39,8 @@ func NewGsrpcClient(endpoint, addressType string, key *signature.KeyringPair, lo
 	if err != nil {
 		return nil, err
 	}
+
+	gsrpcConfig.SetSubscribeTimeout(15*time.Second)
 
 	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
 	if err != nil {
