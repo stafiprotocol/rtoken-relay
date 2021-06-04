@@ -11,8 +11,12 @@ require (
 	github.com/huandu/xstrings v1.3.2
 	github.com/itering/scale.go v1.0.47
 	github.com/itering/substrate-api-rpc v0.3.5
+	github.com/mr-tron/base58 v1.2.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v1.2.0
 	github.com/spf13/cobra v1.1.1
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.9
 	github.com/stretchr/testify v1.7.0
