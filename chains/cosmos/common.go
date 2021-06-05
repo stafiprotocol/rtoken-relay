@@ -82,9 +82,9 @@ func ParseClaimRewardProposalId(content []byte) (shotId substrateTypes.Hash, hei
 	return
 }
 
-func GetTransferProposalId(shotId substrateTypes.Hash) []byte {
+func GetTransferProposalId(txHash [32]byte) []byte {
 	proposalId := make([]byte, 32)
-	copy(proposalId, shotId[:])
+	copy(proposalId, txHash[:])
 	return proposalId
 }
 

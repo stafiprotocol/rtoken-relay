@@ -59,7 +59,8 @@ func init() {
 		panic(err)
 	}
 
-	client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
+	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
+	client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
 	if err != nil {
 		panic(err)
 	}
@@ -387,7 +388,7 @@ func TestMaxTransfer(t *testing.T) {
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	outputs := make([]xBankTypes.Output, 0)
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 3; i++ {
 		out1 := xBankTypes.Output{
 			Address: addrReceive.String(),
 			Coins:   types.NewCoins(types.NewCoin(client.GetDenom(), types.NewInt(1))),
@@ -404,6 +405,9 @@ func TestMaxTransfer(t *testing.T) {
 	assert.NoError(t, err)
 	signature2, err := client.SignMultiSigRawTxWithSeq(sequence, rawTx, "key3")
 	assert.NoError(t, err)
+	t.Log(string(signature1))
+	t.Log(string(signature2))
+	
 
 	hash, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
 	assert.NoError(t, err)

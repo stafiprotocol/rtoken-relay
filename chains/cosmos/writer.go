@@ -3,6 +3,7 @@ package cosmos
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ChainSafe/log15"
@@ -42,7 +43,13 @@ func (w *writer) setRouter(r chains.Router) {
 }
 
 //resolve msg from other chains
-func (w *writer) ResolveMessage(m *core.Message) bool {
+func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
+	defer func() {
+		if !processOk {
+			panic(fmt.Sprintf("resolveMessage process failed. %+v", m))
+		}
+	}()
+
 	switch m.Reason {
 	case core.LiquidityBond:
 		return w.processLiquidityBond(m)
@@ -398,7 +405,8 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := GetTransferProposalId(flow.ShotId)
+
+	proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx))
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
@@ -421,7 +429,9 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	w.log.Info("processActiveReportedEvent gen unsigned transfer Tx",
 		"pool address", poolAddr.String(),
 		"out put", outPuts,
-		"proposalId", proposalIdHexStr)
+		"proposalId", proposalIdHexStr,
+		"unsignedTx", hex.EncodeToString(unSignedTx),
+		"signature", hex.EncodeToString(sigBts))
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -594,13 +604,25 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
-	txHash, txBts, err := client.AssembleMultiSigTx(wrappedUnSignedTx.UnsignedTx, signatures)
+	txHash, txBts, err := client.AssembleMultiSigTx(wrappedUnSignedTx.UnsignedTx, signatures, sigs.Threshold)
 	if err != nil {
 		w.log.Error("processSignatureEnoughEvt AssembleMultiSigTx failed",
 			"pool hex address ", poolAddrHexStr,
+			"unsignedTx", hex.EncodeToString(wrappedUnSignedTx.UnsignedTx),
+			"signatures", bytesArrayToStr(signatures),
+			"threshold", sigs.Threshold,
 			"err", err)
 		return false
 	}
 
 	return w.checkAndSend(poolClient, wrappedUnSignedTx, sigs, m, txHash, txBts)
+}
+
+func bytesArrayToStr(bts [][]byte) string {
+	ret := ""
+	for _, b := range bts {
+		ret += " | "
+		ret += hex.EncodeToString(b)
+	}
+	return ret
 }
