@@ -68,7 +68,7 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processValidatorUpdatedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
-		return false
+		return true
 	}
 }
 
