@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -584,7 +585,10 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		signatures = append(signatures, sig)
 	}
 	proposalIdHexStr := hex.EncodeToString(sigs.ProposalId)
-
+	//skip old proposalId
+	if strings.EqualFold(proposalIdHexStr, "beb42eb5b02218e5c6fcb93525ec8b9cc40898b97fd4b736c490c757c9f46e8a") {
+		return true
+	}
 	//if cached tx not exist,return false,not rebuild from proposalId
 	wrappedUnSignedTx, err := poolClient.GetWrappedUnsignedTx(proposalIdHexStr)
 	if err != nil {
