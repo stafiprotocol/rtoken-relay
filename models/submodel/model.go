@@ -504,6 +504,7 @@ type SubmitSignatures struct {
 	TxType     OriginalTx
 	ProposalId types.Bytes
 	Signature  []types.Bytes
+	Threshold  uint32
 }
 
 type SignaturesKey struct {
