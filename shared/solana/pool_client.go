@@ -3,12 +3,30 @@ package solana
 import (
 	"github.com/ChainSafe/log15"
 	solClient "github.com/tpkeeper/solana-go-sdk/client"
+	solCommon "github.com/tpkeeper/solana-go-sdk/common"
+	solTypes "github.com/tpkeeper/solana-go-sdk/types"
 )
 
 //one pool address with one poolClient
 type PoolClient struct {
-	eraBlockNumber int64
-	log            log15.Logger
-	rpcClient      *solClient.Client
-	subKeyName     string //subKey is one of pubKeys of multiSig pool address,subKeyName is subKey`s name in keyring
+	log       log15.Logger
+	rpcClient *solClient.Client
+	PoolAccounts
+}
+
+type PoolAccounts struct {
+	FeeAccount            solTypes.Account
+	StakeBaseAccount      solTypes.Account
+	MultisigTxBaseAccount solTypes.Account
+	MultisigInfoPubkey    solCommon.PublicKey
+	MultisignerPubkey     solCommon.PublicKey
+	MultisigProgramId     solCommon.PublicKey
+}
+
+func NewPoolClient(log log15.Logger, rpcClient *solClient.Client, poolAccount PoolAccounts) *PoolClient {
+	return &PoolClient{
+		log:          log,
+		rpcClient:    rpcClient,
+		PoolAccounts: poolAccount,
+	}
 }

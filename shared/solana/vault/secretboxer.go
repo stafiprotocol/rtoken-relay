@@ -16,8 +16,6 @@ package vault
 
 import (
 	"fmt"
-	"os"
-
 )
 
 type SecretBoxer interface {
@@ -31,13 +29,10 @@ func SecretBoxerForType(boxerType string) (SecretBoxer, error) {
 	case "passphrase":
 		var password string
 		var err error
-		if envVal := os.Getenv("SLNC_GLOBAL_INSECURE_VAULT_PASSPHRASE"); envVal != "" {
-			password = envVal
-		} else {
-			password, err = GetDecryptPassphrase()
-			if err != nil {
-				return nil, err
-			}
+
+		password, err = GetDecryptPassphrase()
+		if err != nil {
+			return nil, err
 		}
 
 		return NewPassphraseBoxer(password), nil
