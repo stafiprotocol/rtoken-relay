@@ -50,7 +50,7 @@ func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 	signature2, err := client.SignMultiSigRawTx(rawTx, "multisubkey2")
 	assert.NoError(t, err)
 
-	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2},2)
 	assert.NoError(t, err)
 
 	hash, err := client.BroadcastTx(tx)

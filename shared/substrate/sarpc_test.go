@@ -3,8 +3,6 @@ package substrate
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-	"testing"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -12,6 +10,8 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
+	"sync"
+	"testing"
 )
 
 var (
@@ -19,26 +19,52 @@ var (
 )
 
 const (
-	stafiTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json"
-	polkaTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/polkadot.json"
+	stafiTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json"
+	polkaTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/polkadot.json"
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
-	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
 	assert.NoError(t, err)
-
-	for i := 1; i < 1000; i++ {
-		evts, err := sc.GetEvents(uint64(i))
-		assert.NoError(t, err)
-		for _, evt := range evts {
-			fmt.Println(evt.ModuleId)
-			fmt.Println(evt.EventId)
-			fmt.Println(evt.Params)
-		}
+	if err != nil {
+		t.Fatal(err)
 	}
+	//evt, err := sc.GetEvents(7112781)
+	//assert.NoError(t, err)
+	//for _, e := range evt {
+	//	t.Log(e.EventId)
+	//}
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	for i := 0; i < 2; i++ {
+		go func(i int) {
+			if i%2 == 0 {
+				t.Log("i", i)
+				exs, err := sc.GetExtrinsics("0x6df4292f19e8bbdb1d2563d877b262dac22e4307f98b29b249f7281bf971e72e")
+
+				assert.NoError(t, err)
+				for _, e := range exs {
+					t.Log(e.ExtrinsicHash)
+				}
+			} else {
+				t.Log("i", i)
+				evt, err := sc.GetEvents(7112780)
+				assert.NoError(t, err)
+				for _, e := range evt {
+					t.Log(e.EventId)
+				}
+				t.Log("end")
+			}
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestSarpcClient_GetChainEvents1(t *testing.T) {

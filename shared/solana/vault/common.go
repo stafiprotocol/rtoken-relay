@@ -62,7 +62,7 @@ func setupWallet() (*Vault, error) {
 		return nil, fmt.Errorf("loading vault: %w", err)
 	}
 
-	boxer, err := SecretBoxerForType(v.SecretBoxWrap, viper.GetString("global-kms-gcp-keypath"))
+	boxer, err := SecretBoxerForType(v.SecretBoxWrap)
 	if err != nil {
 		return nil, fmt.Errorf("secret boxer: %w", err)
 	}

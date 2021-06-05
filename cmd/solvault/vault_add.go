@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stafiprotocol/rtoken-relay/shared/solana/vault"
@@ -33,24 +32,28 @@ var vaultAddCmd = &cobra.Command{
 		fmt.Println("Loading existing vault from file:", walletFile)
 		v, err := vault.NewVaultFromWalletFile(walletFile)
 		if err != nil {
-			fmt.Errorf("unable to load vault file: %w", err)
+			fmt.Printf("unable to load vault file: %s", err)
+			return
 		}
 
-		boxer, err := vault.SecretBoxerForType(v.SecretBoxWrap, viper.GetString("global-kms-gcp-keypath"))
+		boxer, err := vault.SecretBoxerForType(v.SecretBoxWrap)
 		if err != nil {
-			fmt.Errorf("unable to intiate boxer: %w", err)
+			fmt.Printf("unable to intiate boxer: %s", err)
+			return
 		}
 
 		err = v.Open(boxer)
 		if err != nil {
-			fmt.Errorf("unable to open vault: %w", err)
+			fmt.Printf("unable to open vault: %s", err)
+			return
 		}
 
 		v.PrintPublicKeys()
 
 		privateKeys, err := capturePrivateKeys()
 		if err != nil {
-			fmt.Errorf("failed to enter private keys: %w", err)
+			fmt.Printf("failed to enter private keys: %s", err)
+			return
 		}
 
 		var newKeys []vault.PublicKey
@@ -61,12 +64,14 @@ var vaultAddCmd = &cobra.Command{
 
 		err = v.Seal(boxer)
 		if err != nil {
-			fmt.Errorf("failed to seal vault: %w", err)
+			fmt.Printf("failed to seal vault: %s", err)
+			return
 		}
 
 		err = v.WriteToFile(walletFile)
 		if err != nil {
-			fmt.Errorf("failed to write vault file: %w", err)
+			fmt.Printf("failed to write vault file: %s", err)
+			return
 		}
 
 		vaultWrittenReport(walletFile, newKeys, len(v.KeyBag))

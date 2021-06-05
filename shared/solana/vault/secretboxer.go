@@ -26,7 +26,7 @@ type SecretBoxer interface {
 	WrapType() string
 }
 
-func SecretBoxerForType(boxerType string, keypath string) (SecretBoxer, error) {
+func SecretBoxerForType(boxerType string) (SecretBoxer, error) {
 	switch boxerType {
 	case "passphrase":
 		var password string
