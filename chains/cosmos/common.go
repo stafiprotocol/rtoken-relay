@@ -307,9 +307,16 @@ func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receiv
 		}
 		outPuts = append(outPuts, out)
 	}
+
+	//len should not be 0
 	if len(outPuts) == 0 {
 		return nil, nil, ErrNoOutPuts
 	}
+
+	//sort outPuts for the same rawTx from different relayer
+	sort.SliceStable(outPuts, func(i, j int) bool {
+		return bytes.Compare([]byte(outPuts[i].Address), []byte(outPuts[j].Address)) < 0
+	})
 
 	txBts, err := client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
 	if err != nil {
