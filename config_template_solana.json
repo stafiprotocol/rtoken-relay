@@ -1,0 +1,44 @@
+{
+  "chains": [
+    {
+      "name": "Stafi",
+      "type": "substrate",
+      "rsymbol": "RFIS",
+      "endpoint": "wss://stafi-seiya.stafi.io",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
+      "accounts": [
+        "123PKYndfZtuFaQuWkDdAgGvJwUpn6DA1WNafP738oSDvuhj"
+      ],
+      "latestBlockFlag": false,
+      "opts": {
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
+        "startBlock": "21856",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
+        "chainType": "stafi",
+        "cares": [
+          "RSOL"
+        ],
+        "addressType": "AccountId"
+      }
+    },
+    {
+      "name": "solanaTestnet",
+      "type": "solana",
+      "endpoint": "https://testnet.solana.com",
+      "rsymbol": "RSOL",
+      "accounts": [
+        "9Riwnxn53S4wmy5h5nbQN1gxTCm1EvgqB4Gc5aKDAPyc"
+      ],
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys/solana-vault.json",
+      "opts": {
+        "9Riwnxn53S4wmy5h5nbQN1gxTCm1EvgqB4Gc5aKDAPyc": {
+          "feeAccount": "4gK7CJc8EepimFR5MhhL2Bzq6vFXUyePew2ivbchrek5",
+          "stakeBaseAccount": "Gnr9LuHUh85Dt7Qr3tayXrxFAEn32jRDfsgTAyywFhyh",
+          "multisigTxBaseAccount": "ByorhXUES7EQHxx5epzgD7PM5fyorqE7L4XmAY2Qz6Vm",
+          "multisigInfoPubkey": "4eKCjYpqB4ojg1DtyeGMLEtNAsGUa9QAbPZTeK7eq4Av",
+          "multisigProgramId": "2hNMLYb3DPqTKPi1s2KuSCYNMzoJBP524JUyEiS1dTA6"
+        }
+      }
+    }
+  ]
+}

@@ -1,7 +1,9 @@
 package solana
 
 import (
+	"encoding/json"
 	"fmt"
+
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/shared/solana"
@@ -20,19 +22,24 @@ type Connection struct {
 }
 
 type PoolAccounts struct {
-	FeeAccount            string
-	StakeBaseAccount      string
-	MultisigTxBaseAccount string
-	MultisigInfoPubkey    string
-	MultisigProgramId     string
+	FeeAccount            string `json:"feeAccount"`
+	StakeBaseAccount      string `json:"stakeBaseAccount"`
+	MultisigTxBaseAccount string `json:"multisigTxBaseAccount"`
+	MultisigInfoPubkey    string `json:"multisigInfoPubkey"`
+	MultisigProgramId     string `json:"multisigProgramId"`
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
 	poolAccounts := make(map[string]PoolAccounts)
 	for _, account := range cfg.Accounts {
-		accounts, ok := cfg.Opts[account].(PoolAccounts)
-		if !ok {
-			return nil, fmt.Errorf("account %s has no poolAccounts", account)
+		paBts, err := json.Marshal(cfg.Opts[account])
+		if err != nil {
+			return nil, err
+		}
+		accounts := PoolAccounts{}
+		err = json.Unmarshal(paBts, &accounts)
+		if err != nil {
+			return nil, fmt.Errorf("account %s unmarshal poolAccounts err %s", account, err)
 		}
 		poolAccounts[account] = accounts
 	}
