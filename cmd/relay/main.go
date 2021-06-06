@@ -2,9 +2,11 @@ package main
 
 import (
 	"errors"
-	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
 	"os"
 	"strconv"
+
+	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/chains/solana"
 
 	log "github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains/substrate"
@@ -116,19 +118,26 @@ func run(ctx *cli.Context) error {
 		var newChain core.Chain
 		logger := log.Root().New("chain", chainConfig.Name)
 
-		if chain.Type == "substrate" {
+		switch chain.Type {
+		case "substrate":
 			newChain, err = substrate.InitializeChain(chainConfig, logger, sysErr)
 			if err != nil {
 				return err
 			}
-		} else if chain.Type == "cosmos" {
+		case "cosmos":
 			newChain, err = cosmos.InitializeChain(chainConfig, logger, sysErr)
 			if err != nil {
 				return err
 			}
-		} else {
+		case "solana":
+			newChain, err = solana.InitializeChain(chainConfig, logger, sysErr)
+			if err != nil {
+				return err
+			}
+		default:
 			return errors.New("unrecognized Chain Type")
 		}
+
 		c.AddChain(newChain)
 	}
 

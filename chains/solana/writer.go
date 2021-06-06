@@ -1,8 +1,11 @@
 package solana
 
 import (
+	"fmt"
+
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains"
+	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
 //write to solana
@@ -11,4 +14,37 @@ type writer struct {
 	router chains.Router
 	log    log15.Logger
 	sysErr chan<- error
+}
+
+func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
+	return &writer{
+		conn:   conn,
+		log:    log,
+		sysErr: sysErr,
+	}
+}
+
+func (w *writer) setRouter(r chains.Router) {
+	w.router = r
+}
+
+
+func (w *writer) start() error {
+	return nil
+}
+
+//resolve msg from other chains
+func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
+	defer func() {
+		if !processOk {
+			panic(fmt.Sprintf("resolveMessage process failed. %+v", m))
+		}
+	}()
+
+	switch m.Reason {
+
+	default:
+		w.log.Warn("message reason unsupported", "reason", m.Reason)
+		return true
+	}
 }
