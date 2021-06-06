@@ -75,7 +75,7 @@ func setupWallet() (*Vault, error) {
 }
 
 func GetDecryptPassphrase() (string, error) {
-	passphrase, err := GetPassword("Enter passphrase to decrypt your vault: ")
+	passphrase, err := GetPassword("Enter passphrase to decrypt your solana vault: ")
 	if err != nil {
 		return "", fmt.Errorf("reading password: %s", err)
 	}
@@ -83,7 +83,7 @@ func GetDecryptPassphrase() (string, error) {
 	return passphrase, nil
 }
 func GetEncryptPassphrase() (string, error) {
-	passphrase, err := GetPassword("Enter passphrase to encrypt your vault: ")
+	passphrase, err := GetPassword("Enter passphrase to encrypt your solana vault: ")
 	if err != nil {
 		return "", fmt.Errorf("reading password: %s", err)
 	}
