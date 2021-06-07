@@ -30,3 +30,7 @@ func NewPoolClient(log log15.Logger, rpcClient *solClient.Client, poolAccount Po
 		PoolAccounts: poolAccount,
 	}
 }
+
+func (p *PoolClient) GetRpcClient() *solClient.Client {
+	return p.rpcClient
+}

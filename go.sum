@@ -922,6 +922,8 @@ github.com/tpkeeper/solana-go-sdk v0.0.1 h1:33uMGKeqd2yx71dSO5CACwlqwW7peFJxWOMj
 github.com/tpkeeper/solana-go-sdk v0.0.1/go.mod h1:wzWOdCYIbddyyZPp7gaK4eugJBbpYqg2APy8D8ovyJQ=
 github.com/tpkeeper/solana-go-sdk v0.0.2 h1:rTsJG3W0G5mGm4PzzdohCygPBFLl+PE2omsnqDA9iD0=
 github.com/tpkeeper/solana-go-sdk v0.0.2/go.mod h1:dIzeQwN/wDj/98Afuhdh6/4Xr2kZUAmcVNUz0y1D/xw=
+github.com/tpkeeper/solana-go-sdk v0.0.3 h1:CJs2/5LpxvmPQ3VkD+e4w19z3T6GcjzBGto2MPWfXUo=
+github.com/tpkeeper/solana-go-sdk v0.0.3/go.mod h1:dIzeQwN/wDj/98Afuhdh6/4Xr2kZUAmcVNUz0y1D/xw=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926 h1:G3dpKMzFDjgEh2q1Z7zUUtKa8ViPtH+ocF0bE0g00O8=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef h1:wHSqTBrZW24CsNJDfeh9Ex6Pm0Rcpc7qrgKBiL44vF4=

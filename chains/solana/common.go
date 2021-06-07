@@ -1,8 +1,12 @@
 package solana
 
 import (
+	"fmt"
+
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	solClient "github.com/tpkeeper/solana-go-sdk/client"
+	solCommon "github.com/tpkeeper/solana-go-sdk/common"
 )
 
 func (w *writer) printContentError(m *core.Message, err error) {
@@ -28,4 +32,29 @@ func (w *writer) informChain(source, dest core.RSymbol, flow *submodel.MultiEven
 func (w *writer) activeReport(source, dest core.RSymbol, flow *submodel.BondReportedFlow) bool {
 	msg := &core.Message{Source: source, Destination: dest, Reason: core.ActiveReport, Content: flow}
 	return w.submitMessage(msg)
+}
+
+type MultisigTxType string
+
+var MultisigTxStakeType = MultisigTxType("stake")
+var MultisigTxUnStakeType = MultisigTxType("unstake")
+var MultisigTxWithdrawType = MultisigTxType("withdraw")
+var MultisigTxTransferType = MultisigTxType("transfer")
+
+func GetMultisigTxAccountPubkey(baseAccount solCommon.PublicKey, txType MultisigTxType, era uint32) (string, solCommon.PublicKey) {
+	seed := fmt.Sprintf("multisig:%s:%d", txType, era)
+	return seed, solCommon.CreateWithSeed(baseAccount, seed, solCommon.MultisigProgramID)
+}
+
+func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (string, solCommon.PublicKey) {
+	seed := fmt.Sprintf("stake:%d", era)
+	return seed, solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID)
+}
+
+var GetAccountInfoConfigDefault = solClient.GetAccountInfoConfig{
+	Encoding: solClient.GetAccountInfoConfigEncodingBase64,
+	DataSlice: solClient.GetAccountInfoConfigDataSlice{
+		Offset: 0,
+		Length: 200,
+	},
 }

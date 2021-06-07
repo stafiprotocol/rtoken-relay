@@ -42,6 +42,8 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processLiquidityBond(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
+	case core.EraPoolUpdated:
+		return w.processEraPoolUpdatedEvt(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true

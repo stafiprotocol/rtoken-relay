@@ -3,6 +3,7 @@ package solana
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -154,4 +155,11 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	}
 
 	return submodel.Pass, nil
+}
+
+func (c *Connection) GetPoolClient(poolAddrHexStr string) (*solana.PoolClient, error) {
+	if sub, exist := c.poolClients[poolAddrHexStr]; exist {
+		return sub, nil
+	}
+	return nil, errors.New("subClient of this pool not exist")
 }
