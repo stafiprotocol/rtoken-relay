@@ -29,10 +29,6 @@ func (w *writer) setRouter(r chains.Router) {
 }
 
 
-func (w *writer) start() error {
-	return nil
-}
-
 //resolve msg from other chains
 func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	defer func() {
@@ -42,9 +38,16 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	}()
 
 	switch m.Reason {
-
+	case core.LiquidityBond:
+		return w.processLiquidityBond(m)
+	case core.BondedPools:
+		return w.processBondedPools(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true
 	}
+}
+
+func (w *writer) processBondedPools(m *core.Message) bool {
+	return true
 }
