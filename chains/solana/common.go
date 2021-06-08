@@ -41,14 +41,14 @@ var MultisigTxUnStakeType = MultisigTxType("unstake")
 var MultisigTxWithdrawType = MultisigTxType("withdraw")
 var MultisigTxTransferType = MultisigTxType("transfer")
 
-func GetMultisigTxAccountPubkey(baseAccount solCommon.PublicKey, txType MultisigTxType, era uint32) (string, solCommon.PublicKey) {
+func GetMultisigTxAccountPubkey(baseAccount solCommon.PublicKey, txType MultisigTxType, era uint32) (solCommon.PublicKey, string) {
 	seed := fmt.Sprintf("multisig:%s:%d", txType, era)
-	return seed, solCommon.CreateWithSeed(baseAccount, seed, solCommon.MultisigProgramID)
+	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.MultisigProgramID), seed
 }
 
-func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (string, solCommon.PublicKey) {
+func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solCommon.PublicKey, string) {
 	seed := fmt.Sprintf("stake:%d", era)
-	return seed, solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID)
+	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
 }
 
 var GetAccountInfoConfigDefault = solClient.GetAccountInfoConfig{

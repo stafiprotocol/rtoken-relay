@@ -44,6 +44,8 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processBondedPools(m)
 	case core.EraPoolUpdated:
 		return w.processEraPoolUpdatedEvt(m)
+	case core.BondReportEvent:
+		return w.processBondReportEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true
@@ -53,3 +55,5 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 func (w *writer) processBondedPools(m *core.Message) bool {
 	return true
 }
+
+

@@ -67,12 +67,12 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	//check exist and create
-	stakeAccountSeed, stakeAccountPubkey := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, snap.Era)
+	stakeAccountPubkey, stakeAccountSeed := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, snap.Era)
 	multisigTxtype := MultisigTxStakeType
 	if bondCmpUnbondResult < 0 {
 		multisigTxtype = MultisigTxUnStakeType
 	}
-	multisigTxAccountSeed, multisigTxAccountPubkey := GetMultisigTxAccountPubkey(poolClient.MultisigTxBaseAccount.PublicKey, multisigTxtype, snap.Era)
+	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(poolClient.MultisigTxBaseAccount.PublicKey, multisigTxtype, snap.Era)
 	rpcClient := poolClient.GetRpcClient()
 	miniMumBalanceForStake, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 200)
 	if err != nil {

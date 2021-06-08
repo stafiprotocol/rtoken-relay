@@ -19,6 +19,7 @@ import (
 )
 
 type Connection struct {
+	currentEra  uint32
 	endpoint    string
 	queryClient *solClient.Client
 	symbol      core.RSymbol
@@ -162,4 +163,8 @@ func (c *Connection) GetPoolClient(poolAddrHexStr string) (*solana.PoolClient, e
 		return sub, nil
 	}
 	return nil, errors.New("subClient of this pool not exist")
+}
+
+func (c *Connection) GetCurrentEra() uint32 {
+	return c.currentEra
 }
