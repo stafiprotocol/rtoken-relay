@@ -5,7 +5,6 @@ import (
 
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
 	solCommon "github.com/tpkeeper/solana-go-sdk/common"
 )
 
@@ -49,12 +48,4 @@ func GetMultisigTxAccountPubkey(baseAccount solCommon.PublicKey, txType Multisig
 func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solCommon.PublicKey, string) {
 	seed := fmt.Sprintf("stake:%d", era)
 	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
-}
-
-var GetAccountInfoConfigDefault = solClient.GetAccountInfoConfig{
-	Encoding: solClient.GetAccountInfoConfigEncodingBase64,
-	DataSlice: solClient.GetAccountInfoConfigDataSlice{
-		Offset: 0,
-		Length: 200,
-	},
 }

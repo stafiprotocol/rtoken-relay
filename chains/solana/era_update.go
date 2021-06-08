@@ -90,7 +90,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return false
 	}
 
-	_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58(), GetAccountInfoConfigDefault)
+	_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 	if err != nil {
 		if err == solClient.ErrAccountNotFound {
 			//send from  relayers
@@ -157,7 +157,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	var deactiveInstruction solTypes.Instruction
 
 	validatorPubkey := solCommon.PublicKeyFromString("5MMCR4NbTZqjthjLGywmeT66iwE9J9f7kjtxzJjwfUx2")
-	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58(), GetAccountInfoConfigDefault)
+	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil {
 		if err == solClient.ErrAccountNotFound {
 			res, err := rpcClient.GetRecentBlockhash(context.Background())

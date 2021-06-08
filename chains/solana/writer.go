@@ -46,6 +46,8 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processEraPoolUpdatedEvt(m)
 	case core.BondReportEvent:
 		return w.processBondReportEvent(m)
+	case core.ActiveReportedEvent:
+		return w.processActiveReportedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true

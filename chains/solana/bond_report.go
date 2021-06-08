@@ -32,7 +32,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	activeTotal := int64(0)
 	//get base account
 	accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(),
-		poolClient.StakeBaseAccount.PublicKey.ToBase58(), GetAccountInfoConfigDefault)
+		poolClient.StakeBaseAccount.PublicKey.ToBase58())
 
 	if err != nil {
 		w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
@@ -42,11 +42,11 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	activeTotal += accountInfo.Info.Stake.Delegation.Stake
+	activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 	//get derived account
 	for i := uint32(0); i < 10; i++ {
 		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
-		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58(), GetAccountInfoConfigDefault)
+		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 		if err != nil {
 			if err == solClient.ErrAccountNotFound {
 				continue
@@ -60,24 +60,15 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		}
 
 		//filter account used to stake
-		if accountInfo.Type == 2 {
-			activeTotal += accountInfo.Info.Stake.Delegation.Stake
+		if accountInfo.StakeAccount.Type == 2 {
+			activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 		}
 	}
 
-	//get stake address of laster 10 era
 
-	f := submodel.BondReportedFlow{
-		Symbol: flow.Symbol,
-		ShotId: flow.ShotId,
-		Snap: &submodel.PoolSnapshot{
-			Era:    flow.Snap.Era,
-			Symbol: flow.Snap.Symbol,
-			Pool:   flow.Snap.Pool,
-			Active: substrateTypes.NewU128(*big.NewInt(activeTotal))},
-	}
+	flow.Snap.Active = substrateTypes.NewU128(*big.NewInt(activeTotal))
 
 	w.log.Info("active report", "pool address", poolAddrBase58Str,
 		"era", flow.Snap.Era, "active", activeTotal, "symbol", flow.Symbol)
-	return w.activeReport(flow.Symbol, core.RFIS, &f)
+	return w.activeReport(flow.Symbol, core.RFIS, flow)
 }
