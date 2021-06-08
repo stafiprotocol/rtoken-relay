@@ -151,6 +151,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		}
 	}
 
+	var transferInstruction solTypes.Instruction
+	var stakeInstruction solTypes.Instruction
+	var splitInstruction solTypes.Instruction
+	var withdrawInstruction solTypes.Instruction
+
 	validatorPubkey := solCommon.PublicKeyFromString("5MMCR4NbTZqjthjLGywmeT66iwE9J9f7kjtxzJjwfUx2")
 	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58(), GetAccountInfoConfigDefault)
 	if err != nil {
@@ -168,22 +173,10 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 				//send from o relayers
 				//create transaction account of this era
 				//todo get validator from chain
-				stakeInstruction := stakeprog.DelegateStake(stakeAccountPubkey, poolClient.MultisignerPubkey, validatorPubkey)
-				txUsedAccounts := []multisigprog.TransactionUsedAccount{
-					{Pubkey: stakeAccountPubkey, IsSigner: false, IsWritable: true},
-					{Pubkey: validatorPubkey, IsSigner: false, IsWritable: false},
-					{Pubkey: solCommon.SysVarClockPubkey, IsSigner: false, IsWritable: false},
-					{Pubkey: solCommon.SysVarStakeHistoryPubkey, IsSigner: false, IsWritable: false},
-					{Pubkey: solCommon.StakeConfigPubkey, IsSigner: false, IsWritable: false},
-					{Pubkey: poolClient.MultisignerPubkey, IsSigner: true, IsWritable: false},
-				}
 
-				transferTxUsedAccounts := []multisigprog.TransactionUsedAccount{
-					{Pubkey: poolClient.MultisignerPubkey, IsSigner: true, IsWritable: true},
-					{Pubkey: stakeAccountPubkey, IsSigner: false, IsWritable: true},
-				}
 				val := new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int)
-				transferInstruct := sysprog.Transfer(poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
+				transferInstruction = sysprog.Transfer(poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
+				stakeInstruction = stakeprog.DelegateStake(stakeAccountPubkey, poolClient.MultisignerPubkey, validatorPubkey)
 
 				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 					Instructions: []solTypes.Instruction{
@@ -198,8 +191,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 						),
 						multisigprog.CreateTransaction(
 							[]solCommon.PublicKey{solCommon.SystemProgramID, solCommon.StakeProgramID},
-							[][]multisigprog.TransactionUsedAccount{transferTxUsedAccounts, txUsedAccounts},
-							[][]byte{transferInstruct.Data, stakeInstruction.Data},
+							[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
+							[][]byte{transferInstruction.Data, stakeInstruction.Data},
 							poolClient.MultisigInfoPubkey,
 							multisigTxAccountPubkey,
 							poolClient.FeeAccount.PublicKey,
@@ -229,12 +222,12 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 					"multisig tx account", multisigTxAccountPubkey.ToBase58())
 			} else { //unstake
 				val := new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int)
-				splitInstruction := stakeprog.Split(poolClient.StakeBaseAccount.PublicKey, poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
-				txUsedAccounts := []multisigprog.TransactionUsedAccount{
-					{Pubkey: poolClient.StakeBaseAccount.PublicKey, IsSigner: false, IsWritable: true},
-					{Pubkey: stakeAccountPubkey, IsSigner: false, IsWritable: true},
-					{Pubkey: poolClient.MultisignerPubkey, IsSigner: true, IsWritable: false},
-				}
+				splitInstruction = stakeprog.Split(poolClient.StakeBaseAccount.PublicKey,
+					poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
+
+				withdrawInstruction = stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
+					poolClient.MultisignerPubkey, val.Uint64(), solCommon.PublicKey{})
+
 				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 					Instructions: []solTypes.Instruction{
 						sysprog.CreateAccountWithSeed(
@@ -247,9 +240,9 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							1000,
 						),
 						multisigprog.CreateTransaction(
-							[]solCommon.PublicKey{solCommon.StakeProgramID},
-							[][]multisigprog.TransactionUsedAccount{txUsedAccounts},
-							[][]byte{splitInstruction.Data},
+							[]solCommon.PublicKey{solCommon.StakeProgramID, solCommon.StakeProgramID},
+							[][]solTypes.AccountMeta{splitInstruction.Accounts, withdrawInstruction.Accounts},
+							[][]byte{splitInstruction.Data, withdrawInstruction.Data},
 							poolClient.MultisigInfoPubkey,
 							multisigTxAccountPubkey,
 							poolClient.FeeAccount.PublicKey,
@@ -295,25 +288,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return w.informChain(m.Destination, m.Source, mFlow)
 	}
 
-	remainingAccounts := []solTypes.AccountMeta{
-		{PubKey: solCommon.StakeProgramID, IsWritable: false, IsSigner: false},
-		{PubKey: solCommon.MultisigProgramID, IsWritable: false, IsSigner: false},
-		{PubKey: stakeAccountPubkey, IsSigner: false, IsWritable: true},
-		{PubKey: validatorPubkey, IsSigner: false, IsWritable: false},
-		{PubKey: solCommon.SysVarClockPubkey, IsSigner: false, IsWritable: false},
-		{PubKey: solCommon.SysVarStakeHistoryPubkey, IsSigner: false, IsWritable: false},
-		{PubKey: solCommon.StakeConfigPubkey, IsSigner: false, IsWritable: false},
-		{PubKey: poolClient.MultisignerPubkey, IsSigner: false, IsWritable: true},
-		{PubKey: solCommon.SystemProgramID, IsWritable: false, IsSigner: false},
-	}
-
-	if bondCmpUnbondResult < 0 {
-		remainingAccounts = []solTypes.AccountMeta{
-			{PubKey: poolClient.StakeBaseAccount.PublicKey, IsSigner: false, IsWritable: true},
-			{PubKey: stakeAccountPubkey, IsSigner: false, IsWritable: true},
-			{PubKey: poolClient.MultisignerPubkey, IsSigner: false, IsWritable: false},
-			{PubKey: solCommon.StakeProgramID, IsWritable: false, IsSigner: false},
-		}
+	var remainingAccounts []solTypes.AccountMeta
+	if bondCmpUnbondResult > 0 {
+		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{transferInstruction, stakeInstruction})
+	} else {
+		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, withdrawInstruction})
 	}
 
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
