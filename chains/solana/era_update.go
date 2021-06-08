@@ -154,7 +154,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	var transferInstruction solTypes.Instruction
 	var stakeInstruction solTypes.Instruction
 	var splitInstruction solTypes.Instruction
-	var withdrawInstruction solTypes.Instruction
+	var deactiveInstruction solTypes.Instruction
 
 	validatorPubkey := solCommon.PublicKeyFromString("5MMCR4NbTZqjthjLGywmeT66iwE9J9f7kjtxzJjwfUx2")
 	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58(), GetAccountInfoConfigDefault)
@@ -225,8 +225,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 				splitInstruction = stakeprog.Split(poolClient.StakeBaseAccount.PublicKey,
 					poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
 
-				withdrawInstruction = stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
-					poolClient.MultisignerPubkey, val.Uint64(), solCommon.PublicKey{})
+				deactiveInstruction = stakeprog.Deactivate(stakeAccountPubkey, poolClient.MultisignerPubkey)
 
 				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 					Instructions: []solTypes.Instruction{
@@ -241,8 +240,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 						),
 						multisigprog.CreateTransaction(
 							[]solCommon.PublicKey{solCommon.StakeProgramID, solCommon.StakeProgramID},
-							[][]solTypes.AccountMeta{splitInstruction.Accounts, withdrawInstruction.Accounts},
-							[][]byte{splitInstruction.Data, withdrawInstruction.Data},
+							[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
+							[][]byte{splitInstruction.Data, deactiveInstruction.Data},
 							poolClient.MultisigInfoPubkey,
 							multisigTxAccountPubkey,
 							poolClient.FeeAccount.PublicKey,
@@ -292,7 +291,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if bondCmpUnbondResult > 0 {
 		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{transferInstruction, stakeInstruction})
 	} else {
-		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, withdrawInstruction})
+		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
 	}
 
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
