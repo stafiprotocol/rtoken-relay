@@ -168,3 +168,7 @@ func (c *Connection) GetPoolClient(poolAddrHexStr string) (*solana.PoolClient, e
 func (c *Connection) GetCurrentEra() uint32 {
 	return c.currentEra
 }
+
+func (c *Connection) GetQueryClient() *solClient.Client {
+	return c.queryClient
+}
