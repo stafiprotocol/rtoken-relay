@@ -21,7 +21,7 @@ require (
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.9
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.9
-	github.com/tpkeeper/solana-go-sdk v0.1.3 // indirect
+	github.com/tpkeeper/solana-go-sdk v0.2.0 // indirect
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	gotest.tools v2.2.0+incompatible

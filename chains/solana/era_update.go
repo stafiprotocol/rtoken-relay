@@ -72,7 +72,12 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if bondCmpUnbondResult < 0 {
 		multisigTxtype = MultisigTxUnStakeType
 	}
-	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(poolClient.MultisigTxBaseAccount.PublicKey, multisigTxtype, snap.Era)
+	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
+		poolClient.MultisigTxBaseAccount.PublicKey,
+		w.multisigProgId,
+		multisigTxtype,
+		snap.Era)
+
 	rpcClient := poolClient.GetRpcClient()
 	miniMumBalanceForStake, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 200)
 	if err != nil {
@@ -184,12 +189,13 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							poolClient.FeeAccount.PublicKey,
 							multisigTxAccountPubkey,
 							poolClient.MultisigTxBaseAccount.PublicKey,
-							solCommon.MultisigProgramID,
+							w.multisigProgId,
 							multisigTxAccountSeed,
 							miniMumBalanceForTx,
 							1000,
 						),
 						multisigprog.CreateTransaction(
+							w.multisigProgId,
 							[]solCommon.PublicKey{solCommon.SystemProgramID, solCommon.StakeProgramID},
 							[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
 							[][]byte{transferInstruction.Data, stakeInstruction.Data},
@@ -233,12 +239,13 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							poolClient.FeeAccount.PublicKey,
 							multisigTxAccountPubkey,
 							poolClient.MultisigTxBaseAccount.PublicKey,
-							solCommon.MultisigProgramID,
+							w.multisigProgId,
 							multisigTxAccountSeed,
 							miniMumBalanceForTx,
 							1000,
 						),
 						multisigprog.CreateTransaction(
+							w.multisigProgId,
 							[]solCommon.PublicKey{solCommon.StakeProgramID, solCommon.StakeProgramID},
 							[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
 							[][]byte{splitInstruction.Data, deactiveInstruction.Data},
@@ -304,6 +311,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
 			multisigprog.Approve(
+				w.multisigProgId,
 				poolClient.MultisigInfoPubkey,
 				poolClient.MultisignerPubkey,
 				multisigTxAccountPubkey,

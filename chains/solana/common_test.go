@@ -9,7 +9,9 @@ import (
 
 func TestGetMultisigTxAccountPubkey(t *testing.T) {
 
-	 pubkey,seed := solana.GetMultisigTxAccountPubkey(
+	pubkey, seed := solana.GetMultisigTxAccountPubkey(
+
+		solCommon.PublicKeyFromString("Gnr9LuHUh85Dt7Qr3tayXrxFAEn32jRDfsgTAyywFhyh"),
 		solCommon.PublicKeyFromString("Gnr9LuHUh85Dt7Qr3tayXrxFAEn32jRDfsgTAyywFhyh"),
 		solana.MultisigTxStakeType,
 		119)

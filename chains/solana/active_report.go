@@ -87,7 +87,10 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 	//create multisig withdraw tx account
 	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
-		poolClient.MultisigTxBaseAccount.PublicKey, MultisigTxWithdrawType, flow.Snap.Era)
+		poolClient.MultisigTxBaseAccount.PublicKey,
+		w.multisigProgId,
+		MultisigTxWithdrawType,
+		flow.Snap.Era)
 
 	withdrawInstructions := make([]solTypes.Instruction, 0)
 	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
@@ -123,12 +126,13 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 						poolClient.FeeAccount.PublicKey,
 						multisigTxAccountPubkey,
 						poolClient.MultisigTxBaseAccount.PublicKey,
-						solCommon.MultisigProgramID,
+						w.multisigProgId,
 						multisigTxAccountSeed,
 						miniMumBalanceForTx,
 						1000,
 					),
 					multisigprog.CreateTransaction(
+						w.multisigProgId,
 						programIds,
 						accountMetas,
 						txDatas,
@@ -189,6 +193,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
 			multisigprog.Approve(
+				w.multisigProgId,
 				poolClient.MultisigInfoPubkey,
 				poolClient.MultisignerPubkey,
 				multisigTxAccountPubkey,
