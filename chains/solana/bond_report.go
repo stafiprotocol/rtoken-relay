@@ -12,6 +12,8 @@ import (
 	solClient "github.com/tpkeeper/solana-go-sdk/client"
 )
 
+//1 get accounts used to stake
+//2 active report total stake value
 func (w *writer) processBondReportEvent(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
@@ -60,11 +62,10 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		}
 
 		//filter account used to stake
-		if accountInfo.StakeAccount.Type == 2 {
+		if accountInfo.StakeAccount.IsStakeAndNoDeactive() {
 			activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 		}
 	}
-
 
 	flow.Snap.Active = substrateTypes.NewU128(*big.NewInt(activeTotal))
 

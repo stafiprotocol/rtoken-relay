@@ -3,6 +3,7 @@ package solana
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -17,6 +18,9 @@ import (
 	solTypes "github.com/tpkeeper/solana-go-sdk/types"
 )
 
+//1 get stake derived accounts which state is active and merge to base account
+//2 get stake derived accounts which state is inactive and withdraw to pool address
+//3 withdraw report to stafi
 func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -42,12 +46,17 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	currentEra := w.conn.GetCurrentEra()
 	rpcClient := poolClient.GetRpcClient()
 	//get derived account
-	canWithdrawAccounts := make(map[solCommon.PublicKey]*solClient.StakeAccountRsp, 0)
+	canWithdrawAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
+	canMergeAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
 	for i := uint32(0); i < 10; i++ {
 		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
-		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
+		accountInfo, err := rpcClient.GetStakeActivation(
+			context.Background(),
+			stakeAccountPubkey.ToBase58(),
+			solClient.GetStakeActivationConfig{})
+
 		if err != nil {
-			if err == solClient.ErrAccountNotFound {
+			if strings.Contains(err.Error(), "account not found") {
 				continue
 			} else {
 				w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
@@ -58,13 +67,15 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 			}
 		}
 
-		//filter account that has cool down
-		if accountInfo.StakeAccount.Type == 1 {
+		//filter account th
+		if accountInfo.State == solClient.StakeActivationStateInactive {
 			canWithdrawAccounts[stakeAccountPubkey] = accountInfo
+		} else if accountInfo.State == solClient.StakeActivationStateActive {
+			canMergeAccounts[stakeAccountPubkey] = accountInfo
 		}
 	}
-	//no need withdraw
-	if len(canWithdrawAccounts) == 0 {
+	//no need withdraw,just report to stafi
+	if len(canWithdrawAccounts) == 0 && len(canMergeAccounts) == 0 {
 		w.log.Info("processActiveReportedEvent no need withdraw Tx",
 			"pool address", poolAddrBase58Str,
 			"era", flow.Snap.Era,
@@ -92,7 +103,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 		MultisigTxWithdrawType,
 		flow.Snap.Era)
 
-	withdrawInstructions := make([]solTypes.Instruction, 0)
+	withdrawAndMergeInstructions := make([]solTypes.Instruction, 0)
 	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil {
 		if err == solClient.ErrAccountNotFound {
@@ -109,11 +120,25 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 			programIds := make([]solCommon.PublicKey, 0)
 			accountMetas := make([][]solTypes.AccountMeta, 0)
 			txDatas := make([][]byte, 0)
+
 			for stakeAccountPubkey, accountInfo := range canWithdrawAccounts {
 				withdrawInstruction := stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
-					poolClient.MultisignerPubkey, accountInfo.Lamports, solCommon.PublicKey{})
+					poolClient.MultisignerPubkey, accountInfo.Inactive, solCommon.PublicKey{})
 
-				withdrawInstructions = append(withdrawInstructions, withdrawInstruction)
+				withdrawAndMergeInstructions = append(withdrawAndMergeInstructions, withdrawInstruction)
+
+				programIds = append(programIds, withdrawInstruction.ProgramID)
+				accountMetas = append(accountMetas, withdrawInstruction.Accounts)
+				txDatas = append(txDatas, withdrawInstruction.Data)
+			}
+
+			for stakeAccountPubkey, _ := range canMergeAccounts {
+				withdrawInstruction := stakeprog.Merge(
+					poolClient.StakeBaseAccount.PublicKey,
+					stakeAccountPubkey,
+					poolClient.MultisignerPubkey)
+
+				withdrawAndMergeInstructions = append(withdrawAndMergeInstructions, withdrawInstruction)
 
 				programIds = append(programIds, withdrawInstruction.ProgramID)
 				accountMetas = append(accountMetas, withdrawInstruction.Accounts)
@@ -181,7 +206,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 		return w.informChain(m.Destination, m.Source, mef)
 	}
 
-	remainingAccounts := multisigprog.GetRemainAccounts(withdrawInstructions)
+	remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
 
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
 	if err != nil {
