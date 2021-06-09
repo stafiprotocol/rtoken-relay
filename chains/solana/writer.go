@@ -6,16 +6,14 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	solCommon "github.com/tpkeeper/solana-go-sdk/common"
 )
 
 //write to solana
 type writer struct {
-	conn           *Connection
-	multisigProgId solCommon.PublicKey
-	router         chains.Router
-	log            log15.Logger
-	sysErr         chan<- error
+	conn   *Connection
+	router chains.Router
+	log    log15.Logger
+	sysErr chan<- error
 }
 
 func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {

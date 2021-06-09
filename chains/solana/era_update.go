@@ -74,7 +74,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
 		poolClient.MultisigTxBaseAccount.PublicKey,
-		w.multisigProgId,
+		poolClient.MultisigProgramId,
 		multisigTxtype,
 		snap.Era)
 
@@ -189,13 +189,13 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							poolClient.FeeAccount.PublicKey,
 							multisigTxAccountPubkey,
 							poolClient.MultisigTxBaseAccount.PublicKey,
-							w.multisigProgId,
+							poolClient.MultisigProgramId,
 							multisigTxAccountSeed,
 							miniMumBalanceForTx,
 							1000,
 						),
 						multisigprog.CreateTransaction(
-							w.multisigProgId,
+							poolClient.MultisigProgramId,
 							[]solCommon.PublicKey{solCommon.SystemProgramID, solCommon.StakeProgramID},
 							[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
 							[][]byte{transferInstruction.Data, stakeInstruction.Data},
@@ -239,13 +239,13 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							poolClient.FeeAccount.PublicKey,
 							multisigTxAccountPubkey,
 							poolClient.MultisigTxBaseAccount.PublicKey,
-							w.multisigProgId,
+							poolClient.MultisigProgramId,
 							multisigTxAccountSeed,
 							miniMumBalanceForTx,
 							1000,
 						),
 						multisigprog.CreateTransaction(
-							w.multisigProgId,
+							poolClient.MultisigProgramId,
 							[]solCommon.PublicKey{solCommon.StakeProgramID, solCommon.StakeProgramID},
 							[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
 							[][]byte{splitInstruction.Data, deactiveInstruction.Data},
@@ -311,7 +311,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
 			multisigprog.Approve(
-				w.multisigProgId,
+				poolClient.MultisigProgramId,
 				poolClient.MultisigInfoPubkey,
 				poolClient.MultisignerPubkey,
 				multisigTxAccountPubkey,
