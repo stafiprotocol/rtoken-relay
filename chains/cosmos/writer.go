@@ -595,7 +595,8 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		w.log.Warn("processSignatureEnoughEvt GetWrappedUnsignedTx,failed",
 			"proposalId", proposalIdHexStr,
 			"err", err)
-		return false
+		//now skip if not found
+		return true
 	}
 
 	if wrappedUnSignedTx.Type != submodel.OriginalBond &&
