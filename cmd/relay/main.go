@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/chains/ethereum"
 	"os"
 	"strconv"
 
@@ -37,6 +38,14 @@ var accountCommand = cli.Command{
 			Usage:  "generate subsrate keystore",
 			Flags:  generateFlags,
 			Description: "The generate subcommand is used to generate the substrate keystore.\n" +
+				"\tkeystore path should be given.",
+		},
+		{
+			Action: wrapHandler(handleGenerateEthCmd),
+			Name:   "geneth",
+			Usage:  "generate ethereum keystore",
+			Flags:  generateFlags,
+			Description: "The generate subcommand is used to generate the ethereum keystore.\n" +
 				"\tkeystore path should be given.",
 		},
 	},
@@ -123,6 +132,11 @@ func run(ctx *cli.Context) error {
 			}
 		} else if chain.Type == "cosmos" {
 			newChain, err = cosmos.InitializeChain(chainConfig, logger, sysErr)
+			if err != nil {
+				return err
+			}
+		} else if chain.Type == "ethereum" {
+			newChain, err = ethereum.InitializeChain(chainConfig, logger, sysErr)
 			if err != nil {
 				return err
 			}

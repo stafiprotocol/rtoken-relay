@@ -101,6 +101,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processLiquidityBond(m)
 	case core.LiquidityBondResult:
 		return w.processLiquidityBondResult(m)
+	case core.CurrentChainEra:
+		return w.processCurrentChainEra(m)
 	case core.NewEra:
 		return w.processNewEra(m)
 	case core.BondedPools:
@@ -221,6 +223,25 @@ func (w *writer) processLiquidityBondResult(m *core.Message) bool {
 	w.log.Info("processLiquidityBondResult resolveProposal", "result", result)
 
 	return result
+}
+
+func (w *writer) processCurrentChainEra(m *core.Message) bool {
+	era, ok := m.Content.(chan uint32)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	old, err := w.conn.CurrentChainEra(m.Source)
+	if err != nil {
+		if err.Error() != fmt.Sprintf("era of symbol %s not exist", m.Source) {
+			w.log.Error("failed to get CurrentChainEra", "error", err)
+			return false
+		}
+	}
+
+	era <- old
+	return true
 }
 
 func (w *writer) processNewEra(m *core.Message) bool {

@@ -3,6 +3,8 @@
 
 package core
 
+import "github.com/stafiprotocol/chainbridge/utils/msg"
+
 type Chain interface {
 	Start() error // Start chain
 	SetRouter(*Router)
@@ -14,6 +16,7 @@ type Chain interface {
 
 type ChainConfig struct {
 	Name            string                 // Human-readable chain name
+	Id              msg.ChainId            // ChainID
 	Symbol          RSymbol                // symbol
 	Endpoint        string                 // url for rpc endpoint
 	Accounts        []string               // addresses of key to use

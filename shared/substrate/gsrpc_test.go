@@ -770,7 +770,7 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	//	fmt.Println(hexutil.Encode(oth[:]))
 	//}
 
-	bond, _ := utils.StringToBigint("10000000000000")
+	bond, _ := utils.StringToBigint("1000000000000")
 	unbond := big.NewInt(0)
 
 	call, err := gc.BondOrUnbondCall(bond, unbond)
@@ -787,8 +787,10 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
 
-	optp := types.TimePoint{Height:361, Index:1}
+	optp := types.TimePoint{Height: 969, Index: 1}
 	tp := submodel.NewOptionTimePoint(optp)
+
+	//tp := submodel.NewOptionTimePointEmpty()
 	ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)

@@ -13,7 +13,7 @@ const (
 	LiquidityBond       = Reason("LiquidityBond")
 	LiquidityBondResult = Reason("LiquidityBondResult")
 
-	InitLastVoter          = Reason("InitLastVoter")
+	CurrentChainEra = Reason("CurrentChainEra")
 	NewEra                 = Reason("NewEra")
 	BondedPools            = Reason("BondedPools")
 	EraPoolUpdated         = Reason("EraPoolUpdated")
