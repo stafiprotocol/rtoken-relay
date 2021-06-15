@@ -44,7 +44,7 @@ func GenMultiSigRawDelegateTx() error {
 	signature1, err := client.SignMultiSigRawTx(rawTx, "multisubkey1")
 	signature2, err := client.SignMultiSigRawTx(rawTx, "multisubkey2")
 
-	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2})
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2},2)
 	if err != nil {
 		return err
 	}
