@@ -22,6 +22,7 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("accounts info %+v\n\n", pc)
 	v, err := vault.NewVaultFromWalletFile(pc.KeystorePath)
 	if err != nil {
 		return err
@@ -66,7 +67,7 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	//init stakeBaseAccount
+	//create stakeBaseAccount
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
 			sysprog.CreateAccount(
@@ -104,7 +105,8 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("get recent block hash error, err: %v", err)
 	}
-	//init multisigInfo account
+
+	//create multisigInfo account
 	rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
 			sysprog.CreateAccount(
@@ -129,7 +131,6 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("generate tx error, err: %v", err)
 	}
-	// t.Log("rawtx base58:", base58.Encode(rawTx))
 	txHash, err = c.SendRawTransaction(context.Background(), rawTx)
 	if err != nil {
 		return fmt.Errorf("send tx error, err: %v", err)
@@ -137,6 +138,7 @@ func initAction(ctx *cli.Context) error {
 	fmt.Println("createMultisig txHash:", txHash)
 	time.Sleep(time.Second * 2)
 
+	//create multisig transaction for stake
 	res, err = c.GetRecentBlockhash(context.Background())
 	if err != nil {
 		return fmt.Errorf("get recent block hash error, err: %v", err)
@@ -177,38 +179,58 @@ func initAction(ctx *cli.Context) error {
 	fmt.Println("Create Transaction txHash:", txHash)
 	time.Sleep(time.Second * 2)
 
-	res, err = c.GetRecentBlockhash(context.Background())
-	if err != nil {
-		return fmt.Errorf("get recent block hash error, err: %v", err)
+	//other fee account approve
+	for i := 0; i < len(otherFeeAccount); i++ {
+
+		res, err = c.GetRecentBlockhash(context.Background())
+		if err != nil {
+			return fmt.Errorf("get recent block hash error, err: %v", err)
+		}
+		remainingAccounts := multisigprog.GetRemainAccounts([]solTypes.Instruction{stakeInstruction})
+
+		rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+			Instructions: []solTypes.Instruction{
+				multisigprog.Approve(
+					MultisigProgramId,
+					MultisigInfoAccount.PublicKey,
+					multisignerPubkey,
+					MultisigTxBaseAccount.PublicKey,
+					otherFeeAccount[i].PublicKey,
+					remainingAccounts,
+				),
+			},
+			Signers:         []solTypes.Account{otherFeeAccount[i], FeeAccount},
+			FeePayer:        FeeAccount.PublicKey,
+			RecentBlockHash: res.Blockhash,
+		})
+
+		if err != nil {
+			return fmt.Errorf("generate Approve tx error, err: %v", err)
+		}
+
+		txHash, err = c.SendRawTransaction(context.Background(), rawTx)
+		if err != nil {
+			return fmt.Errorf("send tx error, err: %v", err)
+		}
+		fmt.Printf("Approve txHash: %s otherfeeAccount:%s\n", txHash, otherFeeAccount[i].PublicKey.ToBase58())
+		time.Sleep(time.Second * 5)
 	}
-	remainingAccounts := multisigprog.GetRemainAccounts([]solTypes.Instruction{stakeInstruction})
 
-	rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-		Instructions: []solTypes.Instruction{
-			multisigprog.Approve(
-				MultisigProgramId,
-				MultisigInfoAccount.PublicKey,
-				multisignerPubkey,
-				MultisigTxBaseAccount.PublicKey,
-				otherFeeAccount[0].PublicKey,
-				remainingAccounts,
-			),
-		},
-		Signers:         []solTypes.Account{otherFeeAccount[0], FeeAccount},
-		FeePayer:        FeeAccount.PublicKey,
-		RecentBlockHash: res.Blockhash,
-	})
+	for i := 0; i < 10; i++ {
+		time.Sleep(5 * time.Second)
+		txInfo, err := c.GetMultisigTxAccountInfo(context.Background(), MultisigTxBaseAccount.PublicKey.ToBase58())
+		if err != nil {
+			fmt.Println("GetMultisigTxAccountInfo err", err)
+			continue
+		}
 
-	if err != nil {
-		return fmt.Errorf("generate Approve tx error, err: %v", err)
+		if txInfo.DidExecute == 1 {
+			fmt.Println("init success")
+		} else {
+			fmt.Println("init failed, waiting")
+			continue
+		}
+		break
 	}
-
-	txHash, err = c.SendRawTransaction(context.Background(), rawTx)
-	if err != nil {
-		return fmt.Errorf("send tx error, err: %v", err)
-	}
-	fmt.Println("Approve txHash:", txHash)
-
 	return nil
-
 }

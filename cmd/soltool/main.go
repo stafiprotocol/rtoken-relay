@@ -16,7 +16,7 @@ var app = cli.NewApp()
 var configFlag = &cli.StringFlag{
 	Name:  "config",
 	Usage: "json configuration file",
-	Value: "./config.json",
+	Value: "./config_init.json",
 }
 var cliFlags = []cli.Flag{
 	configFlag,
