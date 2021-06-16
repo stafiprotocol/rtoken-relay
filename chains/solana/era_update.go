@@ -40,8 +40,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		w.log.Error("processEraPoolUpdated HeadFlow is not EraPoolUpdatedFlow")
 		return false
 	}
-	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination,
-		"era", flow.Era, "shotId", flow.ShotId.Hex(), "symbol", flow.Symbol)
+	// w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination,
+	// 	"era", flow.Era, "shotId", flow.ShotId.Hex(), "symbol", flow.Symbol)
 
 	snap := flow.Snap
 

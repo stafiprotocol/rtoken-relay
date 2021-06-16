@@ -959,7 +959,6 @@ func (w *writer) printContentError(m *core.Message) {
 func (w *writer) getLatestBondedPools(symbol core.RSymbol) ([]types.Bytes, error) {
 	symbz, err := types.EncodeToBytes(symbol)
 	if err != nil {
-		w.sysErr <- err
 		return nil, err
 	}
 	bondedPools := make([]types.Bytes, 0)

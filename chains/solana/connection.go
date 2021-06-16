@@ -130,7 +130,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	userAccountIndex := -1
 	for i, key := range tx.Transaction.Message.AccountKeys {
 		if strings.EqualFold(key, base58.Encode(r.Pubkey)) {
-			poolAccountIndex = i
+			userAccountIndex = i
 			break
 		}
 	}
@@ -150,8 +150,9 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	if amount != r.Amount.Int64() {
 		return submodel.AmountUnmatch, nil
 	}
+	//may cost fee
 	amount = tx.Meta.PreBalances[userAccountIndex] - tx.Meta.PostBalances[userAccountIndex]
-	if amount != r.Amount.Int64() {
+	if amount < r.Amount.Int64() {
 		return submodel.AmountUnmatch, nil
 	}
 
