@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -40,8 +41,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		w.log.Error("processEraPoolUpdated HeadFlow is not EraPoolUpdatedFlow")
 		return false
 	}
-	// w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination,
-	// 	"era", flow.Era, "shotId", flow.ShotId.Hex(), "symbol", flow.Symbol)
+	w.log.Trace("processEraPoolUpdate", "source", m.Source, "dest", m.Destination,
+		"era", flow.Era, "shotId", flow.ShotId.Hex(), "symbol", flow.Symbol)
 
 	snap := flow.Snap
 
@@ -86,6 +87,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			"err", err)
 		return false
 	}
+	miniMumBalanceForStake = 2e9
 
 	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
 	if err != nil {
@@ -158,10 +160,35 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	var transferInstruction solTypes.Instruction
 	var stakeInstruction solTypes.Instruction
+
 	var splitInstruction solTypes.Instruction
 	var deactiveInstruction solTypes.Instruction
 
-	validatorPubkey := solCommon.PublicKeyFromString("5MMCR4NbTZqjthjLGywmeT66iwE9J9f7kjtxzJjwfUx2")
+	var remainingAccounts []solTypes.AccountMeta
+
+	stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), poolClient.StakeBaseAccount.PublicKey.ToBase58())
+	if err != nil {
+		w.log.Error("GetStakeAccountInfo err",
+			"pool  address", poolAddrBase58Str,
+			"stake address", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
+			"err", err)
+		return false
+	}
+	validatorPubkey := stakeBaseAccountInfo.StakeAccount.Info.Stake.Delegation.Voter
+
+	if bondCmpUnbondResult > 0 {
+		val := new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int)
+		transferInstruction = sysprog.Transfer(poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
+		stakeInstruction = stakeprog.DelegateStake(stakeAccountPubkey, poolClient.MultisignerPubkey, validatorPubkey)
+		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{transferInstruction, stakeInstruction})
+	} else {
+		val := new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int)
+		splitInstruction = stakeprog.Split(poolClient.StakeBaseAccount.PublicKey,
+			poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
+		deactiveInstruction = stakeprog.Deactivate(stakeAccountPubkey, poolClient.MultisignerPubkey)
+		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
+	}
+
 	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil {
 		if err == solClient.ErrAccountNotFound {
@@ -174,15 +201,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			}
 
 			if bondCmpUnbondResult > 0 { //stake
-
 				//send from o relayers
 				//create transaction account of this era
-				//todo get validator from chain
-
-				val := new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int)
-				transferInstruction = sysprog.Transfer(poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
-				stakeInstruction = stakeprog.DelegateStake(stakeAccountPubkey, poolClient.MultisignerPubkey, validatorPubkey)
-
 				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 					Instructions: []solTypes.Instruction{
 						sysprog.CreateAccountWithSeed(
@@ -227,12 +247,6 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 					"tx hash", txHash,
 					"multisig tx account", multisigTxAccountPubkey.ToBase58())
 			} else { //unstake
-				val := new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int)
-				splitInstruction = stakeprog.Split(poolClient.StakeBaseAccount.PublicKey,
-					poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
-
-				deactiveInstruction = stakeprog.Deactivate(stakeAccountPubkey, poolClient.MultisignerPubkey)
-
 				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 					Instructions: []solTypes.Instruction{
 						sysprog.CreateAccountWithSeed(
@@ -287,18 +301,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		}
 	}
 
-	if multisigTxAccountInfo.DidExecute == 1 {
+	if multisigTxAccountInfo != nil && multisigTxAccountInfo.DidExecute == 1 {
 		callHash := utils.BlakeTwo256([]byte{})
 		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
 			{CallHash: hexutil.Encode(callHash[:])}}
 		return w.informChain(m.Destination, m.Source, mFlow)
-	}
-
-	var remainingAccounts []solTypes.AccountMeta
-	if bondCmpUnbondResult > 0 {
-		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{transferInstruction, stakeInstruction})
-	} else {
-		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
 	}
 
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
@@ -343,6 +350,20 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	w.log.Info("approve multisig tx account",
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
+
+	exe := false
+	for i := 0; i < 30; i++ {
+		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
+			exe = true
+			break
+		}
+		w.log.Info("multisigTxAccount not execute", "multisigTxAccount", multisigTxAccountInfo)
+		time.Sleep(time.Second * 2)
+	}
+	if !exe {
+		return false
+	}
 
 	callHash := utils.BlakeTwo256([]byte{})
 	mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
