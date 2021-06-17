@@ -51,12 +51,12 @@ var MultisigTxWithdrawType = MultisigTxType("withdraw")
 var MultisigTxTransferType = MultisigTxType("transfer")
 
 func GetMultisigTxAccountPubkey(baseAccount, programID solCommon.PublicKey, txType MultisigTxType, era uint32) (solCommon.PublicKey, string) {
-	seed := fmt.Sprintf("multisig2:%s:%d", txType, era)
+	seed := fmt.Sprintf("multisig3:%s:%d", txType, era)
 	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
 }
 
 func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solCommon.PublicKey, string) {
-	seed := fmt.Sprintf("stake:%d", era)
+	seed := fmt.Sprintf("stake3:%d", era)
 	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
 }
 

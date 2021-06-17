@@ -109,30 +109,50 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 					"err", err)
 				return false
 			}
-			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-				Instructions: []solTypes.Instruction{
-					sysprog.CreateAccountWithSeed(
-						poolClient.FeeAccount.PublicKey,
-						stakeAccountPubkey,
-						poolClient.StakeBaseAccount.PublicKey,
-						solCommon.StakeProgramID,
-						stakeAccountSeed,
-						miniMumBalanceForStake,
-						200,
-					),
-					stakeprog.Initialize(
-						stakeAccountPubkey,
-						stakeprog.Authorized{
-							Staker:     poolClient.MultisignerPubkey,
-							Withdrawer: poolClient.MultisignerPubkey,
-						},
-						stakeprog.Lockup{},
-					),
-				},
-				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
-				FeePayer:        poolClient.FeeAccount.PublicKey,
-				RecentBlockHash: res.Blockhash,
-			})
+			rawTx := make([]byte, 0)
+			if bondCmpUnbondResult > 0 {
+				rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+					Instructions: []solTypes.Instruction{
+						sysprog.CreateAccountWithSeed(
+							poolClient.FeeAccount.PublicKey,
+							stakeAccountPubkey,
+							poolClient.StakeBaseAccount.PublicKey,
+							solCommon.StakeProgramID,
+							stakeAccountSeed,
+							miniMumBalanceForStake,
+							200,
+						),
+						stakeprog.Initialize(
+							stakeAccountPubkey,
+							stakeprog.Authorized{
+								Staker:     poolClient.MultisignerPubkey,
+								Withdrawer: poolClient.MultisignerPubkey,
+							},
+							stakeprog.Lockup{},
+						),
+					},
+					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
+					FeePayer:        poolClient.FeeAccount.PublicKey,
+					RecentBlockHash: res.Blockhash,
+				})
+			} else {
+				rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+					Instructions: []solTypes.Instruction{
+						sysprog.CreateAccountWithSeed(
+							poolClient.FeeAccount.PublicKey,
+							stakeAccountPubkey,
+							poolClient.StakeBaseAccount.PublicKey,
+							solCommon.StakeProgramID,
+							stakeAccountSeed,
+							miniMumBalanceForStake,
+							200,
+						),
+					},
+					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
+					FeePayer:        poolClient.FeeAccount.PublicKey,
+					RecentBlockHash: res.Blockhash,
+				})
+			}
 			if err != nil {
 				w.log.Error("processEraPoolUpdatedEvt CreateRawTransaction failed",
 					"pool address", poolAddrBase58Str,
@@ -146,11 +166,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 					"err", err)
 				return false
 			}
-			w.log.Info("create stake account",
+			w.log.Info("processEraPoolUpdatedEvt create stake account",
 				"tx hash", txHash,
 				"stake account", stakeAccountPubkey.ToBase58())
 		} else {
-			w.log.Error("GetStakeAccountInfo err",
+			w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
 				"pool  address", poolAddrBase58Str,
 				"stake address", stakeAccountPubkey.ToBase58(),
 				"err", err)
@@ -168,7 +188,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), poolClient.StakeBaseAccount.PublicKey.ToBase58())
 	if err != nil {
-		w.log.Error("GetStakeAccountInfo err",
+		w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
 			"pool  address", poolAddrBase58Str,
 			"stake address", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
 			"err", err)
@@ -216,7 +236,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 						),
 						multisigprog.CreateTransaction(
 							poolClient.MultisigProgramId,
-							[]solCommon.PublicKey{solCommon.SystemProgramID, solCommon.StakeProgramID},
+							[]solCommon.PublicKey{transferInstruction.ProgramID, stakeInstruction.ProgramID},
 							[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
 							[][]byte{transferInstruction.Data, stakeInstruction.Data},
 							poolClient.MultisigInfoPubkey,
@@ -260,7 +280,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 						),
 						multisigprog.CreateTransaction(
 							poolClient.MultisigProgramId,
-							[]solCommon.PublicKey{solCommon.StakeProgramID, solCommon.StakeProgramID},
+							[]solCommon.PublicKey{splitInstruction.ProgramID, deactiveInstruction.ProgramID},
 							[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
 							[][]byte{splitInstruction.Data, deactiveInstruction.Data},
 							poolClient.MultisigInfoPubkey,
@@ -268,7 +288,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							poolClient.FeeAccount.PublicKey,
 						),
 					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount},
+					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
 					FeePayer:        poolClient.FeeAccount.PublicKey,
 					RecentBlockHash: res.Blockhash,
 				})
