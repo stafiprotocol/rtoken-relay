@@ -31,6 +31,12 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	currentEra := w.conn.GetCurrentEra()
 	rpcClient := poolClient.GetRpcClient()
+
+	ok = w.MergeAndWithdraw(poolClient, poolAddrBase58Str, flow.Snap.Era, flow.ShotId, flow.Snap.Pool)
+	if !ok {
+		return false
+	}
+
 	activeTotal := int64(0)
 	//get base account
 	accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(),
@@ -47,6 +53,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 	//get derived account
 	for i := uint32(0); i < 10; i++ {
+		//this use current era not snap era
 		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
 		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 		if err != nil {
