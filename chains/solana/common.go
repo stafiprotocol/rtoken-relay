@@ -18,7 +18,9 @@ import (
 	solTypes "github.com/tpkeeper/solana-go-sdk/types"
 )
 
-var retryLimit = 30
+var retryLimit = 50
+var waitTime = time.Second * 2
+var backCheckLen = 10
 
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)
@@ -77,7 +79,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		return false
 	}
 	creditsStakeBaseAccount := stakeBaseAccountInfo.StakeAccount.Info.Stake.CreditsObserved
-	for i := uint32(0); i < 10; i++ {
+	for i := uint32(0); i < uint32(backCheckLen); i++ {
 		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
 		accountInfo, err := rpcClient.GetStakeActivation(
 			context.Background(),
@@ -174,76 +176,93 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		txDatas = append(txDatas, mergeInstruction.Data)
 	}
 
-	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-	if err != nil {
-		if err == solClient.ErrAccountNotFound {
-			res, err := rpcClient.GetRecentBlockhash(context.Background())
-			if err != nil {
-				w.log.Error("MergeAndWithdraw GetRecentBlockhash failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-
-			//send from  relayers
-			//create multisig withdraw transaction account of this era
-			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-				Instructions: []solTypes.Instruction{
-					sysprog.CreateAccountWithSeed(
-						poolClient.FeeAccount.PublicKey,
-						multisigTxAccountPubkey,
-						poolClient.MultisigTxBaseAccount.PublicKey,
-						poolClient.MultisigProgramId,
-						multisigTxAccountSeed,
-						miniMumBalanceForTx,
-						1000,
-					),
-					multisigprog.CreateTransaction(
-						poolClient.MultisigProgramId,
-						programIds,
-						accountMetas,
-						txDatas,
-						poolClient.MultisigInfoPubkey,
-						multisigTxAccountPubkey,
-						poolClient.FeeAccount.PublicKey,
-					),
-				},
-				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-				FeePayer:        poolClient.FeeAccount.PublicKey,
-				RecentBlockHash: res.Blockhash,
-			})
-
-			if err != nil {
-				w.log.Error("MergeAndWithdraw CreateTransaction CreateRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-
-			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-			if err != nil {
-				w.log.Error("MergeAndWithdraw createTransaction SendRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			w.log.Info("create multisig tx account",
-				"tx hash", txHash,
-				"multisig tx account", multisigTxAccountPubkey.ToBase58())
-
-		} else {
-			w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo err",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+	if err != nil && err == solClient.ErrAccountNotFound {
+		res, err := rpcClient.GetRecentBlockhash(context.Background())
+		if err != nil {
+			w.log.Error("MergeAndWithdraw GetRecentBlockhash failed",
+				"pool address", poolAddrBase58Str,
 				"err", err)
 			return false
 		}
-	}
-	//no need approve
-	if multisigTxAccountInfo != nil && multisigTxAccountInfo.DidExecute == 1 {
-		w.log.Info("MergeAndWithdraw no need approve multisig tx account",
+
+		//send from  relayers
+		//create multisig withdraw transaction account of this era
+		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+			Instructions: []solTypes.Instruction{
+				sysprog.CreateAccountWithSeed(
+					poolClient.FeeAccount.PublicKey,
+					multisigTxAccountPubkey,
+					poolClient.MultisigTxBaseAccount.PublicKey,
+					poolClient.MultisigProgramId,
+					multisigTxAccountSeed,
+					miniMumBalanceForTx,
+					1000,
+				),
+				multisigprog.CreateTransaction(
+					poolClient.MultisigProgramId,
+					programIds,
+					accountMetas,
+					txDatas,
+					poolClient.MultisigInfoPubkey,
+					multisigTxAccountPubkey,
+					poolClient.FeeAccount.PublicKey,
+				),
+			},
+			Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
+			FeePayer:        poolClient.FeeAccount.PublicKey,
+			RecentBlockHash: res.Blockhash,
+		})
+
+		if err != nil {
+			w.log.Error("MergeAndWithdraw CreateTransaction CreateRawTransaction failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+
+		txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+		if err != nil {
+			w.log.Error("MergeAndWithdraw createTransaction SendRawTransaction failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+		w.log.Info("create multisig tx account",
+			"tx hash", txHash,
 			"multisig tx account", multisigTxAccountPubkey.ToBase58())
-		return true
+
+	}
+
+	if err != nil && err != solClient.ErrAccountNotFound {
+		w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo err",
+			"pool  address", poolAddrBase58Str,
+			"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+			"err", err)
+		return false
+	}
+
+	//check multisig tx account is created
+	retry := 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
+		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+		if err != nil {
+			w.log.Warn("processEraPoolUpdatedEvt GetMultisigTxAccountInfo failed will waiting",
+				"pool  address", poolAddrBase58Str,
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		} else {
+			break
+		}
 	}
 
 	//approve multisig tx
@@ -290,17 +309,25 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
-	exe := false
-	for i := 0; i < 30; i++ {
+	//check multisig exe result
+	retry = 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
 		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
-			exe = true
 			break
+		} else {
+			w.log.Warn("MergeAndWithdraw multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			time.Sleep(waitTime)
 		}
-		w.log.Info("multisigTxAccount not execute", "multisigTxAccount", multisigTxAccountInfo)
-		time.Sleep(time.Second * 2)
 	}
-	return exe
+	w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+	return true
 }
 
 func mapToString(accountsMap map[solCommon.PublicKey]solClient.GetStakeActivationResponse) string {

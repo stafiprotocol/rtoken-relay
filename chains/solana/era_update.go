@@ -198,7 +198,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 				"pool  address", poolAddrBase58Str,
 				"stake address", stakeAccountPubkey.ToBase58(),
 				"err", err)
-			time.Sleep(time.Second * 2)
+			time.Sleep(waitTime)
 			retry++
 			continue
 		} else {
@@ -355,16 +355,16 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		if retry >= retryLimit {
 			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
 				"pool  address", poolAddrBase58Str,
-				"stake address", stakeAccountPubkey.ToBase58())
+				"multisig tx account  address", multisigTxAccountPubkey.ToBase58())
 			return false
 		}
 		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err != nil {
 			w.log.Warn("processEraPoolUpdatedEvt GetMultisigTxAccountInfo failed will waiting",
 				"pool  address", poolAddrBase58Str,
-				"stake address", stakeAccountPubkey.ToBase58(),
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
 				"err", err)
-			time.Sleep(time.Second * 2)
+			time.Sleep(waitTime)
 			retry++
 			continue
 		} else {
@@ -420,18 +420,18 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		if retry >= retryLimit {
 			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
 				"pool  address", poolAddrBase58Str,
-				"stake address", stakeAccountPubkey.ToBase58())
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
 			return false
 		}
 		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
 			break
 		} else {
-			w.log.Warn("multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-			time.Sleep(time.Second * 2)
+			w.log.Warn("processEraPoolUpdatedEvt multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			time.Sleep(waitTime)
 		}
 	}
-	w.log.Info("multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
 	callHash := utils.BlakeTwo256([]byte{})
 	mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{

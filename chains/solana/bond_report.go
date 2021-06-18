@@ -12,8 +12,9 @@ import (
 	solClient "github.com/tpkeeper/solana-go-sdk/client"
 )
 
-//1 get accounts used to stake
-//2 active report total stake value
+//1 get derived accounts used to stake
+//2 merge and withdraw
+//3 active report total stake value
 func (w *writer) processBondReportEvent(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
@@ -45,14 +46,14 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
 			"pool  address", poolAddrBase58Str,
-			"stake account", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
+			"stake base account", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
 			"error", err)
 		return false
 	}
 
 	activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 	//get derived account
-	for i := uint32(0); i < 10; i++ {
+	for i := uint32(0); i < uint32(backCheckLen); i++ {
 		//this use current era not snap era
 		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
 		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
