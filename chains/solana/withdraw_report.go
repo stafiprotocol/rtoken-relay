@@ -78,7 +78,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 					"err", err)
 				return false
 			}
-			miniMumBalanceForTx = 1e9
+			miniMumBalanceForTx *= 2
 
 			//send from o relayers
 			//create transaction account of this era

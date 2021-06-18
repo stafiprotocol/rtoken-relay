@@ -23,13 +23,16 @@ import (
 //0 check bond/unbond
 //  (1)if no need just report bond to stafi
 //  (2)if need go next
-//1 query multisig tx acount is created
+//1 query stake acount is created
 //  (1)if no then created and go next
 //  (2)if created go next
-//2 approve mutisig tx
-//3 query multisig tx executed
-//  (1)if executed  report bond result to stafi
-//  (2)if reach retry limit return fase
+//2 query multisig tx acount is created
+//  (1)if no then created and go next
+//  (2)if created go next
+//3 approve mutisig tx
+//4 query multisig tx executed result
+//  (1)if executed then report bond result to stafi
+//  (2)if reach retry limit return false
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	mFlow, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -87,7 +90,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			"err", err)
 		return false
 	}
-	miniMumBalanceForStake = 2e9
+	miniMumBalanceForStake *= 2
 
 	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
 	if err != nil {
@@ -96,85 +99,110 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			"err", err)
 		return false
 	}
+	miniMumBalanceForTx *= 2
 
 	_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
-	if err != nil {
-		if err == solClient.ErrAccountNotFound {
-			//send from  relayers
-			//create new stake acount of this era
-			res, err := rpcClient.GetRecentBlockhash(context.Background())
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			rawTx := make([]byte, 0)
-			if bondCmpUnbondResult > 0 {
-				rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-					Instructions: []solTypes.Instruction{
-						sysprog.CreateAccountWithSeed(
-							poolClient.FeeAccount.PublicKey,
-							stakeAccountPubkey,
-							poolClient.StakeBaseAccount.PublicKey,
-							solCommon.StakeProgramID,
-							stakeAccountSeed,
-							miniMumBalanceForStake,
-							200,
-						),
-						stakeprog.Initialize(
-							stakeAccountPubkey,
-							stakeprog.Authorized{
-								Staker:     poolClient.MultisignerPubkey,
-								Withdrawer: poolClient.MultisignerPubkey,
-							},
-							stakeprog.Lockup{},
-						),
-					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
-					FeePayer:        poolClient.FeeAccount.PublicKey,
-					RecentBlockHash: res.Blockhash,
-				})
-			} else {
-				rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-					Instructions: []solTypes.Instruction{
-						sysprog.CreateAccountWithSeed(
-							poolClient.FeeAccount.PublicKey,
-							stakeAccountPubkey,
-							poolClient.StakeBaseAccount.PublicKey,
-							solCommon.StakeProgramID,
-							stakeAccountSeed,
-							miniMumBalanceForStake,
-							200,
-						),
-					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
-					FeePayer:        poolClient.FeeAccount.PublicKey,
-					RecentBlockHash: res.Blockhash,
-				})
-			}
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt CreateRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt SendRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			w.log.Info("processEraPoolUpdatedEvt create stake account",
-				"tx hash", txHash,
-				"stake account", stakeAccountPubkey.ToBase58())
+	if err != nil && err == solClient.ErrAccountNotFound {
+		//send from  relayers no need multisig
+		//create new stake acount of this era
+		res, err := rpcClient.GetRecentBlockhash(context.Background())
+		if err != nil {
+			w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+		var rawTx []byte
+		if bondCmpUnbondResult > 0 {
+			rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+				Instructions: []solTypes.Instruction{
+					sysprog.CreateAccountWithSeed(
+						poolClient.FeeAccount.PublicKey,
+						stakeAccountPubkey,
+						poolClient.StakeBaseAccount.PublicKey,
+						solCommon.StakeProgramID,
+						stakeAccountSeed,
+						miniMumBalanceForStake,
+						200,
+					),
+					stakeprog.Initialize(
+						stakeAccountPubkey,
+						stakeprog.Authorized{
+							Staker:     poolClient.MultisignerPubkey,
+							Withdrawer: poolClient.MultisignerPubkey,
+						},
+						stakeprog.Lockup{},
+					),
+				},
+				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
+				FeePayer:        poolClient.FeeAccount.PublicKey,
+				RecentBlockHash: res.Blockhash,
+			})
 		} else {
-			w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
+			rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+				Instructions: []solTypes.Instruction{
+					sysprog.CreateAccountWithSeed(
+						poolClient.FeeAccount.PublicKey,
+						stakeAccountPubkey,
+						poolClient.StakeBaseAccount.PublicKey,
+						solCommon.StakeProgramID,
+						stakeAccountSeed,
+						miniMumBalanceForStake,
+						200,
+					),
+				},
+				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
+				FeePayer:        poolClient.FeeAccount.PublicKey,
+				RecentBlockHash: res.Blockhash,
+			})
+		}
+		if err != nil {
+			w.log.Error("processEraPoolUpdatedEvt CreateRawTransaction failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+		txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+		if err != nil {
+			w.log.Error("processEraPoolUpdatedEvt SendRawTransaction failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+		w.log.Info("processEraPoolUpdatedEvt create stake account",
+			"tx hash", txHash,
+			"stake account", stakeAccountPubkey.ToBase58())
+
+	}
+
+	if err != nil {
+		w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
+			"pool  address", poolAddrBase58Str,
+			"stake address", stakeAccountPubkey.ToBase58(),
+			"err", err)
+		return false
+	}
+
+	//check stakeaccount is created
+	retry := 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"stake address", stakeAccountPubkey.ToBase58())
+			return false
+		}
+		_, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
+		if err != nil {
+			w.log.Warn("processEraPoolUpdatedEvt GetStakeAccountInfo failed will waiting",
 				"pool  address", poolAddrBase58Str,
 				"stake address", stakeAccountPubkey.ToBase58(),
 				"err", err)
-			return false
+			time.Sleep(time.Second * 2)
+			retry++
+			continue
+		} else {
+			break
 		}
 	}
 
@@ -209,123 +237,139 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
 	}
 
-	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-	if err != nil {
-		if err == solClient.ErrAccountNotFound {
-			res, err := rpcClient.GetRecentBlockhash(context.Background())
+	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+	if err != nil && err == solClient.ErrAccountNotFound {
+		res, err := rpcClient.GetRecentBlockhash(context.Background())
+		if err != nil {
+			w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+
+		if bondCmpUnbondResult > 0 { //stake
+			//send from o relayers
+			//create transaction account of this era
+			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+				Instructions: []solTypes.Instruction{
+					sysprog.CreateAccountWithSeed(
+						poolClient.FeeAccount.PublicKey,
+						multisigTxAccountPubkey,
+						poolClient.MultisigTxBaseAccount.PublicKey,
+						poolClient.MultisigProgramId,
+						multisigTxAccountSeed,
+						miniMumBalanceForTx,
+						1000,
+					),
+					multisigprog.CreateTransaction(
+						poolClient.MultisigProgramId,
+						[]solCommon.PublicKey{transferInstruction.ProgramID, stakeInstruction.ProgramID},
+						[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
+						[][]byte{transferInstruction.Data, stakeInstruction.Data},
+						poolClient.MultisigInfoPubkey,
+						multisigTxAccountPubkey,
+						poolClient.FeeAccount.PublicKey,
+					),
+				},
+				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
+				FeePayer:        poolClient.FeeAccount.PublicKey,
+				RecentBlockHash: res.Blockhash,
+			})
+
 			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
+				w.log.Error("processEraPoolUpdatedEvt CreateTransaction CreateRawTransaction failed",
 					"pool address", poolAddrBase58Str,
 					"err", err)
 				return false
 			}
 
-			if bondCmpUnbondResult > 0 { //stake
-				//send from o relayers
-				//create transaction account of this era
-				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-					Instructions: []solTypes.Instruction{
-						sysprog.CreateAccountWithSeed(
-							poolClient.FeeAccount.PublicKey,
-							multisigTxAccountPubkey,
-							poolClient.MultisigTxBaseAccount.PublicKey,
-							poolClient.MultisigProgramId,
-							multisigTxAccountSeed,
-							miniMumBalanceForTx,
-							1000,
-						),
-						multisigprog.CreateTransaction(
-							poolClient.MultisigProgramId,
-							[]solCommon.PublicKey{transferInstruction.ProgramID, stakeInstruction.ProgramID},
-							[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
-							[][]byte{transferInstruction.Data, stakeInstruction.Data},
-							poolClient.MultisigInfoPubkey,
-							multisigTxAccountPubkey,
-							poolClient.FeeAccount.PublicKey,
-						),
-					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-					FeePayer:        poolClient.FeeAccount.PublicKey,
-					RecentBlockHash: res.Blockhash,
-				})
+			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+			if err != nil {
+				w.log.Error("processEraPoolUpdatedEvt createTransaction SendRawTransaction failed",
+					"pool address", poolAddrBase58Str,
+					"err", err)
+				return false
+			}
+			w.log.Info("processEraPoolUpdatedEvt create multisig tx account for stake",
+				"tx hash", txHash,
+				"multisig tx account", multisigTxAccountPubkey.ToBase58())
+		} else { //unstake
+			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+				Instructions: []solTypes.Instruction{
+					sysprog.CreateAccountWithSeed(
+						poolClient.FeeAccount.PublicKey,
+						multisigTxAccountPubkey,
+						poolClient.MultisigTxBaseAccount.PublicKey,
+						poolClient.MultisigProgramId,
+						multisigTxAccountSeed,
+						miniMumBalanceForTx,
+						1000,
+					),
+					multisigprog.CreateTransaction(
+						poolClient.MultisigProgramId,
+						[]solCommon.PublicKey{splitInstruction.ProgramID, deactiveInstruction.ProgramID},
+						[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
+						[][]byte{splitInstruction.Data, deactiveInstruction.Data},
+						poolClient.MultisigInfoPubkey,
+						multisigTxAccountPubkey,
+						poolClient.FeeAccount.PublicKey,
+					),
+				},
+				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
+				FeePayer:        poolClient.FeeAccount.PublicKey,
+				RecentBlockHash: res.Blockhash,
+			})
 
-				if err != nil {
-					w.log.Error("processEraPoolUpdatedEvt CreateTransaction CreateRawTransaction failed",
-						"pool address", poolAddrBase58Str,
-						"err", err)
-					return false
-				}
-
-				txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-				if err != nil {
-					w.log.Error("processEraPoolUpdatedEvt createTransaction SendRawTransaction failed",
-						"pool address", poolAddrBase58Str,
-						"err", err)
-					return false
-				}
-				w.log.Info("create multisig tx account",
-					"tx hash", txHash,
-					"multisig tx account", multisigTxAccountPubkey.ToBase58())
-			} else { //unstake
-				rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-					Instructions: []solTypes.Instruction{
-						sysprog.CreateAccountWithSeed(
-							poolClient.FeeAccount.PublicKey,
-							multisigTxAccountPubkey,
-							poolClient.MultisigTxBaseAccount.PublicKey,
-							poolClient.MultisigProgramId,
-							multisigTxAccountSeed,
-							miniMumBalanceForTx,
-							1000,
-						),
-						multisigprog.CreateTransaction(
-							poolClient.MultisigProgramId,
-							[]solCommon.PublicKey{splitInstruction.ProgramID, deactiveInstruction.ProgramID},
-							[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
-							[][]byte{splitInstruction.Data, deactiveInstruction.Data},
-							poolClient.MultisigInfoPubkey,
-							multisigTxAccountPubkey,
-							poolClient.FeeAccount.PublicKey,
-						),
-					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-					FeePayer:        poolClient.FeeAccount.PublicKey,
-					RecentBlockHash: res.Blockhash,
-				})
-
-				if err != nil {
-					w.log.Error("processEraPoolUpdatedEvt CreateTransaction CreateRawTransaction failed",
-						"pool address", poolAddrBase58Str,
-						"err", err)
-					return false
-				}
-
-				txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-				if err != nil {
-					w.log.Error("processEraPoolUpdatedEvt createTransaction SendRawTransaction failed",
-						"pool address", poolAddrBase58Str,
-						"err", err)
-					return false
-				}
-				w.log.Info("create multisig tx account",
-					"tx hash", txHash,
-					"multisig tx account", multisigTxAccountPubkey.ToBase58())
+			if err != nil {
+				w.log.Error("processEraPoolUpdatedEvt CreateTransaction CreateRawTransaction failed",
+					"pool address", poolAddrBase58Str,
+					"err", err)
+				return false
 			}
 
-		} else {
-			w.log.Error("GetMultisigTxAccountInfo err",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-				"err", err)
-			return false
+			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+			if err != nil {
+				w.log.Error("processEraPoolUpdatedEvt createTransaction SendRawTransaction failed",
+					"pool address", poolAddrBase58Str,
+					"err", err)
+				return false
+			}
+			w.log.Info("processEraPoolUpdatedEvt create multisig tx account for unstake",
+				"tx hash", txHash,
+				"multisig tx account", multisigTxAccountPubkey.ToBase58())
 		}
+
 	}
 
-	if multisigTxAccountInfo != nil && multisigTxAccountInfo.DidExecute == 1 {
-		callHash := utils.BlakeTwo256([]byte{})
-		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
-			{CallHash: hexutil.Encode(callHash[:])}}
-		return w.informChain(m.Destination, m.Source, mFlow)
+	if err != nil {
+		w.log.Error("GetMultisigTxAccountInfo err",
+			"pool  address", poolAddrBase58Str,
+			"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+			"err", err)
+		return false
+	}
+
+	//check multisig tx account is created
+	retry = 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"stake address", stakeAccountPubkey.ToBase58())
+			return false
+		}
+		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+		if err != nil {
+			w.log.Warn("processEraPoolUpdatedEvt GetMultisigTxAccountInfo failed will waiting",
+				"pool  address", poolAddrBase58Str,
+				"stake address", stakeAccountPubkey.ToBase58(),
+				"err", err)
+			time.Sleep(time.Second * 2)
+			retry++
+			continue
+		} else {
+			break
+		}
 	}
 
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
@@ -358,7 +402,6 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return false
 	}
 
-	// t.Log("rawtx base58:", base58.Encode(rawTx))
 	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
 	if err != nil {
 		w.log.Error("processEraPoolUpdatedEvt approve SendRawTransaction failed",
@@ -367,23 +410,28 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return false
 	}
 
-	w.log.Info("approve multisig tx account",
+	w.log.Info("processEraPoolUpdatedEvt approve multisig tx account",
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
-	exe := false
-	for i := 0; i < 30; i++ {
+	//check multisig exe result
+	retry = 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"stake address", stakeAccountPubkey.ToBase58())
+			return false
+		}
 		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
-			exe = true
 			break
+		} else {
+			w.log.Warn("multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			time.Sleep(time.Second * 2)
 		}
-		w.log.Info("multisigTxAccount not execute", "multisigTxAccount", multisigTxAccountInfo)
-		time.Sleep(time.Second * 2)
 	}
-	if !exe {
-		return false
-	}
+	w.log.Info("multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
 	callHash := utils.BlakeTwo256([]byte{})
 	mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{

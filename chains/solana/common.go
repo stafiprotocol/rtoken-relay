@@ -18,6 +18,8 @@ import (
 	solTypes "github.com/tpkeeper/solana-go-sdk/types"
 )
 
+var retryLimit = 10
+
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)
 }
@@ -126,14 +128,14 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	w.log.Info("canWithdrawAccounts", "accouts", mapToString(canWithdrawAccounts))
 	w.log.Info("canMergeAccounts", "accounts", mapToString(canMergeAccounts))
 
-	// miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
-	// if err != nil {
-	// 	w.log.Error("MergeAndWithdraw GetMinimumBalanceForRentExemption failed",
-	// 		"pool address", poolAddrBase58Str,
-	// 		"err", err)
-	// 	return false
-	// }
-	miniMumBalanceForTx := uint64(1e9)
+	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
+	if err != nil {
+		w.log.Error("MergeAndWithdraw GetMinimumBalanceForRentExemption failed",
+			"pool address", poolAddrBase58Str,
+			"err", err)
+		return false
+	}
+	miniMumBalanceForTx *= 2
 
 	//create multisig withdraw tx account
 	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
@@ -298,10 +300,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		w.log.Info("multisigTxAccount not execute", "multisigTxAccount", multisigTxAccountInfo)
 		time.Sleep(time.Second * 2)
 	}
-	if !exe {
-		return false
-	}
-	return true
+	return exe
 }
 
 func mapToString(accountsMap map[solCommon.PublicKey]solClient.GetStakeActivationResponse) string {

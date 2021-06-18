@@ -220,17 +220,18 @@ func initAction(ctx *cli.Context) error {
 		time.Sleep(5 * time.Second)
 		txInfo, err := c.GetMultisigTxAccountInfo(context.Background(), MultisigTxBaseAccount.PublicKey.ToBase58())
 		if err != nil {
-			fmt.Println("GetMultisigTxAccountInfo err", err)
+			fmt.Println("GetMultisigTxAccountInfo failed will retry ...", err)
 			continue
 		}
 
 		if txInfo.DidExecute == 1 {
 			fmt.Println("init success")
+			return nil
 		} else {
-			fmt.Println("init failed, waiting")
+			fmt.Println("not init yet, waiting...")
 			continue
 		}
-		break
 	}
+	fmt.Println("sorry init failed")
 	return nil
 }
