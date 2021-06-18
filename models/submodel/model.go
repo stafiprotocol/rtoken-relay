@@ -2,6 +2,9 @@ package submodel
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"math/big"
 
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/substrate-api-rpc/rpc"
@@ -258,6 +261,7 @@ type BondReportedFlow struct {
 	LastEra       uint32
 	SubAccounts   []types.Bytes
 	Stashes       []types.AccountID
+	ValidatorId   *big.Int
 }
 
 type ActiveReportedFlow struct {
@@ -323,6 +327,7 @@ type MultiEventFlow struct {
 	PaymentInfo     *rpc.PaymentQueryInfo
 	NewMulCallHashs map[string]bool
 	MulExeCallHashs map[string]bool
+	ValidatorId     *big.Int
 }
 
 type EventNewMultisig struct {
@@ -434,6 +439,7 @@ type Transaction struct {
 type OriginalTx string
 
 const (
+	OriginalTxDefault      = OriginalTx("default")
 	OriginalTransfer       = OriginalTx("Transfer") //transfer
 	OriginalBond           = OriginalTx("Bond")     //bond or unbond
 	OriginalUnbond         = OriginalTx("Unbond")
@@ -491,6 +497,31 @@ type SubmitSignatureParams struct {
 	Signature  types.Bytes
 }
 
+func (ssp *SubmitSignatureParams) EncodeToHash() (common.Hash, error) {
+	symBz, err := types.EncodeToBytes(ssp.Symbol)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	eraBz, err := types.EncodeToBytes(ssp.Era)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	txTypeBz, err := types.EncodeToBytes(ssp.TxType)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	packed := make([]byte, 0)
+	packed = append(packed, symBz...)
+	packed = append(packed, eraBz...)
+	packed = append(packed, ssp.Pool...)
+	packed = append(packed, txTypeBz...)
+
+	return crypto.Keccak256Hash(packed), nil
+}
+
 type GetReceiversParams struct {
 	Symbol core.RSymbol
 	Era    types.U32
@@ -504,6 +535,31 @@ type SubmitSignatures struct {
 	TxType     OriginalTx
 	ProposalId types.Bytes
 	Signature  []types.Bytes
+}
+
+func (ss *SubmitSignatures) EncodeToHash() (common.Hash, error) {
+	symBz, err := types.EncodeToBytes(ss.Symbol)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	eraBz, err := types.EncodeToBytes(ss.Era)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	txTypeBz, err := types.EncodeToBytes(ss.TxType)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	packed := make([]byte, 0)
+	packed = append(packed, symBz...)
+	packed = append(packed, eraBz...)
+	packed = append(packed, ss.Pool...)
+	packed = append(packed, txTypeBz...)
+
+	return crypto.Keccak256Hash(packed), nil
 }
 
 type SignaturesKey struct {

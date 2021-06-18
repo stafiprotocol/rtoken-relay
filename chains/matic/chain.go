@@ -18,7 +18,7 @@ Writer
 
 The writer recieves the message and creates a proposals on-chain. Once a proposal is made, the writer then watches for a finalization event and will attempt to execute the proposal if a matching event occurs. The writer skips over any proposals it has already seen.
 */
-package ethereum
+package matic
 
 import (
 	"github.com/ChainSafe/log15"
@@ -44,7 +44,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	latestBlock, err := conn.LatestBlockNumber()
+	latestBlock, err := conn.LatestBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +91,9 @@ func (c *Chain) Name() string {
 // Stop signals to any running routines to exit
 func (c *Chain) Stop() {
 	close(c.stop)
+	if c.conn != nil {
+		c.conn.Close()
+	}
 }
 
 func (c *Chain) InitBondedPools(symbols []core.RSymbol) error {

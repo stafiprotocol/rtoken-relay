@@ -3,6 +3,7 @@ package chains
 import (
 	"errors"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
+	"github.com/stafiprotocol/chainbridge/utils/msg"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"strconv"
 )
@@ -25,7 +26,7 @@ func StartBlock(cfg *core.ChainConfig, latestBlock uint64, bs *blockstore.Blocks
 	}
 
 	var err error
-	bs, err = blockstore.NewBlockstore(bsPath, cfg.Id, relayer)
+	bs, err = blockstore.NewBlockstore(bsPath, msg.ChainId(100), relayer)
 	if err != nil {
 		return 0, err
 	}

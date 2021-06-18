@@ -1,7 +1,7 @@
 // Copyright 2020 Stafi Protocol
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package ethereum
+package matic
 
 import (
 	"errors"
@@ -119,7 +119,7 @@ func (l *listener) pollBlocks() error {
 				return nil
 			}
 
-			latestBlock, err := l.conn.LatestBlockNumber()
+			latestBlock, err := l.conn.LatestBlock()
 			if err != nil {
 				l.log.Error("Unable to get latest block", "block", currentBlock, "err", err)
 				retry--

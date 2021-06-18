@@ -120,6 +120,14 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	var valdatorId *big.Int
+	if data.Symbol == core.RMATIC {
+		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
 	data.Snap = snap
 
@@ -129,6 +137,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		EventData:   data,
 		Threshold:   th,
 		SubAccounts: sub,
+		ValidatorId: valdatorId,
 	}, nil
 }
 
@@ -169,10 +178,19 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
+	var valdatorId *big.Int
+	if snap.Symbol == core.RMATIC {
+		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 	flow.LastEra = snap.Era - 1
 	flow.SubAccounts = sub
+	flow.ValidatorId = valdatorId
 
 	return flow, nil
 }
@@ -219,6 +237,14 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	var valdatorId *big.Int
+	if snap.Symbol == core.RMATIC {
+		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 
@@ -228,6 +254,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
+		ValidatorId: valdatorId,
 	}, nil
 }
 
@@ -329,6 +356,14 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
+	var valdatorId *big.Int
+	if snap.Symbol == core.RMATIC {
+		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 	flow.Receives = receives
@@ -340,6 +375,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
+		ValidatorId: valdatorId,
 	}, nil
 }
 
@@ -550,6 +586,7 @@ func (l *listener) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	symBz, err := types.EncodeToBytes(symbol)
 	if err != nil {
 		return 0, err
@@ -611,4 +648,26 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	}
 
 	return receives, total, nil
+}
+
+func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (*big.Int, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return nil, err
+	}
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	validatorIds := make([]types.Bytes, 0)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &validatorIds)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, fmt.Errorf("validatorId of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+	}
+
+	return big.NewInt(0).SetBytes(validatorIds[0]), nil
 }

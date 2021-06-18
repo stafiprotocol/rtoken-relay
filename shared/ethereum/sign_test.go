@@ -3,9 +3,9 @@ package ethereum
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 

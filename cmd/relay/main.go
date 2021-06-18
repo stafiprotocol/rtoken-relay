@@ -2,12 +2,12 @@ package main
 
 import (
 	"errors"
-	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
-	"github.com/stafiprotocol/rtoken-relay/chains/ethereum"
 	"os"
 	"strconv"
 
 	log "github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
+	"github.com/stafiprotocol/rtoken-relay/chains/matic"
 	"github.com/stafiprotocol/rtoken-relay/chains/substrate"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -136,7 +136,7 @@ func run(ctx *cli.Context) error {
 				return err
 			}
 		} else if chain.Type == "ethereum" {
-			newChain, err = ethereum.InitializeChain(chainConfig, logger, sysErr)
+			newChain, err = matic.InitializeChain(chainConfig, logger, sysErr)
 			if err != nil {
 				return err
 			}
