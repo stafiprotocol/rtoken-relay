@@ -18,7 +18,7 @@ import (
 	solTypes "github.com/tpkeeper/solana-go-sdk/types"
 )
 
-var retryLimit = 10
+var retryLimit = 30
 
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)

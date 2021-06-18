@@ -175,7 +175,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	}
 
-	if err != nil {
+	if err != nil && err != solClient.ErrAccountNotFound {
 		w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
 			"pool  address", poolAddrBase58Str,
 			"stake address", stakeAccountPubkey.ToBase58(),
@@ -218,7 +218,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
 			"pool  address", poolAddrBase58Str,
-			"stake address", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
+			"stake base address", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
 			"err", err)
 		return false
 	}
@@ -341,7 +341,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	}
 
-	if err != nil {
+	if err != nil && err != solClient.ErrAccountNotFound {
 		w.log.Error("GetMultisigTxAccountInfo err",
 			"pool  address", poolAddrBase58Str,
 			"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
