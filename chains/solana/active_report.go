@@ -10,8 +10,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
-//1 get stake derived accounts which state is active and merge to base account
-//2 get stake derived accounts which state is inactive and withdraw to pool address
+//1 merge and withdraw
 //3 withdraw report to stafi
 func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
@@ -29,21 +28,20 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	poolAddrBase58Str := base58.Encode(flow.Snap.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrBase58Str)
 	if err != nil {
-		w.log.Error("processBondReportEvent failed",
+		w.log.Error("processActiveReportedEvent failed",
 			"pool address", poolAddrBase58Str,
 			"error", err)
 		return false
 	}
 
 	ok = w.MergeAndWithdraw(poolClient, poolAddrBase58Str, flow.Snap.Era, flow.ShotId, flow.Snap.Pool)
-	if ok {
-		callHash := utils.BlakeTwo256(flow.Snap.Pool)
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{
-			{CallHash: hexutil.Encode(callHash[:])}}
-
-		return w.informChain(m.Destination, m.Source, mef)
-	} else {
+	if !ok {
 		return false
 	}
 
+	callHash := utils.BlakeTwo256(flow.Snap.Pool)
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{
+		{CallHash: hexutil.Encode(callHash[:])}}
+
+	return w.informChain(m.Destination, m.Source, mef)
 }

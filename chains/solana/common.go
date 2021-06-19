@@ -19,7 +19,7 @@ import (
 )
 
 var retryLimit = 50
-var waitTime = time.Second * 2
+var waitTime = time.Second * 5
 var backCheckLen = 10
 
 func (w *writer) printContentError(m *core.Message, err error) {
@@ -64,6 +64,8 @@ func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solComm
 	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
 }
 
+//1 get stake derived accounts which state is active and merge to base account
+//2 get stake derived accounts which state is inactive and withdraw to pool address
 func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	poolAddrBase58Str string, currentEra uint32, shotId subTypes.Hash, pool []byte) bool {
 	rpcClient := poolClient.GetRpcClient()
@@ -185,7 +187,6 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 				"err", err)
 			return false
 		}
-
 		//send from  relayers
 		//create multisig withdraw transaction account of this era
 		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
@@ -324,6 +325,8 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		} else {
 			w.log.Warn("MergeAndWithdraw multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 			time.Sleep(waitTime)
+			retry++
+			continue
 		}
 	}
 	w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())

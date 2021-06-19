@@ -429,6 +429,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		} else {
 			w.log.Warn("processEraPoolUpdatedEvt multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 			time.Sleep(waitTime)
+			retry++
+			continue
 		}
 	}
 	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())

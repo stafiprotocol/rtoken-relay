@@ -30,6 +30,10 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		w.log.Error("processWithdrawReportedEvent eventData is not TransferFlow")
 		return false
 	}
+	if len(flow.Receives) == 0 {
+		w.log.Error("processWithdrawReportedEvent Receives len is zero")
+		return false
+	}
 
 	poolAddrBase58Str := base58.Encode(flow.Snap.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrBase58Str)
@@ -61,84 +65,101 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		txDatas = append(txDatas, transferInstruction.Data)
 
 	}
-	multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-	if err != nil {
-		if err == solClient.ErrAccountNotFound {
-			res, err := rpcClient.GetRecentBlockhash(context.Background())
-			if err != nil {
-				w.log.Error("processWithdrawReportedEvent GetRecentBlockhash failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
-			if err != nil {
-				w.log.Error("processWithdrawReportedEvent GetMinimumBalanceForRentExemption failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			miniMumBalanceForTx *= 2
+	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+	if err != nil && err == solClient.ErrAccountNotFound {
 
-			//send from o relayers
-			//create transaction account of this era
-			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-				Instructions: []solTypes.Instruction{
-					sysprog.CreateAccountWithSeed(
-						poolClient.FeeAccount.PublicKey,
-						multisigTxAccountPubkey,
-						poolClient.MultisigTxBaseAccount.PublicKey,
-						poolClient.MultisigProgramId,
-						multisigTxAccountSeed,
-						miniMumBalanceForTx,
-						1000,
-					),
-					multisigprog.CreateTransaction(
-						poolClient.MultisigProgramId,
-						programIds,
-						accountMetas,
-						txDatas,
-						poolClient.MultisigInfoPubkey,
-						multisigTxAccountPubkey,
-						poolClient.FeeAccount.PublicKey,
-					),
-				},
-				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-				FeePayer:        poolClient.FeeAccount.PublicKey,
-				RecentBlockHash: res.Blockhash,
-			})
-
-			if err != nil {
-				w.log.Error("processWithdrawReportedEvent CreateTransaction CreateRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-
-			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-			if err != nil {
-				w.log.Error("processWithdrawReportedEvent createTransaction SendRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			w.log.Info("create multisig tx account",
-				"tx hash", txHash,
-				"multisig tx account", multisigTxAccountPubkey.ToBase58())
-
-		} else {
-			w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo err",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+		res, err := rpcClient.GetRecentBlockhash(context.Background())
+		if err != nil {
+			w.log.Error("processWithdrawReportedEvent GetRecentBlockhash failed",
+				"pool address", poolAddrBase58Str,
 				"err", err)
 			return false
 		}
+		miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
+		if err != nil {
+			w.log.Error("processWithdrawReportedEvent GetMinimumBalanceForRentExemption failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+		miniMumBalanceForTx *= 2
+
+		//send from o relayers
+		//create transaction account of this era
+		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+			Instructions: []solTypes.Instruction{
+				sysprog.CreateAccountWithSeed(
+					poolClient.FeeAccount.PublicKey,
+					multisigTxAccountPubkey,
+					poolClient.MultisigTxBaseAccount.PublicKey,
+					poolClient.MultisigProgramId,
+					multisigTxAccountSeed,
+					miniMumBalanceForTx,
+					1000,
+				),
+				multisigprog.CreateTransaction(
+					poolClient.MultisigProgramId,
+					programIds,
+					accountMetas,
+					txDatas,
+					poolClient.MultisigInfoPubkey,
+					multisigTxAccountPubkey,
+					poolClient.FeeAccount.PublicKey,
+				),
+			},
+			Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
+			FeePayer:        poolClient.FeeAccount.PublicKey,
+			RecentBlockHash: res.Blockhash,
+		})
+
+		if err != nil {
+			w.log.Error("processWithdrawReportedEvent CreateTransaction CreateRawTransaction failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+
+		txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+		if err != nil {
+			w.log.Error("processWithdrawReportedEvent createTransaction SendRawTransaction failed",
+				"pool address", poolAddrBase58Str,
+				"err", err)
+			return false
+		}
+		w.log.Info("processWithdrawReportedEvent create multisig tx account",
+			"tx hash", txHash,
+			"multisig tx account", multisigTxAccountPubkey.ToBase58())
 	}
-	if multisigTxAccountInfo != nil && multisigTxAccountInfo.DidExecute == 1 {
-		callHash := utils.BlakeTwo256(flow.Snap.Pool)
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{
-			{CallHash: hexutil.Encode(callHash[:])}}
-		return w.informChain(m.Destination, m.Source, mef)
+
+	if err != nil && err != solClient.ErrAccountNotFound {
+		w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo err",
+			"pool  address", poolAddrBase58Str,
+			"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+			"err", err)
+		return false
+	}
+
+	//check multisig tx account is created
+	retry := 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"multisig tx account  address", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
+		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+		if err != nil {
+			w.log.Warn("processWithdrawReportedEvent GetMultisigTxAccountInfo failed will waiting",
+				"pool  address", poolAddrBase58Str,
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		} else {
+			break
+		}
 	}
 
 	remainingAccounts := multisigprog.GetRemainAccounts(transferInstructions)
@@ -172,7 +193,6 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	// t.Log("rawtx base58:", base58.Encode(rawTx))
 	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
 	if err != nil {
 		w.log.Error("processWithdrawReportedEvent approve SendRawTransaction failed",
@@ -185,19 +205,26 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
-	exe := false
-	for i := 0; i < 30; i++ {
+	//check multisig exe result
+	retry = 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo reach retry limit",
+				"pool  address", poolAddrBase58Str,
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
 		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
-			exe = true
 			break
+		} else {
+			w.log.Warn("processWithdrawReportedEvent multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			time.Sleep(waitTime)
+			retry++
+			continue
 		}
-		w.log.Info("multisigTxAccount not execute", "multisigTxAccount", multisigTxAccountInfo)
-		time.Sleep(time.Second * 2)
 	}
-	if !exe {
-		return false
-	}
+	w.log.Info("processWithdrawReportedEvent multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
 	callHash := utils.BlakeTwo256(flow.Snap.Pool)
 	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{
