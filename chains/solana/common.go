@@ -55,12 +55,12 @@ var MultisigTxWithdrawType = MultisigTxType("withdraw")
 var MultisigTxTransferType = MultisigTxType("transfer")
 
 func GetMultisigTxAccountPubkey(baseAccount, programID solCommon.PublicKey, txType MultisigTxType, era uint32) (solCommon.PublicKey, string) {
-	seed := fmt.Sprintf("multisig3:%s:%d", txType, era)
+	seed := fmt.Sprintf("multisig:%s:%d", txType, era)
 	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
 }
 
 func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solCommon.PublicKey, string) {
-	seed := fmt.Sprintf("stake3:%d", era)
+	seed := fmt.Sprintf("stake:%d", era)
 	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
 }
 
@@ -108,12 +108,15 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 				"error", err)
 			return false
 		}
+
 		if stakeAccountInfo.StakeAccount.Info.Stake.CreditsObserved != creditsStakeBaseAccount {
 			continue
 		}
 
 		//filter account
 		if accountInfo.State == solClient.StakeActivationStateInactive {
+			//withdraw all balance
+			accountInfo.Inactive = stakeAccountInfo.Lamports
 			canWithdrawAccounts[stakeAccountPubkey] = accountInfo
 		} else if accountInfo.State == solClient.StakeActivationStateActive {
 			canMergeAccounts[stakeAccountPubkey] = accountInfo
