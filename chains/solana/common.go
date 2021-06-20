@@ -59,6 +59,11 @@ func GetMultisigTxAccountPubkey(baseAccount, programID solCommon.PublicKey, txTy
 	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
 }
 
+func GetMultisigTxAccountPubkeyForTransfer(baseAccount, programID solCommon.PublicKey, era uint32, batchTimes int) (solCommon.PublicKey, string) {
+	seed := fmt.Sprintf("multisig:%s:%d:%d", MultisigTxTransferType, era, batchTimes)
+	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
+}
+
 func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solCommon.PublicKey, string) {
 	seed := fmt.Sprintf("stake:%d", era)
 	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
