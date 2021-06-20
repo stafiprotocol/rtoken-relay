@@ -206,23 +206,10 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 	//check multisig exe result
-	retry = 0
-	for {
-		if retry >= retryLimit {
-			w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo reach retry limit",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
-		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
-			break
-		} else {
-			w.log.Warn("processWithdrawReportedEvent multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-			time.Sleep(waitTime)
-			retry++
-			continue
-		}
+
+	exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processWithdrawReportedEvent")
+	if !exe {
+		return false
 	}
 	w.log.Info("processWithdrawReportedEvent multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 

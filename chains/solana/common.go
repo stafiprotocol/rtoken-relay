@@ -314,23 +314,9 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 	//check multisig exe result
-	retry = 0
-	for {
-		if retry >= retryLimit {
-			w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo reach retry limit",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
-		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
-			break
-		} else {
-			w.log.Warn("MergeAndWithdraw multisigTxAccount not execute yet, waiting...", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-			time.Sleep(waitTime)
-			retry++
-			continue
-		}
+	exe:=w.waitingForMultisigTxExe(rpcClient,poolAddrBase58Str,multisigTxAccountPubkey.ToBase58(),"MergeAndWithdraw")
+	if !exe{
+		return false
 	}
 	w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 	return true
@@ -342,4 +328,27 @@ func mapToString(accountsMap map[solCommon.PublicKey]solClient.GetStakeActivatio
 		ret = ret + account.ToBase58() + fmt.Sprintf(" : %+v", active) + "\n"
 	}
 	return ret
+}
+
+func (w *writer) waitingForMultisigTxExe(rpcClient *solClient.Client, poolAddress, multisigTxAddress, processName string) bool {
+	retry := 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error(fmt.Sprintf("[%s] GetMultisigTxAccountInfo reach retry limit", processName),
+				"pool  address", poolAddress,
+				"multisig tx account address", multisigTxAddress)
+			return false
+		}
+		multisigTxAccountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAddress)
+		if err == nil && multisigTxAccountInfo.DidExecute == 1 {
+			break
+		} else {
+			w.log.Warn(fmt.Sprintf("[%s] multisigTxAccount not execute yet, waiting...", processName),
+			 "multisigTxAccount", multisigTxAddress)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		}
+	}
+	return true
 }
