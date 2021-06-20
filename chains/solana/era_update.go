@@ -196,6 +196,9 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	var deactiveInstruction solTypes.Instruction
 
 	var remainingAccounts []solTypes.AccountMeta
+	var programsIds []solCommon.PublicKey
+	var accountMetas [][]solTypes.AccountMeta
+	var datas [][]byte
 
 	stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), poolClient.StakeBaseAccount.PublicKey.ToBase58())
 	if err != nil {
@@ -208,120 +211,33 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	validatorPubkey := stakeBaseAccountInfo.StakeAccount.Info.Stake.Delegation.Voter
 
 	if bondCmpUnbondResult > 0 {
+		//stake
 		val := new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int)
 		transferInstruction = sysprog.Transfer(poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
 		stakeInstruction = stakeprog.DelegateStake(stakeAccountPubkey, poolClient.MultisignerPubkey, validatorPubkey)
 		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{transferInstruction, stakeInstruction})
+		programsIds = []solCommon.PublicKey{transferInstruction.ProgramID, stakeInstruction.ProgramID}
+		accountMetas = [][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts}
+		datas = [][]byte{transferInstruction.Data, stakeInstruction.Data}
 	} else {
+		//unstake
 		val := new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int)
 		splitInstruction = stakeprog.Split(poolClient.StakeBaseAccount.PublicKey,
 			poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
 		deactiveInstruction = stakeprog.Deactivate(stakeAccountPubkey, poolClient.MultisignerPubkey)
 		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
+		programsIds = []solCommon.PublicKey{splitInstruction.ProgramID, deactiveInstruction.ProgramID}
+		accountMetas = [][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts}
+		datas = [][]byte{splitInstruction.Data, deactiveInstruction.Data}
 	}
 
 	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil && err == solClient.ErrAccountNotFound {
-		res, err := rpcClient.GetRecentBlockhash(context.Background())
-		if err != nil {
-			w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
+		sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programsIds, accountMetas, datas,
+			multisigTxAccountPubkey, multisigTxAccountSeed, "processEraPoolUpdatedEvt")
+		if !sendOk {
 			return false
 		}
-
-		if bondCmpUnbondResult > 0 { //stake
-			//send from o relayers
-			//create transaction account of this era
-			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-				Instructions: []solTypes.Instruction{
-					sysprog.CreateAccountWithSeed(
-						poolClient.FeeAccount.PublicKey,
-						multisigTxAccountPubkey,
-						poolClient.MultisigTxBaseAccount.PublicKey,
-						poolClient.MultisigProgramId,
-						multisigTxAccountSeed,
-						miniMumBalanceForTx,
-						1000,
-					),
-					multisigprog.CreateTransaction(
-						poolClient.MultisigProgramId,
-						[]solCommon.PublicKey{transferInstruction.ProgramID, stakeInstruction.ProgramID},
-						[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
-						[][]byte{transferInstruction.Data, stakeInstruction.Data},
-						poolClient.MultisigInfoPubkey,
-						multisigTxAccountPubkey,
-						poolClient.FeeAccount.PublicKey,
-					),
-				},
-				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-				FeePayer:        poolClient.FeeAccount.PublicKey,
-				RecentBlockHash: res.Blockhash,
-			})
-
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt CreateTransaction CreateRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-
-			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt createTransaction SendRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			w.log.Info("processEraPoolUpdatedEvt create multisig tx account for stake",
-				"tx hash", txHash,
-				"multisig tx account", multisigTxAccountPubkey.ToBase58())
-		} else { //unstake
-			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-				Instructions: []solTypes.Instruction{
-					sysprog.CreateAccountWithSeed(
-						poolClient.FeeAccount.PublicKey,
-						multisigTxAccountPubkey,
-						poolClient.MultisigTxBaseAccount.PublicKey,
-						poolClient.MultisigProgramId,
-						multisigTxAccountSeed,
-						miniMumBalanceForTx,
-						1000,
-					),
-					multisigprog.CreateTransaction(
-						poolClient.MultisigProgramId,
-						[]solCommon.PublicKey{splitInstruction.ProgramID, deactiveInstruction.ProgramID},
-						[][]solTypes.AccountMeta{splitInstruction.Accounts, deactiveInstruction.Accounts},
-						[][]byte{splitInstruction.Data, deactiveInstruction.Data},
-						poolClient.MultisigInfoPubkey,
-						multisigTxAccountPubkey,
-						poolClient.FeeAccount.PublicKey,
-					),
-				},
-				Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-				FeePayer:        poolClient.FeeAccount.PublicKey,
-				RecentBlockHash: res.Blockhash,
-			})
-
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt CreateTransaction CreateRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-
-			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt createTransaction SendRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			w.log.Info("processEraPoolUpdatedEvt create multisig tx account for unstake",
-				"tx hash", txHash,
-				"multisig tx account", multisigTxAccountPubkey.ToBase58())
-		}
-
 	}
 
 	if err != nil && err != solClient.ErrAccountNotFound {

@@ -68,68 +68,11 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 
 	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil && err == solClient.ErrAccountNotFound {
-
-		res, err := rpcClient.GetRecentBlockhash(context.Background())
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent GetRecentBlockhash failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
+		sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
+			multisigTxAccountPubkey, multisigTxAccountSeed, "processWithdrawReportedEvent")
+		if !sendOk {
 			return false
 		}
-		miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent GetMinimumBalanceForRentExemption failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
-			return false
-		}
-		miniMumBalanceForTx *= 2
-
-		//send from o relayers
-		//create transaction account of this era
-		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-			Instructions: []solTypes.Instruction{
-				sysprog.CreateAccountWithSeed(
-					poolClient.FeeAccount.PublicKey,
-					multisigTxAccountPubkey,
-					poolClient.MultisigTxBaseAccount.PublicKey,
-					poolClient.MultisigProgramId,
-					multisigTxAccountSeed,
-					miniMumBalanceForTx,
-					1000,
-				),
-				multisigprog.CreateTransaction(
-					poolClient.MultisigProgramId,
-					programIds,
-					accountMetas,
-					txDatas,
-					poolClient.MultisigInfoPubkey,
-					multisigTxAccountPubkey,
-					poolClient.FeeAccount.PublicKey,
-				),
-			},
-			Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.MultisigTxBaseAccount},
-			FeePayer:        poolClient.FeeAccount.PublicKey,
-			RecentBlockHash: res.Blockhash,
-		})
-
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent CreateTransaction CreateRawTransaction failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
-			return false
-		}
-
-		txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent createTransaction SendRawTransaction failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
-			return false
-		}
-		w.log.Info("processWithdrawReportedEvent create multisig tx account",
-			"tx hash", txHash,
-			"multisig tx account", multisigTxAccountPubkey.ToBase58())
 	}
 
 	if err != nil && err != solClient.ErrAccountNotFound {
