@@ -8,6 +8,7 @@ const (
 	StorageBondRecords       = "BondRecords"
 	StorageBondStates        = "BondStates"
 	MethodExecuteBondRecord  = "RTokenSeries.execute_bond_record"
+	StorageNominated         = "Nominated"
 
 	RtokenVoteModuleId         = "RTokenVotes"
 	StorageVotes               = "Votes"

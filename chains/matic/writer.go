@@ -157,9 +157,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	shareAddr, err := w.conn.Validator(mef.ValidatorId)
+	shareAddr, err := w.conn.GetValidator(mef.ValidatorId)
 	if err != nil {
-		w.log.Error("processEraPoolUpdated get Validator error", "error", err)
+		w.log.Error("processEraPoolUpdated get GetValidator error", "error", err)
 		w.sysErr <- err
 		return false
 	}
@@ -225,9 +225,9 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return false
 	}
 
-	shareAddr, err := w.conn.Validator(flow.ValidatorId)
+	shareAddr, err := w.conn.GetValidator(flow.ValidatorId)
 	if err != nil {
-		w.log.Error("processBondReported get Validator error", "error", err)
+		w.log.Error("processBondReported get GetValidator error", "error", err)
 		w.sysErr <- err
 		return false
 	}
@@ -296,9 +296,9 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	shareAddr, err := w.conn.Validator(mef.ValidatorId)
+	shareAddr, err := w.conn.GetValidator(mef.ValidatorId)
 	if err != nil {
-		w.log.Error("processActiveReported get Validator error", "error", err)
+		w.log.Error("processActiveReported get GetValidator error", "error", err)
 		w.sysErr <- err
 		return false
 	}

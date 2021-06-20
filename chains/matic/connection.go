@@ -52,11 +52,13 @@ type Connection struct {
 	log        log15.Logger
 	stop       <-chan int
 
-	stakeManager       *StakeManager.StakeManager
-	multisig           *Multisig.Multisig
-	maticTokenContract common.Address
-	maticToken         *MaticToken.MaticToken
-	multiSendContract  common.Address
+	stakeManager         *StakeManager.StakeManager
+	stateManagerContract common.Address
+	multisig             *Multisig.Multisig
+	multisigContract     common.Address
+	maticTokenContract   common.Address
+	maticToken           *MaticToken.MaticToken
+	multiSendContract    common.Address
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -91,12 +93,12 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, err
 	}
 
-	stakeManager, err := initStakeManager(cfg.Opts["StakeManagerContract"], conn.Client())
+	stakeManager, stateManagerContract, err := initStakeManager(cfg.Opts["StakeManagerContract"], conn.Client())
 	if err != nil {
 		return nil, err
 	}
 
-	multisig, err := initMultisig(cfg.Opts["MultisigContract"], conn.Client())
+	multisig, multisigContract, err := initMultisig(cfg.Opts["MultisigContract"], conn.Client())
 	if err != nil {
 		return nil, err
 	}
@@ -112,19 +114,25 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:                cfg.Endpoint,
-		symbol:             cfg.Symbol,
-		conn:               conn,
-		keys:               keys,
-		publicKeys:         publicKeys,
-		log:                log,
-		stop:               stop,
-		stakeManager:       stakeManager,
-		multisig:           multisig,
-		maticTokenContract: maticAddr,
-		maticToken:         matic,
-		multiSendContract:  multiSendAddr,
+		url:                  cfg.Endpoint,
+		symbol:               cfg.Symbol,
+		conn:                 conn,
+		keys:                 keys,
+		publicKeys:           publicKeys,
+		log:                  log,
+		stop:                 stop,
+		stakeManager:         stakeManager,
+		stateManagerContract: stateManagerContract,
+		multisig:             multisig,
+		multisigContract:     multisigContract,
+		maticTokenContract:   maticAddr,
+		maticToken:           matic,
+		multiSendContract:    multiSendAddr,
 	}, nil
+}
+
+func (c *Connection) ReConnect() error {
+	return c.conn.Connect()
 }
 
 // LatestBlock returns the latest block from the current chain
@@ -147,7 +155,9 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 func (c *Connection) FoundKey(accounts []types.Bytes) *secp256k1.Keypair {
 	for _, ac := range accounts {
 		for _, key := range c.keys {
-			if key.Address() == hexutil.Encode(ac) {
+			//c.log.Info("FoundKey", "keyAddress", key.Address(), "Account", hexutil.Encode(ac))
+			// don't use address string as case problem exist
+			if bytes.Equal(key.CommonAddress().Bytes(), ac) {
 				return key
 			}
 		}
@@ -155,11 +165,8 @@ func (c *Connection) FoundKey(accounts []types.Bytes) *secp256k1.Keypair {
 	return nil
 }
 
-func (c *Connection) Validator(validatorId *big.Int) (common.Address, error) {
-	validator, err := c.stakeManager.Validators(nil, validatorId)
-	if err != nil {
-		return ZeroAddress, err
-	}
+func (c *Connection) GetValidator(validatorId *big.Int) (common.Address, error) {
+	c.log.Info("GetValidator", "validatorId", validatorId, "stateManagerContract", c.stateManagerContract)
 
 	valFlag, err := c.stakeManager.IsValidator(nil, validatorId)
 	if err != nil {
@@ -168,6 +175,11 @@ func (c *Connection) Validator(validatorId *big.Int) (common.Address, error) {
 
 	if !valFlag {
 		return ZeroAddress, fmt.Errorf("validatorId: %s is not validator", validatorId.String())
+	}
+
+	validator, err := c.stakeManager.Validators(nil, validatorId)
+	if err != nil {
+		return ZeroAddress, err
 	}
 
 	return validator.ContractAddress, nil

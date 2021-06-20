@@ -22,7 +22,6 @@ package matic
 
 import (
 	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
@@ -49,10 +48,19 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	bs := new(blockstore.Blockstore)
-	startBlk, err := chains.StartBlock(cfg, latestBlock, bs, conn.Address())
+	bs, err := chains.NewBlockstore(cfg.Opts["blockstorePath"], conn.Address())
 	if err != nil {
 		return nil, err
+	}
+
+	var startBlk uint64
+	if cfg.LatestBlockFlag {
+		startBlk = latestBlock
+	} else {
+		startBlk, err = chains.StartBlock(bs, cfg.Opts["startBlock"])
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Setup listener & writer

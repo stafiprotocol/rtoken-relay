@@ -66,7 +66,7 @@ func TestSigners(t *testing.T) {
 	}
 
 	t.Log(share.ContractAddress) // 0x59a82694a675377E010F18F598f5B9dBB83eD968
-	t.Log(share.Status) // 1
+	t.Log(share.Status)          // 1
 
 	valFlag, err := instance.IsValidator(nil, id)
 	if err != nil {
@@ -74,4 +74,44 @@ func TestSigners(t *testing.T) {
 	}
 
 	t.Log(valFlag)
+}
+
+func TestGoerliSigners(t *testing.T) {
+	client, err := NewSimpleClient(goerliEndPoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr, err := instance.Signers(nil, big.NewInt(1))
+	if err != nil {
+		t.Fatal(err) //execution reverted
+	}
+	t.Log(addr)
+
+	//id, err := instance.SignerToValidator(nil, addr)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log(id) // 111
+	//t.Log(hexutil.Encode(id.Bytes()))
+	//
+	//share, err := instance.Validators(nil, id)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Log(share.ContractAddress) // 0x59a82694a675377E010F18F598f5B9dBB83eD968
+	//t.Log(share.Status) // 1
+	//
+	//valFlag, err := instance.IsValidator(nil, id)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Log(valFlag)
 }

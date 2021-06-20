@@ -536,7 +536,7 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validat
 		}
 
 		if !exist {
-			c.log.Info("ErasStakersClipped not exits", "LastEra", flow.LastEra, "symbol", flow.Symbol, "Validator", hexutil.Encode(tgt[:]))
+			c.log.Info("ErasStakersClipped not exits", "LastEra", flow.LastEra, "symbol", flow.Symbol, "GetValidator", hexutil.Encode(tgt[:]))
 			continue
 		}
 

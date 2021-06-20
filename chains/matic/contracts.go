@@ -10,20 +10,33 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 )
 
-func initStakeManager(stakeManagerCfg interface{}, conn *ethclient.Client) (*StakeManager.StakeManager, error) {
+func initStakeManager(stakeManagerCfg interface{}, conn *ethclient.Client) (*StakeManager.StakeManager, common.Address, error) {
 	stakeManagerAddr, ok := stakeManagerCfg.(string)
 	if !ok {
-		return nil, errors.New("StakeManagerContract not ok")
+		return nil, ZeroAddress, errors.New("StakeManagerContract not ok")
 	}
-	return StakeManager.NewStakeManager(common.HexToAddress(stakeManagerAddr), conn)
+	addr := common.HexToAddress(stakeManagerAddr)
+	manager, err := StakeManager.NewStakeManager(common.HexToAddress(stakeManagerAddr), conn)
+	if err != nil {
+		return nil, ZeroAddress, err
+	}
+
+	return manager, addr, nil
 }
 
-func initMultisig(multisigCfg interface{}, conn *ethclient.Client) (*Multisig.Multisig, error) {
+func initMultisig(multisigCfg interface{}, conn *ethclient.Client) (*Multisig.Multisig, common.Address, error) {
 	multisigAddr, ok := multisigCfg.(string)
 	if !ok {
-		return nil, errors.New("MultisigContract not ok")
+		return nil, ZeroAddress, errors.New("MultisigContract not ok")
 	}
-	return Multisig.NewMultisig(common.HexToAddress(multisigAddr), conn)
+
+	addr := common.HexToAddress(multisigAddr)
+	multisig, err := Multisig.NewMultisig(addr, conn)
+	if err != nil {
+		return nil, ZeroAddress, err
+	}
+
+	return multisig, addr, nil
 }
 
 func initMaticToken(maticTokenCfg interface{}, conn *ethclient.Client) (*MaticToken.MaticToken, common.Address, error) {

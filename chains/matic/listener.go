@@ -122,6 +122,13 @@ func (l *listener) pollBlocks() error {
 
 			latestBlock, err := l.conn.LatestBlock()
 			if err != nil {
+				if err.Error() == "client is closed" {
+					err = l.conn.ReConnect()
+					if err != nil {
+						panic(err)
+					}
+				}
+
 				l.log.Error("Unable to get latest block", "block", currentBlock, "err", err)
 				retry--
 				time.Sleep(BlockRetryInterval)

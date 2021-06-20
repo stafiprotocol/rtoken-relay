@@ -4,50 +4,34 @@ import (
 	"errors"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/chainbridge/utils/msg"
-	"github.com/stafiprotocol/rtoken-relay/core"
 	"strconv"
 )
 
-func StartBlock(cfg *core.ChainConfig, latestBlock uint64, bs *blockstore.Blockstore, relayer string) (uint64, error) {
-	if cfg.LatestBlockFlag {
-		return latestBlock, nil
-	}
-
-	blk := parseStartBlock(cfg)
-
-	bsCfg := cfg.Opts["blockstorePath"]
+func NewBlockstore(bsCfg interface{}, relayer string) (*blockstore.Blockstore, error) {
 	bsPath, ok := bsCfg.(string)
 	if !ok {
-		return 0, errors.New("blockstorePath not string")
+		return nil, errors.New("blockstorePath not string")
 	}
 
-	var err error
-	bs, err = blockstore.NewBlockstore(bsPath, msg.ChainId(100), relayer)
-	if err != nil {
-		return 0, err
-	}
-
-	blk, err = checkBlockstore(bs, blk)
-	if err != nil {
-		return 0, err
-	}
-
-	return blk, nil
+	return blockstore.NewBlockstore(bsPath, msg.ChainId(100), relayer)
 }
 
-func parseStartBlock(cfg *core.ChainConfig) uint64 {
-	if blk, ok := cfg.Opts["startBlock"]; ok {
-		blkStr, ok := blk.(string)
-		if !ok {
-			panic("block not string")
-		}
-		res, err := strconv.ParseUint(blkStr, 10, 32)
-		if err != nil {
-			panic(err)
-		}
-		return res
+func StartBlock(bs *blockstore.Blockstore, blkCfg interface{}) (uint64, error) {
+	blk := parseStartBlock(blkCfg)
+	return checkBlockstore(bs, blk)
+}
+
+func parseStartBlock(blkCfg interface{}) uint64 {
+	blkStr, ok := blkCfg.(string)
+	if !ok {
+		panic("blkCfg not string")
 	}
-	return 0
+
+	res, err := strconv.ParseUint(blkStr, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 // checkBlockstore queries the blockstore for the latest known block. If the latest block is

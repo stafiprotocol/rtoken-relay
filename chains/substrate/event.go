@@ -661,13 +661,20 @@ func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (*big.Int, erro
 	}
 
 	validatorIds := make([]types.Bytes, 0)
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &validatorIds)
+	exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageNominated, symBz, poolBz, &validatorIds)
 	if err != nil {
 		return nil, err
 	}
 	if !exist {
-		return nil, fmt.Errorf("validatorId of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+		return nil, fmt.Errorf("validatorId of symbol: %s, pool: %s not exist", symbol, hexutil.Encode(pool))
 	}
 
-	return big.NewInt(0).SetBytes(validatorIds[0]), nil
+	if len(validatorIds) == 0 {
+		return nil, fmt.Errorf("no available validatorId, symbol: %s, pool: %s", symbol, hexutil.Encode(pool))
+	}
+
+	id := big.NewInt(0).SetBytes(validatorIds[0])
+	l.log.Info("get validatorId", "id", id, "symbol", symbol, "pool", hexutil.Encode(pool))
+
+	return id, nil
 }

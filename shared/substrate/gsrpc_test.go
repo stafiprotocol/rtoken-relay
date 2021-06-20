@@ -795,3 +795,30 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	err = gc.SignAndSubmitTx(ext)
 	assert.NoError(t, err)
 }
+
+func TestValidatorId(t *testing.T) {
+	pool, _ := hexutil.Decode("0x1cb8b55cb11152e74d34be1961e4ffe169f5b99a")
+
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	symBz, err := types.EncodeToBytes(core.RMATIC)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
+
+	validatorIds := make([]types.Bytes, 0)
+	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageNominated, symBz, poolBz, &validatorIds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exist {
+		t.Fatal(err)
+	}
+
+	t.Log(len(validatorIds))
+}
