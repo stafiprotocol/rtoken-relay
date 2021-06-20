@@ -8,8 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
-	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"math/big"
 	"strings"
 	"sync"
@@ -22,14 +20,16 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
 var (
 	BlockRetryInterval = time.Second * 5
-	BlockToFinalize = big.NewInt(3)
-	DefaultGasLimit = big.NewInt(5000000)
-	DefaultGasPrice = big.NewInt(20000000000)
-	ExtraGasPrice = big.NewInt(10000000000)
+	BlockToFinalize    = big.NewInt(3)
+	DefaultGasLimit    = big.NewInt(5000000)
+	DefaultGasPrice    = big.NewInt(20000000000)
+	ExtraGasPrice      = big.NewInt(10000000000)
 )
 
 type Client struct {
@@ -38,12 +38,12 @@ type Client struct {
 	gasLimit    *big.Int
 	maxGasPrice *big.Int
 	conn        *ethclient.Client
-	opts     *bind.TransactOpts
-	callOpts *bind.CallOpts
-	nonce    uint64
-	optsLock sync.Mutex
-	log      log15.Logger
-	stop     chan int // All routines should exit when this channel is closed
+	opts        *bind.TransactOpts
+	callOpts    *bind.CallOpts
+	nonce       uint64
+	optsLock    sync.Mutex
+	log         log15.Logger
+	stop        chan int // All routines should exit when this channel is closed
 }
 
 // NewClient returns an uninitialized connection, must call Client.Connect() before using.

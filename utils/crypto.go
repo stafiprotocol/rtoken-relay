@@ -6,7 +6,7 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 )
 
-func DecomposeSignature(sigs [][]byte) ([]uint8, [][32]byte, [][32]byte){
+func DecomposeSignature(sigs [][]byte) ([]uint8, [][32]byte, [][32]byte) {
 	rs := make([][32]byte, 0)
 	ss := make([][32]byte, 0)
 	vs := make([]uint8, 0)

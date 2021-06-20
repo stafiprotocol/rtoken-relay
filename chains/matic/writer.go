@@ -6,6 +6,9 @@ package matic
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"sync"
+
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -18,8 +21,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
-	"sync"
 )
 
 type writer struct {
@@ -32,10 +33,10 @@ type writer struct {
 	currentChainEra uint32
 	bondedPoolsMtx  sync.RWMutex
 	bondedPools     map[string]bool
-	eventMtx              sync.RWMutex
-	events                map[string]*submodel.MultiEventFlow
+	eventMtx        sync.RWMutex
+	events          map[string]*submodel.MultiEventFlow
 	bondReportedMtx sync.RWMutex
-	bondReporteds map[string]*submodel.BondReportedFlow
+	bondReporteds   map[string]*submodel.BondReportedFlow
 	stop            <-chan int
 }
 
@@ -51,6 +52,9 @@ func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr c
 		sysErr:          sysErr,
 		liquidityBonds:  make(chan *core.Message, bondFlowLimit),
 		currentChainEra: 0,
+		bondedPools:     make(map[string]bool),
+		events:          make(map[string]*submodel.MultiEventFlow),
+		bondReporteds:   make(map[string]*submodel.BondReportedFlow),
 		stop:            stop,
 	}
 }

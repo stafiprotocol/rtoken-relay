@@ -7,19 +7,19 @@ import (
 )
 
 type MultiTransaction struct {
-	To common.Address
-	Value *big.Int
-	CallData []byte
-	CallType uint8
+	To        common.Address
+	Value     *big.Int
+	CallData  []byte
+	CallType  uint8
 	SafeTxGas *big.Int
 }
 
 type BatchTransaction struct {
-	Operation uint8
-	To common.Address
-	Value *big.Int
+	Operation  uint8
+	To         common.Address
+	Value      *big.Int
 	DataLength *big.Int
-	Data []byte
+	Data       []byte
 }
 
 type BatchTransactions []*BatchTransaction
@@ -44,11 +44,10 @@ func (bt *BatchTransaction) Encode() []byte {
 type EventSig string
 
 const (
-	TransferEvent = EventSig("Transfer(address,address,uint256)")
+	TransferEvent         = EventSig("Transfer(address,address,uint256)")
 	TransferEventTopicLen = 3
 )
 
 func (es EventSig) GetTopic() common.Hash {
 	return crypto.Keccak256Hash([]byte(es))
 }
-

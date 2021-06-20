@@ -15,12 +15,8 @@ func StartBlock(cfg *core.ChainConfig, latestBlock uint64, bs *blockstore.Blocks
 
 	blk := parseStartBlock(cfg)
 
-	bp := cfg.Opts["blockstorePath"]
-	if bp == nil {
-		return 0, errors.New("blockstorePath nil")
-	}
-
-	bsPath, ok := bp.(string)
+	bsCfg := cfg.Opts["blockstorePath"]
+	bsPath, ok := bsCfg.(string)
 	if !ok {
 		return 0, errors.New("blockstorePath not string")
 	}

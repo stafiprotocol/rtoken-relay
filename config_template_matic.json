@@ -1,0 +1,43 @@
+{
+  "chains": [
+    {
+      "name": "stafi",
+      "type": "substrate",
+      "rsymbol": "RFIS",
+      "endpoint": "ws://127.0.0.1:9944",
+      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys/stafi",
+      "accounts": [
+        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+      ],
+      "latestBlockFlag": false,
+      "opts": {
+        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
+        "startBlock": "1",
+        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "addressType": "AccountId",
+        "chainType": "stafi",
+        "cares": ["RDOT"]
+      }
+    },
+    {
+      "name": "matics",
+      "type": "ethereum",
+      "rsymbol": "RMATIC",
+      "endpoint": "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4",
+      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum",
+      "accounts": [
+        "0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6",
+        "0xBd39f5936969828eD9315220659cD11129071814"
+      ],
+      "latestBlockFlag": true,
+      "opts": {
+        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "eraBlockCfg": "100",
+        "StakeManagerContract": "0x4864d89DCE4e24b2eDF64735E014a7E4154bfA7A",
+        "MultisigContract": "0x1Cb8b55cB11152E74D34Be1961E4FFe169F5B99A",
+        "MaticTokenContract": "0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae",
+        "MultiSendContract": "0x747e29a783a9EE438bD25ac32bB341f12c827217"
+      }
+    }
+  ]
+}

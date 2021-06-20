@@ -62,7 +62,9 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 }
 
 func (c *Chain) SetRouter(r *core.Router) {
+	r.Listen(c.Rsymbol(), c.writer)
 	c.listener.setRouter(r)
+	c.writer.setRouter(r)
 }
 
 func (c *Chain) Start() error {

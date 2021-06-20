@@ -1,26 +1,25 @@
 package matic
 
 import (
-	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
+	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 )
-
 
 /// ValidatorShare
 var (
 	ValidatorShareAbi, _ = abi.JSON(strings.NewReader(ValidatorShare.ValidatorShareABI))
-	MultiSendAbi, _ = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
+	MultiSendAbi, _      = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
 
-	BuyVoucherSafeTxGas = big.NewInt(300000)
+	BuyVoucherSafeTxGas     = big.NewInt(300000)
 	SellVoucherNewSafeTxGas = big.NewInt(350000)
-	RestakeSafeTxGas = big.NewInt(200000)
-	WithdrawTxGas = big.NewInt(100000)
-	TransferTxGas = big.NewInt(100000)
+	RestakeSafeTxGas        = big.NewInt(200000)
+	WithdrawTxGas           = big.NewInt(100000)
+	TransferTxGas           = big.NewInt(100000)
 )
 
 const (
@@ -30,7 +29,7 @@ const (
 	SellVoucherNewMethodName = "sellVoucher_new" //0xc83ec04d
 	//SellVoucherNewMethodId = "0xc83ec04d"
 
-	RestakeMethodName = "restake" // claim/payout
+	RestakeMethodName     = "restake"                // claim/payout
 	UnstakeClaimTokensNew = "unstakeClaimTokens_new" // withdraw
 
 	MultiSendMethodName = "multiSend"

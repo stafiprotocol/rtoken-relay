@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	DefaultValue = big.NewInt(0)
+	DefaultValue     = big.NewInt(0)
 	TxConfirmLimit   = 200
 	TxRetryInterval  = time.Second * 2
 	ErrNonceTooLow   = errors.New("nonce too low")
@@ -44,19 +44,19 @@ const (
 )
 
 type Connection struct {
-	url          string
-	symbol       core.RSymbol
-	conn         *ethereum.Client
-	keys         []*secp256k1.Keypair
-	publicKeys   [][]byte
-	log          log15.Logger
-	stop         <-chan int
+	url        string
+	symbol     core.RSymbol
+	conn       *ethereum.Client
+	keys       []*secp256k1.Keypair
+	publicKeys [][]byte
+	log        log15.Logger
+	stop       <-chan int
 
-	stakeManager *StakeManager.StakeManager
-	multisig     *Multisig.Multisig
+	stakeManager       *StakeManager.StakeManager
+	multisig           *Multisig.Multisig
 	maticTokenContract common.Address
-	maticToken *MaticToken.MaticToken
-	multiSendContract common.Address
+	maticToken         *MaticToken.MaticToken
+	multiSendContract  common.Address
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -74,7 +74,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		kp, _ := kpI.(*secp256k1.Keypair)
 		pk := utils.PublicKeyFromKeypair(kp)
 
-		if i == acSize - 1 {
+		if i == acSize-1 {
 			key = kp
 		} else {
 			keys = append(keys, kp)
@@ -112,18 +112,18 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:          cfg.Endpoint,
-		symbol:       cfg.Symbol,
-		conn:         conn,
-		keys:         keys,
-		publicKeys:   publicKeys,
-		log:          log,
-		stop:         stop,
-		stakeManager: stakeManager,
-		multisig:     multisig,
+		url:                cfg.Endpoint,
+		symbol:             cfg.Symbol,
+		conn:               conn,
+		keys:               keys,
+		publicKeys:         publicKeys,
+		log:                log,
+		stop:               stop,
+		stakeManager:       stakeManager,
+		multisig:           multisig,
 		maticTokenContract: maticAddr,
-		maticToken: matic,
-		multiSendContract: multiSendAddr,
+		maticToken:         matic,
+		multiSendContract:  multiSendAddr,
 	}, nil
 }
 
@@ -161,7 +161,15 @@ func (c *Connection) Validator(validatorId *big.Int) (common.Address, error) {
 		return ZeroAddress, err
 	}
 
-	// todo check status
+	valFlag, err := c.stakeManager.IsValidator(nil, validatorId)
+	if err != nil {
+		return ZeroAddress, err
+	}
+
+	if !valFlag {
+		return ZeroAddress, fmt.Errorf("validatorId: %s is not validator", validatorId.String())
+	}
+
 	return validator.ContractAddress, nil
 }
 
@@ -208,8 +216,8 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 	}
 
 	return &ethmodel.MultiTransaction{
-		To: share,
-		Value: DefaultValue,
+		To:       share,
+		Value:    DefaultValue,
 		CallData: packed,
 	}, nil
 }
@@ -226,8 +234,8 @@ func (c *Connection) WithdrawCall(share, pool common.Address) (*ethmodel.MultiTr
 	}
 
 	return &ethmodel.MultiTransaction{
-		To: share,
-		Value: DefaultValue,
+		To:       share,
+		Value:    DefaultValue,
 		CallData: packed,
 	}, nil
 }
@@ -280,11 +288,11 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 		}
 
 		bt := &ethmodel.BatchTransaction{
-			Operation: config.Call,
-			To: c.maticTokenContract,
-			Value: DefaultValue,
+			Operation:  config.Call,
+			To:         c.maticTokenContract,
+			Value:      DefaultValue,
 			DataLength: big.NewInt(int64(len(calldata))),
-			Data: calldata,
+			Data:       calldata,
 		}
 
 		bts = append(bts, bt)
@@ -296,8 +304,8 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 	}
 
 	return &ethmodel.MultiTransaction{
-		To: c.multiSendContract,
-		Value: DefaultValue,
+		To:       c.multiSendContract,
+		Value:    DefaultValue,
 		CallData: cd,
 	}, nil
 }
@@ -350,7 +358,6 @@ func (c *Connection) AsMulti(
 	return fmt.Errorf("multisig ExecTransaction failed, to: %s, calldata: %s, safeTxGas: %s", to.Hex(), hexutil.Encode(calldata), safeTxGas.String())
 }
 
-
 func (c *Connection) IsTxHashExecuted(hash common.Hash) (bool, error) {
 	return c.multisig.ExecutedTxHashs(nil, hash)
 }
@@ -361,7 +368,7 @@ func (c *Connection) CheckTxHash(hash common.Hash) error {
 		return err
 	}
 
-	for i := 0; i < TxConfirmLimit; i++  {
+	for i := 0; i < TxConfirmLimit; i++ {
 		executed, err := c.IsTxHashExecuted(hash)
 		if err != nil {
 			return err

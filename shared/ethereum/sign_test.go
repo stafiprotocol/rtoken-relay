@@ -22,6 +22,11 @@ func TestSignature(t *testing.T) {
 	}
 
 	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+	t.Log("publicKeyBytes=", hexutil.Encode(publicKeyBytes))
+
+	ethAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	t.Log("ethAddressByte", ethAddress.Bytes())
+	t.Log("ethAddress", ethAddress.Hex())
 
 	data := []byte("hello")
 	hash := crypto.Keccak256Hash(data)
@@ -31,12 +36,13 @@ func TestSignature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(hexutil.Encode(signature))
+	t.Log("signature", hexutil.Encode(signature))
 
 	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("sigPublicKey=", hexutil.Encode(sigPublicKey))
 
 	matches := bytes.Equal(sigPublicKey, publicKeyBytes)
 	t.Log(matches) // true

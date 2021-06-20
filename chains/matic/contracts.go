@@ -40,7 +40,6 @@ func initMaticToken(maticTokenCfg interface{}, conn *ethclient.Client) (*MaticTo
 	return matic, addr, nil
 }
 
-
 func initMultisend(multiSendCfg interface{}, conn *ethclient.Client) (common.Address, error) {
 	multiSendAddr, ok := multiSendCfg.(string)
 	if !ok {

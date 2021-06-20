@@ -4,7 +4,6 @@
 package ethereum
 
 import (
-	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"math/big"
 	"os"
 	"strings"
@@ -23,24 +22,25 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	goerliEndPoint = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
-	goerliMultisigContract = common.HexToAddress("0x37c9C42eEdbc72842Cc48F0e51006AC804987e38")
+	goerliEndPoint          = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
+	goerliMultisigContract  = common.HexToAddress("0x37c9C42eEdbc72842Cc48F0e51006AC804987e38")
 	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
-	goerliErc20Token = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
+	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
 
-	owner = common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
-	receiver1 = common.HexToAddress("0xaD0bf51f7fc89e262edBbdF53C260088B024D857")
-	receiver2 = common.HexToAddress("0x1Bf32E717FfeD95c5629bd9628e6F11E380e096B")
+	owner        = common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
+	receiver1    = common.HexToAddress("0xaD0bf51f7fc89e262edBbdF53C260088B024D857")
+	receiver2    = common.HexToAddress("0x1Bf32E717FfeD95c5629bd9628e6F11E380e096B")
 	defaultValue = big.NewInt(0)
 
-	testLogger = newTestLogger("test")
+	testLogger   = newTestLogger("test")
 	keystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum/"
 
-	mabi, _ = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
+	mabi, _    = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
 	sendAbi, _ = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
 )
 
@@ -155,20 +155,20 @@ func TestMultisigSend(t *testing.T) {
 	cd1, _ := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
 	cd2, _ := mabi.Pack("transfer", receiver2, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500)))
 
-	bts := ethmodel.BatchTransactions {
+	bts := ethmodel.BatchTransactions{
 		&ethmodel.BatchTransaction{
-			Operation: config.Call,
-			To: goerliErc20Token,
-			Value: defaultValue,
+			Operation:  config.Call,
+			To:         goerliErc20Token,
+			Value:      defaultValue,
 			DataLength: big.NewInt(int64(len(cd1))),
-			Data: cd1,
+			Data:       cd1,
 		},
 		&ethmodel.BatchTransaction{
-			Operation: config.Call,
-			To: goerliErc20Token,
-			Value: defaultValue,
+			Operation:  config.Call,
+			To:         goerliErc20Token,
+			Value:      defaultValue,
 			DataLength: big.NewInt(int64(len(cd2))),
-			Data: cd2,
+			Data:       cd2,
 		},
 	}
 
@@ -253,11 +253,11 @@ func TestVerify(t *testing.T) {
 	amt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500))
 
 	a := &submodel.BondRecord{
-		Pubkey: pk,
-		Pool:pool,
+		Pubkey:    pk,
+		Pool:      pool,
 		Blockhash: bh,
-		Txhash: th,
-		Amount: types.NewU128(*amt),
+		Txhash:    th,
+		Amount:    types.NewU128(*amt),
 	}
 
 	password := "123456"
@@ -296,7 +296,6 @@ func TestVerify(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.BlockhashUnmatch, reason)
 	a.Txhash = th
-
 
 	a.Pubkey = pool
 	reason, err = client.TransferVerify(a, goerliErc20Token)
