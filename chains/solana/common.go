@@ -247,27 +247,11 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	}
 
 	//check multisig tx account is created
-	retry := 0
-	for {
-		if retry >= retryLimit {
-			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
-		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err != nil {
-			w.log.Warn("processEraPoolUpdatedEvt GetMultisigTxAccountInfo failed will waiting",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-				"err", err)
-			time.Sleep(waitTime)
-			retry++
-			continue
-		} else {
-			break
-		}
+	create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
+	if !create {
+		return false
 	}
+	w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
 	//approve multisig tx
 	remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
@@ -314,8 +298,8 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 	//check multisig exe result
-	exe:=w.waitingForMultisigTxExe(rpcClient,poolAddrBase58Str,multisigTxAccountPubkey.ToBase58(),"MergeAndWithdraw")
-	if !exe{
+	exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
+	if !exe {
 		return false
 	}
 	w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
@@ -344,10 +328,36 @@ func (w *writer) waitingForMultisigTxExe(rpcClient *solClient.Client, poolAddres
 			break
 		} else {
 			w.log.Warn(fmt.Sprintf("[%s] multisigTxAccount not execute yet, waiting...", processName),
-			 "multisigTxAccount", multisigTxAddress)
+				"pool  address", poolAddress,
+				"multisig tx Account", multisigTxAddress)
 			time.Sleep(waitTime)
 			retry++
 			continue
+		}
+	}
+	return true
+}
+
+func (w *writer) waitingForMultisigTxCreate(rpcClient *solClient.Client, poolAddress, multisigTxAddress, processName string) bool {
+	retry := 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error(fmt.Sprintf("[%s] GetMultisigTxAccountInfo reach retry limit", processName),
+				"pool  address", poolAddress,
+				"multisig tx account address", multisigTxAddress)
+			return false
+		}
+		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAddress)
+		if err != nil {
+			w.log.Warn(fmt.Sprintf("[%s] GetMultisigTxAccountInfo failed, waiting...", processName),
+				"pool  address", poolAddress,
+				"multisig tx account", multisigTxAddress,
+				"err", err)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		} else {
+			break
 		}
 	}
 	return true

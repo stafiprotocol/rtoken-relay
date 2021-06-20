@@ -350,27 +350,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	//check multisig tx account is created
-	retry = 0
-	for {
-		if retry >= retryLimit {
-			w.log.Error("processEraPoolUpdatedEvt GetMultisigTxAccountInfo reach retry limit",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account  address", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
-		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err != nil {
-			w.log.Warn("processEraPoolUpdatedEvt GetMultisigTxAccountInfo failed will waiting",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-				"err", err)
-			time.Sleep(waitTime)
-			retry++
-			continue
-		} else {
-			break
-		}
+	create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processEraPoolUpdatedEvt")
+	if !create {
+		return false
 	}
+	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -65,6 +64,8 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		txDatas = append(txDatas, transferInstruction.Data)
 
 	}
+	remainingAccounts := multisigprog.GetRemainAccounts(transferInstructions)
+
 	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil && err == solClient.ErrAccountNotFound {
 
@@ -140,29 +141,12 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 
 	//check multisig tx account is created
-	retry := 0
-	for {
-		if retry >= retryLimit {
-			w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo reach retry limit",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account  address", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
-		_, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err != nil {
-			w.log.Warn("processWithdrawReportedEvent GetMultisigTxAccountInfo failed will waiting",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-				"err", err)
-			time.Sleep(waitTime)
-			retry++
-			continue
-		} else {
-			break
-		}
+	create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processWithdrawReportedEvent")
+	if !create {
+		return false
 	}
+	w.log.Info("processWithdrawReportedEvent multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
-	remainingAccounts := multisigprog.GetRemainAccounts(transferInstructions)
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
 	if err != nil {
 		w.log.Error("processWithdrawReportedEvent GetRecentBlockhash failed",
