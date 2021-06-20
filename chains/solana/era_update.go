@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -184,27 +183,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	//check stakeaccount is created
-	retry := 0
-	for {
-		if retry >= retryLimit {
-			w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo reach retry limit",
-				"pool  address", poolAddrBase58Str,
-				"stake address", stakeAccountPubkey.ToBase58())
-			return false
-		}
-		_, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
-		if err != nil {
-			w.log.Warn("processEraPoolUpdatedEvt GetStakeAccountInfo failed will waiting",
-				"pool  address", poolAddrBase58Str,
-				"stake address", stakeAccountPubkey.ToBase58(),
-				"err", err)
-			time.Sleep(waitTime)
-			retry++
-			continue
-		} else {
-			break
-		}
+	create := w.waitingForStakeAccountCreate(rpcClient, poolAddrBase58Str, stakeAccountPubkey.ToBase58(), "processEraPoolUpdatedEvt")
+	if !create {
+		return false
 	}
+	w.log.Info("processEraPoolUpdatedEvt stakeAccount has create", "stakeAccount", stakeAccountPubkey.ToBase58())
 
 	var transferInstruction solTypes.Instruction
 	var stakeInstruction solTypes.Instruction
@@ -350,7 +333,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	//check multisig tx account is created
-	create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processEraPoolUpdatedEvt")
+	create = w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processEraPoolUpdatedEvt")
 	if !create {
 		return false
 	}

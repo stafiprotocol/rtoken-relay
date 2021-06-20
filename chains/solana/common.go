@@ -362,3 +362,28 @@ func (w *writer) waitingForMultisigTxCreate(rpcClient *solClient.Client, poolAdd
 	}
 	return true
 }
+
+func (w *writer) waitingForStakeAccountCreate(rpcClient *solClient.Client, poolAddress, stakeAccountAddress, processName string) bool {
+	retry := 0
+	for {
+		if retry >= retryLimit {
+			w.log.Error(fmt.Sprintf("[%s] GetStakeAccountInfo reach retry limit", processName),
+				"pool  address", poolAddress,
+				"stake address", stakeAccountAddress)
+			return false
+		}
+		_, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountAddress)
+		if err != nil {
+			w.log.Warn(fmt.Sprintf("[%s] GetStakeAccountInfo failed, waiting...", processName),
+				"pool  address", poolAddress,
+				"stake address", stakeAccountAddress,
+				"err", err)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		} else {
+			break
+		}
+	}
+	return true
+}
