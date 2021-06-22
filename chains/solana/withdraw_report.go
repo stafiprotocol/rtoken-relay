@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"sort"
 
@@ -78,7 +77,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			programIds = append(programIds, transferInstruction.ProgramID)
 			accountMetas = append(accountMetas, transferInstruction.Accounts)
 			txDatas = append(txDatas, transferInstruction.Data)
-			fmt.Println("will transfer to ", "index ", index, " addr ", to.ToBase58(), " value ", value.Int64())
+			w.log.Info("will transfer to ", "index ", index, " addr ", to.ToBase58(), " value ", value.Int64())
 		}
 		remainingAccounts := multisigprog.GetRemainAccounts(transferInstructions)
 
