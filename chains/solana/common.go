@@ -210,8 +210,13 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	}
 	w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
+	//if has exe just return
+	isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
+	if isExe {
+		w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+		return true
+	}
 	//approve multisig tx
-
 	send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
 	if !send {
 		return false
@@ -432,4 +437,14 @@ func (w *writer) approveMultisigTx(
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 	return true
+}
+
+func (w *writer) IsMultisigTxExe(
+	rpcClient *solClient.Client,
+	multisigTxAccountPubkey solCommon.PublicKey) bool {
+	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+	if err == nil && accountInfo.DidExecute == 1 {
+		return true
+	}
+	return false
 }

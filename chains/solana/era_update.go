@@ -255,6 +255,16 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
+	//if has exe just bond report
+	isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
+	if isExe {
+		w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+		callHash := utils.BlakeTwo256([]byte{})
+		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
+			{CallHash: hexutil.Encode(callHash[:])}}
+		return w.informChain(m.Destination, m.Source, mFlow)
+	}
+
 	//approve tx
 	send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "processEraPoolUpdatedEvt")
 	if !send {
