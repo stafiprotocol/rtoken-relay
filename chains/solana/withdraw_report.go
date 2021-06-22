@@ -1,9 +1,12 @@
 package solana
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -33,6 +36,10 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		w.log.Error("processWithdrawReportedEvent Receives len is zero")
 		return false
 	}
+	//sort outPuts for the same rawTx from different relayer
+	sort.SliceStable(flow.Receives, func(i, j int) bool {
+		return bytes.Compare(flow.Receives[i].Recipient, flow.Receives[j].Recipient) < 0
+	})
 
 	poolAddrBase58Str := base58.Encode(flow.Snap.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrBase58Str)
@@ -44,7 +51,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 	rpcClient := poolClient.GetRpcClient()
 
-	for i := 0; i <= len(flow.Receives)/7; i++ {
+	for i := 0; i <= len(flow.Receives)/5; i++ {
 		multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkeyForTransfer(
 			poolClient.MultisigTxBaseAccount.PublicKey,
 			poolClient.MultisigProgramId,
@@ -56,8 +63,8 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		accountMetas := make([][]solTypes.AccountMeta, 0)
 		txDatas := make([][]byte, 0)
 
-		for j := 0; j < 7; j++ {
-			index := i*7 + j
+		for j := 0; j < 5; j++ {
+			index := i*5 + j
 			//check overflow
 			if index > len(flow.Receives)-1 {
 				break
@@ -71,7 +78,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			programIds = append(programIds, transferInstruction.ProgramID)
 			accountMetas = append(accountMetas, transferInstruction.Accounts)
 			txDatas = append(txDatas, transferInstruction.Data)
-
+			fmt.Println("will transfer to ", "index ", index, " addr ", to.ToBase58(), " value ", value.Int64())
 		}
 		remainingAccounts := multisigprog.GetRemainAccounts(transferInstructions)
 

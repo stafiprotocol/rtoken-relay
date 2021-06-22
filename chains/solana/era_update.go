@@ -309,3 +309,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		{CallHash: hexutil.Encode(callHash[:])}}
 	return w.informChain(m.Destination, m.Source, mFlow)
 }
+
+// func (c *writer) approveMultisigTx() bool {
+// 	return nil
+// }
