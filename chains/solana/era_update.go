@@ -91,14 +91,6 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	miniMumBalanceForStake *= 2
 
-	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
-	if err != nil {
-		w.log.Error("processEraPoolUpdatedEvt GetMinimumBalanceForRentExemption failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
-		return false
-	}
-	miniMumBalanceForTx *= 2
 
 	_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 	if err != nil && err == solClient.ErrAccountNotFound {

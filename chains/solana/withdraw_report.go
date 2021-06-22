@@ -104,7 +104,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			return false
 		}
 		w.log.Info("processWithdrawReportedEvent multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-
+		//if has exe just continue
 		isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 		if isExe {
 			w.log.Info("processWithdrawReportedEvent multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
