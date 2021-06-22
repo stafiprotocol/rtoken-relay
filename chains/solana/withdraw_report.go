@@ -104,48 +104,11 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			return false
 		}
 		w.log.Info("processWithdrawReportedEvent multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-
-		res, err := rpcClient.GetRecentBlockhash(context.Background())
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent GetRecentBlockhash failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
+		//approve tx
+		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "processWithdrawReportedEvent")
+		if !send {
 			return false
 		}
-		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-			Instructions: []solTypes.Instruction{
-				multisigprog.Approve(
-					poolClient.MultisigProgramId,
-					poolClient.MultisigInfoPubkey,
-					poolClient.MultisignerPubkey,
-					multisigTxAccountPubkey,
-					poolClient.FeeAccount.PublicKey,
-					remainingAccounts,
-				),
-			},
-			Signers:         []solTypes.Account{poolClient.FeeAccount},
-			FeePayer:        poolClient.FeeAccount.PublicKey,
-			RecentBlockHash: res.Blockhash,
-		})
-
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent approve CreateRawTransaction failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
-			return false
-		}
-
-		txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-		if err != nil {
-			w.log.Error("processWithdrawReportedEvent approve SendRawTransaction failed",
-				"pool address", poolAddrBase58Str,
-				"err", err)
-			return false
-		}
-
-		w.log.Info("processWithdrawReportedEvent approve multisig tx account",
-			"tx hash", txHash,
-			"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 		//check multisig exe result
 		exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processWithdrawReportedEvent")

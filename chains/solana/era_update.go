@@ -255,47 +255,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
-	res, err := rpcClient.GetRecentBlockhash(context.Background())
-	if err != nil {
-		w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
+	//approve tx
+	send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "processEraPoolUpdatedEvt")
+	if !send {
 		return false
 	}
-	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-		Instructions: []solTypes.Instruction{
-			multisigprog.Approve(
-				poolClient.MultisigProgramId,
-				poolClient.MultisigInfoPubkey,
-				poolClient.MultisignerPubkey,
-				multisigTxAccountPubkey,
-				poolClient.FeeAccount.PublicKey,
-				remainingAccounts,
-			),
-		},
-		Signers:         []solTypes.Account{poolClient.FeeAccount},
-		FeePayer:        poolClient.FeeAccount.PublicKey,
-		RecentBlockHash: res.Blockhash,
-	})
-
-	if err != nil {
-		w.log.Error("processEraPoolUpdatedEvt approve CreateRawTransaction failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
-		return false
-	}
-
-	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-	if err != nil {
-		w.log.Error("processEraPoolUpdatedEvt approve SendRawTransaction failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
-		return false
-	}
-
-	w.log.Info("processEraPoolUpdatedEvt approve multisig tx account",
-		"tx hash", txHash,
-		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 	//check multisig exe result
 	exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processEraPoolUpdatedEvt")
@@ -309,7 +273,3 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		{CallHash: hexutil.Encode(callHash[:])}}
 	return w.informChain(m.Destination, m.Source, mFlow)
 }
-
-// func (c *writer) approveMultisigTx() bool {
-// 	return nil
-// }

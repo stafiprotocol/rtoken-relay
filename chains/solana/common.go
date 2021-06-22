@@ -185,6 +185,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		accountMetas = append(accountMetas, mergeInstruction.Accounts)
 		txDatas = append(txDatas, mergeInstruction.Data)
 	}
+	remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
 
 	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err != nil && err == solClient.ErrAccountNotFound {
@@ -210,48 +211,11 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
 	//approve multisig tx
-	remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
-	res, err := rpcClient.GetRecentBlockhash(context.Background())
-	if err != nil {
-		w.log.Error("MergeAndWithdraw GetRecentBlockhash failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
+
+	send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
+	if !send {
 		return false
 	}
-	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-		Instructions: []solTypes.Instruction{
-			multisigprog.Approve(
-				poolClient.MultisigProgramId,
-				poolClient.MultisigInfoPubkey,
-				poolClient.MultisignerPubkey,
-				multisigTxAccountPubkey,
-				poolClient.FeeAccount.PublicKey,
-				remainingAccounts,
-			),
-		},
-		Signers:         []solTypes.Account{poolClient.FeeAccount},
-		FeePayer:        poolClient.FeeAccount.PublicKey,
-		RecentBlockHash: res.Blockhash,
-	})
-
-	if err != nil {
-		w.log.Error("MergeAndWithdraw approve CreateRawTransaction failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
-		return false
-	}
-
-	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-	if err != nil {
-		w.log.Error("MergeAndWithdraw approve SendRawTransaction failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
-		return false
-	}
-
-	w.log.Info("MergeAndWithdraw approve multisig tx account",
-		"tx hash", txHash,
-		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
 	//check multisig exe result
 	exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
@@ -415,5 +379,57 @@ func (w *writer) createMultisigTxAccount(
 	w.log.Info(fmt.Sprintf("[%s] create multisig tx account  has send", processName),
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
+	return true
+}
+
+func (w *writer) approveMultisigTx(
+	rpcClient *solClient.Client,
+	poolClient *solana.PoolClient,
+	poolAddress string,
+	multisigTxAccountPubkey solCommon.PublicKey,
+	remainingAccounts []solTypes.AccountMeta,
+	processName string) bool {
+	res, err := rpcClient.GetRecentBlockhash(context.Background())
+	if err != nil {
+		w.log.Error(fmt.Sprintf("[%s] GetRecentBlockhash failed", processName),
+			"pool address", poolAddress,
+			"err", err)
+		return false
+	}
+	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+		Instructions: []solTypes.Instruction{
+			multisigprog.Approve(
+				poolClient.MultisigProgramId,
+				poolClient.MultisigInfoPubkey,
+				poolClient.MultisignerPubkey,
+				multisigTxAccountPubkey,
+				poolClient.FeeAccount.PublicKey,
+				remainingAccounts,
+			),
+		},
+		Signers:         []solTypes.Account{poolClient.FeeAccount},
+		FeePayer:        poolClient.FeeAccount.PublicKey,
+		RecentBlockHash: res.Blockhash,
+	})
+
+	if err != nil {
+		w.log.Error(fmt.Sprintf("[%s] approve CreateRawTransaction failed", processName),
+			"pool address", poolAddress,
+			"err", err)
+		return false
+	}
+
+	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+	if err != nil {
+		w.log.Error(fmt.Sprintf("[%s] approve SendRawTransaction failed", processName),
+			"pool address", poolAddress,
+			"err", err)
+		return false
+	}
+
+	w.log.Info(fmt.Sprintf("[%s] approve multisig tx account has send", processName),
+		"tx hash", txHash,
+		"multisig tx account", multisigTxAccountPubkey.ToBase58())
+
 	return true
 }
