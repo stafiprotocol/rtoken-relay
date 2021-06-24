@@ -9,7 +9,7 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
+	solClient "github.com/stafiprotocol/solana-go-sdk/client"
 )
 
 var (
@@ -81,13 +81,13 @@ func (l *listener) pollBlocks() error {
 }
 
 func (l *listener) updateEra() error {
-	client:= l.conn.GetQueryClient()
+	client := l.conn.GetQueryClient()
 
-	epochInfo, err := client.GetEpochInfo(context.Background(),solClient.CommitmentFinalized)
+	epochInfo, err := client.GetEpochInfo(context.Background(), solClient.CommitmentFinalized)
 	if err != nil {
 		return err
 	}
-	currentEra:=uint32(epochInfo.Epoch)
+	currentEra := uint32(epochInfo.Epoch)
 	//update era
 	atomic.StoreUint32(&l.conn.currentEra, currentEra)
 

@@ -13,9 +13,9 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/solana"
 	"github.com/stafiprotocol/rtoken-relay/shared/solana/vault"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
-	solCommon "github.com/tpkeeper/solana-go-sdk/common"
-	solTypes "github.com/tpkeeper/solana-go-sdk/types"
+	solClient "github.com/stafiprotocol/solana-go-sdk/client"
+	solCommon "github.com/stafiprotocol/solana-go-sdk/common"
+	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
 type Connection struct {

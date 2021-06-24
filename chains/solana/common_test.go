@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stafiprotocol/rtoken-relay/chains/solana"
-	solCommon "github.com/tpkeeper/solana-go-sdk/common"
+	solCommon "github.com/stafiprotocol/solana-go-sdk/common"
 )
 
 func TestGetMultisigTxAccountPubkey(t *testing.T) {

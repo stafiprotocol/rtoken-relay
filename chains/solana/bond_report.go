@@ -9,7 +9,7 @@ import (
 	substrateTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
+	solClient "github.com/stafiprotocol/solana-go-sdk/client"
 )
 
 //1 get derived accounts used to stake

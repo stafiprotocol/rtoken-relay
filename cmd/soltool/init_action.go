@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/stafiprotocol/rtoken-relay/shared/solana/vault"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
-	solCommon "github.com/tpkeeper/solana-go-sdk/common"
-	"github.com/tpkeeper/solana-go-sdk/multisigprog"
-	"github.com/tpkeeper/solana-go-sdk/stakeprog"
-	"github.com/tpkeeper/solana-go-sdk/sysprog"
-	solTypes "github.com/tpkeeper/solana-go-sdk/types"
+	solClient "github.com/stafiprotocol/solana-go-sdk/client"
+	solCommon "github.com/stafiprotocol/solana-go-sdk/common"
+	"github.com/stafiprotocol/solana-go-sdk/multisigprog"
+	"github.com/stafiprotocol/solana-go-sdk/stakeprog"
+	"github.com/stafiprotocol/solana-go-sdk/sysprog"
+	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 	"github.com/urfave/cli/v2"
 )
 

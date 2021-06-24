@@ -12,11 +12,11 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
-	solCommon "github.com/tpkeeper/solana-go-sdk/common"
-	"github.com/tpkeeper/solana-go-sdk/multisigprog"
-	"github.com/tpkeeper/solana-go-sdk/sysprog"
-	solTypes "github.com/tpkeeper/solana-go-sdk/types"
+	solClient "github.com/stafiprotocol/solana-go-sdk/client"
+	solCommon "github.com/stafiprotocol/solana-go-sdk/common"
+	"github.com/stafiprotocol/solana-go-sdk/multisigprog"
+	"github.com/stafiprotocol/solana-go-sdk/sysprog"
+	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
 func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {

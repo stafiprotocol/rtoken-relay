@@ -2,9 +2,9 @@ package solana
 
 import (
 	"github.com/ChainSafe/log15"
-	solClient "github.com/tpkeeper/solana-go-sdk/client"
-	solCommon "github.com/tpkeeper/solana-go-sdk/common"
-	solTypes "github.com/tpkeeper/solana-go-sdk/types"
+	solClient "github.com/stafiprotocol/solana-go-sdk/client"
+	solCommon "github.com/stafiprotocol/solana-go-sdk/common"
+	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
 //one pool address with one poolClient
