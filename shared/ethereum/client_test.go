@@ -4,6 +4,8 @@
 package ethereum
 
 import (
+	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
+	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"math/big"
 	"os"
 	"strings"
@@ -28,7 +30,6 @@ import (
 
 var (
 	goerliEndPoint          = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
-	goerliMultisigContract  = common.HexToAddress("0x37c9C42eEdbc72842Cc48F0e51006AC804987e38")
 	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
 	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
 
@@ -67,7 +68,7 @@ func TestMultisigTransfer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	multi, err := Multisig.NewMultisig(goerliMultisigContract, client.Client())
+	multi, err := Multisig.NewMultisig(goerliMultisigContrat, client.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +148,7 @@ func TestMultisigSend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	multi, err := Multisig.NewMultisig(goerliMultisigContract, client.Client())
+	multi, err := Multisig.NewMultisig(goerliMultisigContrat, client.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,4 +315,274 @@ func TestVerify(t *testing.T) {
 	reason, err = client.TransferVerify(a, goerliErc20Token)
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.AmountUnmatch, reason)
+}
+
+func TestApprove(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := MaticToken.NewMaticToken(goerliMaticToken, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = client.LockAndUpdateOpts()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	approveTx, err := token.Approve(client.Opts(), goerliStakeManagerContract, big.NewInt(0).Mul(&config.AmountBase, big.NewInt(1000000000000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client.UnlockOpts()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("approveTxHahs", approveTx.Hash())
+}
+
+func TestBond(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := big.NewInt(9)
+	shareData, err := manager.Validators(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shareContract := shareData.ContractAddress
+	t.Log("ShareContract", shareContract)
+
+	valFalg, err := manager.IsValidator(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("valFalg", valFalg)
+
+	share, err := ValidatorShare.NewValidatorShare(shareData.ContractAddress, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = client.LockAndUpdateOpts()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := share.BuyVoucher(client.Opts(), &config.AmountBase, big.NewInt(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client.UnlockOpts()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("txHash", tx.Hash())
+}
+
+func TestRestake(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := big.NewInt(9)
+	shareData, err := manager.Validators(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shareContract := shareData.ContractAddress
+	t.Log("ShareContract", shareContract)
+
+	valFalg, err := manager.IsValidator(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("valFalg", valFalg)
+
+	share, err := ValidatorShare.NewValidatorShare(shareData.ContractAddress, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stake, rate, err := share.GetTotalStake(nil, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("rate", rate)
+	t.Log("stake", stake)
+
+	reward, err := share.GetLiquidRewards(nil, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("reward", reward)
+
+	nonce, err := share.UnbondNonces(nil, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("nonce", nonce)
+
+	unbond, err := share.UnbondsNew(nil, owner, nonce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("unbond", unbond)
+
+	//err = client.LockAndUpdateOpts()
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	////tx, err := share.BuyVoucher(client.Opts(), &config.AmountBase, big.NewInt(0))
+	//tx, err := share.Restake(client.Opts())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//client.UnlockOpts()
+	//
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Log("txHash", tx.Hash())
+}
+
+func TestMultisigApprove(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	multi, err := Multisig.NewMultisig(goerliMultisigContrat, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cd, _ := mabi.Pack("approve", goerliStakeManagerContract, big.NewInt(0).Mul(&config.AmountBase, big.NewInt(100000000000000000)))
+	msg, err := multi.MessageToSign(nil, goerliMaticToken, defaultValue, cd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(hexutil.Encode(msg[:]))
+
+	signature, err := crypto.Sign(msg[:], client.Keypair().PrivateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(hexutil.Encode(signature))
+	t.Log(len(signature))
+
+	var rs [32]byte
+	copy(rs[:], signature[:32])
+	var ss [32]byte
+	copy(ss[:], signature[32:64])
+
+	rses := [][32]byte{rs}
+	sses := [][32]byte{ss}
+	vses := []uint8{signature[64:][0]}
+
+	err = client.LockAndUpdateOpts()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txhash := common.HexToHash("0x11d668ca5c97408167f046131a37b4ef10ccbd621d83f920eefddaa62fe77e0c")
+	tx, err := multi.ExecTransaction(
+		client.Opts(),
+		goerliMaticToken,
+		defaultValue,
+		cd,
+		config.Call,
+		big.NewInt(100000),
+		txhash,
+		vses,
+		rses,
+		sses,
+	)
+
+	client.UnlockOpts()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(tx.Hash())
+}
+
+func TestValidatorIdToHex(t *testing.T) {
+	id := big.NewInt(9)
+	t.Log("idHex", hexutil.Encode(id.Bytes())) //0x09
+}
+
+func TestKecca(t *testing.T) {
+	a := []byte(`unclaimable`)
+
+	t.Log(crypto.Keccak256Hash(a))
 }

@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	"math/big"
 	"testing"
@@ -13,7 +14,10 @@ var (
 	mainnetStakeManagerContract = common.HexToAddress("0x5e3Ef299fDDf15eAa0432E6e66473ace8c13D908")
 	MainnetEndPoint             = "wss://mainnet.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 
-	goerliStakeManagerContract = common.HexToAddress("0x4864d89DCE4e24b2eDF64735E014a7E4154bfA7A")
+	goerliStakeManagerContract = common.HexToAddress("0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3")
+	goerliMaticToken           = common.HexToAddress("0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae")
+
+	goerliMultisigContrat = common.HexToAddress("0x1Cb8b55cB11152E74D34Be1961E4FFe169F5B99A")
 )
 
 func TestSignerToValidatorId(t *testing.T) {
@@ -33,7 +37,15 @@ func TestSignerToValidatorId(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Log(validatorId) // 115
+	t.Log("validatorId", validatorId) // 115
+
+	valData, err := instance.Validators(nil, validatorId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shareContract := valData.ContractAddress
+	t.Log("shareContract", shareContract)
 }
 
 func TestSigners(t *testing.T) {
@@ -93,25 +105,43 @@ func TestGoerliSigners(t *testing.T) {
 	}
 	t.Log(addr)
 
-	//id, err := instance.SignerToValidator(nil, addr)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//t.Log(id) // 111
-	//t.Log(hexutil.Encode(id.Bytes()))
-	//
-	//share, err := instance.Validators(nil, id)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//t.Log(share.ContractAddress) // 0x59a82694a675377E010F18F598f5B9dBB83eD968
-	//t.Log(share.Status) // 1
-	//
-	//valFlag, err := instance.IsValidator(nil, id)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//t.Log(valFlag)
+	id, err := instance.SignerToValidator(nil, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("id", id) // 2
+	t.Log("id_bytes", hexutil.Encode(id.Bytes()))
+
+	share, err := instance.Validators(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("share", share.ContractAddress) // 0x59a82694a675377E010F18F598f5B9dBB83eD968
+	t.Log("status", share.Status)         // 1
+
+	valFlag, err := instance.IsValidator(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("valFlag", valFlag)
+}
+
+func TestMultisigBalance(t *testing.T) {
+	client, err := NewSimpleClient(goerliEndPoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	matic, err := MaticToken.NewMaticToken(goerliMaticToken, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bal, err := matic.BalanceOf(nil, goerliMultisigContrat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(bal)
 }

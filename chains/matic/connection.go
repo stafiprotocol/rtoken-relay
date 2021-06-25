@@ -54,11 +54,11 @@ type Connection struct {
 
 	stakeManager         *StakeManager.StakeManager
 	stateManagerContract common.Address
-	multisig             *Multisig.Multisig
-	multisigContract     common.Address
-	maticTokenContract   common.Address
-	maticToken           *MaticToken.MaticToken
-	multiSendContract    common.Address
+	//multisig             *Multisig.Multisig
+	//multisigContract     common.Address
+	maticTokenContract common.Address
+	maticToken         *MaticToken.MaticToken
+	multiSendContract  common.Address
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -98,11 +98,6 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, err
 	}
 
-	multisig, multisigContract, err := initMultisig(cfg.Opts["MultisigContract"], conn.Client())
-	if err != nil {
-		return nil, err
-	}
-
 	matic, maticAddr, err := initMaticToken(cfg.Opts["MaticTokenContract"], conn.Client())
 	if err != nil {
 		return nil, err
@@ -123,8 +118,6 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		stop:                 stop,
 		stakeManager:         stakeManager,
 		stateManagerContract: stateManagerContract,
-		multisig:             multisig,
-		multisigContract:     multisigContract,
 		maticTokenContract:   maticAddr,
 		maticToken:           matic,
 		multiSendContract:    multiSendAddr,
@@ -194,6 +187,20 @@ func (c *Connection) UnbondNonce(shareAddress, user common.Address) (*big.Int, e
 	return share.UnbondNonces(nil, user)
 }
 
+func (c *Connection) Unbond(shareAddress, user common.Address, nonce *big.Int) (*big.Int, *big.Int, error) {
+	share, err := ValidatorShare.NewValidatorShare(shareAddress, c.conn.Client())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	unbond, err := share.UnbondsNew(nil, user, nonce)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return unbond.Shares, unbond.WithdrawEpoch, nil
+}
+
 func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond *big.Int) (submodel.OriginalTx, *ethmodel.MultiTransaction, error) {
 	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
 	tx := &ethmodel.MultiTransaction{To: share, Value: DefaultValue}
@@ -221,6 +228,25 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond *big.In
 	}
 }
 
+func (c *Connection) Claimable(shareAddress, user common.Address) (bool, error) {
+	share, err := ValidatorShare.NewValidatorShare(shareAddress, c.conn.Client())
+	if err != nil {
+		return false, err
+	}
+
+	min, err := share.MinAmount(nil)
+	if err != nil {
+		return false, err
+	}
+
+	reward, err := share.GetLiquidRewards(nil, user)
+	if err != nil {
+		return false, err
+	}
+
+	return reward.Cmp(min) >= 0, nil
+}
+
 func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransaction, error) {
 	packed, err := ValidatorShareAbi.Pack(RestakeMethodName)
 	if err != nil {
@@ -232,6 +258,20 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 		Value:    DefaultValue,
 		CallData: packed,
 	}, nil
+}
+
+func (c *Connection) Withdrawable(share, pool common.Address) (bool, error) {
+	nonce, err := c.UnbondNonce(share, pool)
+	if err != nil {
+		return false, err
+	}
+
+	if nonce.Uint64() == 0 {
+		return false, nil
+	}
+
+	shares, _, err := c.Unbond(share, pool, nonce)
+	return shares.Uint64() != 0, nil
 }
 
 func (c *Connection) WithdrawCall(share, pool common.Address) (*ethmodel.MultiTransaction, error) {
@@ -252,8 +292,13 @@ func (c *Connection) WithdrawCall(share, pool common.Address) (*ethmodel.MultiTr
 	}, nil
 }
 
-func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction) ([32]byte, error) {
-	return c.multisig.MessageToSign(nil, tx.To, tx.Value, tx.CallData)
+func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction, pool common.Address) ([32]byte, error) {
+	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return multisig.MessageToSign(nil, tx.To, tx.Value, tx.CallData)
 }
 
 func (c *Connection) IsFirstSigner(msg, sig []byte) bool {
@@ -323,13 +368,17 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 }
 
 func (c *Connection) AsMulti(
-	to common.Address,
+	pool, to common.Address,
 	value *big.Int,
 	calldata []byte,
 	operation uint8,
 	safeTxGas *big.Int,
 	txHash [32]byte,
 	vs []uint8, rs [][32]byte, ss [][32]byte) error {
+	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
+	if err != nil {
+		return err
+	}
 	for i := 0; i < TxRetryLimit; i++ {
 		select {
 		case <-c.stop:
@@ -341,12 +390,12 @@ func (c *Connection) AsMulti(
 				continue
 			}
 
-			tx, err := c.multisig.ExecTransaction(
+			tx, err := multisig.ExecTransaction(
 				c.conn.Opts(),
 				to,
 				value,
 				calldata,
-				config.Call,
+				operation,
 				safeTxGas,
 				txHash,
 				vs,
@@ -370,18 +419,23 @@ func (c *Connection) AsMulti(
 	return fmt.Errorf("multisig ExecTransaction failed, to: %s, calldata: %s, safeTxGas: %s", to.Hex(), hexutil.Encode(calldata), safeTxGas.String())
 }
 
-func (c *Connection) IsTxHashExecuted(hash common.Hash) (bool, error) {
-	return c.multisig.ExecutedTxHashs(nil, hash)
+func (c *Connection) IsTxHashExecuted(hash common.Hash, pool common.Address) (bool, error) {
+	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
+	if err != nil {
+		return false, err
+	}
+
+	return multisig.ExecutedTxHashs(nil, hash)
 }
 
-func (c *Connection) CheckTxHash(hash common.Hash) error {
+func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
 	latest, err := c.conn.LatestBlock()
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < TxConfirmLimit; i++ {
-		executed, err := c.IsTxHashExecuted(hash)
+		executed, err := c.IsTxHashExecuted(hash, pool)
 		if err != nil {
 			return err
 		}

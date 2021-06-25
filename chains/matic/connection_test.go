@@ -6,14 +6,16 @@ package matic
 import (
 	"flag"
 	"fmt"
+	"math/big"
+	"os"
+	"testing"
+
 	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/urfave/cli/v2"
-	"math/big"
-	"os"
-	"testing"
 )
 
 var (
@@ -44,7 +46,7 @@ func TestConnection(t *testing.T) {
 		Opts:            chain.Opts,
 	}
 
-	os.Setenv(keystore.EnvPassword, "123456")
+	_ = os.Setenv(keystore.EnvPassword, "123456")
 	stop := make(chan int)
 	conn, err := NewConnection(chainConfig, testLogger, stop)
 	if err != nil {
@@ -57,55 +59,75 @@ func TestConnection(t *testing.T) {
 	}
 	t.Log(blk)
 
-	valId := big.NewInt(111)
+	valId := big.NewInt(9)
 	valFlag, err := conn.stakeManager.IsValidator(conn.conn.CallOpts(), valId)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if !valFlag {
-		t.Log("valFlag is false")
+		t.Fatal("valFlag is false")
 	}
 
-	//shareAddr, err := conn.GetValidator(valId)
+	shareAddr, err := conn.GetValidator(valId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("shareAddr", shareAddr)
+
+	poolAddr := common.HexToAddress("0x1Cb8b55cB11152E74D34Be1961E4FFe169F5B99A")
+	staked, err := conn.TotalStaked(shareAddr, poolAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("staked", staked)
+
+	//bond := big.NewInt(0).Mul(&config.AmountBase, big.NewInt(1))
+	//unbond := big.NewInt(0)
+	//
+	//method, tx, err := conn.BondOrUnbondCall(shareAddr, bond, unbond)
 	//if err != nil {
 	//	t.Fatal(err)
 	//}
 	//
-	//t.Log(shareAddr)
+	//t.Log("method", method)
+	//t.Log("tx", tx)
+	//
+	//msg, err := conn.MessageToSign(tx)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//key := conn.keys[0]
+	//signature, err := crypto.Sign(msg[:], key.PrivateKey())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("signature", hexutil.Encode(signature))
+	//param := submodel.SubmitSignatureParams{
+	//	Symbol:     core.RMATIC,
+	//	Era:        types.NewU32(0),
+	//	Pool:       []byte("test"),
+	//	TxType:     method,
+	//	Signature:  signature,
+	//}
+	//
+	//txHash, err := param.EncodeToHash()
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Log("txHash", txHash.Hex())
+	//safeTxGas := BuyVoucherSafeTxGas
+	//
+	//signatures := [][]byte{signature}
+	//vs, rs, ss := utils.DecomposeSignature(signatures)
+	//err = conn.AsMulti(tx.To, tx.Value, tx.CallData, config.Call, safeTxGas, txHash, vs, rs, ss)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
 }
-
-//import (
-//	"github.com/ethereum/go-ethereum/common"
-//	"github.com/stafiprotocol/rtoken-relay/core"
-//)
-//
-//var (
-//
-//	keystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum/"
-//
-//
-//	config = &core.ChainConfig{
-//		Name: "ethereum",
-//		Symbol: core.RMATIC,
-//		Endpoint:goerliEndPoint,
-//		Accounts: []string{
-//			"0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6",
-//			"0xBd39f5936969828eD9315220659cD11129071814",
-//		},
-//		KeystorePath: keystorePath,
-//		Insecure: false,
-//		LatestBlockFlag: true,
-//		Opts: map[string]interface{}{
-//			"StakeManagerContract": "0x4864d89DCE4e24b2eDF64735E014a7E4154bfA7A",
-//			"MultisigContract": "multisigContract",
-//			""
-//
-//		},
-//
-//
-//	}
-//)
 
 func createCliContext(description string, flags []string, values []interface{}) (*cli.Context, error) {
 	set := flag.NewFlagSet(description, 0)

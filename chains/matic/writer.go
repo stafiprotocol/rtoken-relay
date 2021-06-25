@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 
 	"github.com/ChainSafe/log15"
@@ -42,6 +43,10 @@ type writer struct {
 
 const (
 	bondFlowLimit = 2048
+)
+
+var (
+	UnclaimableHash = crypto.Keccak256Hash([]byte(`unclaimable`))
 )
 
 func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
@@ -174,7 +179,8 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx)
+	poolAddr := common.BytesToAddress(snap.Pool)
+	msg, err := w.conn.MessageToSign(tx, poolAddr)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated MessageToSign error", "err", err)
 		return false
@@ -186,7 +192,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-
+	signature = append(msg[:], signature...)
 	propId := append(shareAddr.Bytes(), tx.CallData...)
 	param := submodel.SubmitSignatureParams{
 		Symbol:     flow.Symbol,
@@ -203,7 +209,8 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	w.setEvents(txHash.Hex(), mef)
+	hash := strings.ToLower(txHash.Hex())
+	w.setEvents(hash, mef)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -231,13 +238,31 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
+
+	claimable, err := w.conn.Claimable(shareAddr, common.BytesToAddress(snap.Pool))
+	if err != nil {
+		w.log.Error("Claimable error", "err", err)
+		return false
+	}
+
+	if !claimable {
+		w.setBondReported(UnclaimableHash.Hex(), flow)
+		err = w.queryAndReportActive(UnclaimableHash, shareAddr, m)
+		if err != nil {
+			w.log.Error("queryAndReportActive error", "err", err)
+			return false
+		}
+		return true
+	}
+
 	tx, err := w.conn.RestakeCall(shareAddr)
 	if err != nil {
 		w.log.Error("RestakeCall error", "err", err)
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx)
+	poolAddr := common.BytesToAddress(snap.Pool)
+	msg, err := w.conn.MessageToSign(tx, poolAddr)
 	if err != nil {
 		w.log.Error("processBondReported MessageToSign error", "err", err)
 		return false
@@ -249,7 +274,8 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-
+	signature = append(msg[:], signature...)
+	w.log.Info("processBondReported size of signature", "size", len(signature))
 	propId := append(shareAddr.Bytes(), tx.CallData...)
 	param := submodel.SubmitSignatureParams{
 		Symbol:     flow.Symbol,
@@ -266,12 +292,12 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	w.setBondReported(txHash.Hex(), flow)
+	hash := strings.ToLower(txHash.Hex())
+	w.setBondReported(hash, flow)
+	w.log.Info("processBondReported BondReported set", "txHash", hash)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
-
-	return true
 }
 
 func (w *writer) processActiveReported(m *core.Message) bool {
@@ -303,13 +329,25 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
+	poolAddr := common.BytesToAddress(snap.Pool)
+	withdrawable, err := w.conn.Withdrawable(shareAddr, poolAddr)
+	if err != nil {
+		w.log.Error("Withdrawable error", "err", err, "shareAddr", shareAddr, "poolAddr", poolAddr)
+		return false
+	}
+
+	if !withdrawable {
+		w.log.Info("no need to withdraw")
+		return w.informChain(m.Destination, m.Source, mef)
+	}
+
 	tx, err := w.conn.WithdrawCall(shareAddr, common.BytesToAddress(snap.Pool))
 	if err != nil {
 		w.log.Error("BondOrUnbondCall error", "err", err)
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx)
+	msg, err := w.conn.MessageToSign(tx, poolAddr)
 	if err != nil {
 		w.log.Error("processActiveReported MessageToSign error", "err", err)
 		return false
@@ -321,7 +359,7 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-
+	signature = append(msg[:], signature...)
 	propId := append(shareAddr.Bytes(), tx.CallData...)
 	param := submodel.SubmitSignatureParams{
 		Symbol:     flow.Symbol,
@@ -338,7 +376,8 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	w.setEvents(txHash.Hex(), mef)
+	hash := strings.ToLower(txHash.Hex())
+	w.setEvents(hash, mef)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -366,6 +405,11 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		return false
 	}
 
+	if flow.TotalAmount.Uint64() == 0 {
+		w.log.Info("processWithdrawReported: no need to do transfer call")
+		return w.informChain(m.Destination, m.Source, mef)
+	}
+
 	poolAddr := common.BytesToAddress(snap.Pool)
 	balance, err := w.conn.BalanceOf(poolAddr)
 	if err != nil {
@@ -384,7 +428,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx)
+	msg, err := w.conn.MessageToSign(tx, poolAddr)
 	if err != nil {
 		w.log.Error("processWithdrawReported MessageToSign error", "err", err)
 		return false
@@ -396,7 +440,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-
+	signature = append(msg[:], signature...)
 	propId := append(tx.To.Bytes(), tx.CallData...)
 	param := submodel.SubmitSignatureParams{
 		Symbol:     flow.Symbol,
@@ -413,7 +457,8 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	w.setEvents(txHash.Hex(), mef)
+	hash := strings.ToLower(txHash.Hex())
+	w.setEvents(hash, mef)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -428,7 +473,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return false
 	}
 	w.log.Info("processSignatureEnough", "source", m.Source,
-		"dest", m.Destination, "pool", hexutil.Encode(sigs.Pool), "tx type", sigs.TxType)
+		"dest", m.Destination, "pool", hexutil.Encode(sigs.Pool), "txType", sigs.TxType)
 
 	txHash, err := sigs.EncodeToHash()
 	if err != nil {
@@ -436,22 +481,35 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
+	hash := strings.ToLower(txHash.Hex())
 
-	mef, ok := w.getEvents(txHash.Hex())
-	if !ok {
-		w.log.Error("processSignatureEnough: no event for txHash")
-		return false
+	var mef *submodel.MultiEventFlow
+
+	if sigs.TxType == submodel.OriginalClaimRewards {
+		_, ok = w.getBondReported(hash)
+		if !ok {
+			w.log.Error("processSignatureEnough: no bond report for txHash", "txHash", hash)
+			return false
+		}
+	} else {
+		mef, ok = w.getEvents(hash)
+		if !ok {
+			w.log.Error("processSignatureEnough: no event for txHash", "txHash", hash)
+			return false
+		}
 	}
 
-	executed, err := w.conn.IsTxHashExecuted(txHash)
+	poolAddr := common.BytesToAddress(sigs.Pool)
+	executed, err := w.conn.IsTxHashExecuted(txHash, poolAddr)
 	if err != nil {
-		w.log.Error("processSignatureEnough IsTxHashExecuted error", "error", err)
+		w.log.Error("processSignatureEnough IsTxHashExecuted error", "error", err, "txHash", txHash)
 		w.sysErr <- err
 		return false
 	}
 
 	if executed {
-		w.log.Warn("TxHash already executed")
+		w.log.Warn("TxHash already executed", "txHash", hash)
+		return true
 	}
 
 	if len(sigs.ProposalId) <= common.AddressLength {
@@ -463,18 +521,20 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 
 	signatures := make([][]byte, 0)
 	for _, sig := range sigs.Signature {
-		if len(sig) != 65 {
-			err := fmt.Errorf("processSignatureEnough: size of sig %s not 65", hexutil.Encode(sig))
+		// 32 + 65 = 97
+		if len(sig) != 97 {
+			err := fmt.Errorf("processSignatureEnough: size of sig %s not 97", hexutil.Encode(sig))
 			w.log.Error(err.Error())
 			w.sysErr <- err
 			return false
 		}
-		signatures = append(signatures, sig)
+		signatures = append(signatures, sig[32:])
 	}
 
 	to := common.BytesToAddress(sigs.ProposalId[:20])
 	calldata := sigs.ProposalId[20:]
-	if !w.conn.IsFirstSigner(calldata, signatures[0]) {
+	msg := sigs.Signature[0][:32]
+	if !w.conn.IsFirstSigner(msg, signatures[0]) {
 		w.log.Info("processSignatureEnough: not first signer, will ignore")
 	}
 
@@ -499,7 +559,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return false
 	}
 
-	err = w.conn.AsMulti(to, DefaultValue, calldata, callType, safeTxGas, txHash, vs, rs, ss)
+	err = w.conn.AsMulti(poolAddr, to, DefaultValue, calldata, callType, safeTxGas, txHash, vs, rs, ss)
 	if err != nil {
 		w.log.Error("AsMulti error", "err", err)
 		return false
@@ -515,7 +575,8 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 }
 
 func (w *writer) checkAndSend(txHash common.Hash, sigs *submodel.SubmitSignatures, to common.Address, mef *submodel.MultiEventFlow, m *core.Message) error {
-	err := w.conn.CheckTxHash(txHash)
+	poolAddr := common.BytesToAddress(sigs.Pool)
+	err := w.conn.CheckTxHash(txHash, poolAddr)
 	if err != nil {
 		return err
 	}
@@ -532,7 +593,8 @@ func (w *writer) checkAndSend(txHash common.Hash, sigs *submodel.SubmitSignature
 }
 
 func (w *writer) queryAndReportActive(txHash common.Hash, share common.Address, m *core.Message) error {
-	flow, ok := w.getBondReported(txHash.Hex())
+	hash := strings.ToLower(txHash.Hex())
+	flow, ok := w.getBondReported(hash)
 	if !ok {
 		err := fmt.Errorf("queryAndReportActive no bondReportedFlow, txHash: %s", txHash.Hex())
 		w.log.Error(err.Error())

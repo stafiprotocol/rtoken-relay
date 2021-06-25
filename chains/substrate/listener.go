@@ -247,7 +247,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[EraPoolUpdated](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId {
-				l.log.Trace("Handling BondReportEvent", "block", blockNum)
+				l.log.Trace("Handling BondReportedEvent", "block", blockNum)
 				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
 					if err.Error() == BondStateNotBondReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
@@ -257,6 +257,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				}
 				if l.cared(flow.Snap.Symbol) && l.subscriptions[BondReported] != nil {
 					l.submitMessage(l.subscriptions[BondReported](flow))
+					if flow.Snap.Symbol == core.RMATIC {
+						time.Sleep(10 * time.Second)
+					}
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId {
 				l.log.Trace("Handling ActiveReportEvent", "block", blockNum)

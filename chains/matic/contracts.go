@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
-	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 )
 
@@ -22,21 +21,6 @@ func initStakeManager(stakeManagerCfg interface{}, conn *ethclient.Client) (*Sta
 	}
 
 	return manager, addr, nil
-}
-
-func initMultisig(multisigCfg interface{}, conn *ethclient.Client) (*Multisig.Multisig, common.Address, error) {
-	multisigAddr, ok := multisigCfg.(string)
-	if !ok {
-		return nil, ZeroAddress, errors.New("MultisigContract not ok")
-	}
-
-	addr := common.HexToAddress(multisigAddr)
-	multisig, err := Multisig.NewMultisig(addr, conn)
-	if err != nil {
-		return nil, ZeroAddress, err
-	}
-
-	return multisig, addr, nil
 }
 
 func initMaticToken(maticTokenCfg interface{}, conn *ethclient.Client) (*MaticToken.MaticToken, common.Address, error) {
