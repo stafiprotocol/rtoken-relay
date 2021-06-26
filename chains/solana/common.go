@@ -1,11 +1,13 @@
 package solana
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/near/borsh-go"
 	subTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -446,5 +448,47 @@ func (w *writer) IsMultisigTxExe(
 	if err == nil && accountInfo.DidExecute == 1 {
 		return true
 	}
+	return false
+}
+
+func (w *writer) CheckMultisigTx(
+	rpcClient *solClient.Client,
+	multisigTxAccountPubkey solCommon.PublicKey,
+	programsIds []solCommon.PublicKey,
+	accountMetas [][]solTypes.AccountMeta,
+	datas [][]byte) bool {
+	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+	if err == nil {
+		thisProgramsIdsBts, err := borsh.Serialize(programsIds)
+		if err != nil {
+			return false
+		}
+		thisAccountMetasBts, err := borsh.Serialize(accountMetas)
+		if err != nil {
+			return false
+		}
+		thisDatasBts, err := borsh.Serialize(datas)
+		if err != nil {
+			return false
+		}
+		onchainProgramsIdsBts, err := borsh.Serialize(accountInfo.ProgramID)
+		if err != nil {
+			return false
+		}
+		onchainAccountMetasBts, err := borsh.Serialize(accountInfo.Accounts)
+		if err != nil {
+			return false
+		}
+		onchainDatasBts, err := borsh.Serialize(accountInfo.Data)
+		if err != nil {
+			return false
+		}
+		if bytes.Equal(thisProgramsIdsBts, onchainProgramsIdsBts) &&
+			bytes.Equal(thisAccountMetasBts, onchainAccountMetasBts) &&
+			bytes.Equal(thisDatasBts, onchainDatasBts) {
+			return true
+		}
+	}
+
 	return false
 }

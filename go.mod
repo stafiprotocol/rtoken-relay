@@ -12,6 +12,7 @@ require (
 	github.com/itering/scale.go v1.0.47
 	github.com/itering/substrate-api-rpc v0.3.5
 	github.com/mr-tron/base58 v1.2.0 // indirect
+	github.com/near/borsh-go v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v1.2.0
 	github.com/spf13/cobra v1.1.1
@@ -19,9 +20,9 @@ require (
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.9
+	github.com/stafiprotocol/solana-go-sdk v0.2.5 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.9
-	github.com/stafiprotocol/solana-go-sdk v0.2.5 // indirect
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	gotest.tools v2.2.0+incompatible

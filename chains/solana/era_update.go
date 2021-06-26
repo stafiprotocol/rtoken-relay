@@ -246,6 +246,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
+	
 	//if has exe just bond report
 	isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 	if isExe {
