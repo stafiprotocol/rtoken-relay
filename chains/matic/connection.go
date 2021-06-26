@@ -76,11 +76,11 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		kp, _ := kpI.(*secp256k1.Keypair)
 		pk := utils.PublicKeyFromKeypair(kp)
 
+		keys = append(keys, kp)
+		publicKeys = append(publicKeys, pk)
+
 		if i == acSize-1 {
 			key = kp
-		} else {
-			keys = append(keys, kp)
-			publicKeys = append(publicKeys, pk)
 		}
 	}
 
