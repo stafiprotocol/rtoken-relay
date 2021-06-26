@@ -535,7 +535,14 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	calldata := sigs.ProposalId[20:]
 	msg := sigs.Signature[0][:32]
 	if !w.conn.IsFirstSigner(msg, signatures[0]) {
-		w.log.Info("processSignatureEnough: not first signer, will ignore")
+		w.log.Info("processSignatureEnough: not first signer")
+
+		err = w.checkAndSend(txHash, sigs, to, mef, m)
+		if err != nil {
+			w.log.Error("processSignatureEnough: checkAndSend error", "txHash", txHash.Hex(), "to", to.Hex())
+			return false
+		}
+		return true
 	}
 
 	vs, rs, ss := utils.DecomposeSignature(signatures)

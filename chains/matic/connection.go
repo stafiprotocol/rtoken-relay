@@ -32,7 +32,7 @@ import (
 
 var (
 	DefaultValue     = big.NewInt(0)
-	TxConfirmLimit   = 200
+	TxConfirmLimit   = 50
 	TxRetryInterval  = time.Second * 2
 	ErrNonceTooLow   = errors.New("nonce too low")
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
