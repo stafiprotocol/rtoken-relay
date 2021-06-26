@@ -142,7 +142,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if l.nextEra == 1 || (currentBlock-l.startBlock) >= l.eraBlock {
+			if currentBlock % l.eraBlock == 0 {
 				l.log.Info("time to process era", "era", l.nextEra, "currentBlock", currentBlock, "eraBlock", l.eraBlock)
 				l.startBlock = currentBlock
 				l.processEra(l.nextEra)
