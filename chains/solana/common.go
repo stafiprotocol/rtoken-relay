@@ -212,6 +212,11 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	}
 	w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
+	valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
+	if !valid {
+		w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+		return false
+	}
 	//if has exe just return
 	isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 	if isExe {

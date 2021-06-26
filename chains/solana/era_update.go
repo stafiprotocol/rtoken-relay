@@ -246,7 +246,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
-	
+	valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programsIds, accountMetas, datas)
+	if !valid {
+		w.log.Info("processEraPoolUpdatedEvt CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+		return false
+	}
 	//if has exe just bond report
 	isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 	if isExe {

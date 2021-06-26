@@ -104,6 +104,13 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			return false
 		}
 		w.log.Info("processWithdrawReportedEvent multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+
+		valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
+		if !valid {
+			w.log.Info("processWithdrawReportedEvent CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
+
 		//if has exe just continue
 		isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 		if isExe {
