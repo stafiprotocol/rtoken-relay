@@ -142,11 +142,10 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if currentBlock % l.eraBlock == 0 {
+			if l.nextEra == 1 || currentBlock % l.eraBlock == 0 {
 				l.log.Info("time to process era", "era", l.nextEra, "currentBlock", currentBlock, "eraBlock", l.eraBlock)
-				l.startBlock = currentBlock
+				l.nextEra = uint32(currentBlock / l.eraBlock)
 				l.processEra(l.nextEra)
-				l.nextEra++
 			}
 
 			// Write to blockstore
