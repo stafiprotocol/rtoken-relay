@@ -37,7 +37,6 @@ func (c *Core) AddChain(chain Chain) {
 // Start will call all registered chains' Start methods and block forever (or until signal is received)
 func (c *Core) Start() {
 	go c.route.MsgHandler()
-	go c.route.MaticMsgHandler()
 
 	helpSymbols := make([]RSymbol, 0)
 	var stafiChain Chain
