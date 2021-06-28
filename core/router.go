@@ -23,6 +23,7 @@ type Router struct {
 	lock     *sync.RWMutex
 	log      log.Logger
 	msgChan  chan *Message
+	maticChan chan *Message
 	stop     chan int
 }
 
@@ -50,8 +51,10 @@ func (r *Router) Send(msg *Message) error {
 		return fmt.Errorf("unknown destination symbol: %s", msg.Destination)
 	}
 
-	if msg.Destination == RFIS {
+	if msg.Destination == RFIS  {
 		r.QueueMsg(msg)
+	} else if msg.Destination == RMATIC {
+		r.QueueMaticMsg(msg)
 	} else {
 		go w.ResolveMessage(msg)
 	}
@@ -68,6 +71,30 @@ func (r *Router) Listen(symbol RSymbol, w Writer) {
 
 func (r *Router) QueueMsg(m *Message) {
 	r.msgChan <- m
+}
+
+func (r *Router) QueueMaticMsg(m *Message) {
+	r.maticChan <- m
+}
+
+func (r *Router) MaticMsgHandler() {
+	r.lock.Lock()
+	w := r.registry[RMATIC]
+	if w == nil {
+		panic("RMATIC writer not exist")
+	}
+	r.lock.Unlock()
+
+out:
+	for {
+		select {
+		case <-r.stop:
+			r.log.Info("RMATIC msgHandler stop")
+			break out
+		case msg := <-r.msgChan:
+			w.ResolveMessage(msg)
+		}
+	}
 }
 
 func (r *Router) MsgHandler() {
@@ -93,4 +120,5 @@ out:
 func (r *Router) StopMsgHandler() {
 	close(r.stop)
 	close(r.msgChan)
+	close(r.maticChan)
 }

@@ -528,8 +528,9 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return false
 	}
 
-	if executed || !w.conn.IsFirstSigner(msg, signatures[0]) {
-		w.log.Warn("TxHash executed status", "executed", executed, "txHash", hash)
+	firstSignerFlag := w.conn.IsFirstSigner(msg, signatures[0])
+	if executed || !firstSignerFlag {
+		w.log.Warn("TxHash executed status", "executed", executed, "FirstSignerFlag", firstSignerFlag, "txHash", hash)
 		err = w.checkAndSend(txHash, sigs, to, mef, m)
 		if err != nil {
 			w.log.Error("processSignatureEnough: checkAndSend error", "error", err, "txHash", txHash.Hex(), "to", to.Hex())

@@ -257,9 +257,6 @@ func (l *listener) processEvents(blockNum uint64) error {
 				}
 				if l.cared(flow.Snap.Symbol) && l.subscriptions[BondReported] != nil {
 					l.submitMessage(l.subscriptions[BondReported](flow))
-					if flow.Snap.Symbol == core.RMATIC {
-						time.Sleep(10 * time.Second)
-					}
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId {
 				l.log.Trace("Handling ActiveReportEvent", "block", blockNum)
