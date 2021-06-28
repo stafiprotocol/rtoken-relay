@@ -475,6 +475,13 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	w.log.Info("processSignatureEnough", "source", m.Source,
 		"dest", m.Destination, "pool", hexutil.Encode(sigs.Pool), "txType", sigs.TxType)
 
+	if len(sigs.ProposalId) <= common.AddressLength {
+		errMsg := "processSignatureEnough ProposalId too short"
+		w.log.Error(errMsg)
+		w.sysErr <- errors.New(errMsg)
+		return false
+	}
+
 	txHash, err := sigs.EncodeToHash()
 	if err != nil {
 		w.log.Error("processSignatureEnough sigs EncodeToHash error", "error", err)
@@ -484,7 +491,6 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	hash := strings.ToLower(txHash.Hex())
 
 	var mef *submodel.MultiEventFlow
-
 	if sigs.TxType == submodel.OriginalClaimRewards {
 		_, ok = w.getBondReported(hash)
 		if !ok {
@@ -499,26 +505,6 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		}
 	}
 
-	poolAddr := common.BytesToAddress(sigs.Pool)
-	executed, err := w.conn.IsTxHashExecuted(txHash, poolAddr)
-	if err != nil {
-		w.log.Error("processSignatureEnough IsTxHashExecuted error", "error", err, "txHash", txHash)
-		w.sysErr <- err
-		return false
-	}
-
-	if executed {
-		w.log.Warn("TxHash already executed", "txHash", hash)
-		return true
-	}
-
-	if len(sigs.ProposalId) <= common.AddressLength {
-		errMsg := "processSignatureEnough ProposalId too short"
-		w.log.Error(errMsg)
-		w.sysErr <- errors.New(errMsg)
-		return false
-	}
-
 	signatures := make([][]byte, 0)
 	for _, sig := range sigs.Signature {
 		// 32 + 65 = 97
@@ -530,16 +516,23 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		}
 		signatures = append(signatures, sig[32:])
 	}
-
 	to := common.BytesToAddress(sigs.ProposalId[:20])
 	calldata := sigs.ProposalId[20:]
 	msg := sigs.Signature[0][:32]
-	if !w.conn.IsFirstSigner(msg, signatures[0]) {
-		w.log.Info("processSignatureEnough: not first signer")
+	poolAddr := common.BytesToAddress(sigs.Pool)
 
+	executed, err := w.conn.IsTxHashExecuted(txHash, poolAddr)
+	if err != nil {
+		w.log.Error("processSignatureEnough IsTxHashExecuted error", "error", err, "txHash", txHash)
+		w.sysErr <- err
+		return false
+	}
+
+	if executed || !w.conn.IsFirstSigner(msg, signatures[0]) {
+		w.log.Warn("TxHash executed status", "executed", executed, "txHash", hash)
 		err = w.checkAndSend(txHash, sigs, to, mef, m)
 		if err != nil {
-			w.log.Error("processSignatureEnough: checkAndSend error", "txHash", txHash.Hex(), "to", to.Hex())
+			w.log.Error("processSignatureEnough: checkAndSend error", "error", err, "txHash", txHash.Hex(), "to", to.Hex())
 			return false
 		}
 		return true
@@ -575,7 +568,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	w.log.Info("AsMulti success", "txHash", txHash.Hex())
 	err = w.checkAndSend(txHash, sigs, to, mef, m)
 	if err != nil {
-		w.log.Error("processSignatureEnough: checkAndSend error", "txHash", txHash.Hex(), "to", to.Hex())
+		w.log.Error("processSignatureEnough: checkAndSend error", "error", err, "txHash", txHash.Hex(), "to", to.Hex())
 		return false
 	}
 	return true
