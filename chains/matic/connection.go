@@ -316,6 +316,38 @@ func (c *Connection) IsFirstSigner(msg, sig []byte) bool {
 	return false
 }
 
+func (c *Connection) VerifySigs(msg []byte, sigs [][]byte, pool common.Address) error {
+	multi, err := Multisig.NewMultisig(pool, c.conn.Client())
+	if err != nil {
+		return err
+	}
+
+	for _, sig := range sigs {
+		sigPublicKey, err := crypto.Ecrecover(msg, sig)
+		if err != nil {
+			panic(err)
+		}
+
+		pk, err := crypto.UnmarshalPubkey(sigPublicKey)
+		if err != nil {
+			return err
+		}
+		owner := crypto.PubkeyToAddress(*pk)
+		isOwner, err := multi.IsOwner(nil, owner)
+		if err != nil {
+			return err
+		}
+
+		if !isOwner {
+			return fmt.Errorf("VerifySig: not owner, address: %s, msg: %s, sig: %s, pool: %s", owner.Hex(), hexutil.Encode(msg), hexutil.Encode(sig), pool.Hex())
+		}
+	}
+
+	return nil
+}
+
+
+
 func (c *Connection) BalanceOf(owner common.Address) (*big.Int, error) {
 	return c.maticToken.BalanceOf(c.conn.CallOpts(), owner)
 }

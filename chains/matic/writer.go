@@ -482,6 +482,23 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return false
 	}
 
+	signatures := make([][]byte, 0)
+	for _, sig := range sigs.Signature {
+		// 32 + 65 = 97
+		if len(sig) != 97 {
+			err := fmt.Errorf("processSignatureEnough: size of sig %s not 97", hexutil.Encode(sig))
+			w.log.Error(err.Error())
+			w.sysErr <- err
+			return false
+		}
+		signatures = append(signatures, sig[32:])
+	}
+	vs, rs, ss := utils.DecomposeSignature(signatures)
+	to := common.BytesToAddress(sigs.ProposalId[:20])
+	calldata := sigs.ProposalId[20:]
+	msg := sigs.Signature[0][:32]
+	poolAddr := common.BytesToAddress(sigs.Pool)
+
 	txHash, err := sigs.EncodeToHash()
 	if err != nil {
 		w.log.Error("processSignatureEnough sigs EncodeToHash error", "error", err)
@@ -505,22 +522,6 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		}
 	}
 
-	signatures := make([][]byte, 0)
-	for _, sig := range sigs.Signature {
-		// 32 + 65 = 97
-		if len(sig) != 97 {
-			err := fmt.Errorf("processSignatureEnough: size of sig %s not 97", hexutil.Encode(sig))
-			w.log.Error(err.Error())
-			w.sysErr <- err
-			return false
-		}
-		signatures = append(signatures, sig[32:])
-	}
-	to := common.BytesToAddress(sigs.ProposalId[:20])
-	calldata := sigs.ProposalId[20:]
-	msg := sigs.Signature[0][:32]
-	poolAddr := common.BytesToAddress(sigs.Pool)
-
 	executed, err := w.conn.IsTxHashExecuted(txHash, poolAddr)
 	if err != nil {
 		w.log.Error("processSignatureEnough IsTxHashExecuted error", "error", err, "txHash", txHash)
@@ -539,7 +540,13 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return true
 	}
 
-	vs, rs, ss := utils.DecomposeSignature(signatures)
+	err = w.conn.VerifySigs(msg, signatures, poolAddr)
+	if err != nil {
+		w.log.Error("processSignatureEnough: VerifySig error", "error", err, "txHash", txHash.Hex(), "to", to.Hex())
+		w.sysErr <- err
+		return false
+	}
+
 	callType := config.Call
 	var safeTxGas *big.Int
 	switch sigs.TxType {
