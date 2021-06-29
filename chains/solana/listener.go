@@ -51,6 +51,7 @@ func (l *listener) start() error {
 		err := l.pollBlocks()
 		if err != nil {
 			l.log.Error("Polling blocks failed", "err", err)
+			panic(err)
 		}
 	}()
 
