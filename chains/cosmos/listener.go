@@ -55,6 +55,7 @@ func (l *listener) start() error {
 		err := l.pollBlocks()
 		if err != nil {
 			l.log.Error("Polling blocks failed", "err", err)
+			panic("err")
 		}
 	}()
 
@@ -71,7 +72,7 @@ func (l *listener) pollBlocks() error {
 			return TerminatedError
 		case <-ticker.C:
 			if retry <= 0 {
-				return fmt.Errorf("poolBlocks reach retry limit ,symbol: %s", l.symbol)
+				return fmt.Errorf("polBlocks reach retry limit ,symbol: %s", l.symbol)
 			}
 
 			err := l.updateEra()

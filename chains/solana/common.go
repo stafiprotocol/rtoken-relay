@@ -3,6 +3,7 @@ package solana
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -462,7 +463,6 @@ func (w *writer) CheckMultisigTx(
 	programsIds []solCommon.PublicKey,
 	accountMetas [][]solTypes.AccountMeta,
 	datas [][]byte) bool {
-	return true
 	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err == nil {
 		thisProgramsIdsBts, err := borsh.Serialize(programsIds)
@@ -494,6 +494,13 @@ func (w *writer) CheckMultisigTx(
 			bytes.Equal(thisDatasBts, onchainDatasBts) {
 			return true
 		}
+		w.log.Error("CheckMultisigTx not equal ",
+			"thisprogramsIds", hex.EncodeToString(thisProgramsIdsBts),
+			"onchainProgramnsIdsBts", hex.EncodeToString(onchainProgramsIdsBts),
+			"thisAccountMetasBts", hex.EncodeToString(thisAccountMetasBts),
+			"onchainAccountMetasBts", hex.EncodeToString(onchainAccountMetasBts),
+			"thisDatasBts", hex.EncodeToString(thisDatasBts),
+			"onchainDatasBts", hex.EncodeToString(onchainDatasBts))
 	}
 
 	return false
