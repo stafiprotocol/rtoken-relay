@@ -522,16 +522,16 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		}
 	}
 
-	executed, err := w.conn.IsTxHashExecuted(txHash, poolAddr)
+	state, err := w.conn.TxHashState(txHash, poolAddr)
 	if err != nil {
-		w.log.Error("processSignatureEnough IsTxHashExecuted error", "error", err, "txHash", txHash)
+		w.log.Error("processSignatureEnough TxHashState error", "error", err, "txHash", txHash)
 		w.sysErr <- err
 		return false
 	}
 
 	firstSignerFlag := w.conn.IsFirstSigner(msg, signatures[0])
-	if executed || !firstSignerFlag {
-		w.log.Warn("TxHash executed status", "executed", executed, "FirstSignerFlag", firstSignerFlag, "txHash", hash)
+	if state == config.HashStateSuccess || !firstSignerFlag {
+		w.log.Warn("TxHash state", "state", state, "FirstSignerFlag", firstSignerFlag, "txHash", hash)
 		err = w.checkAndSend(txHash, sigs, to, mef, m)
 		if err != nil {
 			w.log.Error("processSignatureEnough: checkAndSend error", "error", err, "txHash", txHash.Hex(), "to", to.Hex())
@@ -560,6 +560,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		safeTxGas = WithdrawTxGas
 	case submodel.OriginalTransfer:
 		safeTxGas = TransferTxGas
+		callType = config.DelegateCall
 	default:
 		errMsg := "processSignatureEnough TxType not supported"
 		w.log.Error(errMsg)
@@ -567,7 +568,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return false
 	}
 
-	err = w.conn.AsMulti(poolAddr, to, DefaultValue, calldata, callType, safeTxGas, txHash, vs, rs, ss)
+	err = w.conn.AsMulti(poolAddr, to, DefaultValue, calldata, uint8(callType), safeTxGas, txHash, vs, rs, ss)
 	if err != nil {
 		w.log.Error("AsMulti error", "err", err)
 		return false

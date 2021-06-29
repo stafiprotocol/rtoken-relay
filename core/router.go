@@ -19,22 +19,20 @@ type Writer interface {
 
 // Router forwards messages from their source to their destination
 type Router struct {
-	registry  map[RSymbol]Writer
-	lock      *sync.RWMutex
-	log       log.Logger
-	msgChan   chan *Message
-	maticChan chan *Message
-	stop      chan int
+	registry map[RSymbol]Writer
+	lock     *sync.RWMutex
+	log      log.Logger
+	msgChan  chan *Message
+	stop     chan int
 }
 
 func NewRouter(log log.Logger) *Router {
 	return &Router{
-		registry:  make(map[RSymbol]Writer),
-		lock:      &sync.RWMutex{},
-		log:       log,
-		msgChan:   make(chan *Message, msgLimit),
-		maticChan: make(chan *Message, msgLimit),
-		stop:      make(chan int),
+		registry: make(map[RSymbol]Writer),
+		lock:     &sync.RWMutex{},
+		log:      log,
+		msgChan:  make(chan *Message, msgLimit),
+		stop:     make(chan int),
 	}
 }
 
@@ -52,10 +50,8 @@ func (r *Router) Send(msg *Message) error {
 		return fmt.Errorf("unknown destination symbol: %s", msg.Destination)
 	}
 
-	if msg.Destination == RFIS {
+	if msg.Destination == RFIS || msg.Destination == RMATIC {
 		r.QueueMsg(msg)
-	} else if msg.Destination == RMATIC {
-		r.QueueMaticMsg(msg)
 	} else {
 		go w.ResolveMessage(msg)
 	}
@@ -72,10 +68,6 @@ func (r *Router) Listen(symbol RSymbol, w Writer) {
 
 func (r *Router) QueueMsg(m *Message) {
 	r.msgChan <- m
-}
-
-func (r *Router) QueueMaticMsg(m *Message) {
-	r.maticChan <- m
 }
 
 func (r *Router) MsgHandler() {
@@ -97,9 +89,12 @@ out:
 			r.log.Info("RFIS msgHandler stop")
 			break out
 		case msg := <-r.msgChan:
-			rfis.ResolveMessage(msg)
-		case msg := <-r.maticChan:
-			rmatic.ResolveMessage(msg)
+			switch msg.Destination {
+			case RMATIC:
+				rmatic.ResolveMessage(msg)
+			default:
+				rfis.ResolveMessage(msg)
+			}
 		}
 	}
 }
@@ -107,5 +102,4 @@ out:
 func (r *Router) StopMsgHandler() {
 	close(r.stop)
 	close(r.msgChan)
-	close(r.maticChan)
 }

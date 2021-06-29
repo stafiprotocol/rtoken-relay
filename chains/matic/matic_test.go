@@ -1,11 +1,18 @@
 package matic
 
 import (
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"gotest.tools/assert"
 	"math/big"
+	"strings"
 	"testing"
+)
+
+var (
+	MultiSigAbi, _ = abi.JSON(strings.NewReader(Multisig.MultisigABI))
 )
 
 func TestBuyVoucher(t *testing.T) {

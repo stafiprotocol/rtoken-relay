@@ -662,6 +662,42 @@ func (c *Connection) IsClaimed(controller []byte, lastEra uint32) (bool, error) 
 	return claimed, nil
 }
 
+func (c *Connection) NeedMoreSignature(params *submodel.SubmitSignatureParams) (bool, error) {
+	sk := submodel.SignaturesKey{
+		Era:        uint32(params.Era),
+		Pool:       params.Pool,
+		TxType:     params.TxType,
+		ProposalId: params.ProposalId,
+	}
+
+	skBz, err := types.EncodeToBytes(sk)
+	if err != nil {
+		return false, err
+	}
+
+	symBz, err := types.EncodeToBytes(params.Symbol)
+	if err != nil {
+		return false, err
+	}
+
+	var sigs []types.Bytes
+	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
+	if err != nil {
+		return false, err
+	}
+
+	if !exist {
+		return true, nil
+	}
+
+	th, err := c.threshold(params.Symbol, params.Pool)
+	if err != nil {
+		return false, err
+	}
+
+	return len(sigs) < int(th), nil
+}
+
 func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool {
 	for i := 0; i < BlockRetryLimit; i++ {
 		c.log.Info("submitSignature on chain...")
@@ -680,4 +716,26 @@ func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool
 		return true
 	}
 	return true
+}
+
+func (c *Connection) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return 0, err
+	}
+
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return 0, err
+	}
+
+	var threshold uint16
+	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
+	if err != nil {
+		return 0, err
+	}
+	if !exist {
+		return 0, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+	}
+	return threshold, nil
 }

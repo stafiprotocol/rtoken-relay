@@ -346,8 +346,6 @@ func (c *Connection) VerifySigs(msg []byte, sigs [][]byte, pool common.Address) 
 	return nil
 }
 
-
-
 func (c *Connection) BalanceOf(owner common.Address) (*big.Int, error) {
 	return c.maticToken.BalanceOf(c.conn.CallOpts(), owner)
 }
@@ -377,7 +375,7 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 		}
 
 		bt := &ethmodel.BatchTransaction{
-			Operation:  config.Call,
+			Operation:  uint8(config.Call),
 			To:         c.maticTokenContract,
 			Value:      DefaultValue,
 			DataLength: big.NewInt(int64(len(calldata))),
@@ -451,13 +449,14 @@ func (c *Connection) AsMulti(
 	return fmt.Errorf("multisig ExecTransaction failed, to: %s, calldata: %s, safeTxGas: %s", to.Hex(), hexutil.Encode(calldata), safeTxGas.String())
 }
 
-func (c *Connection) IsTxHashExecuted(hash common.Hash, pool common.Address) (bool, error) {
+func (c *Connection) TxHashState(hash common.Hash, pool common.Address) (config.TxHashState, error) {
 	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
-	return multisig.ExecutedTxHashs(nil, hash)
+	state, err := multisig.TxHashs(nil, hash)
+	return config.TxHashState(state), err
 }
 
 func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
@@ -467,18 +466,21 @@ func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
 	}
 
 	for i := 0; i < TxConfirmLimit; i++ {
-		executed, err := c.IsTxHashExecuted(hash, pool)
+		state, err := c.TxHashState(hash, pool)
 		if err != nil {
 			return err
 		}
 
-		if executed {
+		switch state {
+		case config.HashStateFail:
+			return fmt.Errorf("txhash %s failed", hash.Hex())
+		case config.HashStateSuccess:
 			return nil
-		}
-
-		err = c.conn.WaitForBlock(latest, big.NewInt(1))
-		if err != nil {
-			return err
+		default:
+			err = c.conn.WaitForBlock(latest, big.NewInt(1))
+			if err != nil {
+				return err
+			}
 		}
 	}
 

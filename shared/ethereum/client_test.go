@@ -4,13 +4,21 @@
 package ethereum
 
 import (
+	"context"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
+	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
+	"github.com/stretchr/testify/assert"
 	"math/big"
+	"os"
 	"strings"
+	"testing"
 )
 
 var (
@@ -218,6 +226,7 @@ func newTestLogger(name string) log15.Logger {
 	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlError, tLog.GetHandler()))
 	return tLog
 }
+
 //
 //func TestTransferPack(t *testing.T) {
 //	value := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10))
@@ -493,8 +502,54 @@ func newTestLogger(name string) log15.Logger {
 //	t.Log("idHex", hexutil.Encode(id.Bytes())) //0x09
 //}
 //
-//func TestKecca(t *testing.T) {
-//	a := []byte(`unclaimable`)
-//
-//	t.Log(crypto.Keccak256Hash(a))
-//}
+func TestKecca(t *testing.T) {
+	a := []byte(`unclaimable`)
+	t.Log("a_hex", hexutil.Encode(a))
+	t.Log("a", crypto.Keccak256Hash(a))
+
+	b, err := hexutil.Decode("0x66d410cde3a337cf45b171dbb9b90762cc0a6c60cff3b8229befdd7678afa669")
+	assert.NoError(t, err)
+	t.Log("b", crypto.Keccak256Hash(b))
+
+	c, err := hexutil.Decode("0x3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1")
+	assert.NoError(t, err)
+	t.Log("c", crypto.Keccak256Hash(c))
+}
+
+func TestBlockHash(t *testing.T) {
+	bh, err := hexutil.Decode("0xa8fe8c19bc809ec5fc6fbc124398917e0b4dd3513fbe1b9c0c5c0d8e1a038b31")
+	assert.NoError(t, err)
+
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash := common.BytesToHash(bh)
+	blk, err := client.conn.BlockByHash(context.Background(), hash)
+	assert.NoError(t, err)
+	//t.Log(blk)
+	t.Log(blk.Hash())
+	t.Log(blk.Number())
+
+	for _, tx := range blk.Transactions() {
+		t.Log(tx.Hash())
+	}
+
+	t.Log(blk.ParentHash())
+	t.Log(blk.Root())
+
+	err = blk.SanityCheck()
+	assert.NoError(t, err)
+	t.Log(blk.UncleHash())
+}

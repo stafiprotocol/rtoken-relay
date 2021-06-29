@@ -162,9 +162,21 @@ func (w *writer) processSubmitSignature(m *core.Message) bool {
 		w.printContentError(m)
 		return false
 	}
-	result := w.conn.submitSignature(&param)
-	w.log.Info("submitSignature", "symbol", m.Source, "result", result)
-	return result
+
+	need, err := w.conn.NeedMoreSignature(&param)
+	if err != nil {
+		w.log.Error("NeedMoreSignature error", "error", err)
+		return false
+	}
+
+	if need {
+		result := w.conn.submitSignature(&param)
+		w.log.Info("submitSignature", "symbol", m.Source, "result", result)
+		return result
+	}
+
+	w.log.Info("processSubmitSignature: signature already enough")
+	return true
 }
 
 func (w *writer) processLiquidityBond(m *core.Message) bool {

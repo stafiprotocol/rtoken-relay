@@ -2,8 +2,13 @@ package substrate
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -821,4 +826,106 @@ func TestValidatorId(t *testing.T) {
 	}
 
 	t.Log(len(validatorIds))
+}
+
+func TestSignatures(t *testing.T) {
+	pool, _ := hexutil.Decode("0xfc42de640aa9759d460e1a11416eca95d25c5908")
+	symBz, err := types.EncodeToBytes(core.RMATIC)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	prop, _ := hexutil.Decode("0x15ed57ca28cbebb58d9c6c62f570046bc089bc666ab15071000000000000000000000000000000000000000000000000016345785d8a00000000000000000000000000000000000000000000000000000000000000000000")
+	//shareAddr := prop[:20]
+	sk := submodel.SignaturesKey{
+		Era:        50468,
+		Pool:       pool,
+		TxType:     submodel.OriginalBond,
+		ProposalId: prop,
+	}
+
+	skBz, err := types.EncodeToBytes(sk)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+
+	var sigs []types.Bytes
+	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("exist", exist)
+
+	signatures := make([][]byte, 0)
+	for _, sig := range sigs {
+		// 32 + 65 = 97
+		if len(sig) != 97 {
+			panic("sig size not 97")
+		}
+		signatures = append(signatures, sig[32:])
+	}
+
+	msg := sigs[0][:32]
+	t.Log("msg", msg)
+	//vs, rs, ss := utils.DecomposeSignature(signatures)
+	to := common.BytesToAddress(prop[:20])
+	calldata := prop[20:]
+
+	t.Log("msg", hexutil.Encode(msg))
+	t.Log("to", to)
+	t.Log("calldata", hexutil.Encode(calldata))
+
+	for i, sgt := range signatures {
+		sigPublicKey, err := crypto.Ecrecover(msg, sgt)
+		if err != nil {
+			panic(err)
+		}
+
+		t.Log("sigPublicKey", i, hexutil.Encode(sigPublicKey))
+
+		pk, err := crypto.UnmarshalPubkey(sigPublicKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		addr := crypto.PubkeyToAddress(*pk)
+		t.Log("Address", i, addr.Hex())
+	}
+
+	param := &submodel.SubmitSignatureParams{
+		Symbol: core.RMATIC,
+		Era:    50468,
+		Pool:   pool,
+		TxType: submodel.OriginalBond,
+	}
+
+	txhash, err := param.EncodeToHash()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(txhash)
+
+	MultiSigAbi, _ := abi.JSON(strings.NewReader(Multisig.MultisigABI))
+	vs, rs, ss := utils.DecomposeSignature(signatures)
+	t.Log("vs", vs)
+	t.Log("rs0", hexutil.Encode(rs[0][:]))
+	t.Log("rs1", hexutil.Encode(rs[1][:]))
+	t.Log("ss0", hexutil.Encode(ss[0][:]))
+	t.Log("ss1", hexutil.Encode(ss[1][:]))
+
+	value := big.NewInt(0)
+	operation := config.Call
+	safeTxGas := big.NewInt(300000)
+	txHash := common.HexToHash("0xca56fae341743f3c9c6e0832b76cb64a06a3f8c5d2b98d658baec971ca16f073")
+
+	packed, err := MultiSigAbi.Pack("execTransaction", to, value, calldata, operation, safeTxGas, txHash, vs, rs, ss)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(hexutil.Encode(packed))
 }

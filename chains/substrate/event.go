@@ -582,25 +582,7 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 }
 
 func (l *listener) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
-	poolBz, err := types.EncodeToBytes(pool)
-	if err != nil {
-		return 0, err
-	}
-
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return 0, err
-	}
-
-	var threshold uint16
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
-	if err != nil {
-		return 0, err
-	}
-	if !exist {
-		return 0, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
-	}
-	return threshold, nil
+	return l.conn.threshold(symbol, pool)
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {

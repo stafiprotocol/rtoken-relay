@@ -2,6 +2,8 @@ package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
+	"testing"
 )
 
 var (
@@ -120,20 +122,20 @@ var (
 //	t.Log("valFlag", valFlag)
 //}
 //
-//func TestMultisigBalance(t *testing.T) {
-//	client, err := NewSimpleClient(goerliEndPoint)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	matic, err := MaticToken.NewMaticToken(goerliMaticToken, client)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	bal, err := matic.BalanceOf(nil, goerliMultisigContract)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log(bal)
-//}
+func TestMultisigBalance(t *testing.T) {
+	client, err := NewSimpleClient(goerliEndPoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	matic, err := MaticToken.NewMaticToken(goerliMaticToken, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bal, err := matic.BalanceOf(nil, goerliMultisigContract1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(bal)
+}

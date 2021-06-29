@@ -18,7 +18,8 @@ import (
 var (
 	owners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
 
-	goerliMultisigContract = common.HexToAddress("0x1Cb8b55cB11152E74D34Be1961E4FFe169F5B99A")
+	goerliMultisigContract  = common.HexToAddress("0x1Cb8b55cB11152E74D34Be1961E4FFe169F5B99A")
+	goerliMultisigContract1 = common.HexToAddress("0xfc42de640aa9759d460e1a11416eca95d25c5908")
 )
 
 func TestMultisigApprove(t *testing.T) {
@@ -78,7 +79,7 @@ func TestMultisigApprove(t *testing.T) {
 		goerliMaticToken,
 		defaultValue,
 		cd,
-		config.Call,
+		uint8(config.Call),
 		big.NewInt(100000),
 		txhash,
 		vs,

@@ -2,7 +2,9 @@ package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"math/big"
+	"testing"
 )
 
 var (
@@ -13,26 +15,37 @@ var (
 	testTokenMBT = common.HexToAddress("0x94797870643B082f080f1ed7d52b61a58582f613")
 )
 
-//func TestIsOwner(t *testing.T) {
-//	client, err := NewSimpleClient(kovanEndPoint)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	multi, err := Multisig.NewMultisig(kovanMultisigContract, client)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	owner1 := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
-//	t.Log(owner1.Hex())
-//	ownerFlag, err := multi.IsOwner(nil, owner1)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	assert.True(t, ownerFlag)
-//}
+func TestIsOwner(t *testing.T) {
+	client, err := NewSimpleClient(goerliEndPoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	multiContract := common.HexToAddress("0xfc42de640aa9759d460e1a11416eca95d25c5908")
+	multi, err := Multisig.NewMultisig(multiContract, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//owner1 := common.HexToAddress("0x57530B16cD9a10E4997D816DF883CD6c1131CD22")
+	//t.Log(owner1.Hex())
+	//ownerFlag, err := multi.IsOwner(nil, owner1)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+
+	//assert.True(t, ownerFlag)
+
+	owners, err := multi.GetOwners(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, owner := range owners {
+		t.Log(owner)
+	}
+}
+
 //
 //func TestIsNotOwner(t *testing.T) {
 //	client, err := NewSimpleClient(kovanEndPoint)

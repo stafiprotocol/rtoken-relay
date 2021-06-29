@@ -27,7 +27,7 @@ var (
 )
 
 // MultisigABI is the input ABI used to generate the binding from.
-const MultisigABI = "[{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_owners\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"AddedOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"threshold\",\"type\":\"uint256\"}],\"name\":\"ChangedThreshold\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"DisabledModule\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"EnabledModule\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"}],\"name\":\"ExecutionFailure\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"ExecutionFromModuleFailure\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"ExecutionFromModuleSuccess\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"}],\"name\":\"ExecutionSuccess\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"RemovedOwner\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"addOwnerWithThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"changeThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevModule\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"disableModule\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"enableModule\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"enumEnum.Operation\",\"name\":\"operation\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"safeTxGas\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint8[]\",\"name\":\"vs\",\"type\":\"uint8[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"rs\",\"type\":\"bytes32[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"ss\",\"type\":\"bytes32[]\"}],\"name\":\"execTransaction\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"executedTxHashs\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getChainId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"start\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"pageSize\",\"type\":\"uint256\"}],\"name\":\"getModulesPaginated\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"array\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"next\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNonce\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getOwners\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getThreshold\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"isModuleEnabled\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"messageToSign\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"removeOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"oldOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"swapOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const MultisigABI = "[{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_owners\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"AddedOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"threshold\",\"type\":\"uint256\"}],\"name\":\"ChangedThreshold\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"DisabledModule\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"EnabledModule\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"ExecutionFromModuleFailure\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"ExecutionFromModuleSuccess\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"enumEnum.HashState\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"ExecutionResult\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"RemovedOwner\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"TxHashs\",\"outputs\":[{\"internalType\":\"enumEnum.HashState\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"addOwnerWithThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"changeThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevModule\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"disableModule\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"enableModule\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"enumEnum.Operation\",\"name\":\"operation\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"safeTxGas\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint8[]\",\"name\":\"vs\",\"type\":\"uint8[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"rs\",\"type\":\"bytes32[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"ss\",\"type\":\"bytes32[]\"}],\"name\":\"execTransaction\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getChainId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"start\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"pageSize\",\"type\":\"uint256\"}],\"name\":\"getModulesPaginated\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"array\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"next\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNonce\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getOwners\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getThreshold\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"isModuleEnabled\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"messageToSign\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"removeOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"oldOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"swapOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // Multisig is an auto generated Go binding around an Ethereum contract.
 type Multisig struct {
@@ -171,35 +171,35 @@ func (_Multisig *MultisigTransactorRaw) Transact(opts *bind.TransactOpts, method
 	return _Multisig.Contract.contract.Transact(opts, method, params...)
 }
 
-// ExecutedTxHashs is a free data retrieval call binding the contract method 0x2c8e23d5.
+// TxHashs is a free data retrieval call binding the contract method 0x4e3b0b48.
 //
-// Solidity: function executedTxHashs(bytes32 ) view returns(bool)
-func (_Multisig *MultisigCaller) ExecutedTxHashs(opts *bind.CallOpts, arg0 [32]byte) (bool, error) {
+// Solidity: function TxHashs(bytes32 ) view returns(uint8)
+func (_Multisig *MultisigCaller) TxHashs(opts *bind.CallOpts, arg0 [32]byte) (uint8, error) {
 	var out []interface{}
-	err := _Multisig.contract.Call(opts, &out, "executedTxHashs", arg0)
+	err := _Multisig.contract.Call(opts, &out, "TxHashs", arg0)
 
 	if err != nil {
-		return *new(bool), err
+		return *new(uint8), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+	out0 := *abi.ConvertType(out[0], new(uint8)).(*uint8)
 
 	return out0, err
 
 }
 
-// ExecutedTxHashs is a free data retrieval call binding the contract method 0x2c8e23d5.
+// TxHashs is a free data retrieval call binding the contract method 0x4e3b0b48.
 //
-// Solidity: function executedTxHashs(bytes32 ) view returns(bool)
-func (_Multisig *MultisigSession) ExecutedTxHashs(arg0 [32]byte) (bool, error) {
-	return _Multisig.Contract.ExecutedTxHashs(&_Multisig.CallOpts, arg0)
+// Solidity: function TxHashs(bytes32 ) view returns(uint8)
+func (_Multisig *MultisigSession) TxHashs(arg0 [32]byte) (uint8, error) {
+	return _Multisig.Contract.TxHashs(&_Multisig.CallOpts, arg0)
 }
 
-// ExecutedTxHashs is a free data retrieval call binding the contract method 0x2c8e23d5.
+// TxHashs is a free data retrieval call binding the contract method 0x4e3b0b48.
 //
-// Solidity: function executedTxHashs(bytes32 ) view returns(bool)
-func (_Multisig *MultisigCallerSession) ExecutedTxHashs(arg0 [32]byte) (bool, error) {
-	return _Multisig.Contract.ExecutedTxHashs(&_Multisig.CallOpts, arg0)
+// Solidity: function TxHashs(bytes32 ) view returns(uint8)
+func (_Multisig *MultisigCallerSession) TxHashs(arg0 [32]byte) (uint8, error) {
+	return _Multisig.Contract.TxHashs(&_Multisig.CallOpts, arg0)
 }
 
 // GetChainId is a free data retrieval call binding the contract method 0x3408e470.
@@ -1140,139 +1140,6 @@ func (_Multisig *MultisigFilterer) ParseEnabledModule(log types.Log) (*MultisigE
 	return event, nil
 }
 
-// MultisigExecutionFailureIterator is returned from FilterExecutionFailure and is used to iterate over the raw logs and unpacked data for ExecutionFailure events raised by the Multisig contract.
-type MultisigExecutionFailureIterator struct {
-	Event *MultisigExecutionFailure // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisigExecutionFailureIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisigExecutionFailure)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisigExecutionFailure)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisigExecutionFailureIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisigExecutionFailureIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisigExecutionFailure represents a ExecutionFailure event raised by the Multisig contract.
-type MultisigExecutionFailure struct {
-	TxHash [32]byte
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterExecutionFailure is a free log retrieval operation binding the contract event 0xdbe42d02a4e07d7eeff2874efe172540c93b297d206f6d691c9782a257323e32.
-//
-// Solidity: event ExecutionFailure(bytes32 txHash)
-func (_Multisig *MultisigFilterer) FilterExecutionFailure(opts *bind.FilterOpts) (*MultisigExecutionFailureIterator, error) {
-
-	logs, sub, err := _Multisig.contract.FilterLogs(opts, "ExecutionFailure")
-	if err != nil {
-		return nil, err
-	}
-	return &MultisigExecutionFailureIterator{contract: _Multisig.contract, event: "ExecutionFailure", logs: logs, sub: sub}, nil
-}
-
-// WatchExecutionFailure is a free log subscription operation binding the contract event 0xdbe42d02a4e07d7eeff2874efe172540c93b297d206f6d691c9782a257323e32.
-//
-// Solidity: event ExecutionFailure(bytes32 txHash)
-func (_Multisig *MultisigFilterer) WatchExecutionFailure(opts *bind.WatchOpts, sink chan<- *MultisigExecutionFailure) (event.Subscription, error) {
-
-	logs, sub, err := _Multisig.contract.WatchLogs(opts, "ExecutionFailure")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisigExecutionFailure)
-				if err := _Multisig.contract.UnpackLog(event, "ExecutionFailure", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseExecutionFailure is a log parse operation binding the contract event 0xdbe42d02a4e07d7eeff2874efe172540c93b297d206f6d691c9782a257323e32.
-//
-// Solidity: event ExecutionFailure(bytes32 txHash)
-func (_Multisig *MultisigFilterer) ParseExecutionFailure(log types.Log) (*MultisigExecutionFailure, error) {
-	event := new(MultisigExecutionFailure)
-	if err := _Multisig.contract.UnpackLog(event, "ExecutionFailure", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
 // MultisigExecutionFromModuleFailureIterator is returned from FilterExecutionFromModuleFailure and is used to iterate over the raw logs and unpacked data for ExecutionFromModuleFailure events raised by the Multisig contract.
 type MultisigExecutionFromModuleFailureIterator struct {
 	Event *MultisigExecutionFromModuleFailure // Event containing the contract specifics and raw log
@@ -1559,9 +1426,9 @@ func (_Multisig *MultisigFilterer) ParseExecutionFromModuleSuccess(log types.Log
 	return event, nil
 }
 
-// MultisigExecutionSuccessIterator is returned from FilterExecutionSuccess and is used to iterate over the raw logs and unpacked data for ExecutionSuccess events raised by the Multisig contract.
-type MultisigExecutionSuccessIterator struct {
-	Event *MultisigExecutionSuccess // Event containing the contract specifics and raw log
+// MultisigExecutionResultIterator is returned from FilterExecutionResult and is used to iterate over the raw logs and unpacked data for ExecutionResult events raised by the Multisig contract.
+type MultisigExecutionResultIterator struct {
+	Event *MultisigExecutionResult // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1575,7 +1442,7 @@ type MultisigExecutionSuccessIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *MultisigExecutionSuccessIterator) Next() bool {
+func (it *MultisigExecutionResultIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1584,7 +1451,7 @@ func (it *MultisigExecutionSuccessIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(MultisigExecutionSuccess)
+			it.Event = new(MultisigExecutionResult)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1599,7 +1466,7 @@ func (it *MultisigExecutionSuccessIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(MultisigExecutionSuccess)
+		it.Event = new(MultisigExecutionResult)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1615,41 +1482,42 @@ func (it *MultisigExecutionSuccessIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisigExecutionSuccessIterator) Error() error {
+func (it *MultisigExecutionResultIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *MultisigExecutionSuccessIterator) Close() error {
+func (it *MultisigExecutionResultIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// MultisigExecutionSuccess represents a ExecutionSuccess event raised by the Multisig contract.
-type MultisigExecutionSuccess struct {
+// MultisigExecutionResult represents a ExecutionResult event raised by the Multisig contract.
+type MultisigExecutionResult struct {
 	TxHash [32]byte
+	Arg1   uint8
 	Raw    types.Log // Blockchain specific contextual infos
 }
 
-// FilterExecutionSuccess is a free log retrieval operation binding the contract event 0xdc29884a71d2bb98d3c53dc09718be05c7bfd142b7773a5c5cf2517629290ac0.
+// FilterExecutionResult is a free log retrieval operation binding the contract event 0x033f1a25a5e9b1378e89053b7b1e656cffc91fc1e5ecb5b1ff4882814c50b41a.
 //
-// Solidity: event ExecutionSuccess(bytes32 txHash)
-func (_Multisig *MultisigFilterer) FilterExecutionSuccess(opts *bind.FilterOpts) (*MultisigExecutionSuccessIterator, error) {
+// Solidity: event ExecutionResult(bytes32 txHash, uint8 arg1)
+func (_Multisig *MultisigFilterer) FilterExecutionResult(opts *bind.FilterOpts) (*MultisigExecutionResultIterator, error) {
 
-	logs, sub, err := _Multisig.contract.FilterLogs(opts, "ExecutionSuccess")
+	logs, sub, err := _Multisig.contract.FilterLogs(opts, "ExecutionResult")
 	if err != nil {
 		return nil, err
 	}
-	return &MultisigExecutionSuccessIterator{contract: _Multisig.contract, event: "ExecutionSuccess", logs: logs, sub: sub}, nil
+	return &MultisigExecutionResultIterator{contract: _Multisig.contract, event: "ExecutionResult", logs: logs, sub: sub}, nil
 }
 
-// WatchExecutionSuccess is a free log subscription operation binding the contract event 0xdc29884a71d2bb98d3c53dc09718be05c7bfd142b7773a5c5cf2517629290ac0.
+// WatchExecutionResult is a free log subscription operation binding the contract event 0x033f1a25a5e9b1378e89053b7b1e656cffc91fc1e5ecb5b1ff4882814c50b41a.
 //
-// Solidity: event ExecutionSuccess(bytes32 txHash)
-func (_Multisig *MultisigFilterer) WatchExecutionSuccess(opts *bind.WatchOpts, sink chan<- *MultisigExecutionSuccess) (event.Subscription, error) {
+// Solidity: event ExecutionResult(bytes32 txHash, uint8 arg1)
+func (_Multisig *MultisigFilterer) WatchExecutionResult(opts *bind.WatchOpts, sink chan<- *MultisigExecutionResult) (event.Subscription, error) {
 
-	logs, sub, err := _Multisig.contract.WatchLogs(opts, "ExecutionSuccess")
+	logs, sub, err := _Multisig.contract.WatchLogs(opts, "ExecutionResult")
 	if err != nil {
 		return nil, err
 	}
@@ -1659,8 +1527,8 @@ func (_Multisig *MultisigFilterer) WatchExecutionSuccess(opts *bind.WatchOpts, s
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(MultisigExecutionSuccess)
-				if err := _Multisig.contract.UnpackLog(event, "ExecutionSuccess", log); err != nil {
+				event := new(MultisigExecutionResult)
+				if err := _Multisig.contract.UnpackLog(event, "ExecutionResult", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1681,12 +1549,12 @@ func (_Multisig *MultisigFilterer) WatchExecutionSuccess(opts *bind.WatchOpts, s
 	}), nil
 }
 
-// ParseExecutionSuccess is a log parse operation binding the contract event 0xdc29884a71d2bb98d3c53dc09718be05c7bfd142b7773a5c5cf2517629290ac0.
+// ParseExecutionResult is a log parse operation binding the contract event 0x033f1a25a5e9b1378e89053b7b1e656cffc91fc1e5ecb5b1ff4882814c50b41a.
 //
-// Solidity: event ExecutionSuccess(bytes32 txHash)
-func (_Multisig *MultisigFilterer) ParseExecutionSuccess(log types.Log) (*MultisigExecutionSuccess, error) {
-	event := new(MultisigExecutionSuccess)
-	if err := _Multisig.contract.UnpackLog(event, "ExecutionSuccess", log); err != nil {
+// Solidity: event ExecutionResult(bytes32 txHash, uint8 arg1)
+func (_Multisig *MultisigFilterer) ParseExecutionResult(log types.Log) (*MultisigExecutionResult, error) {
+	event := new(MultisigExecutionResult)
+	if err := _Multisig.contract.UnpackLog(event, "ExecutionResult", log); err != nil {
 		return nil, err
 	}
 	return event, nil
