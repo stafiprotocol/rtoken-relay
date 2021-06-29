@@ -462,6 +462,7 @@ func (w *writer) CheckMultisigTx(
 	programsIds []solCommon.PublicKey,
 	accountMetas [][]solTypes.AccountMeta,
 	datas [][]byte) bool {
+	return true
 	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err == nil {
 		thisProgramsIdsBts, err := borsh.Serialize(programsIds)
