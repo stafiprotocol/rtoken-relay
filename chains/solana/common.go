@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/near/borsh-go"
 	subTypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -465,27 +464,27 @@ func (w *writer) CheckMultisigTx(
 	datas [][]byte) bool {
 	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 	if err == nil {
-		thisProgramsIdsBts, err := borsh.Serialize(programsIds)
+		thisProgramsIdsBts, err := solCommon.SerializeData(programsIds)
 		if err != nil {
 			return false
 		}
-		thisAccountMetasBts, err := borsh.Serialize(accountMetas)
+		thisAccountMetasBts, err := solCommon.SerializeData(accountMetas)
 		if err != nil {
 			return false
 		}
-		thisDatasBts, err := borsh.Serialize(datas)
+		thisDatasBts, err := solCommon.SerializeData(datas)
 		if err != nil {
 			return false
 		}
-		onchainProgramsIdsBts, err := borsh.Serialize(accountInfo.ProgramID)
+		onchainProgramsIdsBts, err := solCommon.SerializeData(accountInfo.ProgramID)
 		if err != nil {
 			return false
 		}
-		onchainAccountMetasBts, err := borsh.Serialize(accountInfo.Accounts)
+		onchainAccountMetasBts, err := solCommon.SerializeData(accountInfo.Accounts)
 		if err != nil {
 			return false
 		}
-		onchainDatasBts, err := borsh.Serialize(accountInfo.Data)
+		onchainDatasBts, err := solCommon.SerializeData(accountInfo.Data)
 		if err != nil {
 			return false
 		}
