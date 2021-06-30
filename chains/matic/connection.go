@@ -32,7 +32,7 @@ import (
 
 var (
 	DefaultValue     = big.NewInt(0)
-	TxConfirmLimit   = 50
+	TxConfirmLimit   = 30
 	TxRetryInterval  = time.Second * 2
 	ErrNonceTooLow   = errors.New("nonce too low")
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
@@ -460,11 +460,6 @@ func (c *Connection) TxHashState(hash common.Hash, pool common.Address) (config.
 }
 
 func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
-	latest, err := c.conn.LatestBlock()
-	if err != nil {
-		return err
-	}
-
 	for i := 0; i < TxConfirmLimit; i++ {
 		state, err := c.TxHashState(hash, pool)
 		if err != nil {
@@ -477,7 +472,12 @@ func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
 		case config.HashStateSuccess:
 			return nil
 		default:
-			err = c.conn.WaitForBlock(latest, big.NewInt(1))
+			latest, err := c.conn.LatestBlock()
+			if err != nil {
+				return err
+			}
+
+			err = c.conn.WaitForBlock(latest, big.NewInt(3))
 			if err != nil {
 				return err
 			}
