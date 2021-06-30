@@ -20,7 +20,7 @@ require (
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
 	github.com/stafiprotocol/go-substrate-rpc-client v1.0.9
-	github.com/stafiprotocol/solana-go-sdk v0.2.5 // indirect
+	github.com/stafiprotocol/solana-go-sdk v0.2.6 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.9
 	github.com/urfave/cli/v2 v2.3.0
