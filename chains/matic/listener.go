@@ -5,7 +5,6 @@ package matic
 
 import (
 	"errors"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 	"math/big"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 // Frequency of polling for a new block
@@ -35,7 +35,7 @@ type listener struct {
 	blockstore blockstore.Blockstorer
 	stop       <-chan int
 	sysErr     chan<- error // Reports fatal error to core
-	nextEra    uint32
+	currentEra uint32
 }
 
 // NewListener creates and returns a listener
@@ -97,7 +97,7 @@ func (l *listener) currentChainEra() {
 	case <-timer.C:
 		panic("timeout to get current era")
 	case era := <-CurrentEra:
-		l.nextEra = era + 1
+		l.currentEra = era
 	}
 }
 
@@ -142,10 +142,15 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if l.nextEra == 1 || currentBlock%l.eraBlock == 0 {
-				l.log.Info("time to process era", "era", l.nextEra, "currentBlock", currentBlock, "eraBlock", l.eraBlock)
-				l.nextEra = uint32(currentBlock / l.eraBlock)
-				l.processEra(l.nextEra)
+			if currentBlock > l.eraBlock*uint64(l.currentEra+1) {
+				l.log.Info("time to process era", "era", l.currentEra, "currentBlock", currentBlock, "eraBlock", l.eraBlock)
+				if l.currentEra != 0 {
+					l.currentEra++
+				} else {
+					l.currentEra = uint32(currentBlock / l.eraBlock)
+				}
+
+				l.processEra(l.currentEra)
 			}
 
 			// Write to blockstore

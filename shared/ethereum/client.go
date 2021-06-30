@@ -218,6 +218,15 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 		return submodel.BondReasonDefault, err
 	}
 
+	blk, err := c.conn.BlockByNumber(context.Background(), block.Number())
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+
+	if !bytes.Equal(blk.Hash().Bytes(), r.Blockhash) {
+		return submodel.BlockhashUnmatch, nil
+	}
+
 	latestBlk, err := c.LatestBlock()
 	if err != nil {
 		return submodel.BondReasonDefault, err

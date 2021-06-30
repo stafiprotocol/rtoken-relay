@@ -542,6 +542,12 @@ func TestBlockHash(t *testing.T) {
 	t.Log(blk.Hash())
 	t.Log(blk.Number())
 
+	block, err := client.conn.BlockByNumber(context.Background(), blk.Number())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("blockHash", block.Hash())
+
 	for _, tx := range blk.Transactions() {
 		t.Log(tx.Hash())
 	}
