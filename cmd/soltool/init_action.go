@@ -67,6 +67,14 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(), 200)
+	if err != nil {
+		return err
+	}
+	multisigAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(), 1000)
+	if err != nil {
+		return err
+	}
 	//create stakeBaseAccount
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
@@ -74,7 +82,7 @@ func initAction(ctx *cli.Context) error {
 				FeeAccount.PublicKey,
 				StakeBaseAccount.PublicKey,
 				solCommon.StakeProgramID,
-				2000000000,
+				2000000000+stakeAccountMiniMum*2,
 				200,
 			),
 			stakeprog.Initialize(
@@ -113,8 +121,8 @@ func initAction(ctx *cli.Context) error {
 				FeeAccount.PublicKey,
 				MultisigInfoAccount.PublicKey,
 				MultisigProgramId,
-				1000000000,
-				500,
+				multisigAccountMiniMum*2,
+				1000,
 			),
 			multisigprog.CreateMultisig(
 				MultisigProgramId,
@@ -150,7 +158,7 @@ func initAction(ctx *cli.Context) error {
 				FeeAccount.PublicKey,
 				MultisigTxBaseAccount.PublicKey,
 				MultisigProgramId,
-				1000000000,
+				multisigAccountMiniMum*2,
 				1000,
 			),
 			multisigprog.CreateTransaction(
