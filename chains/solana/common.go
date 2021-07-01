@@ -504,3 +504,21 @@ func (w *writer) CheckMultisigTx(
 
 	return false
 }
+
+func (w *writer) CheckStakeAccount(rpcClient *solClient.Client, stakeAccount, multisigner string) bool {
+	stakeAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccount)
+	if err != nil {
+		w.log.Error("CheckStakeAccount failed", "err", err)
+		return false
+	}
+	if strings.EqualFold(stakeAccountInfo.StakeAccount.Info.Meta.Authorized.Staker.ToBase58(), multisigner) &&
+		strings.EqualFold(stakeAccountInfo.StakeAccount.Info.Meta.Authorized.Withdrawer.ToBase58(), multisigner) {
+		return true
+	}
+	w.log.Error("CheckStakeAccount failed",
+		"multisigner", multisigner,
+		"staker", stakeAccountInfo.StakeAccount.Info.Meta.Authorized.Staker.ToBase58(),
+		"withdrawer", stakeAccountInfo.StakeAccount.Info.Meta.Authorized.Withdrawer.ToBase58())
+
+	return false
+}

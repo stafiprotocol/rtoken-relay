@@ -180,6 +180,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	w.log.Info("processEraPoolUpdatedEvt stakeAccount has create", "stakeAccount", stakeAccountPubkey.ToBase58())
 
+	stakeAccountValid := w.CheckStakeAccount(rpcClient, stakeAccountPubkey.ToBase58(), poolClient.MultisignerPubkey.ToBase58())
+	if !stakeAccountValid {
+		return false
+	}
+
 	var transferInstruction solTypes.Instruction
 	var stakeInstruction solTypes.Instruction
 
