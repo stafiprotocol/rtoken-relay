@@ -180,9 +180,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 	w.log.Info("processEraPoolUpdatedEvt stakeAccount has create", "stakeAccount", stakeAccountPubkey.ToBase58())
 
-	stakeAccountValid := w.CheckStakeAccount(rpcClient, stakeAccountPubkey.ToBase58(), poolClient.MultisignerPubkey.ToBase58())
-	if !stakeAccountValid {
-		return false
+	if bondCmpUnbondResult > 0 {
+		stakeAccountValid := w.CheckStakeAccount(rpcClient, stakeAccountPubkey.ToBase58(), poolClient.MultisignerPubkey.ToBase58())
+		if !stakeAccountValid {
+			return false
+		}
 	}
 
 	var transferInstruction solTypes.Instruction
@@ -278,6 +280,14 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		return false
 	}
 	w.log.Info("processEraPoolUpdatedEvt multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+
+	//check splitAccount
+	if bondCmpUnbondResult < 0 {
+		stakeAccountValid := w.CheckStakeAccount(rpcClient, stakeAccountPubkey.ToBase58(), poolClient.MultisignerPubkey.ToBase58())
+		if !stakeAccountValid {
+			return false
+		}
+	}
 
 	callHash := utils.BlakeTwo256([]byte{})
 	mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
