@@ -121,8 +121,14 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	}
 
 	var valdatorId *big.Int
+	var leastBond *big.Int
 	if data.Symbol == core.RMATIC {
 		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+
+		leastBond, err = l.leastBond(snap.Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -130,6 +136,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 
 	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
 	data.Snap = snap
+	data.LeastBond = leastBond
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.EraPoolUpdatedEventId,
@@ -659,4 +666,23 @@ func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (*big.Int, erro
 	l.log.Info("get validatorId", "id", id, "symbol", symbol, "pool", hexutil.Encode(pool))
 
 	return id, nil
+}
+
+func (l *listener) leastBond(symbol core.RSymbol) (*big.Int, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	var least types.U128
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageLeastBond, symBz, nil, &least)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return big.NewInt(0), nil
+	}
+
+	return least.Int, nil
 }

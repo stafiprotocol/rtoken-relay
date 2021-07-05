@@ -16,10 +16,9 @@ import (
 )
 
 var (
-	owners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
+	owners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"), common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")}
 
-	goerliMultisigContract  = common.HexToAddress("0x1Cb8b55cB11152E74D34Be1961E4FFe169F5B99A")
-	goerliMultisigContract1 = common.HexToAddress("0xfc42de640aa9759d460e1a11416eca95d25c5908")
+	goerliMultisigContract = common.HexToAddress("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
 )
 
 func TestMultisigApprove(t *testing.T) {
@@ -73,7 +72,7 @@ func TestMultisigApprove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	txhash := common.HexToHash("0x11d668ca5c97408167f046131a37b4ef10ccbd621d83f920eefddaa62fe77e0c")
+	txhash := common.HexToHash("0x12d668ca5c97408167f046131a37b4ef10ccbd621d83f920eefddaa62fe77e0c")
 	tx, err := multi.ExecTransaction(
 		client.Opts(),
 		goerliMaticToken,

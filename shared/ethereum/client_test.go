@@ -4,6 +4,7 @@
 package ethereum
 
 import (
+	"bytes"
 	"context"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -12,8 +13,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
+	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"os"
@@ -36,6 +41,7 @@ var (
 
 	mabi, _    = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
 	sendAbi, _ = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
+	AliceKp    = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
 )
 
 //func TestTransferCallData(t *testing.T) {
@@ -239,77 +245,103 @@ func newTestLogger(name string) log15.Logger {
 //	t.Log(crypto.Keccak256Hash(cd1).Hex())
 //}
 //
-//func TestVerify(t *testing.T) {
-//	bh, _ := hexutil.Decode("0x2e61dec15e7b3fcd19af31603de13e44f6fa8a4df311c981408a24e5e0bf02b4")
-//	th, _ := hexutil.Decode("0xa7ab84dac6dae5700a3ddcfb6fda62d5117f39809e99b3737cc01250d75c0660")
-//
-//	pk, _ := hexutil.Decode("0xbd39f5936969828ed9315220659cd11129071814")
-//	pool, _ := hexutil.Decode("0x37c9c42eedbc72842cc48f0e51006ac804987e38")
-//	amt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500))
-//
-//	a := &submodel.BondRecord{
-//		Pubkey:    pk,
-//		Pool:      pool,
-//		Blockhash: bh,
-//		Txhash:    th,
-//		Amount:    types.NewU128(*amt),
-//	}
-//
-//	password := "123456"
-//	os.Setenv(keystore.EnvPassword, password)
-//
-//	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
-//	if err != nil {
-//		panic(err)
-//	}
-//	kp, _ := kpI.(*secp256k1.Keypair)
-//
-//	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
-//	err = client.Connect()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	reason, err := client.TransferVerify(a, goerliErc20Token)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	t.Log(reason)
-//
-//	wrongBh, _ := hexutil.Decode("0x64c375983dbf3f1680c252684695a17a8f58d7f84ce71e406bebd1d9de67304f")
-//	a.Blockhash = wrongBh
-//
-//	reason, err = client.TransferVerify(a, goerliErc20Token)
-//	assert.NoError(t, err)
-//	assert.Equal(t, submodel.BlockhashUnmatch, reason)
-//	a.Blockhash = bh
-//
-//	wrongTh, _ := hexutil.Decode("0x165bc1fc1cea7d0f6df6fc33fa0e838a5dc15bb460603f170de384b85afc878a")
-//	a.Txhash = wrongTh
-//	reason, err = client.TransferVerify(a, goerliErc20Token)
-//	assert.NoError(t, err)
-//	assert.Equal(t, submodel.BlockhashUnmatch, reason)
-//	a.Txhash = th
-//
-//	a.Pubkey = pool
-//	reason, err = client.TransferVerify(a, goerliErc20Token)
-//	assert.NoError(t, err)
-//	assert.Equal(t, submodel.PubkeyUnmatch, reason)
-//	a.Pubkey = pk
-//
-//	a.Pool = pk
-//	reason, err = client.TransferVerify(a, goerliErc20Token)
-//	assert.NoError(t, err)
-//	assert.Equal(t, submodel.PoolUnmatch, reason)
-//	a.Pool = pool
-//
-//	wrongAmt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(50))
-//	a.Amount = types.NewU128(*wrongAmt)
-//	reason, err = client.TransferVerify(a, goerliErc20Token)
-//	assert.NoError(t, err)
-//	assert.Equal(t, submodel.AmountUnmatch, reason)
-//}
+func TestVerify(t *testing.T) {
+	bh, _ := hexutil.Decode("0x2e61dec15e7b3fcd19af31603de13e44f6fa8a4df311c981408a24e5e0bf02b4")
+	th, _ := hexutil.Decode("0xa7ab84dac6dae5700a3ddcfb6fda62d5117f39809e99b3737cc01250d75c0660")
+
+	pk, _ := hexutil.Decode("0xbd39f5936969828ed9315220659cd11129071814")
+	pool, _ := hexutil.Decode("0x37c9c42eedbc72842cc48f0e51006ac804987e38")
+	amt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500))
+
+	a := &submodel.BondRecord{
+		Pubkey:    pk,
+		Pool:      pool,
+		Blockhash: bh,
+		Txhash:    th,
+		Amount:    types.NewU128(*amt),
+	}
+
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reason, err := client.TransferVerify(a, goerliErc20Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(reason)
+
+	wrongBh, _ := hexutil.Decode("0x64c375983dbf3f1680c252684695a17a8f58d7f84ce71e406bebd1d9de67304f")
+	a.Blockhash = wrongBh
+
+	reason, err = client.TransferVerify(a, goerliErc20Token)
+	assert.NoError(t, err)
+	assert.Equal(t, submodel.BlockhashUnmatch, reason)
+	a.Blockhash = bh
+
+	wrongTh, _ := hexutil.Decode("0x165bc1fc1cea7d0f6df6fc33fa0e838a5dc15bb460603f170de384b85afc878a")
+	a.Txhash = wrongTh
+	reason, err = client.TransferVerify(a, goerliErc20Token)
+	assert.NoError(t, err)
+	assert.Equal(t, submodel.BlockhashUnmatch, reason)
+	a.Txhash = th
+
+	a.Pubkey = pool
+	reason, err = client.TransferVerify(a, goerliErc20Token)
+	assert.NoError(t, err)
+	assert.Equal(t, submodel.PubkeyUnmatch, reason)
+	a.Pubkey = pk
+
+	a.Pool = pk
+	reason, err = client.TransferVerify(a, goerliErc20Token)
+	assert.NoError(t, err)
+	assert.Equal(t, submodel.PoolUnmatch, reason)
+	a.Pool = pool
+
+	wrongAmt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(50))
+	a.Amount = types.NewU128(*wrongAmt)
+	reason, err = client.TransferVerify(a, goerliErc20Token)
+	assert.NoError(t, err)
+	assert.Equal(t, submodel.AmountUnmatch, reason)
+}
+
+func TestVerify1(t *testing.T) {
+	bh, _ := hexutil.Decode("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
+	th, _ := hexutil.Decode("0x76a29a1a9a9781396c64eee0bce3eff7164b999cd6b747174439cb4b7dbb32cf")
+
+	pk, _ := hexutil.Decode("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
+	pool, _ := hexutil.Decode("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
+	amt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500))
+
+	a := &submodel.BondRecord{
+		Pubkey:    pk,
+		Pool:      pool,
+		Blockhash: bh,
+		Txhash:    th,
+		Amount:    types.NewU128(*amt),
+	}
+
+	client := NewGoerliClient()
+	reason, err := client.TransferVerify(a, goerliErc20Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(reason)
+}
+
 //
 //func TestApprove(t *testing.T) {
 //	password := "123456"
@@ -517,8 +549,43 @@ func TestKecca(t *testing.T) {
 }
 
 func TestBlockHash(t *testing.T) {
-	bh, err := hexutil.Decode("0xa8fe8c19bc809ec5fc6fbc124398917e0b4dd3513fbe1b9c0c5c0d8e1a038b31")
+	//bh, err := hexutil.Decode("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
+	//assert.NoError(t, err)
+
+	hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
+
+	client := NewGoerliClient()
+	blk, err := client.conn.BlockByHash(context.Background(), hash)
 	assert.NoError(t, err)
+	//t.Log(blk)
+	t.Log("blkHash", blk.Hash())
+	t.Log("blkNumber", blk.Number())
+
+	block, err := client.conn.BlockByHash(context.Background(), blk.Hash())
+	assert.NoError(t, err)
+	t.Log("blockHash", block.Hash())
+	t.Log("blockNumber", block.Number())
+
+	//block, err := client.conn.BlockByNumber(context.Background(), blk.Number())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("blockHash", block.Hash())
+	//
+	//for _, tx := range blk.Transactions() {
+	//	t.Log(tx.Hash())
+	//}
+	//
+	//t.Log(blk.ParentHash())
+	//t.Log(blk.Root())
+	//
+	//err = blk.SanityCheck()
+	//assert.NoError(t, err)
+	//t.Log(blk.UncleHash())
+}
+
+func TestBlockHash1(t *testing.T) {
+	hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
 
 	password := "123456"
 	os.Setenv(keystore.EnvPassword, password)
@@ -534,28 +601,91 @@ func TestBlockHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	hash := common.BytesToHash(bh)
 	blk, err := client.conn.BlockByHash(context.Background(), hash)
 	assert.NoError(t, err)
-	//t.Log(blk)
-	t.Log(blk.Hash())
-	t.Log(blk.Number())
+	t.Log("blkHash", blk.Hash())
+	t.Log("blkNumber", blk.Number())
 
-	block, err := client.conn.BlockByNumber(context.Background(), blk.Number())
+	blker, err := client.conn.BlockByNumber(context.Background(), blk.Number())
+	t.Log("blkHash", blker.Hash())
+	t.Log("blkNumber", blker.Number())
+
+	block, err := client.conn.BlockByHash(context.Background(), blk.Hash())
+	assert.NoError(t, err)
+	t.Log("blockHash", block.Hash())
+	t.Log("blockNumber", block.Number())
+}
+
+func TestClient_TransactionReceipt(t *testing.T) {
+	client := NewGoerliClient()
+
+	txHash := common.HexToHash("0x6a335908c9186ddcb465a27b807afd289ad81800c5004b8f9bedd7dfa30437a4")
+	receipt, err := client.TransactionReceipt(txHash)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("blockHash", block.Hash())
 
-	for _, tx := range blk.Transactions() {
-		t.Log(tx.Hash())
+	token, err := MaticToken.NewMaticToken(goerliMaticToken, client.Client())
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	t.Log(blk.ParentHash())
-	t.Log(blk.Root())
+	pool := common.HexToAddress("0x6ca61f2763B2dD1c846A87F7812Bb5f702ae416C")
 
-	err = blk.SanityCheck()
-	assert.NoError(t, err)
-	t.Log(blk.UncleHash())
+	for _, elog := range receipt.Logs {
+		if !bytes.Equal(elog.Address.Bytes(), goerliMaticToken.Bytes()) {
+			continue
+		}
+
+		transfer, err := token.ParseTransfer(*elog)
+		if err != nil {
+			continue
+		}
+
+		if !bytes.Equal(transfer.From.Bytes(), goerliStakeManagerContract.Bytes()) || !bytes.Equal(transfer.To.Bytes(), pool.Bytes()) {
+			continue
+		}
+
+		t.Log("transfer amount", transfer.Value)
+	}
+}
+
+func TestExecutionResult(t *testing.T) {
+	client := NewGoerliClient()
+
+	txHash := common.HexToHash("0x1084031845801c25f48dd805ef4291495df4f747abf394db021f9f0ac5ed8f5b")
+	pool := common.HexToAddress("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
+	multisig, err := Multisig.NewMultisig(pool, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iter, err := multisig.FilterExecutionResult(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		if !iter.Next() {
+			break
+		}
+		evt := iter.Event
+		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(config.HashStateSuccess) {
+			continue
+		}
+		t.Log(evt.Raw.BlockNumber)
+		t.Log(evt.Raw.TxHash)
+		//
+		//return c.RewardByTransactionHash(common.Hash(evt.TxHash), pool)
+	}
+}
+
+func NewGoerliClient() *Client {
+	client := NewClient(goerliEndPoint, AliceKp, testLogger, big.NewInt(0), big.NewInt(0))
+	err := client.Connect()
+	if err != nil {
+		panic(err)
+	}
+
+	return client
 }

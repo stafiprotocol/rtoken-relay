@@ -16,6 +16,7 @@ import (
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -290,6 +291,10 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 	}
 	c.log.Warn("TransferVerify: txhash not found", "blockhash", blkHash.Hex(), "txhash", txHash.Hex())
 	return submodel.BlockhashUnmatch, nil
+}
+
+func (c *Client) TransactionReceipt(hash common.Hash) (*types.Receipt, error) {
+	return c.conn.TransactionReceipt(context.Background(), hash)
 }
 
 // Close terminates the client connection and stops any running routines

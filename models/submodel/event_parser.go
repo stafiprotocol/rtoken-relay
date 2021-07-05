@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-	"math/big"
 )
 
 var (
@@ -74,6 +75,7 @@ func EraPoolUpdatedData(evt *ChainEvent) (*EraPoolUpdatedFlow, error) {
 		Era:       era.Value,
 		ShotId:    shot,
 		LastVoter: voter,
+		Reward:    big.NewInt(0),
 	}, nil
 }
 

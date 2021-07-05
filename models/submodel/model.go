@@ -250,6 +250,8 @@ type EraPoolUpdatedFlow struct {
 	LastVoter     types.AccountID
 	LastVoterFlag bool
 	Snap          *PoolSnapshot
+	LeastBond     *big.Int
+	Reward        *big.Int
 }
 
 type BondReportedFlow struct {

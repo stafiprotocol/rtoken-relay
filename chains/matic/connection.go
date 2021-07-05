@@ -201,7 +201,7 @@ func (c *Connection) Unbond(shareAddress, user common.Address, nonce *big.Int) (
 	return unbond.Shares, unbond.WithdrawEpoch, nil
 }
 
-func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond *big.Int) (submodel.OriginalTx, *ethmodel.MultiTransaction, error) {
+func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastBond *big.Int) (submodel.OriginalTx, *ethmodel.MultiTransaction, error) {
 	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
 	tx := &ethmodel.MultiTransaction{To: share, Value: DefaultValue}
 	var err error
@@ -215,6 +215,11 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond *big.In
 		}
 		return submodel.OriginalUnbond, tx, nil
 	} else if bond.Cmp(unbond) > 0 {
+		if unbond.Uint64() == 0 && bond.Cmp(leastBond) <= 0 {
+			c.log.Info("bond is smaller than leastBond, NoCall", "bond", bond, "leastBond", leastBond)
+			return submodel.OriginalTxDefault, nil, substrate.BondEqualToUnbondError
+		}
+
 		c.log.Info("bond larger than unbond, BondCall")
 		diff := big.NewInt(0).Sub(bond, unbond)
 		tx.CallData, err = ValidatorShareAbi.Pack(BuyVoucherMethodName, diff, big.NewInt(0))
@@ -245,19 +250,6 @@ func (c *Connection) Claimable(shareAddress, user common.Address) (bool, error) 
 	}
 
 	return reward.Cmp(min) >= 0, nil
-}
-
-func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransaction, error) {
-	packed, err := ValidatorShareAbi.Pack(RestakeMethodName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ethmodel.MultiTransaction{
-		To:       share,
-		Value:    DefaultValue,
-		CallData: packed,
-	}, nil
 }
 
 func (c *Connection) Withdrawable(share, pool common.Address) (bool, error) {
@@ -348,20 +340,6 @@ func (c *Connection) VerifySigs(msg []byte, sigs [][]byte, pool common.Address) 
 
 func (c *Connection) BalanceOf(owner common.Address) (*big.Int, error) {
 	return c.maticToken.BalanceOf(c.conn.CallOpts(), owner)
-}
-
-func (c *Connection) TotalStaked(share, staker common.Address) (*big.Int, error) {
-	shr, err := ValidatorShare.NewValidatorShare(share, c.conn.Client())
-	if err != nil {
-		return nil, err
-	}
-
-	total, _, err := shr.GetTotalStake(nil, staker)
-	if err != nil {
-		return nil, err
-	}
-
-	return total, nil
 }
 
 func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.MultiTransaction, error) {
@@ -459,7 +437,15 @@ func (c *Connection) TxHashState(hash common.Hash, pool common.Address) (config.
 	return config.TxHashState(state), err
 }
 
-func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
+func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) error {
+	wait := func() error {
+		latest, err := c.conn.LatestBlock()
+		if err != nil {
+			return err
+		}
+		return c.conn.WaitForBlock(latest, big.NewInt(3))
+	}
+
 	for i := 0; i < TxConfirmLimit; i++ {
 		state, err := c.TxHashState(hash, pool)
 		if err != nil {
@@ -468,16 +454,14 @@ func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
 
 		switch state {
 		case config.HashStateFail:
-			return fmt.Errorf("txhash %s failed", hash.Hex())
-		case config.HashStateSuccess:
-			return nil
-		default:
-			latest, err := c.conn.LatestBlock()
+			err = wait()
 			if err != nil {
 				return err
 			}
-
-			err = c.conn.WaitForBlock(latest, big.NewInt(3))
+		case config.HashStateSuccess:
+			return nil
+		default:
+			err = wait()
 			if err != nil {
 				return err
 			}
@@ -485,6 +469,60 @@ func (c *Connection) CheckTxHash(hash common.Hash, pool common.Address) error {
 	}
 
 	return errors.New("tx not executed")
+}
+
+/// txhash is not transaction hash but a param of multi.execTransaction
+func (c *Connection) RewardByTxHash(txHash common.Hash, pool common.Address) (*big.Int, error) {
+	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := multisig.FilterExecutionResult(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		if !iter.Next() {
+			break
+		}
+		evt := iter.Event
+		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(config.HashStateSuccess) {
+			continue
+		}
+
+		return c.RewardByTransactionHash(evt.Raw.TxHash, pool)
+	}
+
+	return nil, fmt.Errorf("RewardByTxHash: no log, txHash: %s, pool: %s", txHash.Hex(), pool.Hex())
+}
+
+func (c *Connection) RewardByTransactionHash(hash common.Hash, pool common.Address) (*big.Int, error) {
+	c.log.Info("RewardByTransactionHash", "hash", hash, "pool", pool)
+	receipt, err := c.conn.TransactionReceipt(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, elog := range receipt.Logs {
+		if !bytes.Equal(elog.Address.Bytes(), c.maticTokenContract.Bytes()) {
+			continue
+		}
+
+		transfer, err := c.maticToken.ParseTransfer(*elog)
+		if err != nil {
+			continue
+		}
+
+		if !bytes.Equal(transfer.From.Bytes(), c.stateManagerContract.Bytes()) || !bytes.Equal(transfer.To.Bytes(), pool.Bytes()) {
+			continue
+		}
+
+		return transfer.Value, nil
+	}
+
+	return big.NewInt(0), nil
 }
 
 func (c *Connection) Close() {
