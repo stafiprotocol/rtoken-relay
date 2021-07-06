@@ -845,10 +845,22 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	var prop *submodel.Proposal
 	var err error
 	if data, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow); ok {
-		if data.Symbol == core.RMATIC {
-			prop, err = w.conn.BondAndReportActiveProposal(data)
-			if err != nil {
-				w.log.Error("MethodBondAndReportActiveProposal", "error", err)
+		if data.Symbol == core.RMATIC && data.ReportType != submodel.BondReport {
+			switch data.ReportType {
+			case submodel.BondAndReportActive:
+				prop, err = w.conn.BondAndReportActiveProposal(data)
+				if err != nil {
+					w.log.Error("MethodBondAndReportActiveProposal", "error", err)
+					return false
+				}
+			case submodel.PureBondReport:
+				prop, err = w.conn.CommonReportProposal(config.MethodBondPureReport, m.Source, data.ShotId, data.ShotId)
+				if err != nil {
+					w.log.Error("MethodBondReportProposal", "error", err)
+					return false
+				}
+			default:
+				w.log.Error("processInformChain: ReportType not supported", "ReportType", data.ReportType)
 				return false
 			}
 		} else {

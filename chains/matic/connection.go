@@ -54,9 +54,9 @@ type Connection struct {
 
 	stakeManager         *StakeManager.StakeManager
 	stateManagerContract common.Address
-	maticTokenContract common.Address
-	maticToken         *MaticToken.MaticToken
-	multiSendContract  common.Address
+	maticTokenContract   common.Address
+	maticToken           *MaticToken.MaticToken
+	multiSendContract    common.Address
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -215,7 +215,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 	} else if bond.Cmp(unbond) > 0 {
 		if unbond.Uint64() == 0 && bond.Cmp(leastBond) <= 0 {
 			c.log.Info("bond is smaller than leastBond, NoCall", "bond", bond, "leastBond", leastBond)
-			return submodel.OriginalTxDefault, nil, substrate.BondEqualToUnbondError
+			return submodel.OriginalTxDefault, nil, substrate.BondSmallerThanLeastError
 		}
 
 		c.log.Info("bond larger than unbond, BondCall")
@@ -248,6 +248,19 @@ func (c *Connection) Claimable(shareAddress, user common.Address) (bool, error) 
 	}
 
 	return reward.Cmp(min) >= 0, nil
+}
+
+func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransaction, error) {
+	packed, err := ValidatorShareAbi.Pack(RestakeMethodName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ethmodel.MultiTransaction{
+		To:       share,
+		Value:    DefaultValue,
+		CallData: packed,
+	}, nil
 }
 
 func (c *Connection) Withdrawable(share, pool common.Address) (bool, error) {
@@ -439,14 +452,14 @@ func (c *Connection) AsMulti(
 	return fmt.Errorf("multisig ExecTransaction failed, to: %s, calldata: %s, safeTxGas: %s", to.Hex(), hexutil.Encode(calldata), safeTxGas.String())
 }
 
-func (c *Connection) TxHashState(hash common.Hash, pool common.Address) (config.TxHashState, error) {
+func (c *Connection) TxHashState(hash common.Hash, pool common.Address) (ethmodel.TxHashState, error) {
 	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
 	if err != nil {
 		return 0, err
 	}
 
 	state, err := multisig.TxHashs(nil, hash)
-	return config.TxHashState(state), err
+	return ethmodel.TxHashState(state), err
 }
 
 func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) error {
@@ -465,36 +478,33 @@ func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) er
 		}
 
 		switch state {
-		case config.HashStateFail:
+		case ethmodel.HashStateUnsubmit, ethmodel.HashStateFail:
 			err = wait()
 			if err != nil {
 				return err
 			}
-		case config.HashStateSuccess:
+		case ethmodel.HashStateSuccess:
 			return nil
 		default:
-			err = wait()
-			if err != nil {
-				return err
-			}
+			return fmt.Errorf("unsupported HashState: %d", state)
 		}
 	}
 
 	return errors.New("tx not executed")
 }
 
-func (c *Connection) StakedWithReward(txHash common.Hash, share, pool common.Address) (*big.Int, error) {
+func (c *Connection) StakedAndReward(txHash common.Hash, share, pool common.Address) (*big.Int, *big.Int, error) {
 	reward, err := c.RewardByTxHash(txHash, pool)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	staked, err := c.TotalStaked(share, pool)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return big.NewInt(0).Add(reward, staked), nil
+	return staked, reward, nil
 }
 
 /// txhash is not transaction hash but a param of multi.execTransaction
@@ -514,7 +524,7 @@ func (c *Connection) RewardByTxHash(txHash common.Hash, pool common.Address) (*b
 			break
 		}
 		evt := iter.Event
-		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(config.HashStateSuccess) {
+		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(ethmodel.HashStateSuccess) {
 			continue
 		}
 

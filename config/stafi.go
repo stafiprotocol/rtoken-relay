@@ -21,6 +21,7 @@ const (
 	StorageLeastBond           = "LeastBond"
 	MethodSetChainEra          = "RTokenLedger.set_chain_era"
 	MethodBondReport           = "RTokenLedger.bond_report"
+	MethodBondPureReport       = "RTokenLedger.bond_pure_report"
 	MethodActiveReport         = "RTokenLedger.active_report"
 	MethodBondAndReportActive  = "RTokenLedger.bond_and_report_active"
 	MethodWithdrawReport       = "RTokenLedger.withdraw_report"

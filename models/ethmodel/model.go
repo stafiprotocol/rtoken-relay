@@ -51,3 +51,11 @@ const (
 func (es EventSig) GetTopic() common.Hash {
 	return crypto.Keccak256Hash([]byte(es))
 }
+
+type TxHashState uint8
+
+var (
+	HashStateUnsubmit = TxHashState(0)
+	HashStateFail     = TxHashState(1)
+	HashStateSuccess  = TxHashState(2)
+)

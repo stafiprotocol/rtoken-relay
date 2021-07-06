@@ -243,6 +243,14 @@ type PoolSnapshot struct {
 	BondState PoolBondState
 }
 
+type BondReportType uint8
+
+const (
+	BondReport          = BondReportType(0)
+	PureBondReport      = BondReportType(1)
+	BondAndReportActive = BondReportType(2)
+)
+
 type EraPoolUpdatedFlow struct {
 	Symbol        core.RSymbol
 	Era           uint32
@@ -251,7 +259,9 @@ type EraPoolUpdatedFlow struct {
 	LastVoterFlag bool
 	Snap          *PoolSnapshot
 	LeastBond     *big.Int
+	ReportType    BondReportType
 	Active        *big.Int
+	Reward        *big.Int
 }
 
 type BondReportedFlow struct {

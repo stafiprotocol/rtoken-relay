@@ -13,11 +13,3 @@ var (
 	Call         = CallEnum(0)
 	DelegateCall = CallEnum(1)
 )
-
-type TxHashState uint8
-
-var (
-	HashStateUnsubmit = TxHashState(0)
-	HashStateFail     = TxHashState(1)
-	HashStateSuccess  = TxHashState(2)
-)
