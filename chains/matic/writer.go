@@ -164,17 +164,23 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
+	poolAddr := common.BytesToAddress(snap.Pool)
 	method, tx, err := w.conn.BondOrUnbondCall(shareAddr, snap.Bond.Int, snap.Unbond.Int, flow.LeastBond)
 	if err != nil {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
 			w.log.Info("No need to send any call", "symbol", snap.Symbol, "era", snap.Era)
+			staked, err := w.conn.TotalStaked(shareAddr, poolAddr)
+			if err != nil {
+				w.log.Info("processEraPoolUpdated TotalStaked error", "error", err, "share", shareAddr, "pool", poolAddr)
+				return false
+			}
+			flow.Active = staked
 			return w.informChain(m.Destination, m.Source, mef)
 		}
 		w.log.Error("BondOrUnbondCall error", "err", err)
 		return false
 	}
 
-	poolAddr := common.BytesToAddress(snap.Pool)
 	msg, err := w.conn.MessageToSign(tx, poolAddr)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated MessageToSign error", "err", err)
@@ -324,7 +330,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 	poolAddr := common.BytesToAddress(snap.Pool)
 	balance, err := w.conn.BalanceOf(poolAddr)
 	if err != nil {
-		w.log.Error("BalanceOf  error", "err", err, "Address", poolAddr.Hex())
+		w.log.Error("BalanceOf  error", "err", err, "Address", poolAddr)
 		return false
 	}
 
@@ -429,12 +435,12 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	report := func() bool {
 		flow, ok := mef.EventData.(*submodel.EraPoolUpdatedFlow)
 		if ok {
-			flow.Reward, err = w.conn.RewardByTxHash(txHash, poolAddr)
+			flow.Active, err = w.conn.StakedWithReward(txHash, to, poolAddr)
 			if err != nil {
-				w.log.Error("processSignatureEnough: RewardByTxHash error", "error", err, "txHash", txHash.Hex(), "poolAddr", poolAddr.Hex())
+				w.log.Error("processSignatureEnough: RewardByTxHash error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
 				return false
 			}
-			w.log.Info("processSignatureEnough RewardByTxHash", "reward", flow.Reward, "txHash", txHash.Hex(), "poolAddr", poolAddr.Hex())
+			w.log.Info("processSignatureEnough RewardByTxHash", "reward", flow.Active, "txHash", txHash, "poolAddr", poolAddr)
 		}
 
 		return w.reportMultiResult(txHash, mef, m)
@@ -442,7 +448,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 
 	state, err := w.conn.TxHashState(txHash, poolAddr)
 	if err != nil {
-		w.log.Error("processSignatureEnough: TxHashState error", "error", err, "txHash", txHash.Hex(), "poolAddr", poolAddr.Hex())
+		w.log.Error("processSignatureEnough: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
 		return false
 	}
 
@@ -455,7 +461,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		w.log.Info("processSignatureEnough", "FirstSignerFlag", firstSignerFlag, "txHash", hash)
 		err = w.conn.WaitTxHashSuccess(txHash, poolAddr)
 		if err != nil {
-			w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash.Hex(), "poolAddr", poolAddr.Hex())
+			w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
 			return false
 		}
 		return report()
@@ -463,7 +469,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 
 	err = w.conn.VerifySigs(msg, signatures, poolAddr)
 	if err != nil {
-		w.log.Error("processSignatureEnough: VerifySig error", "error", err, "txHash", txHash.Hex(), "to", to.Hex())
+		w.log.Error("processSignatureEnough: VerifySig error", "error", err, "pool", poolAddr)
 		w.sysErr <- err
 		return false
 	}
@@ -496,11 +502,11 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		w.log.Error("AsMulti error", "err", err)
 		return false
 	}
-	w.log.Info("AsMulti success", "txHash", txHash.Hex())
+	w.log.Info("AsMulti success", "txHash", txHash)
 
 	err = w.conn.WaitTxHashSuccess(txHash, poolAddr)
 	if err != nil {
-		w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash.Hex(), "poolAddr", poolAddr.Hex())
+		w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
 		return false
 	}
 

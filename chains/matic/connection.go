@@ -54,8 +54,6 @@ type Connection struct {
 
 	stakeManager         *StakeManager.StakeManager
 	stateManagerContract common.Address
-	//multisig             *Multisig.Multisig
-	//multisigContract     common.Address
 	maticTokenContract common.Address
 	maticToken         *MaticToken.MaticToken
 	multiSendContract  common.Address
@@ -342,6 +340,20 @@ func (c *Connection) BalanceOf(owner common.Address) (*big.Int, error) {
 	return c.maticToken.BalanceOf(c.conn.CallOpts(), owner)
 }
 
+func (c *Connection) TotalStaked(share, staker common.Address) (*big.Int, error) {
+	shr, err := ValidatorShare.NewValidatorShare(share, c.conn.Client())
+	if err != nil {
+		return nil, err
+	}
+
+	total, _, err := shr.GetTotalStake(nil, staker)
+	if err != nil {
+		return nil, err
+	}
+
+	return total, nil
+}
+
 func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.MultiTransaction, error) {
 	bts := make(ethmodel.BatchTransactions, 0)
 	for _, rec := range receives {
@@ -419,7 +431,7 @@ func (c *Connection) AsMulti(
 				c.log.Debug("Nonce too low, will retry")
 				time.Sleep(TxRetryInterval)
 			} else {
-				c.log.Warn("ExecTransaction failed", "err", err, "to", to.Hex(), "calldata", hexutil.Encode(calldata), "safeTxGas", safeTxGas)
+				c.log.Warn("ExecTransaction failed", "err", err, "to", to, "calldata", hexutil.Encode(calldata), "safeTxGas", safeTxGas)
 				time.Sleep(TxRetryInterval)
 			}
 		}
@@ -469,6 +481,20 @@ func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) er
 	}
 
 	return errors.New("tx not executed")
+}
+
+func (c *Connection) StakedWithReward(txHash common.Hash, share, pool common.Address) (*big.Int, error) {
+	reward, err := c.RewardByTxHash(txHash, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	staked, err := c.TotalStaked(share, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	return big.NewInt(0).Add(reward, staked), nil
 }
 
 /// txhash is not transaction hash but a param of multi.execTransaction

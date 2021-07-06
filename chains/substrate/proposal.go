@@ -84,7 +84,7 @@ func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFl
 		method,
 		flow.Symbol,
 		flow.ShotId,
-		types.NewU128(*flow.Reward),
+		types.NewU128(*flow.Active),
 	)
 	if err != nil {
 		return nil, err
