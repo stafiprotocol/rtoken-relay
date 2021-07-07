@@ -176,7 +176,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
 			w.log.Info("BondOrUnbondCall BondEqualToUnbondError", "symbol", snap.Symbol, "era", snap.Era)
 			flow.ReportType = submodel.BondReport
-
+			return w.informChain(m.Destination, m.Source, mef)
 		} else if err.Error() == substrate.BondSmallerThanLeastError.Error() {
 			w.log.Info("BondOrUnbondCall BondSmallerThanLeastError", "symbol", snap.Symbol, "era", snap.Era)
 			flow.ReportType = submodel.PureBondReport
