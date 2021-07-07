@@ -6,6 +6,11 @@ package ethereum
 import (
 	"bytes"
 	"context"
+	"math/big"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,13 +22,9 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
-	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"os"
-	"strings"
-	"testing"
 )
 
 var (
@@ -670,7 +671,7 @@ func TestExecutionResult(t *testing.T) {
 			break
 		}
 		evt := iter.Event
-		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(config.HashStateSuccess) {
+		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(ethmodel.HashStateSuccess) {
 			continue
 		}
 		t.Log(evt.Raw.BlockNumber)

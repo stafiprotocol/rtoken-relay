@@ -35,7 +35,7 @@ type listener struct {
 	blockstore blockstore.Blockstorer
 	stop       <-chan int
 	sysErr     chan<- error // Reports fatal error to core
-	currentEra uint32
+	lastEraBlock uint64
 }
 
 // NewListener creates and returns a listener
@@ -60,6 +60,7 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 		blockstore: bs,
 		stop:       stop,
 		sysErr:     sysErr,
+		lastEraBlock: 0,
 	}
 }
 
@@ -72,8 +73,6 @@ func (l *listener) setRouter(r chains.Router) {
 func (l *listener) start() error {
 	l.log.Debug("Starting listener...")
 
-	l.currentChainEra()
-
 	go func() {
 		err := l.pollBlocks()
 		if err != nil {
@@ -82,23 +81,6 @@ func (l *listener) start() error {
 	}()
 
 	return nil
-}
-
-func (l *listener) currentChainEra() {
-	timer := time.NewTimer(10 * time.Second)
-	defer timer.Stop()
-
-	CurrentEra := make(chan uint32)
-	msg := &core.Message{Destination: core.RFIS, Reason: core.CurrentChainEra, Content: CurrentEra}
-	l.submitMessage(msg, nil)
-
-	l.log.Debug("wait current era from stafi")
-	select {
-	case <-timer.C:
-		panic("timeout to get current era")
-	case era := <-CurrentEra:
-		l.currentEra = era
-	}
 }
 
 // pollBlocks will poll for the latest block and proceed to parse the associated events as it sees new blocks.
@@ -145,15 +127,10 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if currentBlock > l.eraBlock*uint64(l.currentEra+1) {
-				l.log.Info("time to process era", "era", l.currentEra, "currentBlock", currentBlock, "eraBlock", l.eraBlock)
-				if l.currentEra != 0 {
-					l.currentEra++
-				} else {
-					l.currentEra = uint32(currentBlock / l.eraBlock)
-				}
-
-				l.processEra(l.currentEra)
+			if l.lastEraBlock+BlockIntervalToProcessEra < currentBlock {
+				l.lastEraBlock = currentBlock
+				era := uint32(currentBlock/l.eraBlock)
+				l.processEra(era)
 			}
 
 			// Write to blockstore
