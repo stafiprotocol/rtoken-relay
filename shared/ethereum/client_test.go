@@ -29,6 +29,7 @@ import (
 
 var (
 	goerliEndPoint          = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
+	goerliHttpEndPoint = "https://goerli.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
 	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
 
@@ -586,7 +587,8 @@ func TestBlockHash(t *testing.T) {
 }
 
 func TestBlockHash1(t *testing.T) {
-	hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
+	//hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
+	hash := common.HexToHash("0x03c27a3e4a1f6773b3ee5f0026d9b230386c96ad711a0054b0e77f2d7b950cc2")
 
 	password := "123456"
 	os.Setenv(keystore.EnvPassword, password)
@@ -597,7 +599,7 @@ func TestBlockHash1(t *testing.T) {
 	}
 	kp, _ := kpI.(*secp256k1.Keypair)
 
-	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	client := NewClient(goerliHttpEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
 	err = client.Connect()
 	if err != nil {
 		t.Fatal(err)
