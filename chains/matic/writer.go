@@ -6,7 +6,6 @@ package matic
 import (
 	"errors"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"math/big"
 	"strings"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stafiprotocol/rtoken-relay/utils"
@@ -44,10 +44,6 @@ type writer struct {
 
 const (
 	bondFlowLimit = 2048
-)
-
-var (
-	UnclaimableHash = crypto.Keccak256Hash([]byte(`unclaimable`))
 )
 
 func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
@@ -337,6 +333,19 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	}
 
 	poolAddr := common.BytesToAddress(snap.Pool)
+	param := submodel.SubmitSignatureParams{
+		Symbol: flow.Symbol,
+		Era:    types.NewU32(snap.Era),
+		Pool:   snap.Pool,
+		TxType: submodel.OriginalWithdrawUnbond,
+	}
+	txHash, err := param.EncodeToHash()
+	if err != nil {
+		w.log.Error("processActiveReported EncodeToHash error", "error", err)
+		w.sysErr <- err
+		return false
+	}
+
 	withdrawable, err := w.conn.Withdrawable(shareAddr, poolAddr)
 	if err != nil {
 		w.log.Error("Withdrawable error", "err", err, "shareAddr", shareAddr, "poolAddr", poolAddr)
@@ -344,6 +353,7 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	}
 
 	if !withdrawable {
+		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 		w.log.Info("no need to withdraw")
 		return w.informChain(m.Destination, m.Source, mef)
 	}
@@ -366,23 +376,8 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	signature = append(msg[:], signature...)
-	propId := append(shareAddr.Bytes(), tx.CallData...)
-	param := submodel.SubmitSignatureParams{
-		Symbol:     flow.Symbol,
-		Era:        types.NewU32(snap.Era),
-		Pool:       snap.Pool,
-		TxType:     submodel.OriginalWithdrawUnbond,
-		ProposalId: propId,
-		Signature:  signature,
-	}
-
-	txHash, err := param.EncodeToHash()
-	if err != nil {
-		w.log.Error("processActiveReported EncodeToHash error", "error", err)
-		w.sysErr <- err
-		return false
-	}
+	param.ProposalId = append(shareAddr.Bytes(), tx.CallData...)
+	param.Signature = append(msg[:], signature...)
 	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
@@ -411,12 +406,26 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		return false
 	}
 
+	poolAddr := common.BytesToAddress(snap.Pool)
+	param := submodel.SubmitSignatureParams{
+		Symbol: flow.Symbol,
+		Era:    types.NewU32(snap.Era),
+		Pool:   snap.Pool,
+		TxType: submodel.OriginalWithdrawUnbond,
+	}
+	txHash, err := param.EncodeToHash()
+	if err != nil {
+		w.log.Error("processWithdrawReported EncodeToHash error", "error", err)
+		w.sysErr <- err
+		return false
+	}
+
 	if flow.TotalAmount.Uint64() == 0 {
+		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 		w.log.Info("processWithdrawReported: no need to do transfer call")
 		return w.informChain(m.Destination, m.Source, mef)
 	}
 
-	poolAddr := common.BytesToAddress(snap.Pool)
 	balance, err := w.conn.BalanceOf(poolAddr)
 	if err != nil {
 		w.log.Error("BalanceOf  error", "err", err, "Address", poolAddr)
@@ -446,28 +455,12 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	signature = append(msg[:], signature...)
-	propId := append(tx.To.Bytes(), tx.CallData...)
-	param := submodel.SubmitSignatureParams{
-		Symbol:     flow.Symbol,
-		Era:        types.NewU32(snap.Era),
-		Pool:       snap.Pool,
-		TxType:     submodel.OriginalWithdrawUnbond,
-		ProposalId: propId,
-		Signature:  signature,
-	}
-
-	txHash, err := param.EncodeToHash()
-	if err != nil {
-		w.log.Error("processWithdrawReported EncodeToHash error", "error", err)
-		w.sysErr <- err
-		return false
-	}
+	param.Signature = append(msg[:], signature...)
+	param.ProposalId = append(tx.To.Bytes(), tx.CallData...)
 	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
-
 }
 
 func (w *writer) processSignatureEnough(m *core.Message) bool {
