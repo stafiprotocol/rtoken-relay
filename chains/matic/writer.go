@@ -411,7 +411,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		Symbol: flow.Symbol,
 		Era:    types.NewU32(snap.Era),
 		Pool:   snap.Pool,
-		TxType: submodel.OriginalWithdrawUnbond,
+		TxType: submodel.OriginalTransfer,
 	}
 	txHash, err := param.EncodeToHash()
 	if err != nil {

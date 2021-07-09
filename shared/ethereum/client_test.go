@@ -692,3 +692,17 @@ func NewGoerliClient() *Client {
 
 	return client
 }
+
+//func TestWithdrawable(t *testing.T) {
+//	client := NewGoerliClient()
+//
+//	share := common.HexToAddress("")
+//	nonce, err := c.UnbondNonce(share, pool)
+//	if err != nil {
+//		return false, err
+//	}
+//
+//	if nonce.Uint64() == 0 {
+//		return false, nil
+//	}
+//}

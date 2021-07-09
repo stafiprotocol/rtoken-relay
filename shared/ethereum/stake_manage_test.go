@@ -179,4 +179,29 @@ func TestTotalStaked(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(pool2, "totalStake", total2)
+
+	nonce1, err := shr.UnbondNonces(nil, pool1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("nonce1", nonce1)
+
+	nonce2, err := shr.UnbondNonces(nil, pool2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("nonce2", nonce2)
+
+	matic, err := MaticToken.NewMaticToken(goerliMaticToken, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bal, err := matic.BalanceOf(nil, pool1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(bal)
+
+	52926313434917400
 }

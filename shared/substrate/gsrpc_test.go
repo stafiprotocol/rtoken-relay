@@ -929,3 +929,19 @@ func TestSignatures(t *testing.T) {
 	}
 	t.Log(hexutil.Encode(packed))
 }
+
+func TestSnapShots(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+
+	symbz, _ := types.EncodeToBytes(core.RMATIC)
+	//pool, _ := hexutil.Decode("0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7")
+
+	var snapshots []submodel.PoolSnapshot
+	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symbz, nil, &snapshots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(exist)
+}
