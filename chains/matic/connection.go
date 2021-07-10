@@ -263,27 +263,48 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 	}, nil
 }
 
-func (c *Connection) Withdrawable(share, pool common.Address) (bool, error) {
-	nonce, err := c.UnbondNonce(share, pool)
-	if err != nil {
-		return false, err
-	}
-
-	if nonce.Uint64() == 0 {
-		return false, nil
-	}
-
-	shares, _, err := c.Unbond(share, pool, nonce)
-	return shares.Uint64() != 0, nil
-}
-
-func (c *Connection) WithdrawCall(share, pool common.Address) (*ethmodel.MultiTransaction, error) {
-	UnbondNonce, err := c.UnbondNonce(share, pool)
+func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error) {
+	latestNonce, err := c.UnbondNonce(share, pool)
 	if err != nil {
 		return nil, err
 	}
 
-	packed, err := ValidatorShareAbi.Pack(UnstakeClaimTokensNew, UnbondNonce)
+	currentEpoch, err := c.stakeManager.Epoch(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	delay, err := c.stakeManager.WITHDRAWALDELAY(nil)
+	if err != nil {
+		return nil, err
+	}
+	c.log.Info("WithdrawNonce", "currentEpoch", currentEpoch, "delay", delay)
+
+	for i := uint64(1); i <= latestNonce.Uint64(); i++ {
+		nonce := big.NewInt(int64(i))
+		shares, withdrawEpoch, err := c.Unbond(share, pool, nonce)
+		if err != nil {
+			return nil, err
+		}
+
+		if shares.Uint64() == 0 {
+			continue
+		}
+
+		c.log.Info("WithdrawNonce: smallest nonce", "nonce", nonce, "withdrawEpoch", withdrawEpoch, "share", share, "pool", pool)
+		withdrawEpoch.Add(withdrawEpoch, delay)
+		if withdrawEpoch.Cmp(currentEpoch) > 0 {
+			return big.NewInt(0), nil
+		}
+
+		return nonce, nil
+	}
+
+	return big.NewInt(0), nil
+}
+
+func (c *Connection) WithdrawCall(share, pool common.Address, nonce *big.Int) (*ethmodel.MultiTransaction, error) {
+	packed, err := ValidatorShareAbi.Pack(UnstakeClaimTokensNew, nonce)
 	if err != nil {
 		return nil, err
 	}

@@ -1,18 +1,10 @@
 package ethereum
 
 import (
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
-	"math/big"
-	"testing"
-)
-
-var (
-	kovanMultisigContract        = common.HexToAddress("0xB9eB9bc3C8Ba4A0a9666100140a435d1beE58476")
-	kovanMultisigContractChainId = big.NewInt(42)
-	kovanEndPoint                = "wss://kovan.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
-
-	testTokenMBT = common.HexToAddress("0x94797870643B082f080f1ed7d52b61a58582f613")
 )
 
 func TestIsOwner(t *testing.T) {
@@ -46,7 +38,7 @@ func TestIsOwner(t *testing.T) {
 	}
 }
 
-//
+
 //func TestIsNotOwner(t *testing.T) {
 //	client, err := NewSimpleClient(kovanEndPoint)
 //	if err != nil {

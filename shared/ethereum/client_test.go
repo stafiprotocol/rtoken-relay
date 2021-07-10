@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"math/big"
-	"os"
 	"strings"
 	"testing"
 
@@ -16,12 +15,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
+	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
+	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +29,7 @@ import (
 
 var (
 	goerliEndPoint          = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
-	goerliHttpEndPoint = "https://goerli.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
+	goerliHttpEndPoint      = "https://goerli.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
 	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
 
@@ -235,18 +235,17 @@ func newTestLogger(name string) log15.Logger {
 	return tLog
 }
 
-//
-//func TestTransferPack(t *testing.T) {
-//	value := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10))
-//	a := types.NewUCompact(value)
-//	b := big.Int(a)
-//	cd1, err := mabi.Pack("transfer", receiver1, &b)
-//
-//	assert.NoError(t, err)
-//	t.Log(hexutil.Encode(cd1))
-//	t.Log(crypto.Keccak256Hash(cd1).Hex())
-//}
-//
+func TestTransferPack(t *testing.T) {
+	value := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10))
+	a := types.NewUCompact(value)
+	b := big.Int(a)
+	cd1, err := mabi.Pack("transfer", receiver1, &b)
+
+	assert.NoError(t, err)
+	t.Log(hexutil.Encode(cd1))
+	t.Log(crypto.Keccak256Hash(cd1).Hex())
+}
+
 func TestVerify(t *testing.T) {
 	bh, _ := hexutil.Decode("0x2e61dec15e7b3fcd19af31603de13e44f6fa8a4df311c981408a24e5e0bf02b4")
 	th, _ := hexutil.Decode("0xa7ab84dac6dae5700a3ddcfb6fda62d5117f39809e99b3737cc01250d75c0660")
@@ -263,21 +262,7 @@ func TestVerify(t *testing.T) {
 		Amount:    types.NewU128(*amt),
 	}
 
-	password := "123456"
-	os.Setenv(keystore.EnvPassword, password)
-
-	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
-	if err != nil {
-		panic(err)
-	}
-	kp, _ := kpI.(*secp256k1.Keypair)
-
-	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
-	err = client.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	client := NewGoerliClient()
 	reason, err := client.TransferVerify(a, goerliErc20Token)
 	if err != nil {
 		t.Fatal(err)
@@ -344,59 +329,25 @@ func TestVerify1(t *testing.T) {
 	t.Log(reason)
 }
 
-//
-//func TestApprove(t *testing.T) {
+//func TestMulti(t *testing.T) {
 //	password := "123456"
 //	os.Setenv(keystore.EnvPassword, password)
 //
-//	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
-//	if err != nil {
-//		panic(err)
-//	}
-//	kp, _ := kpI.(*secp256k1.Keypair)
+//	owners := []common.Address{common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814"), common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
+//	keys := make([]*secp256k1.Keypair, 0)
 //
-//	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
-//	err = client.Connect()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
+//	for _, own := range owners {
+//		kpI, err := keystore.KeypairFromAddress(own.Hex(), keystore.EthChain, keystorePath, false)
+//		if err != nil {
+//			panic(err)
+//		}
+//		kp, _ := kpI.(*secp256k1.Keypair)
 //
-//	token, err := MaticToken.NewMaticToken(goerliMaticToken, client.Client())
-//	if err != nil {
-//		t.Fatal(err)
+//		keys = append(keys, kp)
 //	}
 //
-//	err = client.LockAndUpdateOpts()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	approveTx, err := token.Approve(client.Opts(), goerliStakeManagerContract, big.NewInt(0).Mul(&config.AmountBase, big.NewInt(1000000000000)))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	client.UnlockOpts()
-//
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	t.Log("approveTxHahs", approveTx.Hash())
-//}
-//
-//func TestBond(t *testing.T) {
-//	password := "123456"
-//	os.Setenv(keystore.EnvPassword, password)
-//
-//	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
-//	if err != nil {
-//		panic(err)
-//	}
-//	kp, _ := kpI.(*secp256k1.Keypair)
-//
-//	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
-//	err = client.Connect()
+//	client := NewClient(goerliEndPoint, keys[0], testLogger, big.NewInt(0), big.NewInt(0))
+//	err := client.Connect()
 //	if err != nil {
 //		t.Fatal(err)
 //	}
@@ -421,106 +372,67 @@ func TestVerify1(t *testing.T) {
 //	}
 //	t.Log("valFalg", valFalg)
 //
-//	share, err := ValidatorShare.NewValidatorShare(shareData.ContractAddress, client.Client())
+//	share, err := ValidatorShare.NewValidatorShare(shareContract, client.Client())
 //	if err != nil {
 //		t.Fatal(err)
 //	}
 //
-//	err = client.LockAndUpdateOpts()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	tx, err := share.BuyVoucher(client.Opts(), &config.AmountBase, big.NewInt(0))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	client.UnlockOpts()
-//
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	t.Log("txHash", tx.Hash())
-//}
-//
-//func TestRestake(t *testing.T) {
-//	password := "123456"
-//	os.Setenv(keystore.EnvPassword, password)
-//
-//	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
-//	if err != nil {
-//		panic(err)
-//	}
-//	kp, _ := kpI.(*secp256k1.Keypair)
-//
-//	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
-//	err = client.Connect()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	id := big.NewInt(9)
-//	shareData, err := manager.Validators(nil, id)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	shareContract := shareData.ContractAddress
-//	t.Log("ShareContract", shareContract)
-//
-//	valFalg, err := manager.IsValidator(nil, id)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log("valFalg", valFalg)
-//
-//	share, err := ValidatorShare.NewValidatorShare(shareData.ContractAddress, client.Client())
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	stake, rate, err := share.GetTotalStake(nil, owner)
+//	pool := common.HexToAddress("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
+//	stake, rate, err := share.GetTotalStake(nil, pool)
 //	if err != nil {
 //		t.Fatal(err)
 //	}
 //	t.Log("rate", rate)
 //	t.Log("stake", stake)
 //
-//	reward, err := share.GetLiquidRewards(nil, owner)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log("reward", reward)
-//
-//	nonce, err := share.UnbondNonces(nil, owner)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log("nonce", nonce)
-//
-//	unbond, err := share.UnbondsNew(nil, owner, nonce)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log("unbond", unbond)
-//
+//	//ValidatorShareAbi, _ := abi.JSON(strings.NewReader(ValidatorShare.ValidatorShareABI))
+//	////cd, err := ValidatorShareAbi.Pack("restake")
+//	////if err != nil {
+//	////	t.Fatal(err)
+//	////}
+//	//
+//	//unbond := AmountBase
+//	//cd, err := ValidatorShareAbi.Pack("sellVoucher_new", unbond, unbond)
+//	//
+//	//multi, err := Multisig.NewMultisig(pool, client.Client())
+//	//if err != nil {
+//	//	t.Fatal(err)
+//	//}
+//	//
+//	//msgToSign, err := multi.MessageToSign(nil, shareContract, defaultValue, cd)
+//	//if err != nil {
+//	//	t.Fatal(err)
+//	//}
+//	//
+//	//sigs := make([][]byte, 0)
+//	//for _, key := range keys {
+//	//	signature, err := crypto.Sign(msgToSign[:], key.PrivateKey())
+//	//	if err != nil {
+//	//		t.Fatal(err)
+//	//	}
+//	//
+//	//	sigs = append(sigs, signature)
+//	//}
+//	//
+//	//vs, rs, ss := utils.DecomposeSignature(sigs)
 //	//err = client.LockAndUpdateOpts()
 //	//if err != nil {
 //	//	t.Fatal(err)
 //	//}
 //	//
-//	////tx, err := share.BuyVoucher(client.Opts(), &config.AmountBase, big.NewInt(0))
-//	//tx, err := share.Restake(client.Opts())
-//	//if err != nil {
-//	//	t.Fatal(err)
-//	//}
+//	//txhash := common.HexToHash("0x8ed668ca5c97408167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1b")
+//	//tx, err := multi.ExecTransaction(
+//	//	client.Opts(),
+//	//	shareContract,
+//	//	defaultValue,
+//	//	cd,
+//	//	uint8(0),
+//	//	big.NewInt(350000),
+//	//	txhash,
+//	//	vs,
+//	//	rs,
+//	//	ss,
+//	//)
 //	//
 //	//client.UnlockOpts()
 //	//
@@ -530,12 +442,7 @@ func TestVerify1(t *testing.T) {
 //	//
 //	//t.Log("txHash", tx.Hash())
 //}
-//
-//func TestValidatorIdToHex(t *testing.T) {
-//	id := big.NewInt(9)
-//	t.Log("idHex", hexutil.Encode(id.Bytes())) //0x09
-//}
-//
+
 func TestKecca(t *testing.T) {
 	a := []byte(`unclaimable`)
 	t.Log("a_hex", hexutil.Encode(a))
@@ -551,59 +458,10 @@ func TestKecca(t *testing.T) {
 }
 
 func TestBlockHash(t *testing.T) {
-	//bh, err := hexutil.Decode("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
-	//assert.NoError(t, err)
-
-	hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
-
-	client := NewGoerliClient()
-	blk, err := client.conn.BlockByHash(context.Background(), hash)
-	assert.NoError(t, err)
-	//t.Log(blk)
-	t.Log("blkHash", blk.Hash())
-	t.Log("blkNumber", blk.Number())
-
-	block, err := client.conn.BlockByHash(context.Background(), blk.Hash())
-	assert.NoError(t, err)
-	t.Log("blockHash", block.Hash())
-	t.Log("blockNumber", block.Number())
-
-	//block, err := client.conn.BlockByNumber(context.Background(), blk.Number())
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//t.Log("blockHash", block.Hash())
-	//
-	//for _, tx := range blk.Transactions() {
-	//	t.Log(tx.Hash())
-	//}
-	//
-	//t.Log(blk.ParentHash())
-	//t.Log(blk.Root())
-	//
-	//err = blk.SanityCheck()
-	//assert.NoError(t, err)
-	//t.Log(blk.UncleHash())
-}
-
-func TestBlockHash1(t *testing.T) {
 	//hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
 	hash := common.HexToHash("0x03c27a3e4a1f6773b3ee5f0026d9b230386c96ad711a0054b0e77f2d7b950cc2")
 
-	password := "123456"
-	os.Setenv(keystore.EnvPassword, password)
-
-	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
-	if err != nil {
-		panic(err)
-	}
-	kp, _ := kpI.(*secp256k1.Keypair)
-
-	client := NewClient(goerliHttpEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
-	err = client.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
+	client := NewGoerliClient()
 	blk, err := client.conn.BlockByHash(context.Background(), hash)
 	assert.NoError(t, err)
 	t.Log("blkHash", blk.Hash())
@@ -693,16 +551,79 @@ func NewGoerliClient() *Client {
 	return client
 }
 
-//func TestWithdrawable(t *testing.T) {
-//	client := NewGoerliClient()
-//
-//	share := common.HexToAddress("")
-//	nonce, err := c.UnbondNonce(share, pool)
-//	if err != nil {
-//		return false, err
-//	}
-//
-//	if nonce.Uint64() == 0 {
-//		return false, nil
-//	}
-//}
+func TestWithdrawable(t *testing.T) {
+	client := NewGoerliClient()
+
+	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := big.NewInt(9)
+	shareData, err := manager.Validators(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shareContract := shareData.ContractAddress
+	t.Log("ShareContract", shareContract)
+
+	valFalg, err := manager.IsValidator(nil, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("valFalg", valFalg)
+
+	share, err := ValidatorShare.NewValidatorShare(shareContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool := common.HexToAddress("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
+	//stake, rate, err := share.GetTotalStake(nil, pool)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("rate", rate)
+	//t.Log("stake", stake)
+
+	nonce, err := share.UnbondNonces(nil, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("nonce", nonce)
+
+	currentEpoch, err := manager.Epoch(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("currentEpoch", currentEpoch)
+
+	delay, err := manager.WITHDRAWALDELAY(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("delay", delay)
+
+	for i := uint64(1); i <= nonce.Uint64(); i++ {
+		unbond, err := share.UnbondsNew(nil, pool, big.NewInt(int64(i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if unbond.Shares.Uint64() == 0 {
+			continue
+		}
+
+		withdrawEpoch := big.NewInt(0).Add(unbond.WithdrawEpoch, delay)
+		if withdrawEpoch.Cmp(currentEpoch) > 0 {
+			break
+		}
+	}
+
+	unbond, err := share.UnbondsNew(nil, pool, big.NewInt(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("unbond", unbond)
+}

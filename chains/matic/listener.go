@@ -25,16 +25,16 @@ var (
 )
 
 type listener struct {
-	name       string
-	symbol     core.RSymbol
-	startBlock uint64
-	eraBlock   uint64
-	conn       *Connection
-	router     chains.Router
-	log        log15.Logger
-	blockstore blockstore.Blockstorer
-	stop       <-chan int
-	sysErr     chan<- error // Reports fatal error to core
+	name         string
+	symbol       core.RSymbol
+	startBlock   uint64
+	eraBlock     uint64
+	conn         *Connection
+	router       chains.Router
+	log          log15.Logger
+	blockstore   blockstore.Blockstorer
+	stop         <-chan int
+	sysErr       chan<- error // Reports fatal error to core
 	lastEraBlock uint64
 }
 
@@ -51,15 +51,15 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 	}
 
 	return &listener{
-		name:       name,
-		symbol:     symbol,
-		startBlock: startBlock,
-		eraBlock:   eraBlock.Uint64(),
-		conn:       conn,
-		log:        log,
-		blockstore: bs,
-		stop:       stop,
-		sysErr:     sysErr,
+		name:         name,
+		symbol:       symbol,
+		startBlock:   startBlock,
+		eraBlock:     eraBlock.Uint64(),
+		conn:         conn,
+		log:          log,
+		blockstore:   bs,
+		stop:         stop,
+		sysErr:       sysErr,
 		lastEraBlock: 0,
 	}
 }
@@ -129,7 +129,7 @@ func (l *listener) pollBlocks() error {
 
 			if l.lastEraBlock+BlockIntervalToProcessEra < currentBlock {
 				l.lastEraBlock = currentBlock
-				era := uint32(currentBlock/l.eraBlock)
+				era := uint32(currentBlock / l.eraBlock)
 				l.processEra(era)
 			}
 

@@ -4,7 +4,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
-	"github.com/stafiprotocol/rtoken-relay/config"
 	"gotest.tools/assert"
 	"math/big"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 var (
 	MultiSigAbi, _ = abi.JSON(strings.NewReader(Multisig.MultisigABI))
+	AmountBase     = big.NewInt(1000000000000000000)
 )
 
 func TestBuyVoucher(t *testing.T) {
@@ -26,7 +26,7 @@ func TestBuyVoucher(t *testing.T) {
 	assert.Equal(t, BuyVoucherMethodName, m.Name)
 
 	// Test pack/unpack
-	packed, err := ValidatorShareAbi.Pack(m.Name, big.NewInt(0).Mul(&config.AmountBase, big.NewInt(100)), big.NewInt(0))
+	packed, err := ValidatorShareAbi.Pack(m.Name, big.NewInt(0).Mul(AmountBase, big.NewInt(100)), big.NewInt(0))
 	if err != nil {
 		t.Fatal(err)
 	}

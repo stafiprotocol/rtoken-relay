@@ -19,6 +19,7 @@ var (
 	owners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"), common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")}
 
 	goerliMultisigContract = common.HexToAddress("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
+	AmountBase             = big.NewInt(1000000000000000000)
 )
 
 func TestMultisigApprove(t *testing.T) {
@@ -46,7 +47,7 @@ func TestMultisigApprove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cd, _ := mabi.Pack("approve", goerliStakeManagerContract, big.NewInt(0).Mul(&config.AmountBase, big.NewInt(100000000000000000)))
+	cd, _ := mabi.Pack("approve", goerliStakeManagerContract, big.NewInt(0).Mul(AmountBase, big.NewInt(100000000000000000)))
 	msg, err := multi.MessageToSign(nil, goerliMaticToken, defaultValue, cd)
 	if err != nil {
 		t.Fatal(err)

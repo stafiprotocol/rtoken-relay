@@ -346,21 +346,22 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	withdrawable, err := w.conn.Withdrawable(shareAddr, poolAddr)
+	nonce, err := w.conn.WithdrawNonce(shareAddr, poolAddr)
 	if err != nil {
-		w.log.Error("Withdrawable error", "err", err, "shareAddr", shareAddr, "poolAddr", poolAddr)
+		w.log.Error("WithdrawNonce error", "err", err, "shareAddr", shareAddr, "poolAddr", poolAddr)
 		return false
 	}
 
-	if !withdrawable {
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
-		w.log.Info("no need to withdraw")
-		return w.informChain(m.Destination, m.Source, mef)
+	if nonce.Uint64() == 0 {
+		err = fmt.Errorf("need to withdraw, but no nonce is withdrawable, share: %s, pool: %s", shareAddr.Hex(), poolAddr.Hex())
+		w.log.Error(err.Error())
+		w.sysErr <- err
+		return false
 	}
 
-	tx, err := w.conn.WithdrawCall(shareAddr, common.BytesToAddress(snap.Pool))
+	tx, err := w.conn.WithdrawCall(shareAddr, common.BytesToAddress(snap.Pool), nonce)
 	if err != nil {
-		w.log.Error("BondOrUnbondCall error", "err", err)
+		w.log.Error("processActiveReported WithdrawCall error", "err", err)
 		return false
 	}
 

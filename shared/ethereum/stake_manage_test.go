@@ -1,13 +1,14 @@
 package ethereum
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
-	"math/big"
-	"testing"
 )
 
 var (
@@ -24,26 +25,38 @@ func TestSignerToValidatorId(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	instance, err := StakeManager.NewStakeManager(mainnetStakeManagerContract, client)
+	manager, err := StakeManager.NewStakeManager(mainnetStakeManagerContract, client)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	signer := common.HexToAddress("0x49a7499e26f6311145934163d3aa286aea93fbe9")
-	validatorId, err := instance.SignerToValidator(nil, signer)
+	validatorId, err := manager.SignerToValidator(nil, signer)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log("validatorId", validatorId) // 115
 
-	valData, err := instance.Validators(nil, validatorId)
+	valData, err := manager.Validators(nil, validatorId)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	shareContract := valData.ContractAddress
 	t.Log("shareContract", shareContract)
+
+	delay, err := manager.WITHDRAWALDELAY(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("delay", delay)
+
+	interval, err := manager.CheckPointBlockInterval(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("interval", interval)
 }
 
 func TestSigners(t *testing.T) {
@@ -203,5 +216,21 @@ func TestTotalStaked(t *testing.T) {
 	}
 	t.Log(bal)
 
-	52926313434917400
+	start, err := manager.Epoch(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("start", start)
+
+	delay, err := manager.WITHDRAWALDELAY(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("delay", delay)
+
+	interval, err := manager.CheckPointBlockInterval(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("interval", interval)
 }
