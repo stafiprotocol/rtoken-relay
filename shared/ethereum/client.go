@@ -28,7 +28,7 @@ import (
 var (
 	BlockRetryInterval = time.Second * 5
 	BlockToFinalize    = big.NewInt(3)
-	DefaultGasLimit    = big.NewInt(5000000)
+	DefaultGasLimit    = big.NewInt(1000000)
 	DefaultGasPrice    = big.NewInt(20000000000)
 	ExtraGasPrice      = big.NewInt(10000000000)
 )
