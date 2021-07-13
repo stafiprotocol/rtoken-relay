@@ -353,9 +353,10 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	}
 
 	if nonce.Uint64() == 0 {
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
-		w.log.Info("find no nonce to withdraw", "share", shareAddr, "pool", poolAddr)
-		return w.informChain(m.Destination, m.Source, mef)
+		err = fmt.Errorf("need to withdraw, but no nonce is withdrawable, share: %s, pool: %s", shareAddr.Hex(), poolAddr.Hex())
+		w.log.Error(err.Error())
+		w.sysErr <- err
+		return false
 	}
 
 	tx, err := w.conn.WithdrawCall(shareAddr, common.BytesToAddress(snap.Pool), nonce)
