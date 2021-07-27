@@ -6,7 +6,7 @@ require (
 	github.com/ChainSafe/log15 v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
 	github.com/cosmos/cosmos-sdk v0.42.4
-	github.com/ethereum/go-ethereum v1.10.4
+	github.com/ethereum/go-ethereum v1.10.6
 	github.com/gorilla/websocket v1.4.2
 	github.com/huandu/xstrings v1.3.2
 	github.com/itering/scale.go v1.0.47

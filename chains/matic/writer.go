@@ -183,27 +183,11 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		}
 	}
 
-	msg, err := w.conn.MessageToSign(tx, poolAddr)
-	if err != nil {
-		w.log.Error("processEraPoolUpdated MessageToSign error", "err", err)
-		return false
-	}
-
-	signature, err := crypto.Sign(msg[:], key.PrivateKey())
-	if err != nil {
-		w.log.Error("processEraPoolUpdated sign msg error", "error", err, "msg", hexutil.Encode(msg[:]))
-		w.sysErr <- err
-		return false
-	}
-	signature = append(msg[:], signature...)
-	propId := append(shareAddr.Bytes(), tx.CallData...)
 	param := submodel.SubmitSignatureParams{
-		Symbol:     flow.Symbol,
-		Era:        types.NewU32(snap.Era),
-		Pool:       snap.Pool,
-		TxType:     method,
-		ProposalId: propId,
-		Signature:  signature,
+		Symbol: flow.Symbol,
+		Era:    types.NewU32(snap.Era),
+		Pool:   snap.Pool,
+		TxType: method,
 	}
 
 	txHash, err := param.EncodeToHash()
@@ -212,8 +196,18 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 
+	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
+	signature, err := crypto.Sign(msg[:], key.PrivateKey())
+	if err != nil {
+		w.log.Error("processEraPoolUpdated sign msg error", "error", err, "msg", hexutil.Encode(msg[:]))
+		w.sysErr <- err
+		return false
+	}
+	param.ProposalId = append(shareAddr.Bytes(), tx.CallData...)
+	param.Signature = append(msg[:], signature...)
+
+	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
 }
@@ -267,28 +261,11 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx, poolAddr)
-	if err != nil {
-		w.log.Error("processBondReported MessageToSign error", "err", err)
-		return false
-	}
-
-	signature, err := crypto.Sign(msg[:], key.PrivateKey())
-	if err != nil {
-		w.log.Error("processBondReported sign msg error", "error", err, "msg", hexutil.Encode(msg[:]))
-		w.sysErr <- err
-		return false
-	}
-	signature = append(msg[:], signature...)
-	w.log.Info("processBondReported size of signature", "size", len(signature))
-	propId := append(shareAddr.Bytes(), tx.CallData...)
 	param := submodel.SubmitSignatureParams{
-		Symbol:     flow.Symbol,
-		Era:        types.NewU32(snap.Era),
-		Pool:       snap.Pool,
-		TxType:     submodel.OriginalClaimRewards,
-		ProposalId: propId,
-		Signature:  signature,
+		Symbol: flow.Symbol,
+		Era:    types.NewU32(snap.Era),
+		Pool:   snap.Pool,
+		TxType: submodel.OriginalClaimRewards,
 	}
 
 	txHash, err := param.EncodeToHash()
@@ -297,8 +274,18 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		w.sysErr <- err
 		return false
 	}
-	w.setBondReported(strings.ToLower(txHash.Hex()), flow)
 
+	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
+	signature, err := crypto.Sign(msg[:], key.PrivateKey())
+	if err != nil {
+		w.log.Error("processBondReported sign msg error", "error", err, "msg", hexutil.Encode(msg[:]))
+		w.sysErr <- err
+		return false
+	}
+	param.ProposalId = append(shareAddr.Bytes(), tx.CallData...)
+	param.Signature = append(msg[:], signature...)
+
+	w.setBondReported(strings.ToLower(txHash.Hex()), flow)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
 }
@@ -365,12 +352,7 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx, poolAddr)
-	if err != nil {
-		w.log.Error("processActiveReported MessageToSign error", "err", err)
-		return false
-	}
-
+	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
 	signature, err := crypto.Sign(msg[:], key.PrivateKey())
 	if err != nil {
 		w.log.Error("processActiveReported sign msg error", "error", err, "msg", hexutil.Encode(msg[:]))
@@ -379,8 +361,8 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	}
 	param.ProposalId = append(shareAddr.Bytes(), tx.CallData...)
 	param.Signature = append(msg[:], signature...)
-	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 
+	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
 }
@@ -444,12 +426,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 		return false
 	}
 
-	msg, err := w.conn.MessageToSign(tx, poolAddr)
-	if err != nil {
-		w.log.Error("processWithdrawReported MessageToSign error", "err", err)
-		return false
-	}
-
+	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
 	signature, err := crypto.Sign(msg[:], key.PrivateKey())
 	if err != nil {
 		w.log.Error("processWithdrawReported sign msg error", "error", err, "msg", hexutil.Encode(msg[:]))
@@ -458,8 +435,8 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 	}
 	param.Signature = append(msg[:], signature...)
 	param.ProposalId = append(tx.To.Bytes(), tx.CallData...)
-	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 
+	w.setEvents(strings.ToLower(txHash.Hex()), mef)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
 }

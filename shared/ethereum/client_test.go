@@ -46,13 +46,13 @@ var (
 	AliceKp    = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
 )
 
-//func TestTransferCallData(t *testing.T) {
-//	cd, err := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
-//	assert.NoError(t, err)
-//	t.Log(hexutil.Encode(cd))
-//	// 0xa9059cbb000000000000000000000000ad0bf51f7fc89e262edbbdf53c260088b024d8570000000000000000000000000000000000000000000000008ac7230489e80000
-//}
-//
+func TestTransferCallData(t *testing.T) {
+	cd, err := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
+	assert.NoError(t, err)
+	t.Log(hexutil.Encode(cd))
+	// 0xa9059cbb000000000000000000000000ad0bf51f7fc89e262edbbdf53c260088b024d8570000000000000000000000000000000000000000000000008ac7230489e80000
+}
+
 //func TestMultisigTransfer(t *testing.T) {
 //	password := "123456"
 //	os.Setenv(keystore.EnvPassword, password)
@@ -69,7 +69,7 @@ var (
 //		t.Fatal(err)
 //	}
 //
-//	multi, err := Multisig.NewMultisig(goerliMultisigContract, client.Client())
+//	multi, err := Multisig.NewMultisig(goerliMultisigProxyContract, client.Client())
 //	if err != nil {
 //		t.Fatal(err)
 //	}
@@ -125,14 +125,14 @@ var (
 //
 //	t.Log(tx.Hash())
 //}
-//
-//func TestMakeUpTransactions(t *testing.T) {
-//	amount := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500))
-//
-//	x := common.LeftPadBytes(amount.Bytes(), 32)
-//	t.Log(hexutil.Encode(x))
-//}
-//
+
+func TestMakeUpTransactions(t *testing.T) {
+	amount := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500))
+
+	x := common.LeftPadBytes(amount.Bytes(), 32)
+	t.Log(hexutil.Encode(x))
+}
+
 //func TestMultisigSend(t *testing.T) {
 //	password := "123456"
 //	os.Setenv(keystore.EnvPassword, password)
@@ -149,7 +149,7 @@ var (
 //		t.Fatal(err)
 //	}
 //
-//	multi, err := Multisig.NewMultisig(goerliMultisigContract, client.Client())
+//	multi, err := Multisig.NewMultisig(goerliMultisigProxyContract, client.Client())
 //	if err != nil {
 //		t.Fatal(err)
 //	}
@@ -228,7 +228,7 @@ var (
 //
 //	t.Log(tx.Hash())
 //}
-//
+
 func newTestLogger(name string) log15.Logger {
 	tLog := log15.New("chain", name)
 	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlError, tLog.GetHandler()))
@@ -455,6 +455,9 @@ func TestKecca(t *testing.T) {
 	c, err := hexutil.Decode("0x3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1")
 	assert.NoError(t, err)
 	t.Log("c", crypto.Keccak256Hash(c))
+
+	x := []byte(`stafiprotocol.proxy.implementation`)
+	t.Log("keccak(x)", crypto.Keccak256Hash(x))
 }
 
 func TestBlockHash(t *testing.T) {

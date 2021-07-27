@@ -316,13 +316,8 @@ func (c *Connection) WithdrawCall(share, pool common.Address, nonce *big.Int) (*
 	}, nil
 }
 
-func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction, pool common.Address) ([32]byte, error) {
-	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
-	if err != nil {
-		return [32]byte{}, err
-	}
-
-	return multisig.MessageToSign(nil, tx.To, tx.Value, tx.CallData)
+func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction, pool common.Address, txHash common.Hash) common.Hash {
+	return tx.MessageToSign(txHash, pool)
 }
 
 func (c *Connection) IsFirstSigner(msg, sig []byte) bool {

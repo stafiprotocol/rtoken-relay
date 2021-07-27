@@ -2,9 +2,10 @@ package ethereum
 
 import (
 	"crypto/ecdsa"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"testing"
 )
 
 func TestSignature(t *testing.T) {

@@ -27,7 +27,7 @@ var (
 )
 
 // MultisigABI is the input ABI used to generate the binding from.
-const MultisigABI = "[{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_owners\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"AddedOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"threshold\",\"type\":\"uint256\"}],\"name\":\"ChangedThreshold\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"DisabledModule\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"EnabledModule\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"ExecutionFromModuleFailure\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"ExecutionFromModuleSuccess\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"enumEnum.HashState\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"ExecutionResult\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"RemovedOwner\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"TxHashs\",\"outputs\":[{\"internalType\":\"enumEnum.HashState\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"addOwnerWithThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"changeThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevModule\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"disableModule\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"enableModule\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"enumEnum.Operation\",\"name\":\"operation\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"safeTxGas\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint8[]\",\"name\":\"vs\",\"type\":\"uint8[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"rs\",\"type\":\"bytes32[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"ss\",\"type\":\"bytes32[]\"}],\"name\":\"execTransaction\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getChainId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"start\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"pageSize\",\"type\":\"uint256\"}],\"name\":\"getModulesPaginated\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"array\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"next\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNonce\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getOwners\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getThreshold\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"module\",\"type\":\"address\"}],\"name\":\"isModuleEnabled\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"messageToSign\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"removeOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"oldOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"swapOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const MultisigABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"AddedOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"threshold\",\"type\":\"uint256\"}],\"name\":\"ChangedThreshold\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"enumEnum.HashState\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"ExecutionResult\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"RemovedOwner\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"TxHashs\",\"outputs\":[{\"internalType\":\"enumEnum.HashState\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"addOwnerWithThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"changeThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"enumEnum.Operation\",\"name\":\"operation\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"safeTxGas\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint8[]\",\"name\":\"vs\",\"type\":\"uint8[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"rs\",\"type\":\"bytes32[]\"},{\"internalType\":\"bytes32[]\",\"name\":\"ss\",\"type\":\"bytes32[]\"}],\"name\":\"execTransaction\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getChainId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getOwners\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getThreshold\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_owners\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"isOwner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"nonce\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"}],\"name\":\"removeOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"prevOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"oldOwner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"swapOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // Multisig is an auto generated Go binding around an Ethereum contract.
 type Multisig struct {
@@ -233,79 +233,6 @@ func (_Multisig *MultisigCallerSession) GetChainId() (*big.Int, error) {
 	return _Multisig.Contract.GetChainId(&_Multisig.CallOpts)
 }
 
-// GetModulesPaginated is a free data retrieval call binding the contract method 0xcc2f8452.
-//
-// Solidity: function getModulesPaginated(address start, uint256 pageSize) view returns(address[] array, address next)
-func (_Multisig *MultisigCaller) GetModulesPaginated(opts *bind.CallOpts, start common.Address, pageSize *big.Int) (struct {
-	Array []common.Address
-	Next  common.Address
-}, error) {
-	var out []interface{}
-	err := _Multisig.contract.Call(opts, &out, "getModulesPaginated", start, pageSize)
-
-	outstruct := new(struct {
-		Array []common.Address
-		Next  common.Address
-	})
-
-	outstruct.Array = out[0].([]common.Address)
-	outstruct.Next = out[1].(common.Address)
-
-	return *outstruct, err
-
-}
-
-// GetModulesPaginated is a free data retrieval call binding the contract method 0xcc2f8452.
-//
-// Solidity: function getModulesPaginated(address start, uint256 pageSize) view returns(address[] array, address next)
-func (_Multisig *MultisigSession) GetModulesPaginated(start common.Address, pageSize *big.Int) (struct {
-	Array []common.Address
-	Next  common.Address
-}, error) {
-	return _Multisig.Contract.GetModulesPaginated(&_Multisig.CallOpts, start, pageSize)
-}
-
-// GetModulesPaginated is a free data retrieval call binding the contract method 0xcc2f8452.
-//
-// Solidity: function getModulesPaginated(address start, uint256 pageSize) view returns(address[] array, address next)
-func (_Multisig *MultisigCallerSession) GetModulesPaginated(start common.Address, pageSize *big.Int) (struct {
-	Array []common.Address
-	Next  common.Address
-}, error) {
-	return _Multisig.Contract.GetModulesPaginated(&_Multisig.CallOpts, start, pageSize)
-}
-
-// GetNonce is a free data retrieval call binding the contract method 0xd087d288.
-//
-// Solidity: function getNonce() view returns(uint256)
-func (_Multisig *MultisigCaller) GetNonce(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Multisig.contract.Call(opts, &out, "getNonce")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetNonce is a free data retrieval call binding the contract method 0xd087d288.
-//
-// Solidity: function getNonce() view returns(uint256)
-func (_Multisig *MultisigSession) GetNonce() (*big.Int, error) {
-	return _Multisig.Contract.GetNonce(&_Multisig.CallOpts)
-}
-
-// GetNonce is a free data retrieval call binding the contract method 0xd087d288.
-//
-// Solidity: function getNonce() view returns(uint256)
-func (_Multisig *MultisigCallerSession) GetNonce() (*big.Int, error) {
-	return _Multisig.Contract.GetNonce(&_Multisig.CallOpts)
-}
-
 // GetOwners is a free data retrieval call binding the contract method 0xa0e67e2b.
 //
 // Solidity: function getOwners() view returns(address[])
@@ -368,37 +295,6 @@ func (_Multisig *MultisigCallerSession) GetThreshold() (*big.Int, error) {
 	return _Multisig.Contract.GetThreshold(&_Multisig.CallOpts)
 }
 
-// IsModuleEnabled is a free data retrieval call binding the contract method 0x2d9ad53d.
-//
-// Solidity: function isModuleEnabled(address module) view returns(bool)
-func (_Multisig *MultisigCaller) IsModuleEnabled(opts *bind.CallOpts, module common.Address) (bool, error) {
-	var out []interface{}
-	err := _Multisig.contract.Call(opts, &out, "isModuleEnabled", module)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// IsModuleEnabled is a free data retrieval call binding the contract method 0x2d9ad53d.
-//
-// Solidity: function isModuleEnabled(address module) view returns(bool)
-func (_Multisig *MultisigSession) IsModuleEnabled(module common.Address) (bool, error) {
-	return _Multisig.Contract.IsModuleEnabled(&_Multisig.CallOpts, module)
-}
-
-// IsModuleEnabled is a free data retrieval call binding the contract method 0x2d9ad53d.
-//
-// Solidity: function isModuleEnabled(address module) view returns(bool)
-func (_Multisig *MultisigCallerSession) IsModuleEnabled(module common.Address) (bool, error) {
-	return _Multisig.Contract.IsModuleEnabled(&_Multisig.CallOpts, module)
-}
-
 // IsOwner is a free data retrieval call binding the contract method 0x2f54bf6e.
 //
 // Solidity: function isOwner(address owner) view returns(bool)
@@ -430,35 +326,35 @@ func (_Multisig *MultisigCallerSession) IsOwner(owner common.Address) (bool, err
 	return _Multisig.Contract.IsOwner(&_Multisig.CallOpts, owner)
 }
 
-// MessageToSign is a free data retrieval call binding the contract method 0x2b7d7930.
+// Nonce is a free data retrieval call binding the contract method 0xaffed0e0.
 //
-// Solidity: function messageToSign(address to, uint256 value, bytes data) view returns(bytes32)
-func (_Multisig *MultisigCaller) MessageToSign(opts *bind.CallOpts, to common.Address, value *big.Int, data []byte) ([32]byte, error) {
+// Solidity: function nonce() view returns(uint256)
+func (_Multisig *MultisigCaller) Nonce(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _Multisig.contract.Call(opts, &out, "messageToSign", to, value, data)
+	err := _Multisig.contract.Call(opts, &out, "nonce")
 
 	if err != nil {
-		return *new([32]byte), err
+		return *new(*big.Int), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
 
 	return out0, err
 
 }
 
-// MessageToSign is a free data retrieval call binding the contract method 0x2b7d7930.
+// Nonce is a free data retrieval call binding the contract method 0xaffed0e0.
 //
-// Solidity: function messageToSign(address to, uint256 value, bytes data) view returns(bytes32)
-func (_Multisig *MultisigSession) MessageToSign(to common.Address, value *big.Int, data []byte) ([32]byte, error) {
-	return _Multisig.Contract.MessageToSign(&_Multisig.CallOpts, to, value, data)
+// Solidity: function nonce() view returns(uint256)
+func (_Multisig *MultisigSession) Nonce() (*big.Int, error) {
+	return _Multisig.Contract.Nonce(&_Multisig.CallOpts)
 }
 
-// MessageToSign is a free data retrieval call binding the contract method 0x2b7d7930.
+// Nonce is a free data retrieval call binding the contract method 0xaffed0e0.
 //
-// Solidity: function messageToSign(address to, uint256 value, bytes data) view returns(bytes32)
-func (_Multisig *MultisigCallerSession) MessageToSign(to common.Address, value *big.Int, data []byte) ([32]byte, error) {
-	return _Multisig.Contract.MessageToSign(&_Multisig.CallOpts, to, value, data)
+// Solidity: function nonce() view returns(uint256)
+func (_Multisig *MultisigCallerSession) Nonce() (*big.Int, error) {
+	return _Multisig.Contract.Nonce(&_Multisig.CallOpts)
 }
 
 // AddOwnerWithThreshold is a paid mutator transaction binding the contract method 0x0d582f13.
@@ -503,48 +399,6 @@ func (_Multisig *MultisigTransactorSession) ChangeThreshold(_threshold *big.Int)
 	return _Multisig.Contract.ChangeThreshold(&_Multisig.TransactOpts, _threshold)
 }
 
-// DisableModule is a paid mutator transaction binding the contract method 0xe009cfde.
-//
-// Solidity: function disableModule(address prevModule, address module) returns()
-func (_Multisig *MultisigTransactor) DisableModule(opts *bind.TransactOpts, prevModule common.Address, module common.Address) (*types.Transaction, error) {
-	return _Multisig.contract.Transact(opts, "disableModule", prevModule, module)
-}
-
-// DisableModule is a paid mutator transaction binding the contract method 0xe009cfde.
-//
-// Solidity: function disableModule(address prevModule, address module) returns()
-func (_Multisig *MultisigSession) DisableModule(prevModule common.Address, module common.Address) (*types.Transaction, error) {
-	return _Multisig.Contract.DisableModule(&_Multisig.TransactOpts, prevModule, module)
-}
-
-// DisableModule is a paid mutator transaction binding the contract method 0xe009cfde.
-//
-// Solidity: function disableModule(address prevModule, address module) returns()
-func (_Multisig *MultisigTransactorSession) DisableModule(prevModule common.Address, module common.Address) (*types.Transaction, error) {
-	return _Multisig.Contract.DisableModule(&_Multisig.TransactOpts, prevModule, module)
-}
-
-// EnableModule is a paid mutator transaction binding the contract method 0x610b5925.
-//
-// Solidity: function enableModule(address module) returns()
-func (_Multisig *MultisigTransactor) EnableModule(opts *bind.TransactOpts, module common.Address) (*types.Transaction, error) {
-	return _Multisig.contract.Transact(opts, "enableModule", module)
-}
-
-// EnableModule is a paid mutator transaction binding the contract method 0x610b5925.
-//
-// Solidity: function enableModule(address module) returns()
-func (_Multisig *MultisigSession) EnableModule(module common.Address) (*types.Transaction, error) {
-	return _Multisig.Contract.EnableModule(&_Multisig.TransactOpts, module)
-}
-
-// EnableModule is a paid mutator transaction binding the contract method 0x610b5925.
-//
-// Solidity: function enableModule(address module) returns()
-func (_Multisig *MultisigTransactorSession) EnableModule(module common.Address) (*types.Transaction, error) {
-	return _Multisig.Contract.EnableModule(&_Multisig.TransactOpts, module)
-}
-
 // ExecTransaction is a paid mutator transaction binding the contract method 0xd84edcb9.
 //
 // Solidity: function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, bytes32 txHash, uint8[] vs, bytes32[] rs, bytes32[] ss) payable returns(bool success)
@@ -564,6 +418,27 @@ func (_Multisig *MultisigSession) ExecTransaction(to common.Address, value *big.
 // Solidity: function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, bytes32 txHash, uint8[] vs, bytes32[] rs, bytes32[] ss) payable returns(bool success)
 func (_Multisig *MultisigTransactorSession) ExecTransaction(to common.Address, value *big.Int, data []byte, operation uint8, safeTxGas *big.Int, txHash [32]byte, vs []uint8, rs [][32]byte, ss [][32]byte) (*types.Transaction, error) {
 	return _Multisig.Contract.ExecTransaction(&_Multisig.TransactOpts, to, value, data, operation, safeTxGas, txHash, vs, rs, ss)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0x60b5bb3f.
+//
+// Solidity: function initialize(address[] _owners, uint256 _threshold) returns()
+func (_Multisig *MultisigTransactor) Initialize(opts *bind.TransactOpts, _owners []common.Address, _threshold *big.Int) (*types.Transaction, error) {
+	return _Multisig.contract.Transact(opts, "initialize", _owners, _threshold)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0x60b5bb3f.
+//
+// Solidity: function initialize(address[] _owners, uint256 _threshold) returns()
+func (_Multisig *MultisigSession) Initialize(_owners []common.Address, _threshold *big.Int) (*types.Transaction, error) {
+	return _Multisig.Contract.Initialize(&_Multisig.TransactOpts, _owners, _threshold)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0x60b5bb3f.
+//
+// Solidity: function initialize(address[] _owners, uint256 _threshold) returns()
+func (_Multisig *MultisigTransactorSession) Initialize(_owners []common.Address, _threshold *big.Int) (*types.Transaction, error) {
+	return _Multisig.Contract.Initialize(&_Multisig.TransactOpts, _owners, _threshold)
 }
 
 // RemoveOwner is a paid mutator transaction binding the contract method 0xf8dc5dd9.
@@ -869,558 +744,6 @@ func (_Multisig *MultisigFilterer) WatchChangedThreshold(opts *bind.WatchOpts, s
 func (_Multisig *MultisigFilterer) ParseChangedThreshold(log types.Log) (*MultisigChangedThreshold, error) {
 	event := new(MultisigChangedThreshold)
 	if err := _Multisig.contract.UnpackLog(event, "ChangedThreshold", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-// MultisigDisabledModuleIterator is returned from FilterDisabledModule and is used to iterate over the raw logs and unpacked data for DisabledModule events raised by the Multisig contract.
-type MultisigDisabledModuleIterator struct {
-	Event *MultisigDisabledModule // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisigDisabledModuleIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisigDisabledModule)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisigDisabledModule)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisigDisabledModuleIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisigDisabledModuleIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisigDisabledModule represents a DisabledModule event raised by the Multisig contract.
-type MultisigDisabledModule struct {
-	Module common.Address
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterDisabledModule is a free log retrieval operation binding the contract event 0xaab4fa2b463f581b2b32cb3b7e3b704b9ce37cc209b5fb4d77e593ace4054276.
-//
-// Solidity: event DisabledModule(address module)
-func (_Multisig *MultisigFilterer) FilterDisabledModule(opts *bind.FilterOpts) (*MultisigDisabledModuleIterator, error) {
-
-	logs, sub, err := _Multisig.contract.FilterLogs(opts, "DisabledModule")
-	if err != nil {
-		return nil, err
-	}
-	return &MultisigDisabledModuleIterator{contract: _Multisig.contract, event: "DisabledModule", logs: logs, sub: sub}, nil
-}
-
-// WatchDisabledModule is a free log subscription operation binding the contract event 0xaab4fa2b463f581b2b32cb3b7e3b704b9ce37cc209b5fb4d77e593ace4054276.
-//
-// Solidity: event DisabledModule(address module)
-func (_Multisig *MultisigFilterer) WatchDisabledModule(opts *bind.WatchOpts, sink chan<- *MultisigDisabledModule) (event.Subscription, error) {
-
-	logs, sub, err := _Multisig.contract.WatchLogs(opts, "DisabledModule")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisigDisabledModule)
-				if err := _Multisig.contract.UnpackLog(event, "DisabledModule", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDisabledModule is a log parse operation binding the contract event 0xaab4fa2b463f581b2b32cb3b7e3b704b9ce37cc209b5fb4d77e593ace4054276.
-//
-// Solidity: event DisabledModule(address module)
-func (_Multisig *MultisigFilterer) ParseDisabledModule(log types.Log) (*MultisigDisabledModule, error) {
-	event := new(MultisigDisabledModule)
-	if err := _Multisig.contract.UnpackLog(event, "DisabledModule", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-// MultisigEnabledModuleIterator is returned from FilterEnabledModule and is used to iterate over the raw logs and unpacked data for EnabledModule events raised by the Multisig contract.
-type MultisigEnabledModuleIterator struct {
-	Event *MultisigEnabledModule // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisigEnabledModuleIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisigEnabledModule)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisigEnabledModule)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisigEnabledModuleIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisigEnabledModuleIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisigEnabledModule represents a EnabledModule event raised by the Multisig contract.
-type MultisigEnabledModule struct {
-	Module common.Address
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterEnabledModule is a free log retrieval operation binding the contract event 0xecdf3a3effea5783a3c4c2140e677577666428d44ed9d474a0b3a4c9943f8440.
-//
-// Solidity: event EnabledModule(address module)
-func (_Multisig *MultisigFilterer) FilterEnabledModule(opts *bind.FilterOpts) (*MultisigEnabledModuleIterator, error) {
-
-	logs, sub, err := _Multisig.contract.FilterLogs(opts, "EnabledModule")
-	if err != nil {
-		return nil, err
-	}
-	return &MultisigEnabledModuleIterator{contract: _Multisig.contract, event: "EnabledModule", logs: logs, sub: sub}, nil
-}
-
-// WatchEnabledModule is a free log subscription operation binding the contract event 0xecdf3a3effea5783a3c4c2140e677577666428d44ed9d474a0b3a4c9943f8440.
-//
-// Solidity: event EnabledModule(address module)
-func (_Multisig *MultisigFilterer) WatchEnabledModule(opts *bind.WatchOpts, sink chan<- *MultisigEnabledModule) (event.Subscription, error) {
-
-	logs, sub, err := _Multisig.contract.WatchLogs(opts, "EnabledModule")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisigEnabledModule)
-				if err := _Multisig.contract.UnpackLog(event, "EnabledModule", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseEnabledModule is a log parse operation binding the contract event 0xecdf3a3effea5783a3c4c2140e677577666428d44ed9d474a0b3a4c9943f8440.
-//
-// Solidity: event EnabledModule(address module)
-func (_Multisig *MultisigFilterer) ParseEnabledModule(log types.Log) (*MultisigEnabledModule, error) {
-	event := new(MultisigEnabledModule)
-	if err := _Multisig.contract.UnpackLog(event, "EnabledModule", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-// MultisigExecutionFromModuleFailureIterator is returned from FilterExecutionFromModuleFailure and is used to iterate over the raw logs and unpacked data for ExecutionFromModuleFailure events raised by the Multisig contract.
-type MultisigExecutionFromModuleFailureIterator struct {
-	Event *MultisigExecutionFromModuleFailure // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisigExecutionFromModuleFailureIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisigExecutionFromModuleFailure)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisigExecutionFromModuleFailure)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisigExecutionFromModuleFailureIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisigExecutionFromModuleFailureIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisigExecutionFromModuleFailure represents a ExecutionFromModuleFailure event raised by the Multisig contract.
-type MultisigExecutionFromModuleFailure struct {
-	Module common.Address
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterExecutionFromModuleFailure is a free log retrieval operation binding the contract event 0xacd2c8702804128fdb0db2bb49f6d127dd0181c13fd45dbfe16de0930e2bd375.
-//
-// Solidity: event ExecutionFromModuleFailure(address indexed module)
-func (_Multisig *MultisigFilterer) FilterExecutionFromModuleFailure(opts *bind.FilterOpts, module []common.Address) (*MultisigExecutionFromModuleFailureIterator, error) {
-
-	var moduleRule []interface{}
-	for _, moduleItem := range module {
-		moduleRule = append(moduleRule, moduleItem)
-	}
-
-	logs, sub, err := _Multisig.contract.FilterLogs(opts, "ExecutionFromModuleFailure", moduleRule)
-	if err != nil {
-		return nil, err
-	}
-	return &MultisigExecutionFromModuleFailureIterator{contract: _Multisig.contract, event: "ExecutionFromModuleFailure", logs: logs, sub: sub}, nil
-}
-
-// WatchExecutionFromModuleFailure is a free log subscription operation binding the contract event 0xacd2c8702804128fdb0db2bb49f6d127dd0181c13fd45dbfe16de0930e2bd375.
-//
-// Solidity: event ExecutionFromModuleFailure(address indexed module)
-func (_Multisig *MultisigFilterer) WatchExecutionFromModuleFailure(opts *bind.WatchOpts, sink chan<- *MultisigExecutionFromModuleFailure, module []common.Address) (event.Subscription, error) {
-
-	var moduleRule []interface{}
-	for _, moduleItem := range module {
-		moduleRule = append(moduleRule, moduleItem)
-	}
-
-	logs, sub, err := _Multisig.contract.WatchLogs(opts, "ExecutionFromModuleFailure", moduleRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisigExecutionFromModuleFailure)
-				if err := _Multisig.contract.UnpackLog(event, "ExecutionFromModuleFailure", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseExecutionFromModuleFailure is a log parse operation binding the contract event 0xacd2c8702804128fdb0db2bb49f6d127dd0181c13fd45dbfe16de0930e2bd375.
-//
-// Solidity: event ExecutionFromModuleFailure(address indexed module)
-func (_Multisig *MultisigFilterer) ParseExecutionFromModuleFailure(log types.Log) (*MultisigExecutionFromModuleFailure, error) {
-	event := new(MultisigExecutionFromModuleFailure)
-	if err := _Multisig.contract.UnpackLog(event, "ExecutionFromModuleFailure", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-// MultisigExecutionFromModuleSuccessIterator is returned from FilterExecutionFromModuleSuccess and is used to iterate over the raw logs and unpacked data for ExecutionFromModuleSuccess events raised by the Multisig contract.
-type MultisigExecutionFromModuleSuccessIterator struct {
-	Event *MultisigExecutionFromModuleSuccess // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *MultisigExecutionFromModuleSuccessIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(MultisigExecutionFromModuleSuccess)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(MultisigExecutionFromModuleSuccess)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *MultisigExecutionFromModuleSuccessIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *MultisigExecutionFromModuleSuccessIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// MultisigExecutionFromModuleSuccess represents a ExecutionFromModuleSuccess event raised by the Multisig contract.
-type MultisigExecutionFromModuleSuccess struct {
-	Module common.Address
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterExecutionFromModuleSuccess is a free log retrieval operation binding the contract event 0x6895c13664aa4f67288b25d7a21d7aaa34916e355fb9b6fae0a139a9085becb8.
-//
-// Solidity: event ExecutionFromModuleSuccess(address indexed module)
-func (_Multisig *MultisigFilterer) FilterExecutionFromModuleSuccess(opts *bind.FilterOpts, module []common.Address) (*MultisigExecutionFromModuleSuccessIterator, error) {
-
-	var moduleRule []interface{}
-	for _, moduleItem := range module {
-		moduleRule = append(moduleRule, moduleItem)
-	}
-
-	logs, sub, err := _Multisig.contract.FilterLogs(opts, "ExecutionFromModuleSuccess", moduleRule)
-	if err != nil {
-		return nil, err
-	}
-	return &MultisigExecutionFromModuleSuccessIterator{contract: _Multisig.contract, event: "ExecutionFromModuleSuccess", logs: logs, sub: sub}, nil
-}
-
-// WatchExecutionFromModuleSuccess is a free log subscription operation binding the contract event 0x6895c13664aa4f67288b25d7a21d7aaa34916e355fb9b6fae0a139a9085becb8.
-//
-// Solidity: event ExecutionFromModuleSuccess(address indexed module)
-func (_Multisig *MultisigFilterer) WatchExecutionFromModuleSuccess(opts *bind.WatchOpts, sink chan<- *MultisigExecutionFromModuleSuccess, module []common.Address) (event.Subscription, error) {
-
-	var moduleRule []interface{}
-	for _, moduleItem := range module {
-		moduleRule = append(moduleRule, moduleItem)
-	}
-
-	logs, sub, err := _Multisig.contract.WatchLogs(opts, "ExecutionFromModuleSuccess", moduleRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(MultisigExecutionFromModuleSuccess)
-				if err := _Multisig.contract.UnpackLog(event, "ExecutionFromModuleSuccess", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseExecutionFromModuleSuccess is a log parse operation binding the contract event 0x6895c13664aa4f67288b25d7a21d7aaa34916e355fb9b6fae0a139a9085becb8.
-//
-// Solidity: event ExecutionFromModuleSuccess(address indexed module)
-func (_Multisig *MultisigFilterer) ParseExecutionFromModuleSuccess(log types.Log) (*MultisigExecutionFromModuleSuccess, error) {
-	event := new(MultisigExecutionFromModuleSuccess)
-	if err := _Multisig.contract.UnpackLog(event, "ExecutionFromModuleSuccess", log); err != nil {
 		return nil, err
 	}
 	return event, nil

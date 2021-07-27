@@ -38,7 +38,6 @@ func TestIsOwner(t *testing.T) {
 	}
 }
 
-
 //func TestIsNotOwner(t *testing.T) {
 //	client, err := NewSimpleClient(kovanEndPoint)
 //	if err != nil {

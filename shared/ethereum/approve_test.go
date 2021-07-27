@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"math/big"
 	"os"
 	"testing"
@@ -11,28 +12,31 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
-	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var (
 	owners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"), common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")}
 
-	goerliMultisigContract = common.HexToAddress("0xB91f931ebEB626126b50AE2e9cE8CF7496497d98")
-	AmountBase             = big.NewInt(1000000000000000000)
+	/// proxy contract
+	goerliMultisigProxyContract = common.HexToAddress("")
+	AmountBase                  = big.NewInt(1000000000000000000)
 )
 
 func TestMultisigApprove(t *testing.T) {
 	password := "123456"
 	os.Setenv(keystore.EnvPassword, password)
 
+	owners := []common.Address{common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814"), common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
 	keys := make([]*secp256k1.Keypair, 0)
-	for _, owner := range owners {
-		kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+
+	for _, own := range owners {
+		kpI, err := keystore.KeypairFromAddress(own.Hex(), keystore.EthChain, keystorePath, false)
 		if err != nil {
 			panic(err)
 		}
 		kp, _ := kpI.(*secp256k1.Keypair)
+
 		keys = append(keys, kp)
 	}
 
@@ -42,44 +46,43 @@ func TestMultisigApprove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	multi, err := Multisig.NewMultisig(goerliMultisigContract, client.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	cd, _ := mabi.Pack("approve", goerliStakeManagerContract, big.NewInt(0).Mul(AmountBase, big.NewInt(100000000000000000)))
-	msg, err := multi.MessageToSign(nil, goerliMaticToken, defaultValue, cd)
+	mt := &ethmodel.MultiTransaction{
+		To:       goerliMaticToken,
+		Value:    big.NewInt(0),
+		CallData: cd,
+	}
+	txhash := common.HexToHash("0x8bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1d")
+	msg := mt.MessageToSign(txhash, goerliMultisigProxyContract)
+	t.Log("msg", hexutil.Encode(msg[:]))
+
+	multi, err := Multisig.NewMultisig(goerliMultisigProxyContract, client.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log(hexutil.Encode(msg[:]))
-
-	signatures := make([][]byte, 0)
+	sigs := make([][]byte, 0)
 	for _, key := range keys {
 		signature, err := crypto.Sign(msg[:], key.PrivateKey())
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Log(hexutil.Encode(signature))
-		t.Log(len(signature))
 
-		signatures = append(signatures, signature)
+		sigs = append(sigs, signature)
 	}
 
-	vs, rs, ss := utils.DecomposeSignature(signatures)
+	vs, rs, ss := utils.DecomposeSignature(sigs)
 	err = client.LockAndUpdateOpts()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	txhash := common.HexToHash("0x12d668ca5c97408167f046131a37b4ef10ccbd621d83f920eefddaa62fe77e0c")
 	tx, err := multi.ExecTransaction(
 		client.Opts(),
-		goerliMaticToken,
-		defaultValue,
-		cd,
-		uint8(config.Call),
+		mt.To,
+		mt.Value,
+		mt.CallData,
+		uint8(0),
 		big.NewInt(100000),
 		txhash,
 		vs,
@@ -93,5 +96,5 @@ func TestMultisigApprove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Log(tx.Hash())
+	t.Log("txHash", tx.Hash())
 }

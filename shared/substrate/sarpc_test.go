@@ -30,13 +30,13 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	assert.NoError(t, err)
 
-	for i := 2606000; i < 2608000; i++ {
+	for i := 2963178; i < 2963180; i++ {
 		evts, err := sc.GetEvents(uint64(i))
 		assert.NoError(t, err)
 		for _, evt := range evts {
-			if evt.ModuleId != config.RTokenLedgerModuleId {
-				continue
-			}
+			//if evt.ModuleId != config.RTokenLedgerModuleId {
+			//	continue
+			//}
 			t.Log("i", i)
 			t.Log("ModuleId", evt.ModuleId)
 			t.Log("EventId", evt.EventId)

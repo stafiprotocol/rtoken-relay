@@ -1,9 +1,10 @@
 package ethmodel
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
 )
 
 type MultiTransaction struct {
@@ -12,6 +13,17 @@ type MultiTransaction struct {
 	CallData  []byte
 	CallType  uint8
 	SafeTxGas *big.Int
+}
+
+func (mt *MultiTransaction) MessageToSign(txHash common.Hash, pool common.Address) common.Hash {
+	packed := make([]byte, 0)
+	packed = append(packed, pool.Bytes()...)
+	packed = append(packed, mt.To.Bytes()...)
+	packed = append(packed, common.LeftPadBytes(mt.Value.Bytes(), 32)...)
+	packed = append(packed, mt.CallData...)
+	packed = append(packed, txHash.Bytes()...)
+
+	return crypto.Keccak256Hash(packed)
 }
 
 type BatchTransaction struct {

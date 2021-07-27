@@ -150,7 +150,7 @@ func TestMultisigBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bal, err := matic.BalanceOf(nil, goerliMultisigContract)
+	bal, err := matic.BalanceOf(nil, goerliMultisigProxyContract)
 	if err != nil {
 		t.Fatal(err)
 	}

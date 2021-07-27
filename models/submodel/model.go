@@ -2,10 +2,10 @@ package submodel
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
