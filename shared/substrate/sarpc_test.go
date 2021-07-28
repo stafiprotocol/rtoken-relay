@@ -39,30 +39,22 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//	t.Log(e.EventId)
 	//}
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
+	for i := 8537570; i <= 8538000; i++ {
+		//if i % 10 == 0 {
+			t.Log("i", i)
+		//}
 
-	for i := 0; i < 2; i++ {
-		go func(i int) {
-			if i%2 == 0 {
-				t.Log("i", i)
-				exs, err := sc.GetExtrinsics("0x6df4292f19e8bbdb1d2563d877b262dac22e4307f98b29b249f7281bf971e72e")
+		_, err := sc.GetEvents(uint64(i))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-				assert.NoError(t, err)
-				for _, e := range exs {
-					t.Log(e.ExtrinsicHash)
-				}
-			} else {
-				t.Log("i", i)
-				evt, err := sc.GetEvents(7112780)
-				assert.NoError(t, err)
-				for _, e := range evt {
-					t.Log(e.EventId)
-				}
-				t.Log("end")
-			}
-			wg.Done()
-		}(i)
+		//assert.NoError(t, err)
+		//for _, evt := range evts {
+		//	fmt.Println(evt.ModuleId)
+		//	fmt.Println(evt.EventId)
+		//	fmt.Println(evt.Params)
+		//}
 	}
 	wg.Wait()
 }
