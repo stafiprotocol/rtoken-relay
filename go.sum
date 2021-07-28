@@ -861,6 +861,8 @@ github.com/stafiprotocol/go-substrate-rpc-client v1.0.8 h1:bukqhkjJlawIqddsq9Lzp
 github.com/stafiprotocol/go-substrate-rpc-client v1.0.8/go.mod h1:P3xucNyw6UjKvCvGg0eiQJhcRyZsUv5a9akxDTLMHFk=
 github.com/stafiprotocol/go-substrate-rpc-client v1.0.9 h1:QIhihtduywbuvUi4aSRKqfWr+PxkPWWIxW2AqxPWxTw=
 github.com/stafiprotocol/go-substrate-rpc-client v1.0.9/go.mod h1:P3xucNyw6UjKvCvGg0eiQJhcRyZsUv5a9akxDTLMHFk=
+github.com/stafiprotocol/go-substrate-rpc-client v1.1.0 h1:WpO3qD2syhFFgLldPy77jDqrz7cbilKsyap9PW8mP4g=
+github.com/stafiprotocol/go-substrate-rpc-client v1.1.0/go.mod h1:P3xucNyw6UjKvCvGg0eiQJhcRyZsUv5a9akxDTLMHFk=
 github.com/stafiprotocol/solana-go-sdk v0.0.1 h1:33uMGKeqd2yx71dSO5CACwlqwW7peFJxWOMjT2eBNw4=
 github.com/stafiprotocol/solana-go-sdk v0.0.1/go.mod h1:wzWOdCYIbddyyZPp7gaK4eugJBbpYqg2APy8D8ovyJQ=
 github.com/stafiprotocol/solana-go-sdk v0.0.2 h1:rTsJG3W0G5mGm4PzzdohCygPBFLl+PE2omsnqDA9iD0=
