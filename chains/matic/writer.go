@@ -468,7 +468,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	var mef *submodel.MultiEventFlow
 	var bondFlow *submodel.BondReportedFlow
 	var operation ethmodel.CallEnum
-	var value, gas *big.Int
+	var value, safeGas, totalGas *big.Int
 	if sigs.TxType != submodel.OriginalClaimRewards {
 		mef, ok = w.getEvents(hash)
 		if !ok {
@@ -477,8 +477,9 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		}
 		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 		operation = mef.MultiTransaction.Operation
-		gas = mef.MultiTransaction.SafeTxGas
 		value = mef.MultiTransaction.Value
+		safeGas = mef.MultiTransaction.SafeTxGas
+		totalGas = mef.MultiTransaction.TotalGas
 	} else {
 		bondFlow, ok = w.getBondReported(hash)
 		if !ok {
@@ -486,8 +487,9 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 			return false
 		}
 		operation = bondFlow.MultiTransaction.Operation
-		gas = bondFlow.MultiTransaction.SafeTxGas
-		value = mef.MultiTransaction.Value
+		safeGas = bondFlow.MultiTransaction.SafeTxGas
+		value = bondFlow.MultiTransaction.Value
+		totalGas = bondFlow.MultiTransaction.TotalGas
 	}
 
 	txTypeErr := fmt.Errorf("processSignatureEnough TxType %s not supported", sigs.TxType)
@@ -547,7 +549,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	//	return false
 	//}
 
-	err = w.conn.AsMulti(poolAddr, to, value, calldata, uint8(operation), gas, txHash, vs, rs, ss)
+	err = w.conn.AsMulti(poolAddr, to, value, calldata, uint8(operation), safeGas, totalGas, txHash, vs, rs, ss)
 	if err != nil {
 		w.log.Error("AsMulti error", "err", err)
 		return false

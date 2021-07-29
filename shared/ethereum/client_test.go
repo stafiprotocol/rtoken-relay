@@ -41,13 +41,14 @@ var (
 	testLogger   = newTestLogger("test")
 	keystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum/"
 
-	mabi, _    = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
-	sendAbi, _ = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
-	AliceKp    = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
+	maticTokenAbi, _ = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
+	sendAbi, _       = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
+	multisigAbi, _   = abi.JSON(strings.NewReader(Multisig.MultisigABI))
+	AliceKp          = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
 )
 
 func TestTransferCallData(t *testing.T) {
-	cd, err := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
+	cd, err := maticTokenAbi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
 	assert.NoError(t, err)
 	t.Log(hexutil.Encode(cd))
 	// 0xa9059cbb000000000000000000000000ad0bf51f7fc89e262edbbdf53c260088b024d8570000000000000000000000000000000000000000000000008ac7230489e80000
@@ -74,7 +75,7 @@ func TestTransferCallData(t *testing.T) {
 //		t.Fatal(err)
 //	}
 //
-//	cd, _ := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
+//	cd, _ := maticTokenAbi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
 //	msg, err := multi.MessageToSign(nil, goerliErc20Token, defaultValue, cd)
 //	if err != nil {
 //		t.Fatal(err)
@@ -154,8 +155,8 @@ func TestMakeUpTransactions(t *testing.T) {
 //		t.Fatal(err)
 //	}
 //
-//	cd1, _ := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
-//	cd2, _ := mabi.Pack("transfer", receiver2, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500)))
+//	cd1, _ := maticTokenAbi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10)))
+//	cd2, _ := maticTokenAbi.Pack("transfer", receiver2, big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(500)))
 //
 //	bts := ethmodel.BatchTransactions{
 //		&ethmodel.BatchTransaction{
@@ -239,7 +240,7 @@ func TestTransferPack(t *testing.T) {
 	value := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10))
 	a := types.NewUCompact(value)
 	b := big.Int(a)
-	cd1, err := mabi.Pack("transfer", receiver1, &b)
+	cd1, err := maticTokenAbi.Pack("transfer", receiver1, &b)
 
 	assert.NoError(t, err)
 	t.Log(hexutil.Encode(cd1))

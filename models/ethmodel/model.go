@@ -20,6 +20,7 @@ type MultiTransaction struct {
 	CallData  []byte
 	Operation CallEnum
 	SafeTxGas *big.Int
+	TotalGas  *big.Int
 }
 
 func (mt *MultiTransaction) MessageToSign(txHash common.Hash, pool common.Address) common.Hash {

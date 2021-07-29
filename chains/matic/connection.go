@@ -211,6 +211,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 			return submodel.OriginalTxDefault, nil, err
 		}
 		tx.SafeTxGas = BuyVoucherSafeTxGas
+		tx.TotalGas = BuyVoucherSafeTxGas
 		return submodel.OriginalUnbond, tx, nil
 	} else if bond.Cmp(unbond) > 0 {
 		if unbond.Uint64() == 0 && bond.Cmp(leastBond) <= 0 {
@@ -225,6 +226,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 			return submodel.OriginalTxDefault, nil, err
 		}
 		tx.SafeTxGas = SellVoucherNewSafeTxGas
+		tx.TotalGas = SellVoucherNewSafeTxGas
 		return submodel.OriginalBond, tx, nil
 	} else {
 		c.log.Info("bond is equal to unbond, NoCall")
@@ -263,6 +265,7 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 		CallData:  packed,
 		Operation: ethmodel.Call,
 		SafeTxGas: RestakeSafeTxGas,
+		TotalGas:  RestakeSafeTxGas,
 	}, nil
 }
 
@@ -318,6 +321,7 @@ func (c *Connection) WithdrawCall(share, pool common.Address, nonce *big.Int) (*
 		CallData:  packed,
 		Operation: ethmodel.Call,
 		SafeTxGas: WithdrawTxGas,
+		TotalGas:  WithdrawTxGas,
 	}, nil
 }
 
@@ -390,7 +394,7 @@ func (c *Connection) TotalStaked(share, staker common.Address) (*big.Int, error)
 
 func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.MultiTransaction, error) {
 	bts := make(ethmodel.BatchTransactions, 0)
-	gas := big.NewInt(0)
+	totalGas := big.NewInt(0)
 	for _, rec := range receives {
 		addr := common.BytesToAddress(rec.Recipient)
 		value := big.Int(rec.Value)
@@ -406,7 +410,7 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 			DataLength: big.NewInt(int64(len(calldata))),
 			Data:       calldata,
 		}
-		gas.Add(gas, TransferTxGas)
+		totalGas.Add(totalGas, TransferTxGas)
 		bts = append(bts, bt)
 	}
 
@@ -420,7 +424,8 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 		Value:     DefaultValue,
 		CallData:  cd,
 		Operation: ethmodel.DelegateCall,
-		SafeTxGas: gas,
+		SafeTxGas: TransferTxGas,
+		TotalGas:  totalGas,
 	}, nil
 }
 
@@ -430,6 +435,7 @@ func (c *Connection) AsMulti(
 	calldata []byte,
 	operation uint8,
 	safeTxGas *big.Int,
+	totalGas *big.Int,
 	txHash [32]byte,
 	vs []uint8, rs [][32]byte, ss [][32]byte) error {
 	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
@@ -441,7 +447,7 @@ func (c *Connection) AsMulti(
 		case <-c.stop:
 			return errors.New("AsMulting stopped")
 		default:
-			err := c.conn.LockAndUpdateOpts(safeTxGas)
+			err := c.conn.LockAndUpdateOpts(totalGas)
 			if err != nil {
 				c.log.Error("Failed to update tx opts", "err", err)
 				continue

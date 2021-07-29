@@ -5,7 +5,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ProxyAdmin"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -26,14 +29,72 @@ func TestMultisigProxyAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(owner)
+	t.Log("owner", owner)
 
 	admin, err := proxyAdmin.GetProxyAdmin(nil, goerliMultisigProxy)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(admin)
+	t.Log("admin", admin)
+
+	impl, err := proxyAdmin.GetProxyImplementation(nil, goerliMultisigProxy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("impl", impl)
 }
+
+func TestMultisigProxyStorage(t *testing.T) {
+	txhash := common.HexToHash("0x8ed668ca5c97408167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1b")
+	client := NewGoerliClient()
+
+	multisig, err := Multisig.NewMultisig(goerliMultisigProxy, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := multisig.TxHashs(nil, txhash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, state, uint8(ethmodel.HashStateSuccess))
+}
+
+//func TestMultisigProxyUpgrade(t *testing.T) {
+//	password := "123456"
+//	os.Setenv(keystore.EnvPassword, password)
+//
+//	admin := common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")
+//	kpI, err := keystore.KeypairFromAddress(admin.Hex(), keystore.EthChain, keystorePath, false)
+//	if err != nil {
+//		panic(err)
+//	}
+//	kp, _ := kpI.(*secp256k1.Keypair)
+//
+//	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+//	err = client.Connect()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	proxyAdmin, err := ProxyAdmin.NewProxyAdmin(goerliProxyAdmin, client.Client())
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	newImpl := common.HexToAddress("0x33b520a2eB16e08C4110564b70D0F5e57a1Bcf04")
+//
+//	err = client.LockAndUpdateOpts(big.NewInt(0))
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	tx, err := proxyAdmin.Upgrade(client.Opts(), goerliMultisigProxy, newImpl)
+//	client.UnlockOpts()
+//
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	t.Log("Upgrade txHash", tx.Hash())
+//}
 
 //func TestMultisigProxyInitialize(t *testing.T) {
 //	password := "123456"
@@ -119,13 +180,16 @@ func TestErc20Balance(t *testing.T) {
 //		t.Fatal(err)
 //	}
 //
-//	cd, _ := mabi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(10000000000000000), big.NewInt(10)))
+//	cd, _ := maticTokenAbi.Pack("transfer", receiver1, big.NewInt(0).Mul(big.NewInt(10000000000000000), big.NewInt(10)))
 //	mt := &ethmodel.MultiTransaction{
-//		To:       goerliRFis,
-//		Value:    big.NewInt(0),
-//		CallData: cd,
+//		To:        goerliRFis,
+//		Value:     big.NewInt(0),
+//		CallData:  cd,
+//		Operation: ethmodel.Call,
+//		SafeTxGas: big.NewInt(100000),
+//		TotalGas: big.NewInt(100000),
 //	}
-//	txhash := common.HexToHash("0x8ed668ca5c97408167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1b")
+//	txhash := common.HexToHash("0x1ed668ca5c97408167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1b")
 //	msg := mt.MessageToSign(txhash, goerliMultisigProxy)
 //	t.Log("msg", hexutil.Encode(msg[:]))
 //
@@ -145,7 +209,7 @@ func TestErc20Balance(t *testing.T) {
 //	}
 //
 //	vs, rs, ss := utils.DecomposeSignature(sigs)
-//	err = client.LockAndUpdateOpts()
+//	err = client.LockAndUpdateOpts(mt.TotalGas)
 //	if err != nil {
 //		t.Fatal(err)
 //	}
@@ -155,8 +219,8 @@ func TestErc20Balance(t *testing.T) {
 //		mt.To,
 //		mt.Value,
 //		mt.CallData,
-//		uint8(0),
-//		big.NewInt(100000),
+//		uint8(mt.Operation),
+//		mt.SafeTxGas,
 //		txhash,
 //		vs,
 //		rs,
