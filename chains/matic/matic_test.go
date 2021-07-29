@@ -1,13 +1,14 @@
 package matic
 
 import (
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
-	"gotest.tools/assert"
 	"math/big"
 	"strings"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
+	"github.com/stretchr/testify/assert"
 )
 
 var (

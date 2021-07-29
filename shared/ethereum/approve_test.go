@@ -1,17 +1,17 @@
 package ethereum
 
 import (
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"math/big"
 	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -48,9 +48,11 @@ func TestMultisigApprove(t *testing.T) {
 
 	cd, _ := mabi.Pack("approve", goerliStakeManagerContract, big.NewInt(0).Mul(AmountBase, big.NewInt(100000000000000000)))
 	mt := &ethmodel.MultiTransaction{
-		To:       goerliMaticToken,
-		Value:    big.NewInt(0),
-		CallData: cd,
+		To:        goerliMaticToken,
+		Value:     big.NewInt(0),
+		CallData:  cd,
+		Operation: ethmodel.Call,
+		SafeTxGas: big.NewInt(100000),
 	}
 	txhash := common.HexToHash("0x8bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1d")
 	msg := mt.MessageToSign(txhash, goerliMultisigProxyContract)
@@ -72,7 +74,7 @@ func TestMultisigApprove(t *testing.T) {
 	}
 
 	vs, rs, ss := utils.DecomposeSignature(sigs)
-	err = client.LockAndUpdateOpts()
+	err = client.LockAndUpdateOpts(mt.SafeTxGas)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +84,8 @@ func TestMultisigApprove(t *testing.T) {
 		mt.To,
 		mt.Value,
 		mt.CallData,
-		uint8(0),
-		big.NewInt(100000),
+		uint8(mt.Operation),
+		mt.SafeTxGas,
 		txhash,
 		vs,
 		rs,

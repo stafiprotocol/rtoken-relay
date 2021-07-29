@@ -21,7 +21,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
-	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -32,7 +31,7 @@ import (
 
 var (
 	DefaultValue     = big.NewInt(0)
-	TxConfirmLimit   = 30
+	TxConfirmLimit   = 50
 	TxRetryInterval  = time.Second * 2
 	ErrNonceTooLow   = errors.New("nonce too low")
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
@@ -201,7 +200,7 @@ func (c *Connection) Unbond(shareAddress, user common.Address, nonce *big.Int) (
 
 func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastBond *big.Int) (submodel.OriginalTx, *ethmodel.MultiTransaction, error) {
 	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
-	tx := &ethmodel.MultiTransaction{To: share, Value: DefaultValue}
+	tx := &ethmodel.MultiTransaction{To: share, Value: DefaultValue, Operation: ethmodel.Call}
 	var err error
 
 	if bond.Cmp(unbond) < 0 {
@@ -211,6 +210,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 		if err != nil {
 			return submodel.OriginalTxDefault, nil, err
 		}
+		tx.SafeTxGas = BuyVoucherSafeTxGas
 		return submodel.OriginalUnbond, tx, nil
 	} else if bond.Cmp(unbond) > 0 {
 		if unbond.Uint64() == 0 && bond.Cmp(leastBond) <= 0 {
@@ -224,6 +224,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 		if err != nil {
 			return submodel.OriginalTxDefault, nil, err
 		}
+		tx.SafeTxGas = SellVoucherNewSafeTxGas
 		return submodel.OriginalBond, tx, nil
 	} else {
 		c.log.Info("bond is equal to unbond, NoCall")
@@ -257,9 +258,11 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 	}
 
 	return &ethmodel.MultiTransaction{
-		To:       share,
-		Value:    DefaultValue,
-		CallData: packed,
+		To:        share,
+		Value:     DefaultValue,
+		CallData:  packed,
+		Operation: ethmodel.Call,
+		SafeTxGas: RestakeSafeTxGas,
 	}, nil
 }
 
@@ -310,9 +313,11 @@ func (c *Connection) WithdrawCall(share, pool common.Address, nonce *big.Int) (*
 	}
 
 	return &ethmodel.MultiTransaction{
-		To:       share,
-		Value:    DefaultValue,
-		CallData: packed,
+		To:        share,
+		Value:     DefaultValue,
+		CallData:  packed,
+		Operation: ethmodel.Call,
+		SafeTxGas: WithdrawTxGas,
 	}, nil
 }
 
@@ -385,6 +390,7 @@ func (c *Connection) TotalStaked(share, staker common.Address) (*big.Int, error)
 
 func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.MultiTransaction, error) {
 	bts := make(ethmodel.BatchTransactions, 0)
+	gas := big.NewInt(0)
 	for _, rec := range receives {
 		addr := common.BytesToAddress(rec.Recipient)
 		value := big.Int(rec.Value)
@@ -394,13 +400,13 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 		}
 
 		bt := &ethmodel.BatchTransaction{
-			Operation:  uint8(config.Call),
+			Operation:  uint8(ethmodel.Call),
 			To:         c.maticTokenContract,
 			Value:      DefaultValue,
 			DataLength: big.NewInt(int64(len(calldata))),
 			Data:       calldata,
 		}
-
+		gas.Add(gas, TransferTxGas)
 		bts = append(bts, bt)
 	}
 
@@ -410,9 +416,11 @@ func (c *Connection) TransferCall(receives []*submodel.Receive) (*ethmodel.Multi
 	}
 
 	return &ethmodel.MultiTransaction{
-		To:       c.multiSendContract,
-		Value:    DefaultValue,
-		CallData: cd,
+		To:        c.multiSendContract,
+		Value:     DefaultValue,
+		CallData:  cd,
+		Operation: ethmodel.DelegateCall,
+		SafeTxGas: gas,
 	}, nil
 }
 
@@ -433,7 +441,7 @@ func (c *Connection) AsMulti(
 		case <-c.stop:
 			return errors.New("AsMulting stopped")
 		default:
-			err := c.conn.LockAndUpdateOpts()
+			err := c.conn.LockAndUpdateOpts(safeTxGas)
 			if err != nil {
 				c.log.Error("Failed to update tx opts", "err", err)
 				continue
@@ -484,7 +492,7 @@ func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) er
 		if err != nil {
 			return err
 		}
-		return c.conn.WaitForBlock(latest, big.NewInt(3))
+		return c.conn.WaitForBlock(latest, big.NewInt(4))
 	}
 
 	for i := 0; i < TxConfirmLimit; i++ {

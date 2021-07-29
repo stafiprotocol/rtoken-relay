@@ -7,11 +7,18 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+type CallEnum uint8
+
+var (
+	Call         = CallEnum(0)
+	DelegateCall = CallEnum(1)
+)
+
 type MultiTransaction struct {
 	To        common.Address
 	Value     *big.Int
 	CallData  []byte
-	CallType  uint8
+	Operation CallEnum
 	SafeTxGas *big.Int
 }
 
@@ -22,6 +29,7 @@ func (mt *MultiTransaction) MessageToSign(txHash common.Hash, pool common.Addres
 	packed = append(packed, common.LeftPadBytes(mt.Value.Bytes(), 32)...)
 	packed = append(packed, mt.CallData...)
 	packed = append(packed, txHash.Bytes()...)
+	packed = append(packed, byte(mt.Operation))
 
 	return crypto.Keccak256Hash(packed)
 }

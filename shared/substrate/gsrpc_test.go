@@ -2,22 +2,23 @@ package substrate
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"math/big"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 	"github.com/stretchr/testify/assert"
@@ -919,7 +920,7 @@ func TestSignatures(t *testing.T) {
 	t.Log("ss1", hexutil.Encode(ss[1][:]))
 
 	value := big.NewInt(0)
-	operation := config.Call
+	operation := ethmodel.Call
 	safeTxGas := big.NewInt(300000)
 	txHash := common.HexToHash("0xca56fae341743f3c9c6e0832b76cb64a06a3f8c5d2b98d658baec971ca16f073")
 

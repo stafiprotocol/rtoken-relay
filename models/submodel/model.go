@@ -2,6 +2,7 @@ package submodel
 
 import (
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -265,15 +266,16 @@ type EraPoolUpdatedFlow struct {
 }
 
 type BondReportedFlow struct {
-	Symbol        core.RSymbol
-	ShotId        types.Hash
-	LastVoter     types.AccountID
-	LastVoterFlag bool
-	Snap          *PoolSnapshot
-	LastEra       uint32
-	SubAccounts   []types.Bytes
-	Stashes       []types.AccountID
-	ValidatorId   *big.Int
+	Symbol           core.RSymbol
+	ShotId           types.Hash
+	LastVoter        types.AccountID
+	LastVoterFlag    bool
+	Snap             *PoolSnapshot
+	LastEra          uint32
+	SubAccounts      []types.Bytes
+	Stashes          []types.AccountID
+	ValidatorId      *big.Int
+	MultiTransaction *ethmodel.MultiTransaction
 }
 
 type ActiveReportedFlow struct {
@@ -328,18 +330,19 @@ type GetEraNominatedFlow struct {
 }
 
 type MultiEventFlow struct {
-	EventId         string
-	Symbol          core.RSymbol
-	EventData       interface{}
-	Threshold       uint16
-	SubAccounts     []types.Bytes
-	Key             *signature.KeyringPair
-	Others          []types.AccountID
-	OpaqueCalls     []*MultiOpaqueCall
-	PaymentInfo     *rpc.PaymentQueryInfo
-	NewMulCallHashs map[string]bool
-	MulExeCallHashs map[string]bool
-	ValidatorId     *big.Int
+	EventId          string
+	Symbol           core.RSymbol
+	EventData        interface{}
+	Threshold        uint16
+	SubAccounts      []types.Bytes
+	Key              *signature.KeyringPair
+	Others           []types.AccountID
+	OpaqueCalls      []*MultiOpaqueCall
+	PaymentInfo      *rpc.PaymentQueryInfo
+	NewMulCallHashs  map[string]bool
+	MulExeCallHashs  map[string]bool
+	ValidatorId      *big.Int
+	MultiTransaction *ethmodel.MultiTransaction
 }
 
 type EventNewMultisig struct {
