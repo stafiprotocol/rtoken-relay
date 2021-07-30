@@ -194,7 +194,7 @@ func TestProxyTransferErc20(t *testing.T) {
 		CallData:  cd,
 		Operation: ethmodel.Call,
 		SafeTxGas: big.NewInt(100000),
-		TotalGas: big.NewInt(100000),
+		TotalGas:  big.NewInt(100000),
 	}
 	txhash := common.HexToHash("0x2ed668ca5c97408167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1b")
 	msg := mt.MessageToSign(txhash, goerliMultisigProxy)

@@ -7,18 +7,13 @@ import (
 	"bytes"
 	"context"
 	"math/big"
-	"strings"
 	"testing"
 
-	"github.com/ChainSafe/log15"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
-	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
@@ -28,7 +23,6 @@ import (
 )
 
 var (
-	goerliEndPoint          = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	goerliHttpEndPoint      = "https://goerli.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
 	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
@@ -37,14 +31,6 @@ var (
 	receiver1    = common.HexToAddress("0xaD0bf51f7fc89e262edBbdF53C260088B024D857")
 	receiver2    = common.HexToAddress("0x1Bf32E717FfeD95c5629bd9628e6F11E380e096B")
 	defaultValue = big.NewInt(0)
-
-	testLogger   = newTestLogger("test")
-	keystorePath = "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum/"
-
-	maticTokenAbi, _ = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
-	sendAbi, _       = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
-	multisigAbi, _   = abi.JSON(strings.NewReader(Multisig.MultisigABI))
-	AliceKp          = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
 )
 
 func TestTransferCallData(t *testing.T) {
@@ -229,12 +215,6 @@ func TestMakeUpTransactions(t *testing.T) {
 //
 //	t.Log(tx.Hash())
 //}
-
-func newTestLogger(name string) log15.Logger {
-	tLog := log15.New("chain", name)
-	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlError, tLog.GetHandler()))
-	return tLog
-}
 
 func TestTransferPack(t *testing.T) {
 	value := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(10))
