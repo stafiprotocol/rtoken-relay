@@ -16,6 +16,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
+	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
@@ -25,17 +26,18 @@ var (
 
 	/// update these vars before running TestMultisigApprove
 	goerliMultisigProxyContract = common.HexToAddress("")
-	goerliEndPoint              = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	keystorePath                = "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum/"
 	proxyOwners                 = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
 	txhash                      = common.HexToHash("0x8bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1d")
 
+	goerliEndPoint             = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	testLogger                 = newTestLogger("test")
 	goerliStakeManagerContract = common.HexToAddress("0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3")
 	goerliMaticToken           = common.HexToAddress("0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae")
 	maticTokenAbi, _           = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
 	sendAbi, _                 = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
 	multisigAbi, _             = abi.JSON(strings.NewReader(Multisig.MultisigABI))
+	ValidatorShareAbi, _       = abi.JSON(strings.NewReader(ValidatorShare.ValidatorShareABI))
 	AliceKp                    = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
 	AmountBase                 = big.NewInt(1e18)
 )

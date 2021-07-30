@@ -183,24 +183,11 @@ func TestTotalStaked(t *testing.T) {
 	}
 	t.Log(pool1, "totalStake", total1)
 
-	pool2 := common.HexToAddress("0xfc42de640aa9759d460e1a11416eca95d25c5908")
-	total2, _, err := shr.GetTotalStake(nil, pool2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(pool2, "totalStake", total2)
-
 	nonce1, err := shr.UnbondNonces(nil, pool1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log("nonce1", nonce1)
-
-	nonce2, err := shr.UnbondNonces(nil, pool2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("nonce2", nonce2)
 
 	matic, err := MaticToken.NewMaticToken(goerliMaticToken, client)
 	if err != nil {
@@ -211,7 +198,7 @@ func TestTotalStaked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(bal)
+	t.Log("pool1Bal", bal)
 
 	start, err := manager.Epoch(nil)
 	if err != nil {
@@ -230,4 +217,10 @@ func TestTotalStaked(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("interval", interval)
+
+	reward, err := shr.GetLiquidRewards(nil, pool1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("reward", reward)
 }
