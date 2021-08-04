@@ -20,7 +20,7 @@ var (
 	transferPoolOwners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"), common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")}
 	transferAmount     = big.NewInt(0).Mul(AmountBase, big.NewInt(42)) // 表示42个matic
 	transferDst        = common.HexToHash("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
-	transferTxHash     = common.HexToHash("0x9bd668ca5c97508178f123131a37b4ef10ccbd621dabf920eeeddbb62fe77e1d")
+	transferTxHash     = common.HexToHash("0x9bd668ca5c97508178f123131a37b4ab10ccbd621dabf920eeeddbb62fe77e1d")
 )
 
 func TestMultisigTransfer(t *testing.T) {

@@ -19,6 +19,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -496,4 +497,49 @@ func TestWithdrawable(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("unbondAmount", unbond)
+}
+
+func TestBond(t *testing.T) {
+	//password := "123456"
+	//os.Setenv(keystore.EnvPassword, password)
+	//
+	//kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//kp, _ := kpI.(*secp256k1.Keypair)
+	//
+	//client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	//err = client.Connect()
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+
+	client := NewGoerliClient()
+	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	share, err := manager.Validators(nil, big.NewInt(9))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("share", share.ContractAddress)
+
+	shr, err := ValidatorShare.NewValidatorShare(share.ContractAddress, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = shr
+
+	amount, _ := utils.StringToBigint("32000000000000000000")
+	_ = amount
+
+	//tx, err := shr.BuyVoucher(client.Opts(), amount, big.NewInt(1))
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Log("txHash", tx.Hash())
 }
