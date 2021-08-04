@@ -309,7 +309,7 @@ func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromSub
 }
 
 //assemble multiSig tx bytes for broadcast
-func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, txBts []byte, err error) {
+func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte, threshold uint32) (txHash, txBts []byte, err error) {
 
 	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
 	if err != nil {
@@ -342,14 +342,17 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 	multiSigData := multisig.NewMultisig(len(multiSigPub.PubKeys))
 	var useSequence uint64
 
+	correntSigNumber := uint32(0)
 	for i, sig := range willUseSigs {
+		if correntSigNumber == threshold {
+			break
+		}
 		//check sequence
 		if i == 0 {
 			useSequence = sig.Sequence
 		} else {
 			if useSequence != sig.Sequence {
-				return nil, nil, fmt.Errorf("sigs sequence not equal sequence 1: %d ,sequence %d: %d",
-					useSequence, i, sig.Sequence)
+				continue
 			}
 		}
 		//check sig
@@ -361,12 +364,17 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte) (txHash, 
 
 		err = xAuthSigning.VerifySignature(sig.PubKey, signingData, sig.Data, c.clientCtx.TxConfig.SignModeHandler(), txBuilder.GetTx())
 		if err != nil {
-			return nil, nil, fmt.Errorf("couldn't verify signature: %w", err)
+			continue
 		}
 
 		if err := multisig.AddSignatureV2(multiSigData, sig, multiSigPub.GetPubKeys()); err != nil {
-			return nil, nil, err
+			continue
 		}
+		correntSigNumber++
+	}
+
+	if correntSigNumber != threshold {
+		return nil, nil, fmt.Errorf("correct sig number:%d  threshold %d", correntSigNumber, threshold)
 	}
 
 	sigV2 := signing.SignatureV2{

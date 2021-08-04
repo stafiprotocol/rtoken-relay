@@ -3,7 +3,9 @@ package cosmos
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ChainSafe/log15"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -42,7 +44,13 @@ func (w *writer) setRouter(r chains.Router) {
 }
 
 //resolve msg from other chains
-func (w *writer) ResolveMessage(m *core.Message) bool {
+func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
+	defer func() {
+		if !processOk {
+			panic(fmt.Sprintf("resolveMessage process failed. %+v", m))
+		}
+	}()
+
 	switch m.Reason {
 	case core.LiquidityBond:
 		return w.processLiquidityBond(m)
@@ -60,7 +68,7 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processValidatorUpdatedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
-		return false
+		return true
 	}
 }
 
@@ -398,7 +406,8 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := GetTransferProposalId(flow.ShotId)
+
+	proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx))
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
@@ -421,7 +430,9 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	w.log.Info("processActiveReportedEvent gen unsigned transfer Tx",
 		"pool address", poolAddr.String(),
 		"out put", outPuts,
-		"proposalId", proposalIdHexStr)
+		"proposalId", proposalIdHexStr,
+		"unsignedTx", hex.EncodeToString(unSignedTx),
+		"signature", hex.EncodeToString(sigBts))
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	return w.submitMessage(result)
@@ -574,14 +585,18 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		signatures = append(signatures, sig)
 	}
 	proposalIdHexStr := hex.EncodeToString(sigs.ProposalId)
-
+	//skip old proposalId
+	if strings.EqualFold(proposalIdHexStr, "beb42eb5b02218e5c6fcb93525ec8b9cc40898b97fd4b736c490c757c9f46e8a") {
+		return true
+	}
 	//if cached tx not exist,return false,not rebuild from proposalId
 	wrappedUnSignedTx, err := poolClient.GetWrappedUnsignedTx(proposalIdHexStr)
 	if err != nil {
 		w.log.Warn("processSignatureEnoughEvt GetWrappedUnsignedTx,failed",
 			"proposalId", proposalIdHexStr,
 			"err", err)
-		return false
+		//now skip if not found
+		return true
 	}
 
 	if wrappedUnSignedTx.Type != submodel.OriginalBond &&
@@ -594,13 +609,25 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
-	txHash, txBts, err := client.AssembleMultiSigTx(wrappedUnSignedTx.UnsignedTx, signatures)
+	txHash, txBts, err := client.AssembleMultiSigTx(wrappedUnSignedTx.UnsignedTx, signatures, sigs.Threshold)
 	if err != nil {
 		w.log.Error("processSignatureEnoughEvt AssembleMultiSigTx failed",
 			"pool hex address ", poolAddrHexStr,
+			"unsignedTx", hex.EncodeToString(wrappedUnSignedTx.UnsignedTx),
+			"signatures", bytesArrayToStr(signatures),
+			"threshold", sigs.Threshold,
 			"err", err)
 		return false
 	}
 
 	return w.checkAndSend(poolClient, wrappedUnSignedTx, sigs, m, txHash, txBts)
+}
+
+func bytesArrayToStr(bts [][]byte) string {
+	ret := ""
+	for _, b := range bts {
+		ret += " | "
+		ret += hex.EncodeToString(b)
+	}
+	return ret
 }

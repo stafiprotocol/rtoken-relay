@@ -429,6 +429,15 @@ func TestGetConst(t *testing.T) {
 	fmt.Println(e)
 }
 
+func TestGetExistentialDeposit(t *testing.T) {
+	stop := make(chan int)
+	gc, err := NewGsrpcClient("wss://kusama-rpc.polkadot.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+	assert.NoError(t, err)
+	e, err := gc.ExistentialDeposit()
+	assert.NoError(t, err)
+	fmt.Println(e)
+}
+
 func TestBondExtra(t *testing.T) {
 	password := "123456"
 	os.Setenv(keystore.EnvPassword, password)
@@ -792,6 +801,7 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
+
 
 	optp := types.TimePoint{Height: 969, Index: 1}
 	tp := submodel.NewOptionTimePoint(optp)

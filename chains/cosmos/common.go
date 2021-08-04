@@ -82,9 +82,9 @@ func ParseClaimRewardProposalId(content []byte) (shotId substrateTypes.Hash, hei
 	return
 }
 
-func GetTransferProposalId(shotId substrateTypes.Hash) []byte {
+func GetTransferProposalId(txHash [32]byte) []byte {
 	proposalId := make([]byte, 32)
-	copy(proposalId, shotId[:])
+	copy(proposalId, txHash[:])
 	return proposalId
 }
 
@@ -307,9 +307,16 @@ func GetTransferUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, receiv
 		}
 		outPuts = append(outPuts, out)
 	}
+
+	//len should not be 0
 	if len(outPuts) == 0 {
 		return nil, nil, ErrNoOutPuts
 	}
+
+	//sort outPuts for the same rawTx from different relayer
+	sort.SliceStable(outPuts, func(i, j int) bool {
+		return bytes.Compare([]byte(outPuts[i].Address), []byte(outPuts[j].Address)) < 0
+	})
 
 	txBts, err := client.GenMultiSigRawBatchTransferTx(poolAddr, outPuts)
 	if err != nil {

@@ -9,12 +9,12 @@ require (
 	github.com/ethereum/go-ethereum v1.10.6
 	github.com/gorilla/websocket v1.4.2
 	github.com/huandu/xstrings v1.3.2
-	github.com/itering/scale.go v1.0.47
+	github.com/itering/scale.go v1.0.61
 	github.com/itering/substrate-api-rpc v0.3.5
 	github.com/shopspring/decimal v1.2.0
 	github.com/spf13/cobra v1.1.1
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
-	github.com/stafiprotocol/go-substrate-rpc-client v1.0.9
+	github.com/stafiprotocol/go-substrate-rpc-client v1.1.0
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.9
 	github.com/urfave/cli/v2 v2.3.0

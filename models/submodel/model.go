@@ -550,6 +550,7 @@ type SubmitSignatures struct {
 	TxType     OriginalTx
 	ProposalId types.Bytes
 	Signature  []types.Bytes
+	Threshold  uint32
 }
 
 func (ss *SubmitSignatures) EncodeToHash() (common.Hash, error) {
