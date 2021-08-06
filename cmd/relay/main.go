@@ -23,30 +23,44 @@ var cliFlags = []cli.Flag{
 }
 
 var generateFlags = []cli.Flag{
-	config.PathFlag,
+	config.KeystorePathFlag,
+}
+
+var bncGenerateFlags = []cli.Flag{
+	config.KeystorePathFlag,
+	config.BncNetwork,
 }
 
 var accountCommand = cli.Command{
 	Name:  "accounts",
 	Usage: "manage reth keystore",
-	Description: "The accounts command is used to manage the reth keystore.\n" +
-		"\tTo generate a ethereum keystore: chainbridge accounts geneth\n",
+	Description: "The accounts command is used to manage the relay keystore.\n" +
+		"\tMake sure the keystore dir is exist before generating\n" +
+		"\tTo generate a substrate keystore: relay accounts gensub\n" +
+		"\tTo generate a ethereum keystore: relay accounts geneth\n" +
+		"\tTo generate a bc chain keystore: relay accounts genbc\n" +
+		"\tTo list keys: chainbridge accounts list",
 	Subcommands: []*cli.Command{
 		{
 			Action: wrapHandler(handleGenerateSubCmd),
 			Name:   "gensub",
 			Usage:  "generate subsrate keystore",
 			Flags:  generateFlags,
-			Description: "The generate subcommand is used to generate the substrate keystore.\n" +
-				"\tkeystore path should be given.",
+			Description: "The generate subcommand is used to generate the substrate keystore.",
 		},
 		{
 			Action: wrapHandler(handleGenerateEthCmd),
 			Name:   "geneth",
 			Usage:  "generate ethereum keystore",
 			Flags:  generateFlags,
-			Description: "The generate subcommand is used to generate the ethereum keystore.\n" +
-				"\tkeystore path should be given.",
+			Description: "The generate subcommand is used to generate the ethereum keystore.",
+		},
+		{
+			Action: wrapHandler(handleGenerateBcCmd),
+			Name:   "genbc",
+			Usage:  "generate bc chain keystore",
+			Flags:  bncGenerateFlags,
+			Description: "The generate subcommand is used to generate the bc chain keystore.",
 		},
 	},
 }
@@ -55,8 +69,8 @@ var accountCommand = cli.Command{
 func init() {
 	app.Action = run
 	app.Copyright = "Copyright 2020 Stafi Protocol Authors"
-	app.Name = "rETH"
-	app.Usage = "reth"
+	app.Name = "reley"
+	app.Usage = "relay"
 	app.Authors = []*cli.Author{{Name: "Stafi Protocol 2020"}}
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
