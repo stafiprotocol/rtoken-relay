@@ -23,12 +23,16 @@ var (
 	BondStateNotActiveReportedError   = errors.New("BondStateNotActiveReportedError")
 	BondStateNotWithdrawReportedError = errors.New("BondStateNotWithdrawReportedError")
 	BondStateNotTransferReportedError = errors.New("BondStateNotTransferReportedError")
+	ErrNotCared                       = errors.New("not care this symbol")
 )
 
 func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submodel.BondFlow, error) {
 	data, err := submodel.LiquidityBondEventData(evt)
 	if err != nil {
 		return nil, err
+	}
+	if !l.cared(data.Symbol) {
+		return nil, ErrNotCared
 	}
 
 	symBz, err := types.EncodeToBytes(data.Symbol)
@@ -89,6 +93,10 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	if !l.cared(data.Symbol) {
+		return nil, ErrNotCared
+	}
+
 	snap, err := l.snapshot(data.Symbol, data.ShotId)
 	if err != nil {
 		return nil, err
@@ -138,6 +146,10 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
+	if !l.cared(flow.Symbol) {
+		return nil, ErrNotCared
+	}
+
 	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
 		return nil, err
@@ -182,7 +194,9 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	if err != nil {
 		return nil, err
 	}
-
+	if !l.cared(flow.Symbol) {
+		return nil, ErrNotCared
+	}
 	//turn to processActiveReportedEvtForRAtom
 	if flow.Symbol == core.RATOM {
 		return l.processActiveReportedEvtForRAtom(evt)
@@ -292,7 +306,9 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 	if err != nil {
 		return nil, err
 	}
-
+	if !l.cared(flow.Symbol) {
+		return nil, ErrNotCared
+	}
 	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
 		return nil, err
@@ -348,6 +364,9 @@ func (l *listener) processTransferReportedEvt(evt *submodel.ChainEvent) (*submod
 	if err != nil {
 		return nil, err
 	}
+	if !l.cared(flow.Symbol) {
+		return nil, ErrNotCared
+	}
 
 	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 	if err != nil {
@@ -377,6 +396,9 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 	if err != nil {
 		return nil, err
 	}
+	if !l.cared(flow.Symbol) {
+		return nil, ErrNotCared
+	}
 
 	th, sub, err := l.thresholdAndSubAccounts(flow.Symbol, flow.Pool)
 	if err != nil {
@@ -399,6 +421,9 @@ func (l *listener) processValidatorUpdated(evt *submodel.ChainEvent) (*submodel.
 	if err != nil {
 		return nil, err
 	}
+	if !l.cared(flow.Symbol) {
+		return nil, ErrNotCared
+	}
 
 	return &submodel.MultiEventFlow{
 		EventId:   config.ValidatorUpdatedEventId,
@@ -411,6 +436,9 @@ func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submode
 	data, err := submodel.SignatureEnoughData(evt)
 	if err != nil {
 		return nil, err
+	}
+	if !l.cared(data.RSymbol) {
+		return nil, ErrNotCared
 	}
 
 	symBz, err := types.EncodeToBytes(data.RSymbol)
