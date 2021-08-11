@@ -224,6 +224,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling LiquidityBondEvent", "block", blockNum)
 				flow, err := l.processLiquidityBondEvent(evt)
 				if err != nil {
+					if err.Error() == ErrNotCared.Error() {
+						continue
+					}
 					return err
 				}
 				if flow.State == submodel.Success {
@@ -237,7 +240,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling EraPoolUpdatedEvent", "block", blockNum)
 				flow, err := l.processEraPoolUpdatedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotEraUpdatedError.Error() || err.Error() == EventEraIsOldError.Error() {
+					if err.Error() == BondStateNotEraUpdatedError.Error() ||
+						err.Error() == EventEraIsOldError.Error() ||
+						err.Error() == ErrNotCared.Error() {
 						continue
 					}
 					return err
@@ -250,7 +255,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling BondReportEvent", "block", blockNum)
 				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotBondReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
+					if err.Error() == BondStateNotBondReportedError.Error() ||
+						err.Error() == EventEraIsOldError.Error() ||
+						err.Error() == ErrNotCared.Error() {
 						continue
 					}
 					return err
@@ -262,7 +269,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling ActiveReportEvent", "block", blockNum)
 				flow, err := l.processActiveReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotActiveReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
+					if err.Error() == BondStateNotActiveReportedError.Error() ||
+						err.Error() == EventEraIsOldError.Error() ||
+						err.Error() == ErrNotCared.Error() {
 						continue
 					}
 					return err
@@ -274,7 +283,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling WithdrawReportedEvent", "block", blockNum)
 				flow, err := l.processWithdrawReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotWithdrawReportedError.Error() || err.Error() == EventEraIsOldError.Error() {
+					if err.Error() == BondStateNotWithdrawReportedError.Error() ||
+						err.Error() == EventEraIsOldError.Error() ||
+						err.Error() == ErrNotCared.Error() {
 						continue
 					}
 					return err
@@ -286,7 +297,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling TransferReportedEvent", "block", blockNum)
 				flow, err := l.processTransferReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotTransferReportedError.Error() {
+					if err.Error() == BondStateNotTransferReportedError.Error() ||
+						err.Error() == ErrNotCared.Error() {
 						continue
 					}
 					return err
@@ -298,6 +310,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling NominationUpdatedEvent", "block", blockNum)
 				flow, err := l.processNominationUpdated(evt)
 				if err != nil {
+					if err.Error() == ErrNotCared.Error() {
+						continue
+					}
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[NominationUpdated] != nil {
@@ -307,6 +322,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling SignaturesEnoughEventId event", "block", blockNum)
 				sigs, err := l.processSignatureEnoughEvt(evt)
 				if err != nil {
+					if err.Error() == ErrNotCared.Error() {
+						continue
+					}
 					return err
 				}
 				if l.cared(sigs.Symbol) && l.subscriptions[SignatureEnough] != nil {
@@ -316,6 +334,9 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling ValidatorUpdatedEvent", "block", blockNum)
 				flow, err := l.processValidatorUpdated(evt)
 				if err != nil {
+					if err.Error() == ErrNotCared.Error() {
+						continue
+					}
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[ValidaterUpdated] != nil {
