@@ -14,6 +14,7 @@ const (
 	RATOM  = RSymbol("RATOM")
 	RSOL   = RSymbol("RSOL")
 	RMATIC = RSymbol("RMATIC")
+	RBNB   = RSymbol("RBNB")
 )
 
 func (r *RSymbol) Decode(decoder scale.Decoder) error {
@@ -36,6 +37,8 @@ func (r *RSymbol) Decode(decoder scale.Decoder) error {
 		*r = RSOL
 	case 5:
 		*r = RMATIC
+	case 6:
+		*r = RBNB
 	default:
 		return fmt.Errorf("RSymbol decode error: %d", b)
 	}
@@ -58,6 +61,8 @@ func (r RSymbol) Encode(encoder scale.Encoder) error {
 		return encoder.PushByte(4)
 	case RMATIC:
 		return encoder.PushByte(5)
+	case RBNB:
+		return encoder.PushByte(6)
 	default:
 		return fmt.Errorf("RSymbol %s not supported", r)
 	}

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	log "github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/rtoken-relay/chains/bnb"
 	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/chains/matic"
 	"github.com/stafiprotocol/rtoken-relay/chains/substrate"
@@ -151,6 +152,11 @@ func run(ctx *cli.Context) error {
 			}
 		} else if chain.Type == "ethereum" {
 			newChain, err = matic.InitializeChain(chainConfig, logger, sysErr)
+			if err != nil {
+				return err
+			}
+		} else if chain.Type == "bnb" {
+			newChain, err = bnb.InitializeChain(chainConfig, logger, sysErr)
 			if err != nil {
 				return err
 			}

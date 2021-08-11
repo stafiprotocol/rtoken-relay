@@ -90,7 +90,7 @@ func TestMultisigProxyUpgrade(t *testing.T) {
 
 	newImpl := common.HexToAddress("0xF10EBfe15cC878afdE72d7777a1a1e8689DD2c52")
 
-	err = client.LockAndUpdateOpts(big.NewInt(0))
+	err = client.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestProxyTransferErc20(t *testing.T) {
 	}
 
 	vs, rs, ss := utils.DecomposeSignature(sigs)
-	err = client.LockAndUpdateOpts(mt.TotalGas)
+	err = client.LockAndUpdateOpts(mt.TotalGas, big.NewInt(0))
 	if err != nil {
 		t.Fatal(err)
 	}

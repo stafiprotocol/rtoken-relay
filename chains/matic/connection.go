@@ -447,7 +447,7 @@ func (c *Connection) AsMulti(
 		case <-c.stop:
 			return errors.New("AsMulting stopped")
 		default:
-			err := c.conn.LockAndUpdateOpts(totalGas)
+			err := c.conn.LockAndUpdateOpts(totalGas, big.NewInt(0))
 			if err != nil {
 				c.log.Error("Failed to update tx opts", "err", err)
 				continue

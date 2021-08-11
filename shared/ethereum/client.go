@@ -143,7 +143,7 @@ func (c *Client) SafeEstimateGas(ctx context.Context) (*big.Int, error) {
 
 // LockAndUpdateOpts acquires a lock on the opts before updating the nonce
 // and gas price.
-func (c *Client) LockAndUpdateOpts(limit *big.Int) error {
+func (c *Client) LockAndUpdateOpts(limit, value *big.Int) error {
 	c.optsLock.Lock()
 
 	gasPrice, err := c.SafeEstimateGas(context.TODO())
@@ -165,10 +165,12 @@ func (c *Client) LockAndUpdateOpts(limit *big.Int) error {
 		c.opts.GasLimit = big.NewInt(0).Add(limit, DefaultExtraGasLimit).Uint64()
 	}
 
+	c.opts.Value = value
 	return nil
 }
 
 func (c *Client) UnlockOpts() {
+	c.opts.Value = big.NewInt(0)
 	c.optsLock.Unlock()
 }
 
@@ -296,6 +298,67 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 		}
 		c.log.Warn("TransferVerify: no address of log equal to the given token contract", "contract", token.Hex())
 		return submodel.TxhashUnmatch, nil
+	}
+	c.log.Warn("TransferVerify: txhash not found", "blockhash", blkHash.Hex(), "txhash", txHash.Hex())
+	return submodel.BlockhashUnmatch, nil
+}
+
+func (c *Client) BnbTransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
+	blkHash := common.BytesToHash(r.Blockhash)
+	txHash := common.BytesToHash(r.Txhash)
+
+	block, err := c.conn.BlockByHash(context.Background(), blkHash)
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+
+	blk, err := c.conn.BlockByNumber(context.Background(), block.Number())
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+
+	if !bytes.Equal(blk.Hash().Bytes(), r.Blockhash) {
+		return submodel.BlockhashUnmatch, nil
+	}
+
+	latestBlk, err := c.LatestBlock()
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+
+	num := big.NewInt(0).Add(block.Number(), BlockToFinalize)
+	if num.Cmp(latestBlk) > 0 {
+		err := c.WaitForBlock(latestBlk, BlockToFinalize)
+		if err != nil {
+			return submodel.BondReasonDefault, err
+		}
+	}
+
+	for _, tx := range block.Transactions() {
+		if !bytes.Equal(r.Txhash, tx.Hash().Bytes()) {
+			continue
+		}
+
+		msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()), big.NewInt(0))
+		if err != nil {
+			c.log.Warn("BnbTransferVerify: As message error", "ChainId", tx.ChainId())
+			return submodel.TxhashUnmatch, nil
+		}
+
+		if !bytes.Equal(r.Pubkey, msg.From().Bytes()) {
+			return submodel.PubkeyUnmatch, nil
+		}
+
+		if !bytes.Equal(r.Pool, tx.To().Bytes()) {
+			return submodel.PoolUnmatch, nil
+		}
+
+		if tx.Value().Cmp(r.Amount.Int) != 0 {
+			c.log.Warn("BnbTransferVerify: amount not equal", "value", tx.Value(), "amount", r.Amount.Int)
+			return submodel.AmountUnmatch, nil
+		}
+
+		return submodel.Pass, nil
 	}
 	c.log.Warn("TransferVerify: txhash not found", "blockhash", blkHash.Hex(), "txhash", txHash.Hex())
 	return submodel.BlockhashUnmatch, nil

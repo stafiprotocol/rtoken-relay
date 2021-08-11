@@ -77,7 +77,7 @@ func TestMultisigTransfer(t *testing.T) {
 	}
 	vs, rs, ss := utils.DecomposeSignature(sigs)
 
-	err = client.LockAndUpdateOpts(mt.TotalGas)
+	err = client.LockAndUpdateOpts(mt.TotalGas, big.NewInt(0))
 	if err != nil {
 		t.Fatal(err)
 	}

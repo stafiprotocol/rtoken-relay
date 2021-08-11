@@ -1,4 +1,4 @@
-package matic
+package bnb
 
 import (
 	"github.com/ChainSafe/log15"
