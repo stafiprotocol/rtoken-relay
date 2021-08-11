@@ -2,14 +2,19 @@ package substrate
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/core"
 	"time"
+
+	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
+
+var ErrExpired = errors.New("proposal expired")
 
 func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
@@ -78,9 +83,15 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 		valid, reason, err := c.proposalValid(prop)
 		c.log.Info("ResolveProposal proposalValid", "valid", valid, "reason", reason, "method", prop.MethodName)
 		if err != nil {
-			c.log.Error("Failed to assert proposal state", "err", err)
-			time.Sleep(BlockRetryInterval)
-			continue
+			if err == ErrExpired {
+				newBondId := types.Hash(utils.BlakeTwo256(prop.BondId[:]))
+				prop.BondId = newBondId
+				continue
+			} else {
+				c.log.Error("Failed to assert proposal state", "err", err)
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
 		}
 
 		if !valid {
@@ -131,6 +142,10 @@ func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error
 
 	if !exists {
 		return true, "", nil
+	}
+
+	if state.Status == submodel.Expired {
+		return false, "", ErrExpired
 	}
 
 	if state.Status != submodel.Initiated {
