@@ -5,14 +5,16 @@ package bnb
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"sync"
 )
 
 type writer struct {
@@ -144,10 +146,29 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	}
 
 	snap := flow.Snap
-	_ = snap
-
-	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: ""}
-	return w.submitMessage(result)
+	poolAddr := common.BytesToAddress(snap.Pool)
+	call, amount := w.conn.BondOrUnbondCall(snap.Bond.Int64(), snap.Unbond.Int64(), flow.LeastBond.Int64())
+	w.log.Info("processEraPoolUpdated", "call", call, "symbol", snap.Symbol, "era", snap.Era)
+	switch call {
+	case submodel.PureBondReport:
+		flow.ReportType = submodel.PureBondReport
+		return w.informChain(m.Destination, m.Source, mef)
+	case submodel.BondReport:
+		if amount == 0 {
+			flow.ReportType = submodel.BondReport
+			return w.informChain(m.Destination, m.Source, mef)
+		}
+		err := w.conn.ExecuteBond(poolAddr, amount)
+	case submodel.UnBondReport:
+		if amount == 0 {
+			flow.ReportType = submodel.BondReport
+			return w.informChain(m.Destination, m.Source, mef)
+		}
+		err := w.conn.ExecuteUnbond(poolAddr, amount)
+	default:
+		w.log.Error("Call type not supported")
+		return false
+	}
 }
 
 func (w *writer) processBondReported(m *core.Message) bool {

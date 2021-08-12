@@ -80,11 +80,11 @@ func TestBnbTransferVerify(t *testing.T) {
 	pool := common.HexToAddress("0xb7fda60ab83a35479e9ee373a43a861ba7aa0006").Bytes()
 
 	r := &submodel.BondRecord{
-		Pubkey: pk,
-		Pool: pool,
+		Pubkey:    pk,
+		Pool:      pool,
 		Blockhash: bh,
-		Txhash: th,
-		Amount:subtypes.NewU128(*big.NewInt(28e17)),
+		Txhash:    th,
+		Amount:    subtypes.NewU128(*big.NewInt(28e17)),
 	}
 
 	client := newBscTestClient()

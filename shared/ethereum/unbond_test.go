@@ -21,7 +21,7 @@ var (
 	unbondPoolOwners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"), common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")}
 
 	unbondAmount, _ = utils.StringToBigint("")
-	unbondTxHash = common.HexToHash("0x9bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eeeddbb62fe77e1d")
+	unbondTxHash    = common.HexToHash("0x9bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eeeddbb62fe77e1d")
 )
 
 func TestMultisigUnbond(t *testing.T) {

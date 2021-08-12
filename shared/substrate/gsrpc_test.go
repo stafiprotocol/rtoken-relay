@@ -802,7 +802,6 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println("info", info.Class, info.PartialFee, info.Weight)
 
-
 	optp := types.TimePoint{Height: 969, Index: 1}
 	tp := submodel.NewOptionTimePoint(optp)
 

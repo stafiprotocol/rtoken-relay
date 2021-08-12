@@ -4,23 +4,23 @@
 package bnb
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"math/big"
 	"strings"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	bncRpc "github.com/stafiprotocol/go-sdk/client/rpc"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	bnckeys "github.com/stafiprotocol/go-sdk/keys"
 	bncTypes "github.com/stafiprotocol/go-sdk/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/TokenHub"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
 
@@ -39,10 +39,10 @@ const (
 type Connection struct {
 	url              string
 	symbol           core.RSymbol
-	conn             *ethereum.Client
-	bscKeys          []*secp256k1.Keypair
-	bcKeys           map[*secp256k1.Keypair]bnckeys.KeyManager
-	conns            map[*secp256k1.Keypair]*ethereum.Client
+	bscClient        *ethereum.Client
+	bcKeys           map[common.Address]bnckeys.KeyManager
+	bscClients       map[common.Address]*ethereum.Client
+	bcRpcClient      *bncRpc.HTTP
 	tokenHubContract common.Address
 	log              log15.Logger
 	stop             <-chan int
@@ -53,13 +53,10 @@ type Connection struct {
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewClient", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint)
 
-	var key *secp256k1.Keypair
-	bscKeys := make([]*secp256k1.Keypair, 0)
-	bcKeys := make(map[*secp256k1.Keypair]bnckeys.KeyManager)
-	conns := make(map[*secp256k1.Keypair]*ethereum.Client)
-	acSize := len(cfg.Accounts)
-	if acSize == 0 || acSize%2 != 0 {
-		return nil, fmt.Errorf("account size not even")
+	rpcEndpointCfg := cfg.Opts["rpcEndpoint"]
+	rpcEndpoint, ok := rpcEndpointCfg.(string)
+	if !ok {
+		return nil, errors.New("rpcEndpoint not exist")
 	}
 
 	if strings.HasPrefix(cfg.Accounts[0], "tbnb") {
@@ -70,6 +67,18 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		log.Info("bnc network is ProdNetwork")
 	} else {
 		return nil, fmt.Errorf("unknown bnc network")
+	}
+
+	rpcClient := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.Network)
+
+	var key *secp256k1.Keypair
+	//bscKeys := make([]common.Address, 0)
+	var bscClient *ethereum.Client
+	bcKeys := make(map[common.Address]bnckeys.KeyManager)
+	bscClients := make(map[common.Address]*ethereum.Client)
+	acSize := len(cfg.Accounts)
+	if acSize == 0 || acSize%2 != 0 {
+		return nil, fmt.Errorf("account size not even")
 	}
 
 	for i := 0; i < acSize; i += 2 {
@@ -91,12 +100,15 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 
-		bscKeys = append(bscKeys, kp)
-		bcKeys[kp] = km
-		conns[kp] = conn
+		address := kp.CommonAddress()
+		//bscKeys = append(bscKeys, address)
+		bcKeys[address] = km
+		bscClients[address] = conn
+		if i == 0 {
+			bscClient = conn
+		}
 	}
 
-	conn := conns[bscKeys[0]]
 	hub, err := initTokenhub(cfg.Opts["TokenHubContract"])
 	if err != nil {
 		return nil, err
@@ -105,10 +117,10 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	return &Connection{
 		url:              cfg.Endpoint,
 		symbol:           cfg.Symbol,
-		conn:             conn,
-		bscKeys:          bscKeys,
+		bscClient:        bscClient,
 		bcKeys:           bcKeys,
-		conns:            conns,
+		bscClients:       bscClients,
+		bcRpcClient:      rpcClient,
 		tokenHubContract: hub,
 		log:              log,
 		stop:             stop,
@@ -116,12 +128,12 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 }
 
 func (c *Connection) ReConnect() error {
-	return c.conn.Connect()
+	return c.bscClient.Connect()
 }
 
 // LatestBlock returns the latest block from the current chain
 func (c *Connection) LatestBlock() (uint64, error) {
-	blk, err := c.conn.LatestBlock()
+	blk, err := c.bscClient.LatestBlock()
 	if err != nil {
 		return 0, err
 	}
@@ -129,21 +141,21 @@ func (c *Connection) LatestBlock() (uint64, error) {
 }
 
 func (c *Connection) Address() string {
-	return c.conn.Keypair().Address()
+	return c.bscClient.Keypair().Address()
 }
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
-	return c.conn.BnbTransferVerify(r)
+	return c.bscClient.BnbTransferVerify(r)
 }
 
 func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
-	bscKey := c.FoundBscKey(r.Pool)
-	if bscKey == nil {
-		return fmt.Errorf("found no bscKey")
+	addr := common.BytesToAddress(r.Pool)
+	bscClient := c.bscClients[addr]
+	if bscClient == nil {
+		return fmt.Errorf("no bsc client found: %s", addr.Hex())
 	}
 
-	conn := c.conns[bscKey]
-	hub, err := TokenHub.NewTokenHub(c.tokenHubContract, conn.Client())
+	hub, err := TokenHub.NewTokenHub(c.tokenHubContract, bscClient.Client())
 	if err != nil {
 		return err
 	}
@@ -153,17 +165,21 @@ func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
 		return err
 	}
 
-	bcKey := c.bcKeys[bscKey]
+	bcKey := c.bcKeys[addr]
+	if bcKey == nil {
+		return fmt.Errorf("no bc key found: %s", addr.Hex())
+	}
+
 	receiver := common.HexToAddress(hexutil.Encode(bcKey.GetAddr()))
 	value := big.NewInt(0).Add(r.Amount.Int, fee)
 
-	err = conn.LockAndUpdateOpts(big.NewInt(0), value)
+	err = bscClient.LockAndUpdateOpts(big.NewInt(0), value)
 	if err != nil {
 		return err
 	}
 
-	tx, err := hub.TransferOut(conn.Opts(), ZeroAddress, receiver, r.Amount.Int, 0x17b1f307761)
-	conn.UnlockOpts()
+	tx, err := hub.TransferOut(bscClient.Opts(), ZeroAddress, receiver, r.Amount.Int, 0x17b1f307761)
+	bscClient.UnlockOpts()
 
 	if err != nil {
 		return err
@@ -172,20 +188,31 @@ func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
 	return nil
 }
 
-func (c *Connection) FoundBscKey(pool []byte) *secp256k1.Keypair {
-	for _, key := range c.bscKeys {
-		if !bytes.Equal(key.CommonAddress().Bytes(), pool) {
-			continue
+func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.BondReportType, int64) {
+	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
+
+	if bond < unbond {
+		diff := unbond - bond
+		if diff < leastBond {
+			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, PureBondReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
+			return submodel.PureBondReport, 0
 		}
-
-		return key
+		return submodel.UnBondReport, diff
+	} else if bond > unbond {
+		diff := bond - unbond
+		if diff < leastBond {
+			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, PureBondReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
+			return submodel.PureBondReport, 0
+		}
+		return submodel.BondReport, diff
+	} else {
+		c.log.Info("bond is equal to unbond, NoCall")
+		return submodel.BondReport, 0
 	}
-
-	return nil
 }
 
 func (c *Connection) Close() {
-	c.conn.Close()
+	c.bscClient.Close()
 }
 
 func initTokenhub(TokenHubCfg interface{}) (common.Address, error) {

@@ -250,6 +250,7 @@ const (
 	BondReport          = BondReportType(0)
 	PureBondReport      = BondReportType(1)
 	BondAndReportActive = BondReportType(2)
+	UnBondReport        = BondReportType(3)
 )
 
 type EraPoolUpdatedFlow struct {
