@@ -176,7 +176,7 @@ func TestTotalStaked(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pool1 := common.HexToAddress("0x6ca61f2763b2dd1c846a87f7812bb5f702ae416c")
+	pool1 := common.HexToAddress("0x03c73f69282e3a1b2a22948bd5a23ce7414490f2")
 	total1, _, err := shr.GetTotalStake(nil, pool1)
 	if err != nil {
 		t.Fatal(err)
@@ -204,7 +204,7 @@ func TestTotalStaked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("start", start)
+	t.Log("currentEpoch", start)
 
 	delay, err := manager.WITHDRAWALDELAY(nil)
 	if err != nil {
@@ -212,15 +212,21 @@ func TestTotalStaked(t *testing.T) {
 	}
 	t.Log("delay", delay)
 
-	interval, err := manager.CheckPointBlockInterval(nil)
+	unbond, err := shr.UnbondsNew(nil, pool1, nonce1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("interval", interval)
+	t.Log("unbond", unbond)
 
-	reward, err := shr.GetLiquidRewards(nil, pool1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("reward", reward)
+	//interval, err := manager.CheckPointBlockInterval(nil)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("interval", interval)
+	//
+	//reward, err := shr.GetLiquidRewards(nil, pool1)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("reward", reward)
 }
