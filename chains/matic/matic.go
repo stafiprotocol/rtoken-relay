@@ -18,7 +18,7 @@ var (
 	BuyVoucherSafeTxGas     = big.NewInt(300000)
 	SellVoucherNewSafeTxGas = big.NewInt(300000)
 	RestakeSafeTxGas        = big.NewInt(200000)
-	WithdrawTxGas           = big.NewInt(100000)
+	WithdrawTxGas           = big.NewInt(300000)
 	TransferTxGas           = big.NewInt(100000)
 )
 
