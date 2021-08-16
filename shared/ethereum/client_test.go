@@ -543,3 +543,45 @@ func TestBond(t *testing.T) {
 	//
 	//t.Log("txHash", tx.Hash())
 }
+
+func TestRestake(t *testing.T) {
+	//password := "123456"
+	//os.Setenv(keystore.EnvPassword, password)
+	//
+	//kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//kp, _ := kpI.(*secp256k1.Keypair)
+	//
+	//client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	//err = client.Connect()
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+
+	client := NewGoerliClient()
+	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	share, err := manager.Validators(nil, big.NewInt(9))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("share", share.ContractAddress)
+
+	shr, err := ValidatorShare.NewValidatorShare(share.ContractAddress, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = shr
+
+	//tx, err := shr.Restake(client.Opts())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Log("txHash", tx.Hash())
+}

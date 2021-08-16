@@ -248,10 +248,25 @@ type BondReportType uint8
 
 const (
 	BondReport          = BondReportType(0)
-	PureBondReport      = BondReportType(1)
-	BondAndReportActive = BondReportType(2)
-	UnBondReport        = BondReportType(3)
+	BondAndReportActive = BondReportType(1)
+	BondOnlyReport      = BondReportType(2)
 )
+
+type BondReportAction uint8
+
+const (
+	BondAction   = BondReportAction(0)
+	UnBondAction = BondReportAction(1)
+	NoneAction   = BondReportAction(2)
+	BothAction   = BondReportAction(3)
+)
+
+type BondCall struct {
+	ReportType BondReportType
+	Action     BondReportAction
+	//Bond       interface{}
+	//Unbond     interface{}
+}
 
 type EraPoolUpdatedFlow struct {
 	Symbol        core.RSymbol
@@ -261,7 +276,7 @@ type EraPoolUpdatedFlow struct {
 	LastVoterFlag bool
 	Snap          *PoolSnapshot
 	LeastBond     *big.Int
-	ReportType    BondReportType
+	BondCall      *BondCall
 	Active        *big.Int
 	Reward        *big.Int
 }
@@ -275,7 +290,7 @@ type BondReportedFlow struct {
 	LastEra          uint32
 	SubAccounts      []types.Bytes
 	Stashes          []types.AccountID
-	ValidatorId      *big.Int
+	ValidatorId      interface{}
 	MultiTransaction *ethmodel.MultiTransaction
 }
 
@@ -342,7 +357,7 @@ type MultiEventFlow struct {
 	PaymentInfo      *rpc.PaymentQueryInfo
 	NewMulCallHashs  map[string]bool
 	MulExeCallHashs  map[string]bool
-	ValidatorId      *big.Int
+	ValidatorId      interface{}
 	MultiTransaction *ethmodel.MultiTransaction
 }
 

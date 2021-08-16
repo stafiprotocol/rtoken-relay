@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -120,9 +121,9 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	var valdatorId *big.Int
+	var valdatorId interface{}
 	var leastBond *big.Int
-	if data.Symbol == core.RMATIC {
+	if data.Symbol == core.RMATIC || data.Symbol == core.RBNB {
 		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
@@ -185,7 +186,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
-	var valdatorId *big.Int
+	var valdatorId interface{}
 	if snap.Symbol == core.RMATIC {
 		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
@@ -244,7 +245,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	var valdatorId *big.Int
+	var valdatorId interface{}
 	if snap.Symbol == core.RMATIC {
 		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
@@ -363,7 +364,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
-	var valdatorId *big.Int
+	var valdatorId interface{}
 	if snap.Symbol == core.RMATIC {
 		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
@@ -640,7 +641,7 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	return receives, total, nil
 }
 
-func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (*big.Int, error) {
+func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (interface{}, error) {
 	poolBz, err := types.EncodeToBytes(pool)
 	if err != nil {
 		return nil, err
@@ -663,10 +664,20 @@ func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (*big.Int, erro
 		return nil, fmt.Errorf("no available validatorId, symbol: %s, pool: %s", symbol, hexutil.Encode(pool))
 	}
 
-	id := big.NewInt(0).SetBytes(validatorIds[0])
-	l.log.Info("get validatorId", "id", id, "symbol", symbol, "pool", hexutil.Encode(pool))
+	l.log.Info("get validatorId", "id", hexutil.Encode(validatorIds[0]), "symbol", symbol, "pool", hexutil.Encode(pool))
 
-	return id, nil
+	switch symbol {
+	case core.RMATIC:
+		return big.NewInt(0).SetBytes(validatorIds[0]), nil
+	case core.RBNB:
+		addr, err := bncCmnTypes.ValAddressFromBech32(string(validatorIds[0]))
+		if err != nil {
+			return nil, err
+		}
+		return addr, nil
+	default:
+		return nil, fmt.Errorf("validatorId: symbol %s not supported", symbol)
+	}
 }
 
 func (l *listener) leastBond(symbol core.RSymbol) (*big.Int, error) {

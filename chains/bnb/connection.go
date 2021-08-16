@@ -4,6 +4,7 @@
 package bnb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -34,6 +35,9 @@ var (
 
 const (
 	TxRetryLimit = 10
+
+	BondFee   = int64(20000)
+	UnbondFee = int64(40000)
 )
 
 type Connection struct {
@@ -152,7 +156,7 @@ func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
 	addr := common.BytesToAddress(r.Pool)
 	bscClient := c.bscClients[addr]
 	if bscClient == nil {
-		return fmt.Errorf("no bsc client found: %s", addr.Hex())
+		return fmt.Errorf("BscTransferToBc no bsc client found: %s", addr.Hex())
 	}
 
 	hub, err := TokenHub.NewTokenHub(c.tokenHubContract, bscClient.Client())
@@ -167,7 +171,7 @@ func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
 
 	bcKey := c.bcKeys[addr]
 	if bcKey == nil {
-		return fmt.Errorf("no bc key found: %s", addr.Hex())
+		return fmt.Errorf("BscTransferToBc no bc key found: %s", addr.Hex())
 	}
 
 	receiver := common.HexToAddress(hexutil.Encode(bcKey.GetAddr()))
@@ -188,27 +192,144 @@ func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
 	return nil
 }
 
-func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.BondReportType, int64) {
+func (c *Connection) Unbondable(pool common.Address, validator bncCmnTypes.ValAddress) (bool, error) {
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return false, fmt.Errorf("Unbondable no bc key found: %s", pool.Hex())
+	}
+
+	unbonds, err := c.bcRpcClient.QuerySideChainUnbondingDelegations(sideChainId, bcKey.GetAddr())
+	if err != nil {
+		return false, err
+	}
+
+	for _, ub := range unbonds {
+		if bytes.Equal(ub.ValidatorAddr, validator) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (*submodel.BondCall, int64) {
 	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
 
 	if bond < unbond {
 		diff := unbond - bond
 		if diff < leastBond {
-			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, PureBondReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
-			return submodel.PureBondReport, 0
+			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, BondOnlyReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
+			return &submodel.BondCall{
+				ReportType: submodel.BondOnlyReport,
+				Action:     submodel.NoneAction,
+			}, 0
 		}
-		return submodel.UnBondReport, diff
+		return &submodel.BondCall{
+			ReportType: submodel.BondReport,
+			Action:     submodel.UnBondAction,
+		}, diff
 	} else if bond > unbond {
 		diff := bond - unbond
 		if diff < leastBond {
-			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, PureBondReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
-			return submodel.PureBondReport, 0
+			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, BondOnlyReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
+			return &submodel.BondCall{
+				ReportType: submodel.BondOnlyReport,
+				Action:     submodel.NoneAction,
+			}, 0
 		}
-		return submodel.BondReport, diff
+		return &submodel.BondCall{
+			ReportType: submodel.BondReport,
+			Action:     submodel.BondAction,
+		}, diff
 	} else {
 		c.log.Info("bond is equal to unbond, NoCall")
-		return submodel.BondReport, 0
+		return &submodel.BondCall{
+			ReportType: submodel.BondReport,
+			Action:     submodel.BothAction,
+		}, 0
 	}
+}
+
+func (c *Connection) ExecuteBond(pool common.Address, validator bncCmnTypes.ValAddress, amount int64) error {
+	c.log.Info("ExecuteBond", "pool", pool, "validator", validator.String(), "amount", amount)
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return fmt.Errorf("ExecuteBond no bc key found: %s", pool.Hex())
+	}
+
+	enough, err := c.isBalanceEnough(bcKey, 0, amount)
+	if err != nil {
+		return err
+	}
+
+	if !enough {
+		return fmt.Errorf("ExecuteBond free not enough")
+	}
+
+	c.bcRpcClient.SetKeyManager(bcKey)
+	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+
+	res, err := c.bcRpcClient.SideChainDelegate(sideChainId, validator, coin, bncRpc.Sync)
+	if err != nil {
+		return err
+	}
+
+	c.log.Info("ExecuteBond", "txHash", res.Hash)
+	return nil
+}
+
+func (c *Connection) ExecuteUnbond(pool common.Address, validator bncCmnTypes.ValAddress, amount int64) error {
+	c.log.Info("ExecuteUnbond", "pool", pool, "validator", validator.String(), "amount", amount)
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return fmt.Errorf("ExecuteUnbond no bc key found: %s", pool.Hex())
+	}
+
+	enough, err := c.isBalanceEnough(bcKey, 1, amount)
+	if err != nil {
+		return err
+	}
+
+	if !enough {
+		return fmt.Errorf("ExecuteUnbond free not enough")
+	}
+
+	c.bcRpcClient.SetKeyManager(bcKey)
+	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+
+	res, err := c.bcRpcClient.SideChainUnbond(sideChainId, validator, coin, bncRpc.Sync)
+	if err != nil {
+		return err
+	}
+
+	c.log.Info("ExecuteUnbond", "txHash", res.Hash)
+	return nil
+}
+
+func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action int, amount int64) (bool, error) {
+	free, err := c.bcBanlance(key)
+	if err != nil {
+		return false, err
+	}
+
+	switch action {
+	case 0:
+		return amount+BondFee < free, nil
+	case 1:
+		return amount+UnbondFee < free, nil
+	default:
+		return false, fmt.Errorf("action not supported")
+	}
+}
+
+func (c *Connection) bcBanlance(key bnckeys.KeyManager) (int64, error) {
+	addr := key.GetAddr()
+	bal, err := c.bcRpcClient.GetBalance(addr, "BNB")
+	if err != nil {
+		return 0, err
+	}
+	c.log.Info("current Balance", "bal", bal.Free.ToInt64())
+	return bal.Free.ToInt64(), nil
 }
 
 func (c *Connection) Close() {

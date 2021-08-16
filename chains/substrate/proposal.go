@@ -3,11 +3,11 @@ package substrate
 import (
 	"bytes"
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/core"
 	"time"
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
@@ -51,19 +51,19 @@ func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bo
 	return &submodel.Proposal{Call: call, Symbol: symbol, BondId: bondId, MethodName: method}, nil
 }
 
-func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
+func (c *Connection) BondOnlyReportProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodActiveReport
+	method := config.MethodBondOnlyReport
 
 	call, err := types.NewCall(
 		meta,
 		method,
 		flow.Symbol,
 		flow.ShotId,
-		flow.Snap.Active,
+		flow.BondCall.Action,
 	)
 	if err != nil {
 		return nil, err
@@ -86,6 +86,27 @@ func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFl
 		flow.ShotId,
 		types.NewU128(*flow.Active),
 		types.NewU128(*flow.Reward),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
+}
+
+func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodActiveReport
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		flow.Symbol,
+		flow.ShotId,
+		flow.Snap.Active,
 	)
 	if err != nil {
 		return nil, err

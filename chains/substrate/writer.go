@@ -824,28 +824,29 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	var prop *submodel.Proposal
 	var err error
 	if data, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow); ok {
-		if data.Symbol == core.RMATIC && data.ReportType != submodel.BondReport {
-			switch data.ReportType {
+		call := data.BondCall
+		if data.Symbol == core.RMATIC {
+			switch call.ReportType {
+			case submodel.BondReport:
+				prop, err = w.conn.CommonReportProposal(config.MethodBondReport, m.Source, data.ShotId, data.ShotId)
+				if err != nil {
+					w.log.Error("MethodBondReportProposal", "error", err)
+					return false
+				}
 			case submodel.BondAndReportActive:
 				prop, err = w.conn.BondAndReportActiveProposal(data)
 				if err != nil {
 					w.log.Error("MethodBondAndReportActiveProposal", "error", err)
 					return false
 				}
-			case submodel.PureBondReport:
-				prop, err = w.conn.CommonReportProposal(config.MethodBondPureReport, m.Source, data.ShotId, data.ShotId)
+			case submodel.BondOnlyReport:
+				prop, err = w.conn.BondOnlyReportProposal(data)
 				if err != nil {
 					w.log.Error("MethodBondReportProposal", "error", err)
 					return false
 				}
 			default:
-				w.log.Error("processInformChain: ReportType not supported", "ReportType", data.ReportType)
-				return false
-			}
-		} else {
-			prop, err = w.conn.CommonReportProposal(config.MethodBondReport, m.Source, data.ShotId, data.ShotId)
-			if err != nil {
-				w.log.Error("MethodBondReportProposal", "error", err)
+				w.log.Error("processInformChain: ReportType not supported", "ReportType", call.ReportType)
 				return false
 			}
 		}

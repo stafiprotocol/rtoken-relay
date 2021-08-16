@@ -218,15 +218,9 @@ func TestTotalStaked(t *testing.T) {
 	}
 	t.Log("unbond", unbond)
 
-	//interval, err := manager.CheckPointBlockInterval(nil)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//t.Log("interval", interval)
-	//
-	//reward, err := shr.GetLiquidRewards(nil, pool1)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//t.Log("reward", reward)
+	reward, err := shr.GetLiquidRewards(nil, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("reward", reward)
 }

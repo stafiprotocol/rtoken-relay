@@ -161,7 +161,13 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	shareAddr, err := w.conn.GetValidator(mef.ValidatorId)
+	validatorId, ok := mef.ValidatorId.(*big.Int)
+	if !ok {
+		w.log.Error("processEraPoolUpdated validatorId not bigint")
+		return false
+	}
+
+	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated get GetValidator error", "error", err)
 		return true
@@ -172,11 +178,16 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	if err != nil {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
 			w.log.Info("BondOrUnbondCall BondEqualToUnbondError", "symbol", snap.Symbol, "era", snap.Era)
-			flow.ReportType = submodel.BondReport
+			flow.BondCall = &submodel.BondCall{
+				ReportType: submodel.BondReport,
+			}
 			return w.informChain(m.Destination, m.Source, mef)
 		} else if err.Error() == substrate.BondSmallerThanLeastError.Error() {
 			w.log.Info("BondOrUnbondCall BondSmallerThanLeastError", "symbol", snap.Symbol, "era", snap.Era)
-			flow.ReportType = submodel.PureBondReport
+			flow.BondCall = &submodel.BondCall{
+				ReportType: submodel.BondOnlyReport,
+				Action:     submodel.NoneAction,
+			}
 			return w.informChain(m.Destination, m.Source, mef)
 		} else {
 			w.log.Error("BondOrUnbondCall error", "error", err, "symbol", snap.Symbol, "era", snap.Era)
@@ -184,6 +195,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		}
 	}
 
+	flow.BondCall = &submodel.BondCall{
+		ReportType: submodel.BondAndReportActive,
+	}
 	param := submodel.SubmitSignatureParams{
 		Symbol: flow.Symbol,
 		Era:    types.NewU32(snap.Era),
@@ -226,7 +240,13 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return false
 	}
 
-	shareAddr, err := w.conn.GetValidator(flow.ValidatorId)
+	validatorId, ok := flow.ValidatorId.(*big.Int)
+	if !ok {
+		w.log.Error("processBondReported validatorId not bigint")
+		return false
+	}
+
+	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
 		w.log.Error("processBondReported get GetValidator error", "error", err)
 		return true
@@ -306,7 +326,13 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	shareAddr, err := w.conn.GetValidator(mef.ValidatorId)
+	validatorId, ok := mef.ValidatorId.(*big.Int)
+	if !ok {
+		w.log.Error("processActiveReported validatorId not bigint")
+		return false
+	}
+
+	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
 		w.log.Error("processActiveReported get GetValidator error", "error", err)
 		return true
