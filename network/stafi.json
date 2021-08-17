@@ -306,5 +306,14 @@
       "Fail",
       "Pass"
     ]
+  },
+  "BondAction": {
+    "type": "enum",
+    "value_list": [
+      "BondOnly",
+      "UnbondOnly",
+      "BothBondUnbond",
+      "EitherBondUnbond"
+    ]
   }
 }

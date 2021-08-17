@@ -212,6 +212,52 @@ func (p *PoolBondState) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+type BondAction string
+
+const (
+	BondOnly         = BondAction("BondOnly")
+	UnbondOnly       = BondAction("UnbondOnly")
+	BothBondUnbond   = BondAction("BothBondUnbond")
+	EitherBondUnbond = BondAction("EitherBondUnbond")
+)
+
+func (ba BondAction) Encode(encoder scale.Encoder) error {
+	switch ba {
+	case BondOnly:
+		return encoder.PushByte(0)
+	case UnbondOnly:
+		return encoder.PushByte(1)
+	case BothBondUnbond:
+		return encoder.PushByte(2)
+	case EitherBondUnbond:
+		return encoder.PushByte(3)
+	default:
+		return fmt.Errorf("BondAction %s not supported", ba)
+	}
+}
+
+func (ba *BondAction) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*ba = BondOnly
+	case 1:
+		*ba = UnbondOnly
+	case 2:
+		*ba = BothBondUnbond
+	case 3:
+		*ba = EitherBondUnbond
+	default:
+		return fmt.Errorf("BondAction decode error: %d", b)
+	}
+
+	return nil
+}
+
 type VoteState struct {
 	VotesFor     []types.AccountID
 	VotesAgainst []types.AccountID
@@ -247,25 +293,13 @@ type PoolSnapshot struct {
 type BondReportType uint8
 
 const (
-	BondReport          = BondReportType(0)
+	NewBondReport       = BondReportType(0)
 	BondAndReportActive = BondReportType(1)
-	BondOnlyReport      = BondReportType(2)
-)
-
-type BondReportAction uint8
-
-const (
-	BondAction   = BondReportAction(0)
-	UnBondAction = BondReportAction(1)
-	NoneAction   = BondReportAction(2)
-	BothAction   = BondReportAction(3)
 )
 
 type BondCall struct {
 	ReportType BondReportType
-	Action     BondReportAction
-	//Bond       interface{}
-	//Unbond     interface{}
+	Action     BondAction
 }
 
 type EraPoolUpdatedFlow struct {

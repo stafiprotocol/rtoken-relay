@@ -162,6 +162,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	bond := snap.Bond.Int64()
 	unbond := snap.Unbond.Int64()
 	least := flow.LeastBond.Int64()
+	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
 	if unbondable {
 		if bond >= least {
 			err := w.conn.ExecuteBond(poolAddr, validatorId, bond)
@@ -169,68 +170,38 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 				w.log.Error("OnlyBond error", "error", err)
 				return false
 			}
+			flow.BondCall.Action = submodel.BondOnly
 
-			flow.BondCall = &submodel.BondCall{
-				ReportType: submodel.BondOnlyReport,
-				Action:     submodel.BondAction,
-			}
-			return w.informChain(m.Destination, m.Source, mef)
 		} else {
-			flow.BondCall = &submodel.BondCall{
-				ReportType: submodel.BondOnlyReport,
-				Action:     submodel.NoneAction,
-			}
+			flow.BondCall.Action = submodel.EitherBondUnbond
 		}
+
+		return w.informChain(m.Destination, m.Source, mef)
 	}
 
-	call, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
-	w.log.Info("processEraPoolUpdated", "call", call, "symbol", snap.Symbol, "era", snap.Era)
-	flow.BondCall = call
-	switch call.ReportType {
-	case submodel.BondReport:
-		switch call.Action {
-		case submodel.BothAction:
-			return w.informChain(m.Destination, m.Source, mef)
-		case submodel.BondAction:
-			if amount == 0 {
-				w.log.Error("amount of BondAction should not be 0")
-				return false
-			}
-
-			err := w.conn.ExecuteBond(poolAddr, validatorId, amount)
-			if err != nil {
-				w.log.Error("ExecuteBond error", "error", err)
-				return false
-			}
-			return w.informChain(m.Destination, m.Source, mef)
-		case submodel.UnBondAction:
-			if amount == 0 {
-				w.log.Error("amount of UnBondAction should not be 0")
-				return false
-			}
-
-			err := w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
-			if err != nil {
-				w.log.Error("ExecuteUnbond error", "error", err)
-				return false
-			}
-			return w.informChain(m.Destination, m.Source, mef)
-		default:
-			w.log.Error("BondReport do not support", "action", call.Action)
+	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
+	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
+	switch action {
+	case submodel.BondOnly:
+		err := w.conn.ExecuteBond(poolAddr, validatorId, amount)
+		if err != nil {
+			w.log.Error("ExecuteBond error", "error", err)
 			return false
 		}
-	case submodel.BondOnlyReport:
-		switch call.Action {
-		case submodel.NoneAction:
-			return w.informChain(m.Destination, m.Source, mef)
-		default:
-			w.log.Error("call action not supported", "action", call.Action)
+		flow.BondCall.Action = submodel.BothBondUnbond
+	case submodel.UnbondOnly:
+		err := w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
+		if err != nil {
+			w.log.Error("ExecuteUnbond error", "error", err)
 			return false
 		}
-	default:
-		w.log.Error("report type not supported")
-		return false
+		flow.BondCall.Action = submodel.BothBondUnbond
+	case submodel.BothBondUnbond, submodel.EitherBondUnbond:
+		w.log.Info("processEraPoolUpdated: no need to bond or unbond")
+		flow.BondCall.Action = action
 	}
+
+	return w.informChain(m.Destination, m.Source, mef)
 }
 
 func (w *writer) processBondReported(m *core.Message) bool {

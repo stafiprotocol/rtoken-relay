@@ -51,12 +51,12 @@ func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bo
 	return &submodel.Proposal{Call: call, Symbol: symbol, BondId: bondId, MethodName: method}, nil
 }
 
-func (c *Connection) BondOnlyReportProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
+func (c *Connection) NewBondReportProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodBondOnlyReport
+	method := config.MethodNewBondReport
 
 	call, err := types.NewCall(
 		meta,
@@ -84,6 +84,7 @@ func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFl
 		method,
 		flow.Symbol,
 		flow.ShotId,
+		flow.BondCall.Action,
 		types.NewU128(*flow.Active),
 		types.NewU128(*flow.Reward),
 	)

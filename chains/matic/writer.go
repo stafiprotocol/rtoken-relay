@@ -179,14 +179,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
 			w.log.Info("BondOrUnbondCall BondEqualToUnbondError", "symbol", snap.Symbol, "era", snap.Era)
 			flow.BondCall = &submodel.BondCall{
-				ReportType: submodel.BondReport,
+				ReportType: submodel.NewBondReport,
+				Action: submodel.BothBondUnbond,
 			}
 			return w.informChain(m.Destination, m.Source, mef)
 		} else if err.Error() == substrate.BondSmallerThanLeastError.Error() {
 			w.log.Info("BondOrUnbondCall BondSmallerThanLeastError", "symbol", snap.Symbol, "era", snap.Era)
 			flow.BondCall = &submodel.BondCall{
-				ReportType: submodel.BondOnlyReport,
-				Action:     submodel.NoneAction,
+				ReportType: submodel.NewBondReport,
+				Action:     submodel.EitherBondUnbond,
 			}
 			return w.informChain(m.Destination, m.Source, mef)
 		} else {
@@ -197,6 +198,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 	flow.BondCall = &submodel.BondCall{
 		ReportType: submodel.BondAndReportActive,
+		Action: submodel.BothBondUnbond,
 	}
 	param := submodel.SubmitSignatureParams{
 		Symbol: flow.Symbol,

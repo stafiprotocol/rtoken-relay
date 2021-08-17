@@ -75,7 +75,6 @@ func EraPoolUpdatedData(evt *ChainEvent) (*EraPoolUpdatedFlow, error) {
 		Era:        era.Value,
 		ShotId:     shot,
 		LastVoter:  voter,
-		ReportType: BondAndReportActive,
 		Active:     big.NewInt(0),
 	}, nil
 }

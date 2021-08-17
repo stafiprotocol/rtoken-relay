@@ -212,41 +212,26 @@ func (c *Connection) Unbondable(pool common.Address, validator bncCmnTypes.ValAd
 	return true, nil
 }
 
-func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (*submodel.BondCall, int64) {
+func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.BondAction, int64) {
 	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
 
 	if bond < unbond {
 		diff := unbond - bond
 		if diff < leastBond {
 			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, BondOnlyReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
-			return &submodel.BondCall{
-				ReportType: submodel.BondOnlyReport,
-				Action:     submodel.NoneAction,
-			}, 0
+			return submodel.EitherBondUnbond, 0
 		}
-		return &submodel.BondCall{
-			ReportType: submodel.BondReport,
-			Action:     submodel.UnBondAction,
-		}, diff
+		return submodel.UnbondOnly, diff
 	} else if bond > unbond {
 		diff := bond - unbond
 		if diff < leastBond {
 			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, BondOnlyReport", "bond", bond, "unbond", unbond, "leastBond", leastBond)
-			return &submodel.BondCall{
-				ReportType: submodel.BondOnlyReport,
-				Action:     submodel.NoneAction,
-			}, 0
+			return submodel.EitherBondUnbond, 0
 		}
-		return &submodel.BondCall{
-			ReportType: submodel.BondReport,
-			Action:     submodel.BondAction,
-		}, diff
+		return submodel.BondOnly, diff
 	} else {
 		c.log.Info("bond is equal to unbond, NoCall")
-		return &submodel.BondCall{
-			ReportType: submodel.BondReport,
-			Action:     submodel.BothAction,
-		}, 0
+		return submodel.BothBondUnbond, 0
 	}
 }
 
