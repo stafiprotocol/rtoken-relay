@@ -492,7 +492,7 @@ func (c *Connection) TxHashState(hash common.Hash, pool common.Address) (ethmode
 	return ethmodel.TxHashState(state), err
 }
 
-func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) error {
+func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address, txType submodel.OriginalTx) error {
 	wait := func() error {
 		latest, err := c.conn.LatestBlock()
 		if err != nil {
@@ -509,6 +509,9 @@ func (c *Connection) WaitTxHashSuccess(hash common.Hash, pool common.Address) er
 
 		switch state {
 		case ethmodel.HashStateUnsubmit, ethmodel.HashStateFail:
+			if txType == submodel.OriginalClaimRewards && state == ethmodel.HashStateFail {
+				return nil
+			}
 			err = wait()
 			if err != nil {
 				return err

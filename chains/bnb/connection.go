@@ -31,6 +31,7 @@ var (
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
 	ZeroAddress      = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	sideChainId      = bncTypes.ChapelNet
+	apiUrl           = "https://testnet-api.binance.org"
 )
 
 const (
@@ -68,6 +69,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		log.Info("bnc networ is TestNetwork")
 	} else if strings.HasPrefix(cfg.Accounts[0], "bnb") {
 		sideChainId = "bsc"
+		apiUrl = "https://api.binance.org"
 		log.Info("bnc network is ProdNetwork")
 	} else {
 		return nil, fmt.Errorf("unknown bnc network")
@@ -291,6 +293,9 @@ func (c *Connection) ExecuteUnbond(pool common.Address, validator bncCmnTypes.Va
 	return nil
 }
 
+func (c *Connection) Reward(pool common.Address, validator bncCmnTypes.ValAddress) {
+}
+
 func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action int, amount int64) (bool, error) {
 	free, err := c.bcBanlance(key)
 	if err != nil {
@@ -315,6 +320,10 @@ func (c *Connection) bcBanlance(key bnckeys.KeyManager) (int64, error) {
 	}
 	c.log.Info("current Balance", "bal", bal.Free.ToInt64())
 	return bal.Free.ToInt64(), nil
+}
+
+func (c *Connection) rewardApi(delegator bnckeys.KeyManager, limit, offset int) string {
+	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", apiUrl, sideChainId, delegator.GetAddr().String(), limit, offset)
 }
 
 func (c *Connection) Close() {

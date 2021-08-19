@@ -71,11 +71,11 @@ func EraPoolUpdatedData(evt *ChainEvent) (*EraPoolUpdatedFlow, error) {
 	}
 
 	return &EraPoolUpdatedFlow{
-		Symbol:     symbol,
-		Era:        era.Value,
-		ShotId:     shot,
-		LastVoter:  voter,
-		Active:     big.NewInt(0),
+		Symbol:    symbol,
+		Era:       era.Value,
+		ShotId:    shot,
+		LastVoter: voter,
+		Active:    big.NewInt(0),
 	}, nil
 }
 

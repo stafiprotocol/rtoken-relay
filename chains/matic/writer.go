@@ -180,7 +180,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 			w.log.Info("BondOrUnbondCall BondEqualToUnbondError", "symbol", snap.Symbol, "era", snap.Era)
 			flow.BondCall = &submodel.BondCall{
 				ReportType: submodel.NewBondReport,
-				Action: submodel.BothBondUnbond,
+				Action:     submodel.BothBondUnbond,
 			}
 			return w.informChain(m.Destination, m.Source, mef)
 		} else if err.Error() == substrate.BondSmallerThanLeastError.Error() {
@@ -198,7 +198,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 	flow.BondCall = &submodel.BondCall{
 		ReportType: submodel.BondAndReportActive,
-		Action: submodel.BothBondUnbond,
+		Action:     submodel.BothBondUnbond,
 	}
 	param := submodel.SubmitSignatureParams{
 		Symbol: flow.Symbol,
@@ -254,26 +254,7 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return true
 	}
 
-	claimable, err := w.conn.Claimable(shareAddr, common.BytesToAddress(snap.Pool))
-	if err != nil {
-		w.log.Error("Claimable error", "err", err)
-		return true
-	}
-
 	poolAddr := common.BytesToAddress(snap.Pool)
-	if !claimable {
-		active, err := w.conn.TotalStaked(shareAddr, poolAddr)
-		if err != nil {
-			w.log.Error("processBondReported TotalStaked error", "error", err, "share", shareAddr, "pool", poolAddr)
-			return true
-		}
-
-		flow.Snap.Active = types.NewU128(*active)
-		w.log.Info("processBondReported", "pool", poolAddr, "active", active)
-		msg := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.ActiveReport, Content: flow}
-		return w.submitMessage(msg)
-	}
-
 	tx, err := w.conn.RestakeCall(shareAddr)
 	if err != nil {
 		w.log.Error("RestakeCall error", "err", err)
@@ -563,19 +544,13 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	firstSignerFlag := w.conn.IsFirstSigner(msg, signatures[0])
 	if !firstSignerFlag {
 		w.log.Info("processSignatureEnough", "FirstSignerFlag", firstSignerFlag, "txHash", hash)
-		err = w.conn.WaitTxHashSuccess(txHash, poolAddr)
+		err = w.conn.WaitTxHashSuccess(txHash, poolAddr, sigs.TxType)
 		if err != nil {
 			w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
 			return false
 		}
 		return report()
 	}
-
-	//err = w.conn.VerifySigs(msg, signatures, poolAddr)
-	//if err != nil {
-	//	w.log.Error("processSignatureEnough: VerifySig error", "error", err, "pool", poolAddr)
-	//	return false
-	//}
 
 	err = w.conn.AsMulti(poolAddr, to, value, calldata, uint8(operation), safeGas, totalGas, txHash, vs, rs, ss)
 	if err != nil {
@@ -584,7 +559,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	}
 	w.log.Info("AsMulti success", "txHash", txHash)
 
-	err = w.conn.WaitTxHashSuccess(txHash, poolAddr)
+	err = w.conn.WaitTxHashSuccess(txHash, poolAddr, sigs.TxType)
 	if err != nil {
 		w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
 		return false
