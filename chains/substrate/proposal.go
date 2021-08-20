@@ -116,6 +116,28 @@ func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*sub
 	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
 }
 
+func (c *Connection) NewActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodNewActiveReport
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		flow.Symbol,
+		flow.ShotId,
+		flow.Snap.Active,
+		flow.Unstaked,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
+}
+
 func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) bool {
 	for i := 0; i < BlockRetryLimit; i++ {
 		// Ensure we only submit a vote if status of the proposal is Initiated

@@ -9,18 +9,22 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	bncClient "github.com/stafiprotocol/go-sdk/client"
 	bncRpc "github.com/stafiprotocol/go-sdk/client/rpc"
+	"github.com/stafiprotocol/go-sdk/client/websocket"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	bnckeys "github.com/stafiprotocol/go-sdk/keys"
 	bncTypes "github.com/stafiprotocol/go-sdk/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/TokenHub"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/bnc"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
@@ -45,10 +49,13 @@ type Connection struct {
 	url              string
 	symbol           core.RSymbol
 	bscClient        *ethereum.Client
+	bcClient         bncClient.DexClient
 	bcKeys           map[common.Address]bnckeys.KeyManager
 	bscClients       map[common.Address]*ethereum.Client
 	bcRpcClient      *bncRpc.HTTP
 	tokenHubContract common.Address
+	bcBlockHeight    int64
+	eraBlock         uint64
 	log              log15.Logger
 	stop             <-chan int
 
@@ -78,8 +85,8 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	rpcClient := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.Network)
 
 	var key *secp256k1.Keypair
-	//bscKeys := make([]common.Address, 0)
 	var bscClient *ethereum.Client
+	var bcClient bncClient.DexClient
 	bcKeys := make(map[common.Address]bnckeys.KeyManager)
 	bscClients := make(map[common.Address]*ethereum.Client)
 	acSize := len(cfg.Accounts)
@@ -107,11 +114,15 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		}
 
 		address := kp.CommonAddress()
-		//bscKeys = append(bscKeys, address)
 		bcKeys[address] = km
 		bscClients[address] = conn
 		if i == 0 {
 			bscClient = conn
+
+			bcClient, err = bncClient.NewDexClient("testnet-dex.binance.org:443", bncCmnTypes.Network, km)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -124,6 +135,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		url:              cfg.Endpoint,
 		symbol:           cfg.Symbol,
 		bscClient:        bscClient,
+		bcClient:         bcClient,
 		bcKeys:           bcKeys,
 		bscClients:       bscClients,
 		bcRpcClient:      rpcClient,
@@ -138,20 +150,45 @@ func (c *Connection) ReConnect() error {
 }
 
 // LatestBlock returns the latest block from the current chain
-func (c *Connection) LatestBlock() (uint64, error) {
-	blk, err := c.bscClient.LatestBlock()
-	if err != nil {
-		return 0, err
-	}
-	return blk.Uint64(), nil
-}
+func (c *Connection) LatestBlock() (latest int64, err error) {
+	quit := make(chan struct{})
+	defer close(quit)
+	errCount := 0
 
-func (c *Connection) Address() string {
-	return c.bscClient.Keypair().Address()
+	timer := time.NewTimer(time.Minute)
+	defer timer.Stop()
+
+	onReceive := func(event *websocket.BlockHeightEvent) {
+		latest = event.BlockHeight
+		quit <- struct{}{}
+	}
+
+	onError := func(inErr error) {
+		errCount += 1
+		if errCount > 10 {
+			err = inErr
+			quit <- struct{}{}
+		}
+	}
+	err = c.bcClient.SubscribeBlockHeightEvent(quit, onReceive, onError, nil)
+	if err != nil {
+		return
+	}
+
+	select {
+	case <-timer.C:
+		err = errors.New("LatestBlock timeout")
+		quit <- struct{}{}
+		return
+	}
 }
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	return c.bscClient.BnbTransferVerify(r)
+}
+
+func (c *Connection) BckeyByPool(pool common.Address) bnckeys.KeyManager {
+	return c.bcKeys[pool]
 }
 
 func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
@@ -293,7 +330,70 @@ func (c *Connection) ExecuteUnbond(pool common.Address, validator bncCmnTypes.Va
 	return nil
 }
 
-func (c *Connection) Reward(pool common.Address, validator bncCmnTypes.ValAddress) {
+func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (int64, error) {
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return 0, fmt.Errorf("Reward no bc key found: %s", pool.Hex())
+	}
+	delegator := bcKey.GetAddr().String()
+
+	for i := 0; i < TxRetryLimit; i++ {
+		total, height, err := c.totalAndLastHeight(delegator)
+		if err != nil {
+			if i+1 == TxRetryLimit {
+				return 0, err
+			}
+			continue
+		}
+
+		if height < lastHeight {
+			return 0, nil
+		}
+
+		api := c.rewardApi(delegator, total, 0)
+		sr, err := bnc.GetStakingReward(api)
+		if err != nil {
+			if i+1 == TxRetryLimit {
+				return 0, err
+			}
+			continue
+		}
+
+		rewardSum := int64(0)
+		for _, rd := range sr.RewardDetails {
+			if rd.Height > curHeight {
+				continue
+			}
+
+			if rd.Height < lastHeight {
+				return rewardSum, nil
+			}
+
+			rewardSum += int64(rd.Reward * 1e8)
+		}
+	}
+
+	return 0, fmt.Errorf("Reward failed")
+}
+
+func (c *Connection) Staked(pool common.Address, validator bncCmnTypes.ValAddress) (int64, error) {
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return 0, fmt.Errorf("Staked no bc key found: %s", pool.Hex())
+	}
+
+	bonds, err := c.bcRpcClient.QuerySideChainDelegations(sideChainId, bcKey.GetAddr())
+	if err != nil {
+		return 0, err
+	}
+
+	for _, ub := range bonds {
+		if bytes.Equal(ub.ValidatorAddr, validator) {
+			return ub.Balance.Amount, nil
+		}
+	}
+
+	return 0, errors.New("Staked found no bond")
 }
 
 func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action int, amount int64) (bool, error) {
@@ -322,8 +422,30 @@ func (c *Connection) bcBanlance(key bnckeys.KeyManager) (int64, error) {
 	return bal.Free.ToInt64(), nil
 }
 
-func (c *Connection) rewardApi(delegator bnckeys.KeyManager, limit, offset int) string {
-	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", apiUrl, sideChainId, delegator.GetAddr().String(), limit, offset)
+func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) {
+	api := c.rewardApi(delegator, 1, 0)
+	sr, err := bnc.GetStakingReward(api)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if len(sr.RewardDetails) == 0 {
+		return 0, 0, nil
+	}
+
+	return sr.Total, sr.RewardDetails[0].Height, nil
+}
+
+func (c *Connection) rewardApi(delegator string, limit, offset int64) string {
+	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", apiUrl, sideChainId, delegator, limit, offset)
+}
+
+func (c *Connection) SetEraBlock(eraBlock uint64) {
+	c.eraBlock = eraBlock
+}
+
+func (c *Connection) EraBlock() uint64 {
+	return c.eraBlock
 }
 
 func (c *Connection) Close() {

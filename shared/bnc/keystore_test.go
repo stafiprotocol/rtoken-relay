@@ -3,11 +3,15 @@ package bnc
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/ethereum/go-ethereum/core/types"
 	subtypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/models/bnc"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"os"
 	"testing"
 
@@ -205,4 +209,32 @@ func newBscTestClient() *ethereum.Client {
 	}
 
 	return client
+}
+
+func TestStakingReward(t *testing.T) {
+	url := "https://testnet-api.binance.org/v1/staking/chains/chapel/delegators/tbnb1tt84yhkvh6q23kksttfq36dujnyfh2cldrzux5/rewards?limit=10&offset=0"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sr := new(bnc.StakingReward)
+	if err := json.Unmarshal(body, sr); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(sr)
+
+	url1 := "https://testnet-api.binance.org/v1/staking/chains/chapel/delegators/tbnb1ufrtxk7f5w0skl5evusrmsd6cundpxvmpz4n4n/rewards?limit=10&offset=0"
+	sr1, err := bnc.GetStakingReward(url1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(sr1.Total)
 }

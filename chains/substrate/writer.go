@@ -989,10 +989,20 @@ func (w *writer) processActiveReport(m *core.Message) bool {
 		return false
 	}
 
-	prop, err := w.conn.ActiveReportProposal(flow)
-	if err != nil {
-		w.log.Error("ActiveReportProposal", "error", err)
-		return false
+	var prop *submodel.Proposal
+	var err error
+	if !flow.NewActiveReportFlag {
+		prop, err = w.conn.ActiveReportProposal(flow)
+		if err != nil {
+			w.log.Error("ActiveReportProposal", "error", err)
+			return false
+		}
+	} else {
+		prop, err = w.conn.NewActiveReportProposal(flow)
+		if err != nil {
+			w.log.Error("NewActiveReportProposal", "error", err)
+			return false
+		}
 	}
 
 	result := w.conn.resolveProposal(prop, true)

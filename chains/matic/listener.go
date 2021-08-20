@@ -5,11 +5,9 @@ package matic
 
 import (
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/utils"
@@ -17,29 +15,26 @@ import (
 
 // Frequency of polling for a new block
 var (
-	BlockDelay                = uint64(10)
-	BlockRetryInterval        = time.Second * 10
-	BlockRetryLimit           = 30
-	ErrFatalPolling           = errors.New("listener block polling failed")
-	BlockIntervalToProcessEra = uint64(10)
+	BlockDelay         = uint64(10)
+	BlockRetryInterval = time.Second * 10
+	EraInterval        = time.Minute * 2
+	BlockRetryLimit    = 30
+	ErrFatalPolling    = errors.New("listener block polling failed")
 )
 
 type listener struct {
-	name         string
-	symbol       core.RSymbol
-	startBlock   uint64
-	eraBlock     uint64
-	conn         *Connection
-	router       chains.Router
-	log          log15.Logger
-	blockstore   blockstore.Blockstorer
-	stop         <-chan int
-	sysErr       chan<- error // Reports fatal error to core
-	lastEraBlock uint64
+	name     string
+	symbol   core.RSymbol
+	eraBlock uint64
+	conn     *Connection
+	router   chains.Router
+	log      log15.Logger
+	stop     <-chan int
+	sysErr   chan<- error // Reports fatal error to core
 }
 
 // NewListener creates and returns a listener
-func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	eraBlockCfg := opts["eraBlockCfg"]
 	eraBlockStr, ok := eraBlockCfg.(string)
 	if !ok {
@@ -51,16 +46,13 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 	}
 
 	return &listener{
-		name:         name,
-		symbol:       symbol,
-		startBlock:   startBlock,
-		eraBlock:     eraBlock.Uint64(),
-		conn:         conn,
-		log:          log,
-		blockstore:   bs,
-		stop:         stop,
-		sysErr:       sysErr,
-		lastEraBlock: 0,
+		name:     name,
+		symbol:   symbol,
+		eraBlock: eraBlock.Uint64(),
+		conn:     conn,
+		log:      log,
+		stop:     stop,
+		sysErr:   sysErr,
 	}
 }
 
@@ -88,7 +80,6 @@ func (l *listener) start() error {
 // a block will be retried up to BlockRetryLimit times before continuing to the next block.
 func (l *listener) pollBlocks() error {
 	l.log.Info("Polling Blocks...")
-	var currentBlock = l.startBlock
 	var retry = BlockRetryLimit
 	for {
 		select {
@@ -111,34 +102,19 @@ func (l *listener) pollBlocks() error {
 					}
 				}
 
-				l.log.Error("Unable to get latest block", "block", currentBlock, "err", err)
+				l.log.Error("Unable to get latest block", "err", err)
 				retry--
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
 
-			// Sleep if the difference is less than BlockDelay; (latest - current) < BlockDelay
-			if currentBlock+BlockDelay > latestBlock {
-				if currentBlock%100 == 0 {
-					l.log.Debug("Block not ready, will retry", "target", currentBlock, "latest", latestBlock)
-				}
-
-				time.Sleep(BlockRetryInterval)
-				continue
+			if latestBlock%100 == 0 {
+				l.log.Debug("pollBlocks", "latest", latestBlock)
 			}
 
-			if l.lastEraBlock+BlockIntervalToProcessEra < currentBlock {
-				l.lastEraBlock = currentBlock
-				era := uint32(currentBlock / l.eraBlock)
-				l.processEra(era)
-			}
-
-			// Write to blockstore
-			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
-			if err != nil {
-				l.log.Error("Failed to write to blockstore", "err", err)
-			}
-			currentBlock++
+			era := uint32(latestBlock / l.eraBlock)
+			l.processEra(era)
+			time.Sleep(EraInterval)
 			retry = BlockRetryLimit
 		}
 	}

@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	multiEndError = errors.New("multiEnd")
+	multiEndError             = errors.New("multiEnd")
+	eraSnapShotsNotExistError = errors.New("eraSnapShots not exist")
 
 	EventEraIsOldError                = errors.New("EventEraIsOldError")
 	BondStateNotEraUpdatedError       = errors.New("BondStateNotEraUpdatedError")
@@ -121,10 +122,10 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	var valdatorId interface{}
+	var validatorId interface{}
 	var leastBond *big.Int
 	if data.Symbol == core.RMATIC || data.Symbol == core.RBNB {
-		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +146,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		EventData:   data,
 		Threshold:   th,
 		SubAccounts: sub,
-		ValidatorId: valdatorId,
+		ValidatorId: validatorId,
 	}, nil
 }
 
@@ -186,19 +187,29 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
-	var valdatorId interface{}
-	if snap.Symbol == core.RMATIC {
-		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+	var validatorId interface{}
+	if snap.Symbol == core.RMATIC || snap.Symbol == core.RBNB {
+		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	flow.LastEra = snap.Era - 1
+	if snap.Symbol == core.RBNB {
+		_, err = l.eraSnapShots(snap.Symbol, flow.LastEra)
+		if err != nil {
+			if err.Error() != eraSnapShotsNotExistError.Error() {
+				return nil, err
+			}
+			flow.LastEra = 0
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
-	flow.LastEra = snap.Era - 1
 	flow.SubAccounts = sub
-	flow.ValidatorId = valdatorId
+	flow.ValidatorId = validatorId
 
 	return flow, nil
 }
@@ -697,4 +708,29 @@ func (l *listener) leastBond(symbol core.RSymbol) (*big.Int, error) {
 	}
 
 	return least.Int, nil
+}
+
+func (l *listener) eraSnapShots(symbol core.RSymbol, lastEra uint32) ([]types.Hash, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	eraBz, err := types.EncodeToBytes(lastEra)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]types.Hash, 0)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageEraSnapShots, symBz, eraBz, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, eraSnapShotsNotExistError
+	}
+
+	return ids, nil
+
 }

@@ -2,7 +2,6 @@ package matic
 
 import (
 	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
@@ -23,28 +22,8 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	latestBlock, err := conn.LatestBlock()
-	if err != nil {
-		return nil, err
-	}
-
-	bs, err := chains.NewBlockstore(cfg.Opts["blockstorePath"], conn.Address())
-	if err != nil {
-		return nil, err
-	}
-
-	var startBlk uint64
-	if cfg.LatestBlockFlag {
-		startBlk = latestBlock
-	} else {
-		startBlk, err = chains.StartBlock(bs, cfg.Opts["startBlock"])
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Setup listener & writer
-	l := NewListener(cfg.Name, cfg.Symbol, cfg.Opts, startBlk, bs, conn, logger, stop, sysErr)
+	l := NewListener(cfg.Name, cfg.Symbol, cfg.Opts, conn, logger, stop, sysErr)
 	w := NewWriter(cfg.Symbol, conn, logger, sysErr, stop)
 	return &Chain{cfg: cfg, conn: conn, listener: l, writer: w, stop: stop}, nil
 }

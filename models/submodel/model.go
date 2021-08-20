@@ -316,16 +316,19 @@ type EraPoolUpdatedFlow struct {
 }
 
 type BondReportedFlow struct {
-	Symbol           core.RSymbol
-	ShotId           types.Hash
-	LastVoter        types.AccountID
-	LastVoterFlag    bool
-	Snap             *PoolSnapshot
-	LastEra          uint32
-	SubAccounts      []types.Bytes
-	Stashes          []types.AccountID
-	ValidatorId      interface{}
-	MultiTransaction *ethmodel.MultiTransaction
+	Symbol              core.RSymbol
+	ShotId              types.Hash
+	LastVoter           types.AccountID
+	LastVoterFlag       bool
+	Snap                *PoolSnapshot
+	LastEra             uint32
+	EraBlock            uint64
+	Unstaked            types.U128
+	SubAccounts         []types.Bytes
+	Stashes             []types.AccountID
+	ValidatorId         interface{}
+	MultiTransaction    *ethmodel.MultiTransaction
+	NewActiveReportFlag bool
 }
 
 type ActiveReportedFlow struct {

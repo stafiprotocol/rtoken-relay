@@ -5,6 +5,8 @@ package bnb
 
 import (
 	"fmt"
+	"math/big"
+	"os"
 	"sync"
 
 	"github.com/ChainSafe/log15"
@@ -16,6 +18,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 type writer struct {
@@ -29,13 +32,26 @@ type writer struct {
 	bondedPoolsMtx  sync.RWMutex
 	bondedPools     map[string]bool
 	stop            <-chan int
+	rewardsRecord   string
 }
 
 const (
 	bondFlowLimit = 2048
 )
 
-func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+	rewardsRecord, ok := opts["rewardsRecord"].(string)
+	if !ok {
+		panic("no filepath to save rewardsRecord")
+	}
+
+	if _, err := os.Stat(rewardsRecord); os.IsNotExist(err) {
+		err = utils.WriteCSV(rewardsRecord, [][]string{})
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return &writer{
 		symbol:          symbol,
 		conn:            conn,
@@ -45,6 +61,7 @@ func NewWriter(symbol core.RSymbol, conn *Connection, log log15.Logger, sysErr c
 		currentChainEra: 0,
 		bondedPools:     make(map[string]bool),
 		stop:            stop,
+		rewardsRecord:   rewardsRecord,
 	}
 }
 
@@ -164,18 +181,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	least := flow.LeastBond.Int64()
 	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
 	if unbondable {
-		if bond >= least {
-			err := w.conn.ExecuteBond(poolAddr, validatorId, bond)
-			if err != nil {
-				w.log.Error("OnlyBond error", "error", err)
-				return false
-			}
-			flow.BondCall.Action = submodel.BondOnly
-
-		} else {
-			flow.BondCall.Action = submodel.EitherBondUnbond
-		}
-
+		flow.BondCall.Action = submodel.EitherBondUnbond
 		return w.informChain(m.Destination, m.Source, mef)
 	}
 
@@ -212,9 +218,39 @@ func (w *writer) processBondReported(m *core.Message) bool {
 	}
 
 	snap := flow.Snap
-	_ = snap
+	poolAddr := common.BytesToAddress(snap.Pool)
+	validatorId, ok := flow.ValidatorId.(bncCmnTypes.ValAddress)
+	if !ok {
+		w.log.Error("processBondReported validatorId not ValAddress")
+		return false
+	}
 
-	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: ""}
+	eraBlock := w.conn.EraBlock()
+	lastHeight := int64(0)
+	if flow.LastEra != 0 {
+		lastHeight = int64(flow.LastEra) * int64(eraBlock)
+	}
+	curHeight := int64(snap.Era) * int64(eraBlock)
+	w.log.Info("processBondReported reward", "pool", poolAddr, "validator", validatorId.String(), "curHeight", curHeight, "lastHeight", lastHeight)
+
+	reward, err := w.conn.Reward(poolAddr, curHeight, lastHeight)
+	if err != nil {
+		w.log.Error("processBondReported reward error", "err", err)
+		return false
+	}
+
+	staked, err := w.conn.Staked(poolAddr, validatorId)
+	if err != nil {
+		w.log.Error("processBondReported reward error", "err", err)
+		return false
+	}
+
+	flow.Snap.Active = types.NewU128(*big.NewInt(staked))
+	flow.Unstaked = types.NewU128(*big.NewInt(reward))
+	flow.NewActiveReportFlag = true
+	w.log.Info("queryAndReportActive", "pool", poolAddr, "active", staked, "unstaked", reward)
+
+	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.ActiveReport, Content: flow}
 	return w.submitMessage(result)
 }
 
