@@ -87,8 +87,6 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processBondReported(m)
 	case core.ActiveReportedEvent:
 		return w.processActiveReported(m)
-	case core.WithdrawReportedEvent:
-		return w.processWithdrawReported(m)
 	//case core.ValidatorUpdatedEvent:
 	//	return w.processValidatorUpdatedEvent(m)
 	default:
@@ -261,36 +259,35 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	flow, ok := mef.EventData.(*submodel.ActiveReportedFlow)
+	flow, ok := mef.EventData.(*submodel.WithdrawReportedFlow)
 	if !ok {
 		w.log.Error("processActiveReported eventData is not ActiveReportedFlow")
 		return false
 	}
 
 	snap := flow.Snap
-	_ = snap
-
-	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: ""}
-	return w.submitMessage(result)
-}
-
-func (w *writer) processWithdrawReported(m *core.Message) bool {
-	mef, ok := m.Content.(*submodel.MultiEventFlow)
-	if !ok {
-		w.printContentError(m)
+	total := flow.TotalAmount.Int64()
+	poolAddr := common.BytesToAddress(snap.Pool)
+	w.log.Info("processActiveReported prepare to transfer", "pool", poolAddr, "total", total)
+	err := w.conn.CheckTransfer(poolAddr, total)
+	if err != nil {
+		w.log.Error("processActiveReported unable to transfer", "error", err)
 		return false
 	}
 
-	flow, ok := mef.EventData.(*submodel.WithdrawReportedFlow)
-	if !ok {
-		w.log.Error("processWithdrawReported eventData is not WithdrawReportedFlow")
+	err = w.conn.TransferFromBcToBsc(poolAddr, total)
+	if err != nil {
+		w.log.Error("processActiveReported TransferFromBcToBsc error", "error", err)
 		return false
 	}
 
-	snap := flow.Snap
-	_ = snap
+	err = w.conn.BatchTransfer(poolAddr, flow.Receives, total)
+	if err != nil {
+		w.log.Error("processActiveReported BatchTransfer error", "error", err)
+		return false
+	}
 
-	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: ""}
+	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
 }
 

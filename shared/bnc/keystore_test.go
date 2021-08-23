@@ -185,6 +185,47 @@ func TestTransferOut(t *testing.T) {
 	t.Log("txHash", tx.Hash())
 }
 
+func TestBatchTransferOut(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	owner := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	client := ethereum.NewClient(bscTestEndpoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hub, err := TokenHub.NewTokenHub(tokenHubContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = hub
+
+	receiver := common.HexToAddress("0x5acf525eccbe80a8dad05ad208e9bc94c89bab1f")
+	amount := big.NewInt(5e17)
+	value := big.NewInt(0).Add(amount, relayfee)
+
+	err = client.LockAndUpdateOpts(big.NewInt(0), value)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := hub.TransferOut(client.Opts(), zeroAddress, receiver, amount, 0x17b1f307761)
+	client.UnlockOpts()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("txHash", tx.Hash())
+}
+
 func TestAmountAndExpireTime(t *testing.T) {
 	a, _ := hexutil.Decode("0x120b3d02e0f68000")
 	b := big.NewInt(0).SetBytes(a)

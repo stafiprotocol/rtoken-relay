@@ -1,6 +1,7 @@
 package ethereum
 
 import (
+	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSendCallOnly"
 	"math/big"
 	"os"
 	"testing"
@@ -94,6 +95,65 @@ func TestMultisigTransfer(t *testing.T) {
 		rs,
 		ss,
 	)
+
+	client.UnlockOpts()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("txHash", tx.Hash())
+}
+
+func TestMultiSendCallOnlyTransfer(t *testing.T) {
+	password := "123456"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kpI, err := keystore.KeypairFromAddress(owner.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		panic(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+	client := NewClient(goerliEndPoint, kp, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mulsend := common.HexToAddress("0xAb8424e564f09c714fa562BcD0F6a96621a5faA4")
+	msco, err := MultiSendCallOnly.NewMultiSendCallOnly(mulsend, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bts := make(ethmodel.BatchTransactions, 0)
+	totalGas := big.NewInt(0)
+
+	rec1 := common.HexToAddress("0xaD0bf51f7fc89e262edBbdF53C260088B024D857")
+	rec2 := common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")
+
+	revs := []common.Address{rec1, rec2}
+	value := big.NewInt(1e16)
+	totalValue := big.NewInt(0)
+	for _, rec := range revs {
+		bt := &ethmodel.BatchTransaction{
+			Operation:  uint8(ethmodel.Call),
+			To:         rec,
+			Value:      value,
+			DataLength: big.NewInt(0),
+			Data:       nil,
+		}
+		totalGas.Add(totalGas, big.NewInt(1e5))
+		totalValue.Add(totalValue, value)
+		bts = append(bts, bt)
+	}
+
+	err = client.LockAndUpdateOpts(totalGas, totalValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := msco.MultiSend(client.Opts(), bts.Encode())
 
 	client.UnlockOpts()
 

@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,4 +30,11 @@ func TestByteToBigInt(t *testing.T) {
 	c := big.NewInt(0).SetBytes(b)
 
 	assert.Equal(t, a.Uint64(), c.Uint64())
+}
+
+func TestTimeNow(t *testing.T) {
+	currentTime := time.Now()
+	t.Log(currentTime.Unix())
+	newtime := currentTime.Add(1 * time.Hour)
+	t.Log(newtime.Unix())
 }

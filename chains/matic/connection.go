@@ -468,7 +468,7 @@ func (c *Connection) AsMulti(
 			c.conn.UnlockOpts()
 
 			if err == nil {
-				c.log.Info("multisig ExecTransaction result", "tx", tx.Hash(), "gasPrice", tx.GasPrice().String())
+				c.log.Info("multisig ExecTransaction result", "tx", tx.Hash(), "gasPrice", tx.GasPrice())
 				return nil
 			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
 				c.log.Debug("Nonce too low, will retry")

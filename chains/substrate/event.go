@@ -220,9 +220,9 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	//turn to processActiveReportedEvtForRAtom
-	if flow.Symbol == core.RATOM {
-		return l.processActiveReportedEvtForRAtom(evt)
+	//turn to processActiveReportedEvtAsWithdrawReported
+	if flow.Symbol == core.RATOM || flow.Symbol == core.RBNB {
+		return l.processActiveReportedEvtAsWithdrawReported(evt)
 	}
 
 	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
@@ -277,7 +277,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	}, nil
 }
 
-func (l *listener) processActiveReportedEvtForRAtom(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+func (l *listener) processActiveReportedEvtAsWithdrawReported(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
 	flow, err := submodel.EventWithdrawReported(evt)
 	if err != nil {
 		return nil, err

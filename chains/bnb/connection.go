@@ -22,9 +22,12 @@ import (
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	bnckeys "github.com/stafiprotocol/go-sdk/keys"
 	bncTypes "github.com/stafiprotocol/go-sdk/types"
+	"github.com/stafiprotocol/go-sdk/types/msgtype"
+	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSendCallOnly"
 	"github.com/stafiprotocol/rtoken-relay/bindings/TokenHub"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/bnc"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
@@ -32,6 +35,7 @@ import (
 var (
 	DefaultValue     = big.NewInt(0)
 	ErrNonceTooLow   = errors.New("nonce too low")
+	TxRetryInterval  = time.Second * 2
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
 	ZeroAddress      = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	sideChainId      = bncTypes.ChapelNet
@@ -41,23 +45,25 @@ var (
 const (
 	TxRetryLimit = 10
 
-	BondFee   = int64(20000)
-	UnbondFee = int64(40000)
+	BondFee     = int64(20000)
+	UnbondFee   = int64(40000)
+	TransferFee = int64(7500)
 )
 
 type Connection struct {
-	url              string
-	symbol           core.RSymbol
-	bscClient        *ethereum.Client
-	bcClient         bncClient.DexClient
-	bcKeys           map[common.Address]bnckeys.KeyManager
-	bscClients       map[common.Address]*ethereum.Client
-	bcRpcClient      *bncRpc.HTTP
-	tokenHubContract common.Address
-	bcBlockHeight    int64
-	eraBlock         uint64
-	log              log15.Logger
-	stop             <-chan int
+	url               string
+	symbol            core.RSymbol
+	bscClient         *ethereum.Client
+	bcClient          bncClient.DexClient
+	bcKeys            map[common.Address]bnckeys.KeyManager
+	bscClients        map[common.Address]*ethereum.Client
+	bcRpcClient       *bncRpc.HTTP
+	tokenHubContract  common.Address
+	multisendContract common.Address
+	bcBlockHeight     int64
+	eraBlock          uint64
+	log               log15.Logger
+	stop              <-chan int
 
 	tokenHub *TokenHub.TokenHub
 }
@@ -131,17 +137,23 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, err
 	}
 
+	multiSend, err := initMultiSend(cfg.Opts["MultiSendContract"])
+	if err != nil {
+		return nil, err
+	}
+
 	return &Connection{
-		url:              cfg.Endpoint,
-		symbol:           cfg.Symbol,
-		bscClient:        bscClient,
-		bcClient:         bcClient,
-		bcKeys:           bcKeys,
-		bscClients:       bscClients,
-		bcRpcClient:      rpcClient,
-		tokenHubContract: hub,
-		log:              log,
-		stop:             stop,
+		url:               cfg.Endpoint,
+		symbol:            cfg.Symbol,
+		bscClient:         bscClient,
+		bcClient:          bcClient,
+		bcKeys:            bcKeys,
+		bscClients:        bscClients,
+		bcRpcClient:       rpcClient,
+		tokenHubContract:  hub,
+		multisendContract: multiSend,
+		log:               log,
+		stop:              stop,
 	}, nil
 }
 
@@ -215,20 +227,34 @@ func (c *Connection) BscTransferToBc(r *submodel.BondRecord) error {
 
 	receiver := common.HexToAddress(hexutil.Encode(bcKey.GetAddr()))
 	value := big.NewInt(0).Add(r.Amount.Int, fee)
+	expireTime := time.Now().Add(time.Hour).Unix()
 
-	err = bscClient.LockAndUpdateOpts(big.NewInt(0), value)
-	if err != nil {
-		return err
+	for i := 0; i < TxRetryLimit; i++ {
+		select {
+		case <-c.stop:
+			return errors.New("BscTransferToBc stopped")
+		default:
+			err = bscClient.LockAndUpdateOpts(big.NewInt(0), value)
+			if err != nil {
+				return err
+			}
+
+			tx, err := hub.TransferOut(bscClient.Opts(), ZeroAddress, receiver, r.Amount.Int, uint64(expireTime))
+			bscClient.UnlockOpts()
+
+			if err == nil {
+				c.log.Info("BscTransferToBc result", "tx", tx.Hash(), "gasPrice", tx.GasPrice())
+				return nil
+			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
+				c.log.Debug("Nonce too low, will retry")
+				time.Sleep(TxRetryInterval)
+			} else {
+				c.log.Warn("BscTransferToBc failed", "err", err)
+				time.Sleep(TxRetryInterval)
+			}
+		}
 	}
-
-	tx, err := hub.TransferOut(bscClient.Opts(), ZeroAddress, receiver, r.Amount.Int, 0x17b1f307761)
-	bscClient.UnlockOpts()
-
-	if err != nil {
-		return err
-	}
-	c.log.Info("BscTransferToBc txHash", tx.Hash())
-	return nil
+	return fmt.Errorf("BscTransferToBc failed")
 }
 
 func (c *Connection) Unbondable(pool common.Address, validator bncCmnTypes.ValAddress) (bool, error) {
@@ -396,6 +422,100 @@ func (c *Connection) Staked(pool common.Address, validator bncCmnTypes.ValAddres
 	return 0, errors.New("Staked found no bond")
 }
 
+func (c *Connection) CheckTransfer(pool common.Address, amount int64) error {
+	c.log.Info("Transferable", "pool", pool, "amount", amount)
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return fmt.Errorf("Transferable no bc key found: %s", pool.Hex())
+	}
+
+	enough, err := c.isBalanceEnough(bcKey, 2, amount)
+	if err != nil {
+		return err
+	}
+
+	if !enough {
+		return fmt.Errorf("Transferable free not enough")
+	}
+
+	return nil
+}
+
+func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) error {
+	c.log.Info("TransferFromBcToBsc", "pool", pool, "amount", amount)
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return fmt.Errorf("TransferFromBcToBsc no bc key found: %s", pool.Hex())
+	}
+
+	c.bcRpcClient.SetKeyManager(bcKey)
+	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	expireTime := time.Now().Add(time.Hour).Unix()
+
+	tx, err := c.bcRpcClient.TransferOut(msgtype.SmartChainAddress(pool), coin, expireTime, bncRpc.Sync)
+	if err != nil {
+		return err
+	}
+
+	c.log.Info("TransferFromBcToBsc", "txHash", tx.Hash)
+	return nil
+}
+
+func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Receive, amount int64) error {
+	bscClient := c.bscClients[pool]
+	if bscClient == nil {
+		return fmt.Errorf("BatchTransfer no bsc client found: %s", pool.Hex())
+	}
+
+	sender, err := MultiSendCallOnly.NewMultiSendCallOnly(c.multisendContract, bscClient.Client())
+	if err != nil {
+		return err
+	}
+
+	bts := make(ethmodel.BatchTransactions, 0)
+	totalGas := big.NewInt(0)
+	for _, rec := range receives {
+		addr := common.BytesToAddress(rec.Recipient)
+		value := big.Int(rec.Value)
+
+		bt := &ethmodel.BatchTransaction{
+			Operation:  uint8(ethmodel.Call),
+			To:         addr,
+			Value:      &value,
+			DataLength: big.NewInt(0),
+			Data:       nil,
+		}
+		totalGas.Add(totalGas, big.NewInt(1e5))
+		bts = append(bts, bt)
+	}
+
+	for i := 0; i < TxRetryLimit; i++ {
+		select {
+		case <-c.stop:
+			return errors.New("BatchTransfer stopped")
+		default:
+			err = bscClient.LockAndUpdateOpts(totalGas, big.NewInt(amount))
+			if err != nil {
+				return err
+			}
+			tx, err := sender.MultiSend(bscClient.Opts(), bts.Encode())
+			bscClient.UnlockOpts()
+
+			if err == nil {
+				c.log.Info("BatchTransfer result", "tx", tx.Hash(), "gasPrice", tx.GasPrice())
+				return nil
+			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
+				c.log.Debug("Nonce too low, will retry")
+				time.Sleep(TxRetryInterval)
+			} else {
+				c.log.Warn("BatchTransfer failed", "err", err)
+				time.Sleep(TxRetryInterval)
+			}
+		}
+	}
+	return fmt.Errorf("BatchTransfer failed")
+}
+
 func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action int, amount int64) (bool, error) {
 	free, err := c.bcBanlance(key)
 	if err != nil {
@@ -407,6 +527,8 @@ func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action int, amount 
 		return amount+BondFee < free, nil
 	case 1:
 		return amount+UnbondFee < free, nil
+	case 2:
+		return amount+TransferFee < free, nil
 	default:
 		return false, fmt.Errorf("action not supported")
 	}
@@ -452,16 +574,20 @@ func (c *Connection) Close() {
 	c.bscClient.Close()
 }
 
-func initTokenhub(TokenHubCfg interface{}) (common.Address, error) {
-	tokenHubAddr, ok := TokenHubCfg.(string)
+func initTokenhub(tokenHubCfg interface{}) (common.Address, error) {
+	tokenHubAddr, ok := tokenHubCfg.(string)
 	if !ok {
 		return ZeroAddress, errors.New("TokenHubContract not ok")
 	}
 
-	//hub, err := TokenHub.NewTokenHub(common.HexToAddress(tokenHubAddr), conn)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	return common.HexToAddress(tokenHubAddr), nil
+}
+
+func initMultiSend(multiSendCfg interface{}) (common.Address, error) {
+	multiSendAddr, ok := multiSendCfg.(string)
+	if !ok {
+		return ZeroAddress, errors.New("MultiSendContract not ok")
+	}
+
+	return common.HexToAddress(multiSendAddr), nil
 }

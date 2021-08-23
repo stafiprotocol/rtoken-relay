@@ -560,23 +560,23 @@ func TestRestake(t *testing.T) {
 	//	t.Fatal(err)
 	//}
 
-	client := NewGoerliClient()
-	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	share, err := manager.Validators(nil, big.NewInt(9))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("share", share.ContractAddress)
-
-	shr, err := ValidatorShare.NewValidatorShare(share.ContractAddress, client.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = shr
+	//client := NewGoerliClient()
+	//manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//share, err := manager.Validators(nil, big.NewInt(9))
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("share", share.ContractAddress)
+	//
+	//shr, err := ValidatorShare.NewValidatorShare(share.ContractAddress, client.Client())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//_ = shr
 
 	//tx, err := shr.Restake(client.Opts())
 	//if err != nil {
