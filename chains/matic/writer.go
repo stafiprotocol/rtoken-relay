@@ -67,7 +67,7 @@ func (w *writer) setRouter(r chains.Router) {
 func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	defer func() {
 		if !processOk {
-			w.sysErr <- fmt.Errorf("resolveMessage process failed. %+v", m)
+			panic(fmt.Sprintf("resolveMessage process failed. %+v", m))
 		}
 	}()
 
