@@ -214,13 +214,13 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 		tx.TotalGas = BuyVoucherSafeTxGas
 		return submodel.OriginalUnbond, tx, nil
 	} else if bond.Cmp(unbond) > 0 {
-		if unbond.Uint64() == 0 && bond.Cmp(leastBond) <= 0 {
-			c.log.Info("bond is smaller than leastBond, NoCall", "bond", bond, "leastBond", leastBond)
-			return submodel.OriginalTxDefault, nil, substrate.BondSmallerThanLeastError
+		diff := big.NewInt(0).Sub(bond, unbond)
+		if diff.Cmp(leastBond) <= 0 {
+			c.log.Info("diff is smaller than leastBond, NoCall", "bond", bond, "leastBond", leastBond)
+			return submodel.OriginalTxDefault, nil, substrate.DiffSmallerThanLeastError
 		}
 
 		c.log.Info("bond larger than unbond, BondCall")
-		diff := big.NewInt(0).Sub(bond, unbond)
 		tx.CallData, err = ValidatorShareAbi.Pack(BuyVoucherMethodName, diff, big.NewInt(0))
 		if err != nil {
 			return submodel.OriginalTxDefault, nil, err

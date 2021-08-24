@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,4 +37,15 @@ func TestTimeNow(t *testing.T) {
 	t.Log(currentTime.Unix())
 	newtime := currentTime.Add(1 * time.Hour)
 	t.Log(newtime.Unix())
+}
+
+func TestMap(t *testing.T) {
+	bz := []byte(`abc`)
+
+	a := map[string][]byte{"x": bz}
+
+	bz = append(bz, 0x01)
+
+	t.Log(a)
+	t.Log(bz)
 }

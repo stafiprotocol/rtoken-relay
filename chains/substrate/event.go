@@ -188,8 +188,14 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	}
 
 	var validatorId interface{}
+	var leastBond *big.Int
 	if snap.Symbol == core.RMATIC || snap.Symbol == core.RBNB {
 		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+
+		leastBond, err = l.leastBond(snap.Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -210,6 +216,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	flow.Snap = snap
 	flow.SubAccounts = sub
 	flow.ValidatorId = validatorId
+	flow.LeastBond = leastBond
 
 	return flow, nil
 }

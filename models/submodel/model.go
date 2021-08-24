@@ -329,6 +329,7 @@ type BondReportedFlow struct {
 	ValidatorId         interface{}
 	MultiTransaction    *ethmodel.MultiTransaction
 	NewActiveReportFlag bool
+	LeastBond           *big.Int
 }
 
 type ActiveReportedFlow struct {
