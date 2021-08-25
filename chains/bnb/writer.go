@@ -188,18 +188,51 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
 	switch action {
 	case submodel.BondOnly:
-		err := w.conn.ExecuteBond(poolAddr, validatorId, amount)
+		before, err := w.conn.Staked(poolAddr, validatorId)
 		if err != nil {
+			w.log.Error("processEraPoolUpdated Staked error", "error", err)
+			return false
+		}
+
+		if err = w.conn.ExecuteBond(poolAddr, validatorId, amount); err != nil {
 			w.log.Error("ExecuteBond error", "error", err)
 			return false
 		}
+
+		after, err := w.conn.Staked(poolAddr, validatorId)
+		if err != nil {
+			w.log.Error("processEraPoolUpdated Staked again error", "error", err)
+			return false
+		}
+		if before+amount != after {
+			w.log.Error("processEraPoolUpdated ExecuteBond failed", "before", before, "amount", amount, "after", after)
+			return false
+		}
+
 		flow.BondCall.Action = submodel.BothBondUnbond
 	case submodel.UnbondOnly:
-		err := w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
+		before, err := w.conn.Staked(poolAddr, validatorId)
+		if err != nil {
+			w.log.Error("processEraPoolUpdated Staked error", "error", err)
+			return false
+		}
+
+		err = w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
 		if err != nil {
 			w.log.Error("ExecuteUnbond error", "error", err)
 			return false
 		}
+
+		after, err := w.conn.Staked(poolAddr, validatorId)
+		if err != nil {
+			w.log.Error("processEraPoolUpdated Staked again error", "error", err)
+			return false
+		}
+		if after+amount != before {
+			w.log.Error("processEraPoolUpdated ExecuteUnbond failed", "after", after, "amount", amount, "before", before)
+			return false
+		}
+
 		flow.BondCall.Action = submodel.BothBondUnbond
 	case submodel.BothBondUnbond, submodel.EitherBondUnbond:
 		w.log.Info("processEraPoolUpdated: no need to bond or unbond")

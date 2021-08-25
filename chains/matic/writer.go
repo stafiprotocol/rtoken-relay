@@ -442,6 +442,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 	param.Signature = append(msg[:], signature...)
 	param.ProposalId = append(tx.To.Bytes(), tx.CallData...)
 	propKey := crypto.Keccak256Hash(param.ProposalId)
+	w.log.Info("processWithdrawReported ProposalId", "to", tx.To, "calldata", hexutil.Encode(tx.CallData), "ProposalId", hexutil.Encode(param.ProposalId), "propKey", propKey)
 	w.setProposalIds(propKey, param.ProposalId)
 	param.ProposalId = propKey.Bytes()
 

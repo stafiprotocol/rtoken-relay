@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
@@ -634,23 +635,24 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	}
 
 	amounts := make(map[string]types.U128)
+	recipients := make([]string, 0)
 	for _, ub := range unbonds {
 		rec := hexutil.Encode(ub.Recipient)
 		acc, ok := amounts[rec]
 		if !ok {
 			amounts[rec] = ub.Value
+			recipients = append(recipients, rec)
 		} else {
 			amounts[rec] = utils.AddU128(acc, ub.Value)
 		}
 	}
 
+	sort.Strings(recipients)
 	receives := make([]*submodel.Receive, 0)
 	total := types.NewU128(*big.NewInt(0))
-	for k, v := range amounts {
-		r, err := hexutil.Decode(k)
-		if err != nil {
-			return nil, types.U128{}, fmt.Errorf("hexutil.Decode err %s,k: %v", err, k)
-		}
+	for _, rec := range recipients {
+		v := amounts[rec]
+		r, _ := hexutil.Decode(rec)
 		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
 		receives = append(receives, rec)
 		total = utils.AddU128(total, v)

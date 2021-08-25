@@ -325,6 +325,7 @@ func (c *Connection) ExecuteBond(pool common.Address, validator bncCmnTypes.ValA
 	}
 
 	c.log.Info("ExecuteBond", "txHash", res.Hash)
+	time.Sleep(time.Minute)
 	return nil
 }
 
@@ -353,6 +354,7 @@ func (c *Connection) ExecuteUnbond(pool common.Address, validator bncCmnTypes.Va
 	}
 
 	c.log.Info("ExecuteUnbond", "txHash", res.Hash)
+	time.Sleep(time.Minute)
 	return nil
 }
 

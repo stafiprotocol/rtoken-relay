@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"math/big"
+	"sort"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -597,4 +598,20 @@ func TestVerify2(t *testing.T) {
 	}
 
 	t.Log(reason)
+}
+
+func TestSortStrings(t *testing.T) {
+	a1 := common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")
+	a2 := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
+	a3 := common.HexToAddress("0x1Bf32E717FfeD95c5629bd9628e6F11E380e096B")
+
+	strs := []string{a1.Hex(), a2.Hex(), a3.Hex()}
+	for _, str := range strs {
+		t.Log(str)
+	}
+	sort.Strings(strs)
+	t.Log("after sort")
+	for _, str := range strs {
+		t.Log(str)
+	}
 }
