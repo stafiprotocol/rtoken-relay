@@ -224,7 +224,7 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 	blkHash := common.BytesToHash(r.Blockhash)
 	txHash := common.BytesToHash(r.Txhash)
 
-	receipt, err := c.conn.TransactionReceipt(context.Background(), txHash)
+	receipt, err := c.TransactionReceipt(txHash)
 	if err != nil {
 		return submodel.BondReasonDefault, err
 	}
@@ -289,18 +289,18 @@ func (c *Client) BnbTransferVerify(r *submodel.BondRecord) (submodel.BondReason,
 	blkHash := common.BytesToHash(r.Blockhash)
 	txHash := common.BytesToHash(r.Txhash)
 
+	receipt, err := c.TransactionReceipt(txHash)
+	if err != nil {
+		return submodel.BondReasonDefault, err
+	}
+
+	if !bytes.Equal(receipt.BlockHash.Bytes(), r.Blockhash) {
+		return submodel.BlockhashUnmatch, nil
+	}
+
 	block, err := c.conn.BlockByHash(context.Background(), blkHash)
 	if err != nil {
 		return submodel.BondReasonDefault, err
-	}
-
-	blk, err := c.conn.BlockByNumber(context.Background(), block.Number())
-	if err != nil {
-		return submodel.BondReasonDefault, err
-	}
-
-	if !bytes.Equal(blk.Hash().Bytes(), r.Blockhash) {
-		return submodel.BlockhashUnmatch, nil
 	}
 
 	latestBlk, err := c.LatestBlock()
@@ -308,7 +308,7 @@ func (c *Client) BnbTransferVerify(r *submodel.BondRecord) (submodel.BondReason,
 		return submodel.BondReasonDefault, err
 	}
 
-	num := big.NewInt(0).Add(block.Number(), BlockToFinalize)
+	num := big.NewInt(0).Add(receipt.BlockNumber, BlockToFinalize)
 	if num.Cmp(latestBlk) > 0 {
 		err := c.WaitForBlock(latestBlk, BlockToFinalize)
 		if err != nil {

@@ -172,6 +172,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	unbondable, err := w.conn.Unbondable(poolAddr, validatorId)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated Unbondable error", "pool", poolAddr, "validator", validatorId.String())
+		return false
 	}
 
 	bond := snap.Bond.Int64()

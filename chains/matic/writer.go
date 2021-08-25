@@ -464,8 +464,8 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	propKey := common.BytesToHash(sigs.ProposalId)
 	proposalId, ok := w.getProposalIds(propKey)
 	if !ok {
-		w.log.Error("processSignatureEnough unable to get proposalId", "symbol", m.Destination)
-		return false
+		w.log.Warn("processSignatureEnough unable to get proposalId", "symbol", m.Destination)
+		return true
 	}
 
 	if len(proposalId) <= common.AddressLength {
