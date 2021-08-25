@@ -328,26 +328,6 @@ func TestKecca(t *testing.T) {
 	t.Log("keccak(x)", crypto.Keccak256Hash(x))
 }
 
-func TestBlockHash(t *testing.T) {
-	//hash := common.HexToHash("0xc215ad5e70f27705e8cd42cf46d925372fa8bbcd7067653afd8a74cc486cfe45")
-	hash := common.HexToHash("0x03c27a3e4a1f6773b3ee5f0026d9b230386c96ad711a0054b0e77f2d7b950cc2")
-
-	client := NewGoerliClient()
-	blk, err := client.conn.BlockByHash(context.Background(), hash)
-	assert.NoError(t, err)
-	t.Log("blkHash", blk.Hash())
-	t.Log("blkNumber", blk.Number())
-
-	blker, err := client.conn.BlockByNumber(context.Background(), blk.Number())
-	t.Log("blkHash", blker.Hash())
-	t.Log("blkNumber", blker.Number())
-
-	block, err := client.conn.BlockByHash(context.Background(), blk.Hash())
-	assert.NoError(t, err)
-	t.Log("blockHash", block.Hash())
-	t.Log("blockNumber", block.Number())
-}
-
 func TestClient_TransactionReceipt(t *testing.T) {
 	client := NewGoerliClient()
 
@@ -584,4 +564,37 @@ func TestRestake(t *testing.T) {
 	//}
 	//
 	//t.Log("txHash", tx.Hash())
+}
+
+func TestVerify2(t *testing.T) {
+	bh := common.HexToHash("0x7b80156516b3e4c28688092e5b01ccb03d1a19cc9d5d12088e3ffac1c684430d")
+	th := common.HexToHash("0x27c3c3fefdd148dc25a8010382e96c23ddbf3c2f8c1930e496a42d7e6cb9913d")
+
+	pk, _ := hexutil.Decode("0xbabf7e6b5bce0bd749fd3c527374bef8919cc7a9")
+	pool, _ := hexutil.Decode("0x03c73f69282e3a1b2a22948bd5a23ce7414490f2")
+	amt := big.NewInt(0).Mul(big.NewInt(1e17), big.NewInt(10))
+
+	a := &submodel.BondRecord{
+		Pubkey:    pk,
+		Pool:      pool,
+		Blockhash: bh.Bytes(),
+		Txhash:    th.Bytes(),
+		Amount:    types.NewU128(*amt),
+	}
+
+	client := NewGoerliClient()
+	receipt, err := client.conn.TransactionReceipt(context.Background(), th)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("receipt.BlockHash", receipt.BlockHash)
+	t.Log("receipt.BlockNumber", receipt.BlockNumber)
+
+	reason, err := client.TransferVerify(a, goerliMaticToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(reason)
 }

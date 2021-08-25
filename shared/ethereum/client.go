@@ -224,17 +224,12 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 	blkHash := common.BytesToHash(r.Blockhash)
 	txHash := common.BytesToHash(r.Txhash)
 
-	block, err := c.conn.BlockByHash(context.Background(), blkHash)
+	receipt, err := c.conn.TransactionReceipt(context.Background(), txHash)
 	if err != nil {
 		return submodel.BondReasonDefault, err
 	}
 
-	blk, err := c.conn.BlockByNumber(context.Background(), block.Number())
-	if err != nil {
-		return submodel.BondReasonDefault, err
-	}
-
-	if !bytes.Equal(blk.Hash().Bytes(), r.Blockhash) {
+	if !bytes.Equal(receipt.BlockHash.Bytes(), r.Blockhash) {
 		return submodel.BlockhashUnmatch, nil
 	}
 
@@ -243,7 +238,7 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 		return submodel.BondReasonDefault, err
 	}
 
-	num := big.NewInt(0).Add(block.Number(), BlockToFinalize)
+	num := big.NewInt(0).Add(receipt.BlockNumber, BlockToFinalize)
 	if num.Cmp(latestBlk) > 0 {
 		err := c.WaitForBlock(latestBlk, BlockToFinalize)
 		if err != nil {
@@ -251,55 +246,42 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 		}
 	}
 
-	for _, tx := range block.Transactions() {
-		if !bytes.Equal(r.Txhash, tx.Hash().Bytes()) {
+	for _, elog := range receipt.Logs {
+		if !bytes.Equal(elog.Address[:], token.Bytes()) {
 			continue
 		}
 
-		receipt, err := c.conn.TransactionReceipt(context.Background(), txHash)
-		if err != nil {
-			return submodel.BondReasonDefault, err
+		if len(elog.Topics) != ethmodel.TransferEventTopicLen {
+			c.log.Warn("TransferVerify: size of topics not right")
+			return submodel.TxhashUnmatch, nil
 		}
 
-		for _, elog := range receipt.Logs {
-			if !bytes.Equal(elog.Address[:], token.Bytes()) {
-				continue
-			}
-
-			if len(elog.Topics) != ethmodel.TransferEventTopicLen {
-				c.log.Warn("TransferVerify: size of topics not right")
-				return submodel.TxhashUnmatch, nil
-			}
-
-			if !bytes.Equal(elog.Topics[0].Bytes(), ethmodel.TransferEvent.GetTopic().Bytes()) {
-				c.log.Warn("TransferVerify: first topic not TransferEvent")
-				return submodel.TxhashUnmatch, nil
-			}
-
-			from := common.LeftPadBytes(r.Pubkey, 32)
-			if !bytes.Equal(elog.Topics[1].Bytes(), from) {
-				c.log.Warn("TransferVerify: second topic not pubkey")
-				return submodel.PubkeyUnmatch, nil
-			}
-
-			to := common.LeftPadBytes(r.Pool, 32)
-			if !bytes.Equal(elog.Topics[2].Bytes(), to) {
-				c.log.Warn("TransferVerify: last topic not pool")
-				return submodel.PoolUnmatch, nil
-			}
-
-			amount := common.LeftPadBytes(r.Amount.Int.Bytes(), 32)
-			if !bytes.Equal(elog.Data, amount) {
-				c.log.Warn("TransferVerify: data not amount")
-				return submodel.AmountUnmatch, nil
-			}
-
-			return submodel.Pass, nil
+		if !bytes.Equal(elog.Topics[0].Bytes(), ethmodel.TransferEvent.GetTopic().Bytes()) {
+			c.log.Warn("TransferVerify: first topic not TransferEvent")
+			return submodel.TxhashUnmatch, nil
 		}
-		c.log.Warn("TransferVerify: no address of log equal to the given token contract", "contract", token.Hex())
-		return submodel.TxhashUnmatch, nil
+
+		from := common.LeftPadBytes(r.Pubkey, 32)
+		if !bytes.Equal(elog.Topics[1].Bytes(), from) {
+			c.log.Warn("TransferVerify: second topic not pubkey")
+			return submodel.PubkeyUnmatch, nil
+		}
+
+		to := common.LeftPadBytes(r.Pool, 32)
+		if !bytes.Equal(elog.Topics[2].Bytes(), to) {
+			c.log.Warn("TransferVerify: last topic not pool")
+			return submodel.PoolUnmatch, nil
+		}
+
+		amount := common.LeftPadBytes(r.Amount.Int.Bytes(), 32)
+		if !bytes.Equal(elog.Data, amount) {
+			c.log.Warn("TransferVerify: data not amount")
+			return submodel.AmountUnmatch, nil
+		}
+
+		return submodel.Pass, nil
 	}
-	c.log.Warn("TransferVerify: txhash not found", "blockhash", blkHash.Hex(), "txhash", txHash.Hex())
+	c.log.Warn("TransferVerify: txhash not found", "blockhash", blkHash, "txhash", txHash)
 	return submodel.BlockhashUnmatch, nil
 }
 
