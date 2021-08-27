@@ -154,7 +154,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	client := poolClient.GetRpcClient()
 	height := poolClient.GetHeightByEra(snap.Era)
-	unSignedTx, err := GetBondUnbondUnsignedTx(client, snap.Bond, snap.Unbond, poolAddr, height)
+	unSignedTx, err := GetBondUnbondUnsignedTxWithTargets(client, snap.Bond, snap.Unbond, poolAddr, height, w.conn.validatorTargets)
 	if err != nil {
 		w.log.Error("GetBondUnbondUnsignedTx failed",
 			"pool address", poolAddr.String(),

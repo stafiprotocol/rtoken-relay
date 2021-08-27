@@ -23,12 +23,13 @@ import (
 )
 
 type Connection struct {
-	url           string
-	symbol        core.RSymbol
-	currentHeight int64
-	poolClients   map[string]*cosmos.PoolClient //map[addressHexStr]subClient
-	log           log15.Logger
-	stop          <-chan int
+	url              string
+	symbol           core.RSymbol
+	validatorTargets []types.ValAddress
+	currentHeight    int64
+	poolClients      map[string]*cosmos.PoolClient //map[addressHexStr]subClient
+	log              log15.Logger
+	stop             <-chan int
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -40,6 +41,31 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		}
 		subKeys[account] = subKey
 	}
+
+	targets := make([]types.ValAddress, 0)
+	optTargets := cfg.Opts["validatorTargets"]
+	log.Info("NewConnection", "targets", optTargets)
+	if optTargets != nil {
+		if tmpCares, ok := optTargets.([]interface{}); ok {
+			for _, tc := range tmpCares {
+				target, ok := tc.(string)
+				if !ok {
+					panic("target not string")
+				}
+				val, err := types.ValAddressFromBech32(target)
+				if err != nil {
+					panic(err)
+				}
+				targets = append(targets, val)
+			}
+		} else {
+			panic("opt validatorTarget not string array")
+		}
+	}
+	if len(targets) == 0 {
+		panic("validatorTargets empty")
+	}
+
 	chainId, ok := cfg.Opts[config.ChainId].(string)
 	if !ok || len(chainId) == 0 {
 		return nil, errors.New("config must has chainId")
@@ -93,11 +119,12 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:         cfg.Endpoint,
-		symbol:      cfg.Symbol,
-		log:         log,
-		stop:        stop,
-		poolClients: subClients,
+		url:              cfg.Endpoint,
+		symbol:           cfg.Symbol,
+		log:              log,
+		stop:             stop,
+		poolClients:      subClients,
+		validatorTargets: targets,
 	}, nil
 }
 
