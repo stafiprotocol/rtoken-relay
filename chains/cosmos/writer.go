@@ -584,13 +584,11 @@ func (w *writer) processValidatorRedelegateTarget(m *core.Message) bool {
 		return false
 	}
 	client := poolClient.GetRpcClient()
-	height := poolClient.GetHeightByEra(uint32(sigs.Era))
-
-	deleRes, err := client.QueryDelegations(poolAddr, height)
+	//get now delegations
+	deleRes, err := client.QueryDelegations(poolAddr, 0)
 	if err != nil {
 		w.log.Error("QueryDelegations  failed",
 			"pool hex address", poolAddrHexStr,
-			"height", height,
 			"err", err)
 		return false
 	}
@@ -607,7 +605,6 @@ func (w *writer) processValidatorRedelegateTarget(m *core.Message) bool {
 		if err != nil {
 			w.log.Error("ValAddressFromBech32  failed",
 				"pool hex address", poolAddrHexStr,
-				"height", height,
 				"err", err)
 			return false
 		}
