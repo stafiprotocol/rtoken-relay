@@ -5,6 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"time"
+
 	"github.com/ChainSafe/log15"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -16,20 +22,17 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/shared/cosmos/rpc"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"os"
-	"strconv"
-	"sync/atomic"
-	"time"
 )
 
 type Connection struct {
-	url              string
-	symbol           core.RSymbol
-	validatorTargets []types.ValAddress
-	currentHeight    int64
-	poolClients      map[string]*cosmos.PoolClient //map[addressHexStr]subClient
-	log              log15.Logger
-	stop             <-chan int
+	url                       string
+	symbol                    core.RSymbol
+	validatorTargets          []types.ValAddress
+	validatorNoNeedRedelegate map[string]bool
+	currentHeight             int64
+	poolClients               map[string]*cosmos.PoolClient //map[addressHexStr]subClient
+	log                       log15.Logger
+	stop                      <-chan int
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -37,7 +40,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	for _, account := range cfg.Accounts {
 		subKey, ok := cfg.Opts[account].(string)
 		if !ok || len(subKey) == 0 {
-			return nil, errors.New(fmt.Sprintf("account %s has no subKeys", account))
+			return nil, fmt.Errorf("account %s has no subKeys", account)
 		}
 		subKeys[account] = subKey
 	}
@@ -64,6 +67,30 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 	if len(targets) == 0 {
 		panic("validatorTargets empty")
+	}
+
+	whiteList := make(map[string]bool)
+	optWhiteList := cfg.Opts["validatorsNoNeedRedelegate"]
+	log.Info("NewConnection", "validatorsNoNeedRedelegate", optWhiteList)
+	if optWhiteList != nil {
+		if tmpWhiteList, ok := optWhiteList.([]interface{}); ok {
+			for _, tc := range tmpWhiteList {
+				target, ok := tc.(string)
+				if !ok {
+					panic("validator not string")
+				}
+				val, err := types.ValAddressFromBech32(target)
+				if err != nil {
+					panic(err)
+				}
+				whiteList[strings.ToLower(val.String())] = true
+			}
+		} else {
+			panic("opt validatorTarget not string array")
+		}
+	}
+	if len(whiteList) == 0 {
+		panic("validatorsNoNeedRedelegate empty")
 	}
 
 	chainId, ok := cfg.Opts[config.ChainId].(string)
@@ -119,12 +146,13 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:              cfg.Endpoint,
-		symbol:           cfg.Symbol,
-		log:              log,
-		stop:             stop,
-		poolClients:      subClients,
-		validatorTargets: targets,
+		url:                       cfg.Endpoint,
+		symbol:                    cfg.Symbol,
+		log:                       log,
+		stop:                      stop,
+		poolClients:               subClients,
+		validatorTargets:          targets,
+		validatorNoNeedRedelegate: whiteList,
 	}, nil
 }
 

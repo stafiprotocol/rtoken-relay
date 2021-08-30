@@ -36,7 +36,10 @@
         "denom": "umuon",
         "gasPrice": "0.05umuon",
         "eraBlockNumber": "100",
-        "validatorTargets":[
+        "validatorTargets": [
+          "cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8"
+        ],
+        "validatorsNoNeedRedelegate": [
           "cosmosvaloper1p7e37nztj62mmra8xhgqde7sql3llhhu6hvcx8"
         ]
       }
