@@ -28,10 +28,13 @@ import (
 var (
 	BlockRetryInterval   = time.Second * 5
 	BlockToFinalize      = big.NewInt(3)
-	DefaultGasLimit      = big.NewInt(1000000)
-	DefaultGasPrice      = big.NewInt(20000000000)
-	DefaultExtraGasLimit = big.NewInt(150000)
-	ExtraGasPrice        = big.NewInt(10000000000)
+	DefaultGasLimit      = big.NewInt(10e5)
+	DefaultGasPrice      = big.NewInt(300e9)
+	DefaultExtraGasLimit = big.NewInt(15e4)
+
+	lowExtraGasPrice  = big.NewInt(5e9)
+	highExtraGasPrice = big.NewInt(10e9)
+	standGasPrice     = big.NewInt(20e9)
 )
 
 type Client struct {
@@ -138,7 +141,17 @@ func (c *Client) SafeEstimateGas(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 
-	return gasPrice.Add(gasPrice, ExtraGasPrice), nil
+	if gasPrice.Cmp(standGasPrice) == 1 {
+		gasPrice = gasPrice.Add(gasPrice, highExtraGasPrice)
+	} else {
+		gasPrice = gasPrice.Add(gasPrice, lowExtraGasPrice)
+	}
+
+	if gasPrice.Cmp(c.maxGasPrice) > 0 {
+		gasPrice = c.maxGasPrice
+	}
+
+	return gasPrice, nil
 }
 
 // LockAndUpdateOpts acquires a lock on the opts before updating the nonce
