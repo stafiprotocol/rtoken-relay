@@ -526,14 +526,13 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			return w.informChain(m.Destination, m.Source, &mflow)
 		case submodel.OriginalClaimRewards:
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-
-			ok := w.ActiveReport(client, poolAddr, sigs.Symbol, sigs.Pool,
-				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
+			//redelegate to target
+			ok := w.processValidatorRedelegateTarget(m)
 			if !ok {
 				return false
 			}
-			//redelegate to target
-			return w.processValidatorRedelegateTarget(m)
+			return w.ActiveReport(client, poolAddr, sigs.Symbol, sigs.Pool,
+				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
 		case submodel.OriginalTransfer:
 			callHash := utils.BlakeTwo256(sigs.Pool)
 			mflow := submodel.MultiEventFlow{
