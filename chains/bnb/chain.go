@@ -14,7 +14,7 @@ type Chain struct {
 }
 
 func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error) (*Chain, error) {
-	logger.Info("InitializeChain", "type", "substrate", "symbol", cfg.Symbol)
+	logger.Info("InitializeChain", "type", "bnb", "symbol", cfg.Symbol)
 
 	stop := make(chan int)
 	conn, err := NewConnection(cfg, logger, stop)

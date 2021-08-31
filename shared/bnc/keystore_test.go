@@ -339,7 +339,6 @@ func TestIsactive(t *testing.T) {
 	client := bncRpc.NewRPCClient("tcp://data-seed-pre-1-s3.binance.org:80", bncCmnTypes.TestNetwork)
 	t.Log("IsActive", client.IsActive())
 
-
 	addr, err := bncCmnTypes.AccAddressFromBech32("tbnb1tt84yhkvh6q23kksttfq36dujnyfh2cldrzux5")
 	if err != nil {
 		t.Fatal(err)

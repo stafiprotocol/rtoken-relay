@@ -10,7 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.6
 	github.com/gorilla/websocket v1.4.2
 	github.com/huandu/xstrings v1.3.2
-	github.com/itering/scale.go v1.0.61
+	github.com/itering/scale.go v1.0.67
 	github.com/itering/substrate-api-rpc v0.3.5
 	github.com/shopspring/decimal v1.2.0
 	github.com/spf13/cobra v1.1.1
