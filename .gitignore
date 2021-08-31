@@ -39,3 +39,4 @@ matic*.json
 /cfgBuilder/*.toml
 relay_log*.json
 datas/
+config_template_cosmos2.json

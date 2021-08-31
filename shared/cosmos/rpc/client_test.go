@@ -23,9 +23,9 @@ import (
 var client *rpc.Client
 
 //eda331e37bf66b2393c4c271e384dfaa2bfcdd35
-var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu")
+var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
-var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper1y6zkfcvwkpqz89z7rwu9kcdm4kc7uc4e5y5a2r")
+var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper18pty5rk5fgsfnls5pq8ajxcwkf0we8l8q3g8pe")
 var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
 var addrValidatorTestnet2, _ = types.ValAddressFromBech32("cosmosvaloper19xczxvvdg8h67sk3cccrvxlj0ruyw3360rctfa")
 
@@ -54,14 +54,15 @@ func TestGetAddrHex(t *testing.T) {
 	//client_test.go:42: cosmosvaloper1w96rrh9sx0h7n7qak00l90un0kx5wala2prmxt 0x717431dcb033efe9f81db3dff2bf937d8d4777fd
 }
 
-func init() {
+func initClient() {
 	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, "/Users/tpkeeper/.gaia", strings.NewReader("tpkeeper\n"))
 	if err != nil {
 		panic(err)
 	}
 
 	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
-	client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
+	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
+	client, _ = rpc.NewClient(key, "chain-AALfXF", "key0key1key2", "0.00001stake", "stake", "http://127.0.0.1:26657")
 	if err != nil {
 		panic(err)
 	}
@@ -71,11 +72,13 @@ func init() {
 //{"height":"903451","txhash":"0E4F8F8FF7A3B67121711DA17FBE5AE8CB25DB272DDBF7DC0E02122947266604","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"10umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"10umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51159","tx":null,"timestamp":""}
 //block hash 0x16E8297663210ABF6937FE4C1C139D4BACD0D27A22EFD9E3FE06B1DA8E3F7BB3
 func TestClient_SendTo(t *testing.T) {
+	initClient()
 	err := client.SingleTransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 50000)))
 	assert.NoError(t, err)
 }
 
 func TestClient_ReDelegate(t *testing.T) {
+	initClient()
 	h, err := client.SingleReDelegate(addrValidatorTestnetAteam, addrValidatorTestnetStation,
 		types.NewCoin(client.GetDenom(), types.NewInt(10)))
 	assert.NoError(t, err)
@@ -83,6 +86,7 @@ func TestClient_ReDelegate(t *testing.T) {
 }
 
 func TestClient_GenRawTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
@@ -91,6 +95,7 @@ func TestClient_GenRawTx(t *testing.T) {
 }
 
 func TestClient_SignRawTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
@@ -102,6 +107,7 @@ func TestClient_SignRawTx(t *testing.T) {
 }
 
 func TestClient_CreateMultiSigTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
@@ -128,6 +134,7 @@ func TestClient_CreateMultiSigTx(t *testing.T) {
 }
 
 func TestClient_BroadcastTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawTransferTx(addrReceive, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 10)))
@@ -144,6 +151,7 @@ func TestClient_BroadcastTx(t *testing.T) {
 }
 
 func TestClient_QueryTxByHash(t *testing.T) {
+	initClient()
 	res, err := client.QueryTxByHash("6C017062FD3F48F13B640E5FEDD59EB050B148E67EF12EC0A511442D32BD4C88")
 	t.Log(err)
 	assert.NoError(t, err)
@@ -156,12 +164,22 @@ func TestClient_QueryTxByHash(t *testing.T) {
 }
 
 func TestClient_QueryDelegationRewards(t *testing.T) {
-	res, err := client.QueryDelegationRewards(addrMultiSig1, addrValidator, 0)
+	initClient()
+	// r, err := client.QueryDelegations(addrMultiSig1, 0)
+	// assert.NoError(t, err)
+	// t.Log(r.String())
+
+	rewards, err := client.QueryDelegationTotalRewards(addrMultiSig1, 0)
 	assert.NoError(t, err)
-	t.Log(res.GetRewards().AmountOf(client.GetDenom()))
+	t.Log(rewards.String())
+
+	// res, err := client.QueryDelegationRewards(addrMultiSig1, addrValidator, 0)
+	// assert.NoError(t, err)
+	// t.Log(res.GetRewards().AmountOf(client.GetDenom()))
 }
 
 func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorEverStake}, types.NewCoin(client.GetDenom(), types.NewInt(1)))
@@ -183,6 +201,7 @@ func TestClient_GenMultiSigRawDelegateTx(t *testing.T) {
 }
 
 func TestClient_GenMultiSigRawReDelegateTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 
 	assert.NoError(t, err)
@@ -206,6 +225,7 @@ func TestClient_GenMultiSigRawReDelegateTx(t *testing.T) {
 }
 
 func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawWithdrawDeleRewardTx(addrMultiSig1, addrValidatorTestnetAteam)
@@ -225,6 +245,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardTx(t *testing.T) {
 }
 
 func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawWithdrawAllRewardThenDeleTx(addrMultiSig1, 0)
@@ -246,6 +267,7 @@ func TestClient_GenMultiSigRawWithdrawDeleRewardAndDelegratTx(t *testing.T) {
 }
 
 func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawWithdrawAllRewardTx(addrMultiSig1, 0)
@@ -268,6 +290,7 @@ func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
 
 //0xf954ad81a546df9de6c79051ca67f7d0d08e9d861604c76fb8767dce2ce8d4f8
 func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	rawTx, err := client.GenMultiSigRawUnDelegateTx(addrMultiSig1, []types.ValAddress{adrValidatorEverStake},
@@ -289,6 +312,7 @@ func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 }
 
 func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	out1 := xBankTypes.Output{
@@ -317,25 +341,27 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 }
 
 func TestGetPubKey(t *testing.T) {
-	test, _ := types.AccAddressFromBech32("cosmos12wrv225462drlz4dk3yg9hc8vavwjkmckshz7c")
+	initClient()
+	test, _ := types.AccAddressFromBech32("cosmos1u22lut8qgqg8znxam72pwgqp8c09rnvme00kea")
 	account, _ := client.QueryAccount(test)
 	t.Log(hex.EncodeToString(account.GetPubKey().Bytes()))
 
-	res, err := client.QueryTxByHash("327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	msgs := res.GetTx().GetMsgs()
-	for i, _ := range msgs {
-		if msgs[i].Type() == xBankTypes.TypeMsgSend {
-			msg, _ := msgs[i].(*xBankTypes.MsgSend)
-			t.Log(msg.Amount.AmountOf("umuon").Uint64())
-		}
-	}
+	// res, err := client.QueryTxByHash("327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1")
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// msgs := res.GetTx().GetMsgs()
+	// for i, _ := range msgs {
+	// 	if msgs[i].Type() == xBankTypes.TypeMsgSend {
+	// 		msg, _ := msgs[i].(*xBankTypes.MsgSend)
+	// 		t.Log(msg.Amount.AmountOf("umuon").Uint64())
+	// 	}
+	// }
 
 }
 
 func TestClient_Sign(t *testing.T) {
+	initClient()
 	bts, err := hex.DecodeString("0E4F8F8FF7A3B67121711DA17FBE5AE8CB25DB272DDBF7DC0E02122947266604")
 	assert.NoError(t, err)
 	sigs, pubkey, err := client.Sign("recipient", bts)
@@ -351,34 +377,40 @@ func TestAddress(t *testing.T) {
 	addrKey2, _ := types.AccAddressFromBech32("cosmos1ztquzhpkve7szl99jkugq4l8jtpnhln76aetam")
 	addrKey3, _ := types.AccAddressFromBech32("cosmos12zz2hm02sxe9f4pwt7y5q9wjhcu98vnuwmjz4x")
 	addrKey4, _ := types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
+	addrKey5, _ := types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
 	t.Log(hex.EncodeToString(addrKey1.Bytes()))
 	t.Log(hex.EncodeToString(addrKey2.Bytes()))
 	t.Log(hex.EncodeToString(addrKey3.Bytes()))
 	t.Log(hex.EncodeToString(addrKey4.Bytes()))
+	t.Log(hex.EncodeToString(addrKey5.Bytes()))
 	//client_test.go:347: e9f6828e559dbf7dbac9a319d3b58b41abcc34a4
 	//client_test.go:348: 12c1c15c36667d017ca595b88057e792c33bfe7e
 	//client_test.go:349: 5084abedea81b254d42e5f894015d2be3853b27c
 }
 
 func TestClient_QueryDelegations(t *testing.T) {
+	initClient()
 	res, err := client.QueryDelegations(addrMultiSig1, 0)
 	assert.NoError(t, err)
 	t.Log(res.String())
 }
 
 func TestClient_QueryBalance(t *testing.T) {
+	initClient()
 	res, err := client.QueryBalance(addrMultiSig1, "umuon", 440000)
 	assert.NoError(t, err)
 	t.Log(res.Balance.Amount)
 }
 
 func TestClient_QueryDelegationTotalRewards(t *testing.T) {
+	initClient()
 	res, err := client.QueryDelegationTotalRewards(addrMultiSig1, 0)
 	assert.NoError(t, err)
 	t.Log(res.GetTotal().AmountOf(client.GetDenom()).TruncateInt())
 }
 
 func TestClient_GetSequence(t *testing.T) {
+	initClient()
 	seq, err := client.GetSequence(0, addrMultiSig1)
 	assert.NoError(t, err)
 	t.Log(seq)
@@ -386,6 +418,7 @@ func TestClient_GetSequence(t *testing.T) {
 }
 
 func TestMaxTransfer(t *testing.T) {
+	initClient()
 	err := client.SetFromName("multiSign1")
 	assert.NoError(t, err)
 	outputs := make([]xBankTypes.Output, 0)
@@ -419,6 +452,7 @@ func TestMaxTransfer(t *testing.T) {
 }
 
 func TestMemo(t *testing.T) {
+	initClient()
 	res, err := client.QueryTxByHash("c7e3f7baf5a5f1d8cbc112080f32070dddd7cca5fe4272e06f8d42c17b25193f")
 	assert.NoError(t, err)
 	tx, err := client.GetTxConfig().TxDecoder()(res.Tx.GetValue())
@@ -434,6 +468,7 @@ func TestMemo(t *testing.T) {
 }
 
 func TestMultiThread(t *testing.T) {
+	initClient()
 	wg := sync.WaitGroup{}
 	wg.Add(50)
 

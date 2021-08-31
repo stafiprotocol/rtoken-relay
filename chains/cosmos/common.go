@@ -200,6 +200,111 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 	return
 }
 
+//if bond == unbond return err
+//if bond > unbond gen delegate tx
+//if bond < unbond gen undelegate tx
+func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substrateTypes.U128,
+	poolAddr types.AccAddress, height int64, targets []types.ValAddress) (unSignedTx []byte, err error) {
+	//check bond unbond
+	if bond.Int.Cmp(unbond.Int) == 0 {
+		return nil, errors.New("bond equal to unbond")
+	}
+
+	deleRes, err := client.QueryDelegations(poolAddr, height)
+	if err != nil {
+		return nil, err
+	}
+
+	totalDelegateAmount := types.NewInt(0)
+	valAddrs := make([]types.ValAddress, 0)
+	deleAmount := make(map[string]types.Int)
+	//get validators amount>=3
+	for _, dele := range deleRes.GetDelegationResponses() {
+		//filter old validator,we say validator is old if amount < 3 uatom
+		if dele.GetBalance().Amount.LT(types.NewInt(3)) {
+			continue
+		}
+
+		valAddr, err := types.ValAddressFromBech32(dele.GetDelegation().ValidatorAddress)
+		if err != nil {
+			return nil, err
+		}
+		valAddrs = append(valAddrs, valAddr)
+		totalDelegateAmount = totalDelegateAmount.Add(dele.GetBalance().Amount)
+		deleAmount[valAddr.String()] = dele.GetBalance().Amount
+	}
+
+	valAddrsLen := len(valAddrs)
+	//check valAddrs length
+	if valAddrsLen == 0 {
+		return nil, fmt.Errorf("no valAddrs,pool: %s", poolAddr)
+	}
+	//check totalDelegateAmount
+	if totalDelegateAmount.LT(types.NewInt(3 * int64(valAddrsLen))) {
+		return nil, fmt.Errorf("validators have no reserve value to unbond")
+	}
+
+	//bond or unbond to their validators average
+	if bond.Int.Cmp(unbond.Int) > 0 {
+		valAddrs = targets
+		valAddrsLen = len(valAddrs)
+		//check valAddrs length
+		if valAddrsLen == 0 {
+			return nil, fmt.Errorf("no target valAddrs,pool: %s", poolAddr)
+		}
+
+		val := bond.Int.Sub(bond.Int, unbond.Int)
+		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
+		unSignedTx, err = client.GenMultiSigRawDelegateTx(
+			poolAddr,
+			valAddrs,
+			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)))
+	} else {
+
+		//make val <= totalDelegateAmount-3*len and we revserve 3 uatom
+		val := unbond.Int.Sub(unbond.Int, bond.Int)
+		willUsetotalDelegateAmount := totalDelegateAmount.Sub(types.NewInt(3 * int64(valAddrsLen)))
+		if val.Cmp(willUsetotalDelegateAmount.BigInt()) >= 0 {
+			val = willUsetotalDelegateAmount.BigInt()
+		}
+		willUseTotalVal := types.NewIntFromBigInt(val)
+
+		//sort validators by delegate amount
+		sort.Slice(valAddrs, func(i int, j int) bool {
+			return deleAmount[valAddrs[i].String()].
+				GT(deleAmount[valAddrs[j].String()])
+		})
+
+		//choose validators to be undelegated
+		choosedVals := make([]types.ValAddress, 0)
+		choosedAmount := make(map[string]types.Int)
+
+		selectedAmount := types.NewInt(0)
+		for _, validator := range valAddrs {
+			nowValMaxUnDeleAmount := deleAmount[validator.String()].Sub(types.NewInt(3))
+			if selectedAmount.Add(nowValMaxUnDeleAmount).GTE(willUseTotalVal) {
+				willUseChoosedAmount := willUseTotalVal.Sub(selectedAmount)
+
+				choosedVals = append(choosedVals, validator)
+				choosedAmount[validator.String()] = willUseChoosedAmount
+				selectedAmount = selectedAmount.Add(willUseChoosedAmount)
+				break
+			}
+
+			choosedVals = append(choosedVals, validator)
+			choosedAmount[validator.String()] = nowValMaxUnDeleAmount
+			selectedAmount = selectedAmount.Add(nowValMaxUnDeleAmount)
+		}
+
+		unSignedTx, err = client.GenMultiSigRawUnDelegateTxV2(
+			poolAddr,
+			choosedVals,
+			choosedAmount)
+	}
+
+	return
+}
+
 //if bond > unbond only gen delegate tx  (txType: 2)
 //if bond <= unbond
 //	(1)if balanceAmount > rewardAmount of era height ,gen withdraw and delegate tx  (txType: 3)
@@ -421,6 +526,25 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			return w.informChain(m.Destination, m.Source, &mflow)
 		case submodel.OriginalClaimRewards:
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
+			//redelegate to target
+			ok := w.processValidatorRedelegateTarget(m)
+			if !ok {
+				return false
+			}
+			retry := 0
+			for {
+				if retry > BlockRetryLimit*2 {
+					w.log.Error("processValidatorRedelegateTarget reach wait limit")
+					return false
+				}
+				if poolClient.CachedUnsignedTxNumber() > 0 {
+					time.Sleep(BlockRetryInterval)
+					retry++
+					continue
+				}
+				break
+			}
+
 			return w.ActiveReport(client, poolAddr, sigs.Symbol, sigs.Pool,
 				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
 		case submodel.OriginalTransfer:
