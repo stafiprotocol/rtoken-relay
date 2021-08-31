@@ -35,6 +35,7 @@ config2.json
 config3.json
 rmatic*.json
 matic*.json
+bnb*.json
 *.block
 /cfgBuilder/*.toml
 relay_log*.json

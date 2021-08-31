@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stafiprotocol/go-sdk/keys"
 	subtypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/models/bnc"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -20,6 +21,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	bncRpc "github.com/stafiprotocol/go-sdk/client/rpc"
+	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
+	bncTypes "github.com/stafiprotocol/go-sdk/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/TokenHub"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
@@ -278,4 +282,72 @@ func TestStakingReward(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(sr1.Total)
+}
+
+func TestValidatorId(t *testing.T) {
+	addr, err := bncCmnTypes.ValAddressFromBech32("bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(addr)
+
+	a := []byte(`bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q`)
+	b := hexutil.Encode(a)
+	t.Log(b)
+}
+
+func TestRpcClient(t *testing.T) {
+	rpcEndpoint := "tcp://data-seed-pre-1-s3.binance.org:80"
+
+	keyManager, err := keys.NewPrivateKeyManager("64967ded205b00b1f872f59242031d4cc02a1bcca47017361d7f3854e86c545e")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.TestNetwork)
+	t.Log("IsActive", client.IsActive())
+	bal, err := client.GetBalance(keyManager.GetAddr(), "BNB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal.Free)
+
+	dels, err := client.QuerySideChainDelegations(bncTypes.ChapelNet, keyManager.GetAddr())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, del := range dels {
+		t.Log(del)
+	}
+
+	addr, err := bncCmnTypes.AccAddressFromBech32("tbnb1ufrtxk7f5w0skl5evusrmsd6cundpxvmpz4n4n")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unbonds, err := client.QuerySideChainUnbondingDelegations(bncTypes.ChapelNet, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(unbonds)
+}
+
+func TestIsactive(t *testing.T) {
+	client := bncRpc.NewRPCClient("tcp://data-seed-pre-1-s3.binance.org:80", bncCmnTypes.TestNetwork)
+	t.Log("IsActive", client.IsActive())
+
+
+	addr, err := bncCmnTypes.AccAddressFromBech32("tbnb1tt84yhkvh6q23kksttfq36dujnyfh2cldrzux5")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bal, err := client.GetBalance(addr, "BNB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal.Free)
 }
