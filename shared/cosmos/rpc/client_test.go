@@ -342,21 +342,21 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 
 func TestGetPubKey(t *testing.T) {
 	initClient()
-	test, _ := types.AccAddressFromBech32("cosmos12wrv225462drlz4dk3yg9hc8vavwjkmckshz7c")
+	test, _ := types.AccAddressFromBech32("cosmos1u22lut8qgqg8znxam72pwgqp8c09rnvme00kea")
 	account, _ := client.QueryAccount(test)
 	t.Log(hex.EncodeToString(account.GetPubKey().Bytes()))
 
-	res, err := client.QueryTxByHash("327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	msgs := res.GetTx().GetMsgs()
-	for i, _ := range msgs {
-		if msgs[i].Type() == xBankTypes.TypeMsgSend {
-			msg, _ := msgs[i].(*xBankTypes.MsgSend)
-			t.Log(msg.Amount.AmountOf("umuon").Uint64())
-		}
-	}
+	// res, err := client.QueryTxByHash("327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1")
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// msgs := res.GetTx().GetMsgs()
+	// for i, _ := range msgs {
+	// 	if msgs[i].Type() == xBankTypes.TypeMsgSend {
+	// 		msg, _ := msgs[i].(*xBankTypes.MsgSend)
+	// 		t.Log(msg.Amount.AmountOf("umuon").Uint64())
+	// 	}
+	// }
 
 }
 

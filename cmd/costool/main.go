@@ -19,7 +19,7 @@ import (
 var client *rpc.Client
 var keyDir = "/Users/tpkeeper/.gaia"
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
-var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper14xj7e0aqraavut998j08eg6x7nw3r4ts0qhfpw")
+var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1u7m4j26ukn293latjtnv2pjrtadzu9s805g6pg")
 
 func init() {
 	fmt.Printf("Will open cosmos wallet from <%s>. \nPlease ", keyDir)

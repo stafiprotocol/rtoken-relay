@@ -531,6 +531,20 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			if !ok {
 				return false
 			}
+			retry := 0
+			for {
+				if retry > BlockRetryLimit*2 {
+					w.log.Error("processValidatorRedelegateTarget reach wait limit")
+					return false
+				}
+				if poolClient.CachedUnsignedTxNumber() > 0 {
+					time.Sleep(BlockRetryInterval)
+					retry++
+					continue
+				}
+				break
+			}
+
 			return w.ActiveReport(client, poolAddr, sigs.Symbol, sigs.Pool,
 				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
 		case submodel.OriginalTransfer:
