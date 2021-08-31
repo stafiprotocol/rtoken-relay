@@ -5,6 +5,7 @@ package bnb
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -40,14 +41,15 @@ var (
 	ZeroAddress      = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	sideChainId      = bncTypes.ChapelNet
 	apiUrl           = "https://testnet-api.binance.org"
+	baseUrl = "testnet-dex.binance.org:443"
 )
 
 const (
 	TxRetryLimit = 10
 
-	BondFee     = int64(20000)
-	UnbondFee   = int64(40000)
-	TransferFee = int64(7500)
+	bondFee     = int64(20000)
+	unbondFee   = int64(40000)
+	transferFee = int64(7500)
 )
 
 type Connection struct {
@@ -58,6 +60,7 @@ type Connection struct {
 	bcKeys            map[common.Address]bnckeys.KeyManager
 	bscClients        map[common.Address]*ethereum.Client
 	bcRpcClient       *bncRpc.HTTP
+	rpcEndpoint string
 	tokenHubContract  common.Address
 	multisendContract common.Address
 	bcBlockHeight     int64
@@ -79,18 +82,21 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 	if strings.HasPrefix(cfg.Accounts[0], "tbnb") {
 		bncCmnTypes.Network = bncCmnTypes.TestNetwork
-		log.Info("bnc networ is TestNetwork")
+		log.Info("bnc network is TestNetwork")
 	} else if strings.HasPrefix(cfg.Accounts[0], "bnb") {
 		sideChainId = "bsc"
 		apiUrl = "https://api.binance.org"
+		baseUrl = "dex.binance.org:443"
 		log.Info("bnc network is ProdNetwork")
 	} else {
 		return nil, fmt.Errorf("unknown bnc network")
 	}
 
 	rpcClient := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.Network)
+	if !rpcClient.IsActive() {
+		panic("rpcClient is not active")
+	}
 
-	var key *secp256k1.Keypair
 	var bscClient *ethereum.Client
 	var bcClient bncClient.DexClient
 	bcKeys := make(map[common.Address]bnckeys.KeyManager)
@@ -114,7 +120,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		}
 		kp, _ := kpI.(*secp256k1.Keypair)
 
-		conn := ethereum.NewClient(cfg.Endpoint, key, log, big.NewInt(0), big.NewInt(0))
+		conn := ethereum.NewClient(cfg.Endpoint, kp, log, big.NewInt(0), big.NewInt(0))
 		if err := conn.Connect(); err != nil {
 			return nil, err
 		}
@@ -125,7 +131,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		if i == 0 {
 			bscClient = conn
 
-			bcClient, err = bncClient.NewDexClient("testnet-dex.binance.org:443", bncCmnTypes.Network, km)
+			bcClient, err = bncClient.NewDexClient(baseUrl, bncCmnTypes.Network, km)
 			if err != nil {
 				return nil, err
 			}
@@ -150,6 +156,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		bcKeys:            bcKeys,
 		bscClients:        bscClients,
 		bcRpcClient:       rpcClient,
+		rpcEndpoint: rpcEndpoint,
 		tokenHubContract:  hub,
 		multisendContract: multiSend,
 		log:               log,
@@ -162,36 +169,32 @@ func (c *Connection) ReConnect() error {
 }
 
 // LatestBlock returns the latest block from the current chain
-func (c *Connection) LatestBlock() (latest int64, err error) {
+func (c *Connection) LatestBlock() (int64, error) {
 	quit := make(chan struct{})
 	defer close(quit)
-	errCount := 0
+	ch, err := c.bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
+		var event websocket.BlockHeightEvent
+		err := json.Unmarshal(bz, &event)
+		return event.BlockHeight, err
+	}, quit)
+
+	if err != nil {
+		c.log.Error("LatestBlock error", "error", err)
+		return 0, err
+	}
 
 	timer := time.NewTimer(time.Minute)
 	defer timer.Stop()
 
-	onReceive := func(event *websocket.BlockHeightEvent) {
-		latest = event.BlockHeight
-		quit <- struct{}{}
-	}
-
-	onError := func(inErr error) {
-		errCount += 1
-		if errCount > 10 {
-			err = inErr
-			quit <- struct{}{}
-		}
-	}
-	err = c.bcClient.SubscribeBlockHeightEvent(quit, onReceive, onError, nil)
-	if err != nil {
-		return
-	}
-
 	select {
 	case <-timer.C:
-		err = errors.New("LatestBlock timeout")
-		quit <- struct{}{}
-		return
+		return 0, errors.New("LatestBlock timeout")
+	case h := <-ch:
+		blk, ok := h.(int64)
+		if !ok {
+			return 0, errors.New("LatestBlock height type not int64")
+		}
+		return blk, nil
 	}
 }
 
@@ -460,6 +463,7 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 	}
 
 	c.log.Info("TransferFromBcToBsc", "txHash", tx.Hash)
+	time.Sleep(time.Minute)
 	return nil
 }
 
@@ -518,25 +522,40 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 	return fmt.Errorf("BatchTransfer failed")
 }
 
+func (c *Connection) FreeBalance(pool common.Address) (int64, error) {
+	c.log.Info("FreeBalance", "pool", pool)
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return 0, fmt.Errorf("FreeBalance no bc key found: %s", pool.Hex())
+	}
+
+	bal, err := c.bcBalance(bcKey)
+	if err != nil {
+		return 0, err
+	}
+
+	return bal, nil
+}
+
 func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action int, amount int64) (bool, error) {
-	free, err := c.bcBanlance(key)
+	free, err := c.bcBalance(key)
 	if err != nil {
 		return false, err
 	}
 
 	switch action {
 	case 0:
-		return amount+BondFee < free, nil
+		return amount+bondFee < free, nil
 	case 1:
-		return amount+UnbondFee < free, nil
+		return amount+unbondFee < free, nil
 	case 2:
-		return amount+TransferFee < free, nil
+		return amount+transferFee < free, nil
 	default:
 		return false, fmt.Errorf("action not supported")
 	}
 }
 
-func (c *Connection) bcBanlance(key bnckeys.KeyManager) (int64, error) {
+func (c *Connection) bcBalance(key bnckeys.KeyManager) (int64, error) {
 	addr := key.GetAddr()
 	bal, err := c.bcRpcClient.GetBalance(addr, "BNB")
 	if err != nil {

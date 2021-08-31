@@ -6,7 +6,6 @@ package bnb
 import (
 	"fmt"
 	"math/big"
-	"os"
 	"sync"
 
 	"github.com/ChainSafe/log15"
@@ -18,7 +17,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 type writer struct {
@@ -32,7 +30,6 @@ type writer struct {
 	bondedPoolsMtx  sync.RWMutex
 	bondedPools     map[string]bool
 	stop            <-chan int
-	rewardsRecord   string
 }
 
 const (
@@ -40,18 +37,6 @@ const (
 )
 
 func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
-	rewardsRecord, ok := opts["rewardsRecord"].(string)
-	if !ok {
-		panic("no filepath to save rewardsRecord")
-	}
-
-	if _, err := os.Stat(rewardsRecord); os.IsNotExist(err) {
-		err = utils.WriteCSV(rewardsRecord, [][]string{})
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	return &writer{
 		symbol:          symbol,
 		conn:            conn,
@@ -61,7 +46,6 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 		currentChainEra: 0,
 		bondedPools:     make(map[string]bool),
 		stop:            stop,
-		rewardsRecord:   rewardsRecord,
 	}
 }
 
@@ -169,9 +153,10 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
+	w.log.Info("processEraPoolUpdated infos", "pool", poolAddr, "validator", validatorId)
 	unbondable, err := w.conn.Unbondable(poolAddr, validatorId)
 	if err != nil {
-		w.log.Error("processEraPoolUpdated Unbondable error", "pool", poolAddr, "validator", validatorId.String())
+		w.log.Error("processEraPoolUpdated Unbondable error", "error", err)
 		return false
 	}
 
@@ -309,9 +294,26 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
+	before, err := w.conn.FreeBalance(poolAddr)
+	if err != nil {
+		w.log.Error("processActiveReported FreeBalance error", "error", err)
+		return false
+	}
+
 	err = w.conn.TransferFromBcToBsc(poolAddr, total)
 	if err != nil {
 		w.log.Error("processActiveReported TransferFromBcToBsc error", "error", err)
+		return false
+	}
+
+	after, err := w.conn.FreeBalance(poolAddr)
+	if err != nil {
+		w.log.Error("processActiveReported FreeBalance error", "error", err)
+		return false
+	}
+
+	if after + total + transferFee != before {
+		w.log.Error("processActiveReported TransferFromBcToBsc failed", "after", after, "total", total, "before", before, "transferFee", transferFee)
 		return false
 	}
 
