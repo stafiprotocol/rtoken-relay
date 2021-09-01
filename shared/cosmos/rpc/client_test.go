@@ -24,6 +24,7 @@ var client *rpc.Client
 
 //eda331e37bf66b2393c4c271e384dfaa2bfcdd35
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
+var addrMultiSig2, _ = types.AccAddressFromBech32("cosmos1wmk9ys49zxgmx77pqs7cjnpamnnxuspqu2r87y")
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
 var addrValidator, _ = types.ValAddressFromBech32("cosmosvaloper18pty5rk5fgsfnls5pq8ajxcwkf0we8l8q3g8pe")
 var addrKey1, _ = types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
@@ -62,7 +63,7 @@ func initClient() {
 
 	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
 	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
-	client, _ = rpc.NewClient(key, "chain-AALfXF", "key0key1key2", "0.00001stake", "stake", "http://127.0.0.1:26657")
+	client, _ = rpc.NewClient(key, "cosmoshub-4", "self", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
 	if err != nil {
 		panic(err)
 	}
@@ -390,9 +391,12 @@ func TestAddress(t *testing.T) {
 
 func TestClient_QueryDelegations(t *testing.T) {
 	initClient()
-	res, err := client.QueryDelegations(addrMultiSig1, 0)
+	res, err := client.QueryDelegations(addrMultiSig2, 0)
 	assert.NoError(t, err)
 	t.Log(res.String())
+	for i,d:=range res.GetDelegationResponses(){
+		t.Log(i,d.Balance.Amount.IsZero())
+	}
 }
 
 func TestClient_QueryBalance(t *testing.T) {
@@ -404,9 +408,14 @@ func TestClient_QueryBalance(t *testing.T) {
 
 func TestClient_QueryDelegationTotalRewards(t *testing.T) {
 	initClient()
-	res, err := client.QueryDelegationTotalRewards(addrMultiSig1, 0)
+	res, err := client.QueryDelegationTotalRewards(addrMultiSig2, 0)
 	assert.NoError(t, err)
-	t.Log(res.GetTotal().AmountOf(client.GetDenom()).TruncateInt())
+	for i,_:=range res.Rewards{
+		t.Log(i,res.Rewards[i].Reward.AmountOf(client.GetDenom()))
+		t.Log(i,res.Rewards[i].Reward.AmountOf(client.GetDenom()).TruncateInt())
+
+	}
+	t.Log("total ",res.GetTotal().AmountOf(client.GetDenom()).TruncateInt())
 }
 
 func TestClient_GetSequence(t *testing.T) {

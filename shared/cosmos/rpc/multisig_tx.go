@@ -144,6 +144,10 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardTx(delAddr types.AccAddress, hei
 		if err != nil {
 			return nil, err
 		}
+		//skip zero amount
+		if delegation.Balance.Amount.IsZero() {
+			continue
+		}
 		//gen withdraw
 		msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, val)
 		if err := msg.ValidateBasic(); err != nil {
@@ -177,6 +181,10 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 		valAddr := delegation.Delegation.ValidatorAddress
 		//must filter zero value or tx will failure
 		if rewards[valAddr].IsZero() {
+			continue
+		}
+		//skip zero amount
+		if delegation.Balance.Amount.IsZero() {
 			continue
 		}
 
@@ -229,6 +237,10 @@ func (c *Client) GenMultiSigRawDeleRewardTx(delAddr types.AccAddress, height int
 		valAddr := delegation.Delegation.ValidatorAddress
 		//must filter zero value or tx will failure
 		if rewards[valAddr].IsZero() {
+			continue
+		}
+		//skip zero amount
+		if delegation.Balance.Amount.IsZero() {
 			continue
 		}
 
