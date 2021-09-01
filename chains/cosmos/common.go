@@ -526,25 +526,6 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 			return w.informChain(m.Destination, m.Source, &mflow)
 		case submodel.OriginalClaimRewards:
 			poolClient.RemoveUnsignedTx(wrappedUnSignedTx.Key)
-			//redelegate to target
-			ok := w.processValidatorRedelegateTarget(m)
-			if !ok {
-				return false
-			}
-			retry := 0
-			for {
-				if retry > BlockRetryLimit*2 {
-					w.log.Error("processValidatorRedelegateTarget reach wait limit")
-					return false
-				}
-				if poolClient.CachedUnsignedTxNumber() > 0 {
-					time.Sleep(BlockRetryInterval)
-					retry++
-					continue
-				}
-				break
-			}
-
 			return w.ActiveReport(client, poolAddr, sigs.Symbol, sigs.Pool,
 				wrappedUnSignedTx.SnapshotId, wrappedUnSignedTx.Era)
 		case submodel.OriginalTransfer:
