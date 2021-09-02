@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
@@ -165,6 +166,12 @@ func TestTransferOut(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	bal, err := client.Client().BalanceAt(context.Background(), owner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal)
+
 	hub, err := TokenHub.NewTokenHub(tokenHubContract, client.Client())
 	if err != nil {
 		t.Fatal(err)
@@ -172,7 +179,7 @@ func TestTransferOut(t *testing.T) {
 	_ = hub
 
 	receiver := common.HexToAddress("0x5acf525eccbe80a8dad05ad208e9bc94c89bab1f")
-	amount := big.NewInt(5e17)
+	amount := big.NewInt(0).Add(big.NewInt(1e10), big.NewInt(1e8))
 	value := big.NewInt(0).Add(amount, relayfee)
 
 	err = client.LockAndUpdateOpts(big.NewInt(0), value)
@@ -187,6 +194,14 @@ func TestTransferOut(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("txHash", tx.Hash())
+
+	time.Sleep(2 * time.Minute)
+
+	bal, err = client.Client().BalanceAt(context.Background(), owner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal-after", bal)
 }
 
 func TestBatchTransferOut(t *testing.T) {
@@ -294,7 +309,7 @@ func TestValidatorId(t *testing.T) {
 
 	a := []byte(`bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q`)
 	b := hexutil.Encode(a)
-	t.Log(b)
+	t.Log(b) // 0x627661316375647778666165337275343674366c796d656c79737070676b743865376535677a30663971
 }
 
 func TestRpcClient(t *testing.T) {
@@ -349,4 +364,57 @@ func TestIsactive(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("bal", bal.Free)
+}
+
+func TestTxHashStatus(t *testing.T) {
+	txHash := common.HexToHash("0x35976b21bfca498cc14241fff3ebdbaea4565d216f8778a0f0a229c091bce871")
+
+	client := newBscTestClient()
+	receipt, err := client.TransactionReceipt(txHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("status", receipt.Status)
+
+	anotherTxHash := common.HexToHash("0x65765caa0099feba25d973e47ec4376aa6367d401a94d1419907128669467b0b")
+	receipt1, err := client.TransactionReceipt(anotherTxHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("status1", receipt1.Status)
+}
+
+func TestBcTxhash(t *testing.T) {
+	//url := "https://testnet-dex.binance.org/api/v1/tx/AF1C536217B7B797622B9414B373A0E217EB3665F429720DF10A6A545BECA718"
+	url1 := "https://testnet-dex.binance.org/api/v1/tx/A95B078EDE38E89FAC1819A019B7B135D3E0350A25F840636E9C73304EF8CE89"
+
+	resp, err := http.Get(url1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(string(body))
+
+	thr := new(bnc.TxHashResult)
+	if err := json.Unmarshal(body, thr); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(thr)
+}
+
+func TestTxHashStatus1(t *testing.T) {
+	txHash := common.HexToHash("0x4c112c9fb5b1861579840b6eaf9229955c9de2737990addf586e779be3ebbf2e")
+
+	client := newBscTestClient()
+	receipt, err := client.TransactionReceipt(txHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("status", receipt.Status)
 }

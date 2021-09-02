@@ -21,6 +21,15 @@ type RewardDetail struct {
 	RewardTime string  `json:"rewardTime"`
 }
 
+type TxHashResult struct {
+	Code   int    `json:"code"`
+	Data   string `json:"data"`
+	Hash   string `json:"hash"`
+	Height string `json:"height"`
+	Log    string `json:"log"`
+	Ok     bool   `json:"ok"`
+}
+
 func GetStakingReward(url string) (*StakingReward, error) {
 	resp, err := http.Get(url)
 	if err != nil {

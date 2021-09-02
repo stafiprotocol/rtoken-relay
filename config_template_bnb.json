@@ -32,9 +32,11 @@
       "latestBlockFlag": false,
       "opts": {
         "rpcEndpoint": "tcp://data-seed-pre-1-s3.binance.org:80",
-        "eraBlockCfg": "200",
+        "eraBlockCfg": "300",
         "TokenHubContract": "0x0000000000000000000000000000000000001004",
-        "MultiSendContract": "0xa75d7499ca9ac8fE46DCCe5ab9288B0Fe59ea46E"
+        "MultiSendContract": "0xa75d7499ca9ac8fE46DCCe5ab9288B0Fe59ea46E",
+        "SwapRecord": "/Users/fwj/Go/stafi/rtoken-relay/datas/symbol-address-swap.csv",
+        "SwapHistory": "/Users/fwj/Go/stafi/rtoken-relay/datas/symbol-address-swap-histories.csv"
       }
     }
   ]
