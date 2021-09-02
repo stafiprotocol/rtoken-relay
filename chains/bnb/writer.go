@@ -6,6 +6,7 @@ package bnb
 import (
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 
 	"github.com/ChainSafe/log15"
@@ -17,6 +18,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 type writer struct {
@@ -30,6 +32,8 @@ type writer struct {
 	bondedPoolsMtx  sync.RWMutex
 	bondedPools     map[string]bool
 	stop            <-chan int
+	swapRecord      string
+	swapHistory     string
 }
 
 const (
@@ -37,6 +41,30 @@ const (
 )
 
 func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+	record, ok := opts["SwapRecord"].(string)
+	if !ok {
+		panic("no filepath to save SwapRecord")
+	}
+
+	history, ok := opts["SwapHistory"].(string)
+	if !ok {
+		panic("no filepath to save SwapRecord history")
+	}
+
+	if _, err := os.Stat(record); os.IsNotExist(err) {
+		err = utils.WriteCSV(record, [][]string{})
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if _, err := os.Stat(history); os.IsNotExist(err) {
+		err = utils.WriteCSV(history, [][]string{})
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return &writer{
 		symbol:          symbol,
 		conn:            conn,
@@ -46,6 +74,8 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 		currentChainEra: 0,
 		bondedPools:     make(map[string]bool),
 		stop:            stop,
+		swapRecord:      record,
+		swapHistory:     history,
 	}
 }
 
@@ -56,7 +86,7 @@ func (w *writer) setRouter(r chains.Router) {
 func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	defer func() {
 		if !processOk {
-			w.sysErr <- fmt.Errorf("resolveMessage process failed. %+v", m)
+			panic(fmt.Errorf("resolveMessage process failed. %+v", m))
 		}
 	}()
 
@@ -108,11 +138,6 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 	w.log.Info("processLiquidityBond", "bondId", flow.BondId.Hex(), "bondReason", bondReason, "VerifyTimes", flow.VerifyTimes)
 	flow.Reason = bondReason
 
-	if w.conn.BscTransferToBc(flow.Record) != nil {
-		w.log.Error("BscTransferToBc error", "error", err)
-		return false
-	}
-
 	msg := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.LiquidityBondResult, Content: flow}
 	return w.submitMessage(msg)
 }
@@ -154,67 +179,83 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
 	w.log.Info("processEraPoolUpdated infos", "pool", poolAddr, "validator", validatorId)
+
 	unbondable, err := w.conn.Unbondable(poolAddr, validatorId)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated Unbondable error", "error", err)
 		return false
 	}
 
-	bond := snap.Bond.Int64()
-	unbond := snap.Unbond.Int64()
-	least := flow.LeastBond.Int64()
-	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
-	if unbondable {
+	if !unbondable {
+		w.log.Info("processEraPoolUpdated not unbondable")
 		flow.BondCall.Action = submodel.EitherBondUnbond
 		return w.informChain(m.Destination, m.Source, mef)
 	}
 
+	bond := snap.Bond.Int64()
+	unbond := snap.Unbond.Int64()
+	least := flow.LeastBond.Int64()
+	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
 	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
 	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
-	switch action {
-	case submodel.BondOnly:
-		before, err := w.conn.Staked(poolAddr, validatorId)
-		if err != nil {
-			w.log.Error("processEraPoolUpdated Staked error", "error", err)
-			return false
+
+	if action != submodel.EitherBondUnbond && bond > 0 {
+		swap := &Swap{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era), From: FromBsc}
+		historied := IsSwapExist(w.swapHistory, swap)
+		recorded := IsSwapExist(w.swapRecord, swap)
+		w.log.Info("processEraPoolUpdated", "historied", historied, "recorded", recorded)
+
+		swapFun := func() bool {
+			err = w.conn.TransferFromBscToBc(poolAddr, bond)
+			if err != nil {
+				w.log.Error("processEraPoolUpdated swap error", "error", err)
+				return false
+			}
+
+			err = DeleteSwap(w.swapRecord, swap)
+			if err != nil {
+				w.log.Error("processEraPoolUpdated delete swap error", "error", err)
+				return false
+			}
+
+			return true
 		}
 
+		if !historied {
+			err = CreateSwap(w.swapRecord, swap)
+			if err != nil {
+				w.log.Error("processEraPoolUpdated: create swap record err", "err", err, "swap", *swap)
+				return false
+			}
+
+			err = CreateSwap(w.swapHistory, swap)
+			if err != nil {
+				w.log.Error("processEraPoolUpdated: create swap history err", "err", err, "swap", *swap)
+				return false
+			}
+
+			if !swapFun() {
+				return false
+			}
+		} else if recorded {
+			if !swapFun() {
+				return false
+			}
+		}
+	}
+
+	switch action {
+	case submodel.BondOnly:
 		if err = w.conn.ExecuteBond(poolAddr, validatorId, amount); err != nil {
 			w.log.Error("ExecuteBond error", "error", err)
 			return false
 		}
 
-		after, err := w.conn.Staked(poolAddr, validatorId)
-		if err != nil {
-			w.log.Error("processEraPoolUpdated Staked again error", "error", err)
-			return false
-		}
-		if before+amount != after {
-			w.log.Error("processEraPoolUpdated ExecuteBond failed", "before", before, "amount", amount, "after", after)
-			return false
-		}
-
 		flow.BondCall.Action = submodel.BothBondUnbond
 	case submodel.UnbondOnly:
-		before, err := w.conn.Staked(poolAddr, validatorId)
-		if err != nil {
-			w.log.Error("processEraPoolUpdated Staked error", "error", err)
-			return false
-		}
-
 		err = w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
 		if err != nil {
 			w.log.Error("ExecuteUnbond error", "error", err)
-			return false
-		}
-
-		after, err := w.conn.Staked(poolAddr, validatorId)
-		if err != nil {
-			w.log.Error("processEraPoolUpdated Staked again error", "error", err)
-			return false
-		}
-		if after+amount != before {
-			w.log.Error("processEraPoolUpdated ExecuteUnbond failed", "after", after, "amount", amount, "before", before)
 			return false
 		}
 
@@ -250,16 +291,20 @@ func (w *writer) processBondReported(m *core.Message) bool {
 	curHeight := int64(snap.Era) * int64(eraBlock)
 	w.log.Info("processBondReported reward", "pool", poolAddr, "validator", validatorId.String(), "curHeight", curHeight, "lastHeight", lastHeight)
 
-	reward, err := w.conn.Reward(poolAddr, curHeight, lastHeight)
-	if err != nil {
-		w.log.Error("processBondReported reward error", "err", err)
-		return false
-	}
-
+	var reward int64
 	staked, err := w.conn.Staked(poolAddr, validatorId)
 	if err != nil {
-		w.log.Error("processBondReported reward error", "err", err)
-		return false
+		if err.Error() != NoBondError.Error() {
+			w.log.Error("processBondReported Staked error", "err", err)
+			return false
+		}
+		reward = 0
+	} else {
+		reward, err = w.conn.Reward(poolAddr, curHeight, lastHeight)
+		if err != nil {
+			w.log.Error("processBondReported reward error", "err", err)
+			return false
+		}
 	}
 
 	flow.Snap.Active = types.NewU128(*big.NewInt(staked))
@@ -287,34 +332,54 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	snap := flow.Snap
 	total := flow.TotalAmount.Int64()
 	poolAddr := common.BytesToAddress(snap.Pool)
-	w.log.Info("processActiveReported prepare to transfer", "pool", poolAddr, "total", total)
-	err := w.conn.CheckTransfer(poolAddr, total)
-	if err != nil {
-		w.log.Error("processActiveReported unable to transfer", "error", err)
-		return false
+	swap := &Swap{Symbol: string(snap.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(snap.Era), From: FromBc}
+	historied := IsSwapExist(w.swapHistory, swap)
+	recorded := IsSwapExist(w.swapRecord, swap)
+	w.log.Info("processActiveReported prepare to swap", "pool", poolAddr, "total", total, "historied", historied, "recorded", recorded)
+
+	var err error
+	swapFun := func() bool {
+		err = w.conn.CheckTransfer(poolAddr, total)
+		if err != nil {
+			w.log.Error("processActiveReported unable to transfer", "error", err)
+			return false
+		}
+
+		err = w.conn.TransferFromBcToBsc(poolAddr, total)
+		if err != nil {
+			w.log.Error("processActiveReported TransferFromBcToBsc error", "error", err)
+			return false
+		}
+
+		err = DeleteSwap(w.swapRecord, swap)
+		if err != nil {
+			w.log.Error("processActiveReported delete swap error", "error", err)
+			return false
+		}
+
+		return true
 	}
 
-	before, err := w.conn.FreeBalance(poolAddr)
-	if err != nil {
-		w.log.Error("processActiveReported FreeBalance error", "error", err)
-		return false
-	}
+	if !historied {
+		err = CreateSwap(w.swapRecord, swap)
+		if err != nil {
+			w.log.Error("processActiveReported: create swap record err", "err", err, "swap", *swap)
+			return false
+		}
 
-	err = w.conn.TransferFromBcToBsc(poolAddr, total)
-	if err != nil {
-		w.log.Error("processActiveReported TransferFromBcToBsc error", "error", err)
-		return false
-	}
+		err = CreateSwap(w.swapHistory, swap)
+		if err != nil {
+			w.log.Error("processActiveReported: create swap history err", "err", err, "swap", *swap)
+			return false
+		}
 
-	after, err := w.conn.FreeBalance(poolAddr)
-	if err != nil {
-		w.log.Error("processActiveReported FreeBalance error", "error", err)
-		return false
-	}
-
-	if after + total + transferFee != before {
-		w.log.Error("processActiveReported TransferFromBcToBsc failed", "after", after, "total", total, "before", before, "transferFee", transferFee)
-		return false
+		if !swapFun() {
+			return false
+		}
+	} else if recorded {
+		if !swapFun() {
+			return false
+		}
 	}
 
 	err = w.conn.BatchTransfer(poolAddr, flow.Receives, total)

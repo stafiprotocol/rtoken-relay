@@ -579,6 +579,10 @@ func (l *listener) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.P
 }
 
 func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
+	if symbol == core.RBNB {
+		return 0, nil, nil
+	}
+
 	poolBz, err := types.EncodeToBytes(pool)
 	if err != nil {
 		return 0, nil, err

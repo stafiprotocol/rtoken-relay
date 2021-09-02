@@ -348,7 +348,8 @@ func (c *Client) BnbTransferVerify(r *submodel.BondRecord) (submodel.BondReason,
 			return submodel.PoolUnmatch, nil
 		}
 
-		if tx.Value().Cmp(r.Amount.Int) != 0 {
+		value := big.NewInt(0).Div(tx.Value(), big.NewInt(1e10))
+		if value.Cmp(r.Amount.Int) != 0 {
 			c.log.Warn("BnbTransferVerify: amount not equal", "value", tx.Value(), "amount", r.Amount.Int)
 			return submodel.AmountUnmatch, nil
 		}
