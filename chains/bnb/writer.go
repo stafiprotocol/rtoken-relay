@@ -170,20 +170,20 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
+	snap := flow.Snap
+	poolAddr := common.BytesToAddress(snap.Pool)
+	if !w.conn.IsPoolKeyExist(poolAddr) {
+		w.log.Info("has no pool key, will ignore")
+		return true
+	}
+
 	validatorId, ok := mef.ValidatorId.(bncCmnTypes.ValAddress)
 	if !ok {
 		w.log.Error("processEraPoolUpdated validatorId not ValAddress")
 		return false
 	}
 
-	snap := flow.Snap
-	poolAddr := common.BytesToAddress(snap.Pool)
 	w.log.Info("processEraPoolUpdated infos", "pool", poolAddr, "validator", validatorId)
-	if !w.conn.IsPoolKeyExist(poolAddr) {
-		w.log.Info("has no pool key, will ignore")
-		return true
-	}
-
 	unbondable, err := w.conn.Unbondable(poolAddr, validatorId)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated Unbondable error", "error", err)
