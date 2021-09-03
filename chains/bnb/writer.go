@@ -179,6 +179,10 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
 	w.log.Info("processEraPoolUpdated infos", "pool", poolAddr, "validator", validatorId)
+	if !w.conn.IsPoolKeyExist(poolAddr) {
+		w.log.Info("has no pool key, will ignore")
+		return true
+	}
 
 	unbondable, err := w.conn.Unbondable(poolAddr, validatorId)
 	if err != nil {
@@ -277,6 +281,11 @@ func (w *writer) processBondReported(m *core.Message) bool {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
+	if !w.conn.IsPoolKeyExist(poolAddr) {
+		w.log.Info("has no pool key, will ignore", "pool", poolAddr)
+		return true
+	}
+
 	validatorId, ok := flow.ValidatorId.(bncCmnTypes.ValAddress)
 	if !ok {
 		w.log.Error("processBondReported validatorId not ValAddress")
@@ -332,6 +341,11 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	snap := flow.Snap
 	total := flow.TotalAmount.Int64()
 	poolAddr := common.BytesToAddress(snap.Pool)
+	if !w.conn.IsPoolKeyExist(poolAddr) {
+		w.log.Info("has no pool key, will ignore", "pool", poolAddr)
+		return true
+	}
+
 	swap := &Swap{Symbol: string(snap.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(snap.Era), From: FromBc}
 	historied := IsSwapExist(w.swapHistory, swap)
 	recorded := IsSwapExist(w.swapRecord, swap)
