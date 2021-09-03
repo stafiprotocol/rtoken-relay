@@ -313,7 +313,8 @@
       "BondOnly",
       "UnbondOnly",
       "BothBondUnbond",
-      "EitherBondUnbond"
+      "EitherBondUnbond",
+      "InterDeduct"
     ]
   },
   "SwapTransactionInfo": {

@@ -219,6 +219,7 @@ const (
 	UnbondOnly       = BondAction("UnbondOnly")
 	BothBondUnbond   = BondAction("BothBondUnbond")
 	EitherBondUnbond = BondAction("EitherBondUnbond")
+	InterDeduct      = BondAction("InterDeduct")
 )
 
 func (ba BondAction) Encode(encoder scale.Encoder) error {

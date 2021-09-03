@@ -63,9 +63,9 @@ const (
 type BcActionType int
 
 const (
-	BcBondAction = BcActionType(0)
+	BcBondAction   = BcActionType(0)
 	BcUnbondAction = BcActionType(1)
-	BcSwapAction = BcActionType(2)
+	BcSwapAction   = BcActionType(2)
 )
 
 type Connection struct {
@@ -339,18 +339,21 @@ func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.B
 		diff := unbond - bond
 		if diff < leastBond {
 			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, EitherBondUnbond")
-			return submodel.EitherBondUnbond, 0
+			return submodel.InterDeduct, 0
 		}
 		return submodel.UnbondOnly, diff
 	} else if bond > unbond {
 		diff := bond - unbond
 		if diff < leastBond {
 			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, EitherBondUnbond")
-			return submodel.EitherBondUnbond, 0
+			return submodel.InterDeduct, 0
 		}
 		return submodel.BondOnly, diff
 	} else {
 		c.log.Info("bond is equal to unbond, NoCall")
+		if bond == 0 {
+			return submodel.EitherBondUnbond, 0
+		}
 		return submodel.BothBondUnbond, 0
 	}
 }
