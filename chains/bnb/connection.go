@@ -219,8 +219,8 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	return c.bscClient.BnbTransferVerify(r)
 }
 
-func (c *Connection) BckeyByPool(pool common.Address) bnckeys.KeyManager {
-	return c.bcKeys[pool]
+func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
+	return c.bcKeys[pool] != nil && c.bscClients[pool] != nil
 }
 
 func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) error {
