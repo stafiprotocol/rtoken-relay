@@ -199,7 +199,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
 	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
 
-	if action != submodel.EitherBondUnbond && bond > 0 {
+	if bond > 0 {
 		swap := &Swap{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era), From: FromBsc}
 		historied := IsSwapExist(w.swapHistory, swap)
 		recorded := IsSwapExist(w.swapRecord, swap)
@@ -260,7 +260,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		}
 
 		flow.BondCall.Action = submodel.BothBondUnbond
-	case submodel.BothBondUnbond, submodel.EitherBondUnbond:
+	case submodel.BothBondUnbond, submodel.EitherBondUnbond, submodel.InterDeduct:
 		w.log.Info("processEraPoolUpdated: no need to bond or unbond")
 		flow.BondCall.Action = action
 	}
