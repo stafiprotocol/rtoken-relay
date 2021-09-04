@@ -66,6 +66,10 @@ func (pc *PoolClient) RemoveUnsignedTx(key string) {
 	pc.mtx.Unlock()
 }
 
+func (pc *PoolClient) CachedUnsignedTxNumber() int {
+	return len(pc.cachedUnsignedTx)
+}
+
 func (pc *PoolClient) GetHeightByEra(era uint32) int64 {
 	return int64(era) * pc.eraBlockNumber
 }

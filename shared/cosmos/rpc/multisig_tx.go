@@ -101,6 +101,20 @@ func (c *Client) GenMultiSigRawReDelegateTx(delAddr types.AccAddress, valSrcAddr
 	return c.GenMultiSigRawTx(msg)
 }
 
+//generate unsigned reDelegate tx
+func (c *Client) GenMultiSigRawReDelegateTxWithTarget(delAddr types.AccAddress, valSrcAddrs map[string]types.Coin, valDstAddr types.ValAddress) ([]byte, error) {
+	msgs := make([]types.Msg, 0)
+	for addrStr, amount := range valSrcAddrs {
+		valAddress, err := types.ValAddressFromBech32(addrStr)
+		if err != nil {
+			return nil, err
+		}
+		msg := xStakingTypes.NewMsgBeginRedelegate(delAddr, valAddress, valDstAddr, amount)
+		msgs = append(msgs, msg)
+	}
+	return c.GenMultiSigRawTx(msgs...)
+}
+
 //generate unsigned withdraw delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawDeleRewardTx(delAddr types.AccAddress, valAddr types.ValAddress) ([]byte, error) {
 	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
@@ -129,6 +143,10 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardTx(delAddr types.AccAddress, hei
 		val, err := types.ValAddressFromBech32(valAddr)
 		if err != nil {
 			return nil, err
+		}
+		//skip zero amount
+		if delegation.Balance.Amount.IsZero() {
+			continue
 		}
 		//gen withdraw
 		msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, val)
@@ -163,6 +181,10 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 		valAddr := delegation.Delegation.ValidatorAddress
 		//must filter zero value or tx will failure
 		if rewards[valAddr].IsZero() {
+			continue
+		}
+		//skip zero amount
+		if delegation.Balance.Amount.IsZero() {
 			continue
 		}
 
@@ -215,6 +237,10 @@ func (c *Client) GenMultiSigRawDeleRewardTx(delAddr types.AccAddress, height int
 		valAddr := delegation.Delegation.ValidatorAddress
 		//must filter zero value or tx will failure
 		if rewards[valAddr].IsZero() {
+			continue
+		}
+		//skip zero amount
+		if delegation.Balance.Amount.IsZero() {
 			continue
 		}
 

@@ -1,12 +1,15 @@
 package ethereum
 
 import (
+	"bytes"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
+	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 )
@@ -223,4 +226,46 @@ func TestTotalStaked(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("reward", reward)
+}
+
+func NewMainetClient() *Client {
+	client := NewClient(MainnetEndPoint, AliceKp, testLogger, big.NewInt(0), big.NewInt(0))
+	err := client.Connect()
+	if err != nil {
+		panic(err)
+	}
+
+	return client
+}
+
+func TestTxhashReward(t *testing.T) {
+	client := NewMainetClient()
+	pool := common.HexToAddress("0x33e91fb7e5FeD3ba103FB4B0fd1e5cdB6E555361")
+	txHash := common.HexToHash("0x9279f9d7f1db5e76ae6a63228ffd6ba290d031d0ee02c3e2aa438527a2787c14")
+
+	multisig, err := Multisig.NewMultisig(pool, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iter, err := multisig.FilterExecutionResult(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		if !iter.Next() {
+			break
+		}
+		evt := iter.Event
+		t.Log("txhash", common.BytesToHash(evt.TxHash[:]))
+		t.Log("Arg1", evt.Arg1)
+
+		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(ethmodel.HashStateSuccess) {
+			continue
+		}
+		t.Log("-------------")
+		//
+		//return c.RewardByTransactionHash(evt.Raw.TxHash, pool)
+	}
 }

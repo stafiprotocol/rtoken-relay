@@ -30,16 +30,18 @@ import (
 )
 
 var (
-	DefaultValue     = big.NewInt(0)
-	TxConfirmLimit   = 50
-	TxRetryInterval  = time.Second * 2
-	ErrNonceTooLow   = errors.New("nonce too low")
-	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
-	ZeroAddress      = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	DefaultValue      = big.NewInt(0)
+	TxRetryInterval   = time.Second * 2
+	TxHashLogInterval = time.Second * 10
+	ErrNonceTooLow    = errors.New("nonce too low")
+	ErrTxUnderpriced  = errors.New("replacement transaction underpriced")
+	ZeroAddress       = common.HexToAddress("0x0000000000000000000000000000000000000000")
 )
 
 const (
-	TxRetryLimit = 10
+	TxRetryLimit        = 10
+	TxConfirmLimit      = 50
+	TxHashLogRetryLimit = 60
 )
 
 type Connection struct {
@@ -542,28 +544,31 @@ func (c *Connection) StakedAndReward(txHash common.Hash, share, pool common.Addr
 
 /// txhash is not transaction hash but a param of multi.execTransaction
 func (c *Connection) RewardByTxHash(txHash common.Hash, pool common.Address) (*big.Int, error) {
-	multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
-	if err != nil {
-		return nil, err
-	}
-
-	iter, err := multisig.FilterExecutionResult(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	for {
-		if !iter.Next() {
-			break
-		}
-		evt := iter.Event
-		if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(ethmodel.HashStateSuccess) {
-			continue
+	for i := 0; i <= TxHashLogRetryLimit; i++ {
+		multisig, err := Multisig.NewMultisig(pool, c.conn.Client())
+		if err != nil {
+			return nil, err
 		}
 
-		return c.RewardByTransactionHash(evt.Raw.TxHash, pool)
-	}
+		iter, err := multisig.FilterExecutionResult(nil)
+		if err != nil {
+			return nil, err
+		}
 
+		for {
+			if !iter.Next() {
+				break
+			}
+			evt := iter.Event
+			if !bytes.Equal(evt.TxHash[:], txHash.Bytes()) || evt.Arg1 != uint8(ethmodel.HashStateSuccess) {
+				continue
+			}
+
+			return c.RewardByTransactionHash(evt.Raw.TxHash, pool)
+		}
+
+		time.Sleep(TxHashLogInterval)
+	}
 	return nil, fmt.Errorf("RewardByTxHash: no log, txHash: %s, pool: %s", txHash.Hex(), pool.Hex())
 }
 
