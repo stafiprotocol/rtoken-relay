@@ -15,6 +15,7 @@ import (
 var (
 	BlockRetryInterval = time.Second * 6
 	BlockRetryLimit    = 50
+	EraInterval        = time.Minute * 2
 )
 
 //listen event or block update from solana
@@ -60,7 +61,7 @@ func (l *listener) start() error {
 
 func (l *listener) pollBlocks() error {
 	var retry = BlockRetryLimit
-	ticker := time.NewTicker(BlockRetryInterval)
+	ticker := time.NewTicker(EraInterval)
 	defer ticker.Stop()
 	for {
 		select {

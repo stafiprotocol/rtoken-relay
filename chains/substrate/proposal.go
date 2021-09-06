@@ -15,6 +15,7 @@ import (
 )
 
 var ErrExpired = errors.New("proposal expired")
+var ErrAlreadyVoted = errors.New("proposal already voted")
 
 func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
@@ -147,19 +148,21 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 	for i := 0; i < BlockRetryLimit; i++ {
 		// Ensure we only submit a vote if status of the proposal is Initiated
 		valid, reason, err := c.proposalValid(prop)
-		c.log.Info("ResolveProposal proposalValid", "valid", valid, "reason", reason, "method", prop.MethodName)
 		if err != nil {
-			if err == ErrExpired {
+			switch err {
+			case ErrExpired:
 				newBondId := types.Hash(utils.BlakeTwo256(prop.BondId[:]))
 				prop.BondId = newBondId
 				continue
-			} else {
+			case ErrAlreadyVoted:
+				return true
+			default:
 				c.log.Error("Failed to assert proposal state", "err", err)
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
 		}
-
+		c.log.Info("ResolveProposal proposalValid", "valid", valid, "reason", reason, "method", prop.MethodName)
 		if !valid {
 			c.log.Debug("Ignoring proposal", "reason", reason)
 			return true
@@ -219,11 +222,11 @@ func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error
 	}
 
 	if containsVote(state.VotesFor, types.NewAccountID(c.gc.PublicKey())) {
-		return false, "already voted for", nil
+		return false, "already voted for", ErrAlreadyVoted
 	}
 
 	if containsVote(state.VotesAgainst, types.NewAccountID(c.gc.PublicKey())) {
-		return false, "already voted against", nil
+		return false, "already voted against", ErrAlreadyVoted
 	}
 
 	return true, "", nil

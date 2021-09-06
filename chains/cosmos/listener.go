@@ -15,6 +15,7 @@ var (
 	BlockRetryInterval = time.Second * 6
 	BlockRetryLimit    = 50
 	BlockConfirmNumber = int64(6)
+	EraInterval        = time.Minute * 2
 )
 
 //listen event from cosmos
@@ -64,7 +65,7 @@ func (l *listener) start() error {
 
 func (l *listener) pollBlocks() error {
 	var retry = BlockRetryLimit
-	ticker := time.NewTicker(BlockRetryInterval)
+	ticker := time.NewTicker(EraInterval)
 	defer ticker.Stop()
 	for {
 		select {
