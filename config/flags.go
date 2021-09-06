@@ -41,6 +41,12 @@ var (
 		Name:  "latest",
 		Usage: "Overrides blockstore and start block, starts from latest block",
 	}
+
+	BncNetwork = &cli.StringFlag{
+		Name:  "bncnetwork",
+		Usage: "Specify network for bc chain, set test for TestNetwork, others will be ProdNetwork",
+		Value: "",
+	}
 )
 
 // Metrics flags
@@ -54,13 +60,5 @@ var (
 		Name:  "metricsPort",
 		Usage: "Port to serve metrics on",
 		Value: 8001,
-	}
-)
-
-// Generate subcommand flags
-var (
-	PathFlag = &cli.StringFlag{
-		Name:  "keypath",
-		Usage: "Dir to keep key file.",
 	}
 )

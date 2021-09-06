@@ -160,9 +160,21 @@ func (w *writer) processSubmitSignature(m *core.Message) bool {
 		w.printContentError(m)
 		return false
 	}
-	result := w.conn.submitSignature(&param)
-	w.log.Info("submitSignature", "symbol", m.Source, "result", result)
-	return result
+
+	need, err := w.conn.NeedMoreSignature(&param)
+	if err != nil {
+		w.log.Error("NeedMoreSignature error", "error", err)
+		return false
+	}
+
+	if need {
+		result := w.conn.submitSignature(&param)
+		w.log.Info("submitSignature", "symbol", m.Source, "result", result)
+		return result
+	}
+
+	w.log.Info("processSubmitSignature: signature already enough")
+	return true
 }
 
 func (w *writer) processLiquidityBond(m *core.Message) bool {
@@ -809,12 +821,49 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		return true
 	}
 
+	var prop *submodel.Proposal
+	var err error
 	if data, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow); ok {
-		prop, err := w.conn.CommonReportProposal(config.MethodBondReport, m.Source, data.ShotId, data.ShotId)
-		if err != nil {
-			w.log.Error("MethodBondReportProposal", "error", err)
-			return false
+		call := data.BondCall
+		switch data.Symbol {
+		case core.RMATIC:
+			switch call.ReportType {
+			case submodel.NewBondReport:
+				prop, err = w.conn.NewBondReportProposal(data)
+				if err != nil {
+					w.log.Error("MethodNewBondReportProposal", "error", err)
+					return false
+				}
+			case submodel.BondAndReportActive:
+				prop, err = w.conn.BondAndReportActiveProposal(data)
+				if err != nil {
+					w.log.Error("MethodBondAndReportActiveProposal", "error", err)
+					return false
+				}
+			default:
+				w.log.Error("processInformChain: ReportType not supported", "ReportType", call.ReportType)
+				return false
+			}
+		case core.RBNB:
+			switch call.ReportType {
+			case submodel.NewBondReport:
+				prop, err = w.conn.NewBondReportProposal(data)
+				if err != nil {
+					w.log.Error("MethodNewBondReportProposal", "error", err)
+					return false
+				}
+			default:
+				w.log.Error("processInformChain: ReportType not supported", "ReportType", call.ReportType)
+				return false
+			}
+		default:
+			prop, err = w.conn.CommonReportProposal(config.MethodBondReport, m.Source, data.ShotId, data.ShotId)
+			if err != nil {
+				w.log.Error("MethodBondReportProposal", "error", err)
+				return false
+			}
 		}
+
 		result := w.conn.resolveProposal(prop, true)
 		w.log.Info("MethodBondReportProposal resolveProposal", "result", result)
 		return result
@@ -828,7 +877,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	}
 
 	if data, ok := flow.EventData.(*submodel.ActiveReportedFlow); ok {
-		prop, err := w.conn.CommonReportProposal(config.MethodWithdrawReport, m.Source, bondId, data.ShotId)
+		prop, err = w.conn.CommonReportProposal(config.MethodWithdrawReport, m.Source, bondId, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodWithdrawReportProposal", "error", err)
 			return false
@@ -839,7 +888,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	}
 
 	if data, ok := flow.EventData.(*submodel.WithdrawReportedFlow); ok {
-		prop, err := w.conn.CommonReportProposal(config.MethodTransferReport, m.Source, bondId, data.ShotId)
+		prop, err = w.conn.CommonReportProposal(config.MethodTransferReport, m.Source, bondId, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodTransferReportProposal", "error", err)
 			return false
@@ -940,10 +989,20 @@ func (w *writer) processActiveReport(m *core.Message) bool {
 		return false
 	}
 
-	prop, err := w.conn.ActiveReportProposal(flow)
-	if err != nil {
-		w.log.Error("ActiveReportProposal", "error", err)
-		return false
+	var prop *submodel.Proposal
+	var err error
+	if !flow.NewActiveReportFlag {
+		prop, err = w.conn.ActiveReportProposal(flow)
+		if err != nil {
+			w.log.Error("ActiveReportProposal", "error", err)
+			return false
+		}
+	} else {
+		prop, err = w.conn.NewActiveReportProposal(flow)
+		if err != nil {
+			w.log.Error("NewActiveReportProposal", "error", err)
+			return false
+		}
 	}
 
 	result := w.conn.resolveProposal(prop, true)

@@ -252,7 +252,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 					l.submitMessage(l.subscriptions[EraPoolUpdated](flow))
 				}
 			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId {
-				l.log.Trace("Handling BondReportEvent", "block", blockNum)
+				l.log.Trace("Handling BondReportedEvent", "block", blockNum)
 				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
 					if err.Error() == BondStateNotBondReportedError.Error() ||

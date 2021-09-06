@@ -5,10 +5,9 @@ package substrate
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/chainbridge/utils/blockstore"
+	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
@@ -23,7 +22,7 @@ type Chain struct {
 }
 
 func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error) (*Chain, error) {
-	logger.Info("InitializeChain", "symbol", cfg.Symbol)
+	logger.Info("InitializeChain", "type", "substrate", "symbol", cfg.Symbol)
 
 	stop := make(chan int)
 	conn, err := NewConnection(cfg, logger, stop)
@@ -31,36 +30,28 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	blk := parseStartBlock(cfg)
-	bs := new(blockstore.Blockstore)
-	if cfg.LatestBlockFlag {
-		blk, err = conn.LatestBlockNumber()
+	latestBlock, err := conn.LatestBlockNumber()
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := chains.NewBlockstore(cfg.Opts["blockstorePath"], conn.Address())
+	if err != nil {
+		return nil, err
+	}
+
+	var startBlk uint64
+	if !cfg.LatestBlockFlag {
+		startBlk, err = chains.StartBlock(bs, cfg.Opts["startBlock"])
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		bp := cfg.Opts["blockstorePath"]
-		if bp == nil {
-			return nil, errors.New("blockstorePath nil")
-		}
-
-		bsPath, ok := bp.(string)
-		if !ok {
-			return nil, errors.New("blockstorePath not string")
-		}
-		bs, err = blockstore.NewBlockstore(bsPath, 100, conn.Address())
-		if err != nil {
-			return nil, err
-		}
-
-		blk, err = checkBlockstore(bs, blk)
-		if err != nil {
-			return nil, err
-		}
+		startBlk = latestBlock
 	}
 
 	// Setup listener & writer
-	l := NewListener(cfg.Name, cfg.Symbol, cfg.Opts, blk, bs, conn, logger, stop, sysErr)
+	l := NewListener(cfg.Name, cfg.Symbol, cfg.Opts, startBlk, bs, conn, logger, stop, sysErr)
 	w := NewWriter(cfg.Symbol, cfg.Opts, conn, logger, sysErr, stop)
 	return &Chain{cfg: cfg, conn: conn, listener: l, writer: w, stop: stop}, nil
 }
@@ -94,36 +85,6 @@ func (c *Chain) Name() string {
 
 func (c *Chain) Stop() {
 	close(c.stop)
-}
-
-// checkBlockstore queries the blockstore for the latest known block. If the latest block is
-// greater than startBlock, then the latest block is returned, otherwise startBlock is.
-func checkBlockstore(bs *blockstore.Blockstore, startBlock uint64) (uint64, error) {
-	latestBlock, err := bs.TryLoadLatestBlock()
-	if err != nil {
-		return 0, err
-	}
-
-	if latestBlock.Uint64() > startBlock {
-		return latestBlock.Uint64(), nil
-	} else {
-		return startBlock, nil
-	}
-}
-
-func parseStartBlock(cfg *core.ChainConfig) uint64 {
-	if blk, ok := cfg.Opts["startBlock"]; ok {
-		blkStr, ok := blk.(string)
-		if !ok {
-			panic("block not string")
-		}
-		res, err := strconv.ParseUint(blkStr, 10, 32)
-		if err != nil {
-			panic(err)
-		}
-		return res
-	}
-	return 0
 }
 
 func (c *Chain) InitBondedPools(symbols []core.RSymbol) error {

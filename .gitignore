@@ -34,7 +34,10 @@ config0.json
 config1.json
 config2.json
 config3.json
+rmatic*.json
+matic*.json
 *.block
 /cfgBuilder/*.toml
 relay_log*.json
 datas/
+config_template_cosmos2.json

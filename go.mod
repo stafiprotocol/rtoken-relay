@@ -6,7 +6,7 @@ require (
 	github.com/ChainSafe/log15 v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
 	github.com/cosmos/cosmos-sdk v0.42.4
-	github.com/ethereum/go-ethereum v1.9.25
+	github.com/ethereum/go-ethereum v1.10.6
 	github.com/gorilla/websocket v1.4.2
 	github.com/huandu/xstrings v1.3.2
 	github.com/itering/scale.go v1.0.61
@@ -17,12 +17,13 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
+	github.com/stafiprotocol/go-sdk v1.3.1
 	github.com/stafiprotocol/go-substrate-rpc-client v1.1.0
 	github.com/stafiprotocol/solana-go-sdk v0.2.7
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.9
 	github.com/urfave/cli/v2 v2.3.0
-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	gotest.tools v2.2.0+incompatible
 )
 

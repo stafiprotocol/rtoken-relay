@@ -2,7 +2,11 @@ package submodel
 
 import (
 	"fmt"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
+	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
@@ -208,6 +212,52 @@ func (p *PoolBondState) Decode(decoder scale.Decoder) error {
 	return nil
 }
 
+type BondAction string
+
+const (
+	BondOnly         = BondAction("BondOnly")
+	UnbondOnly       = BondAction("UnbondOnly")
+	BothBondUnbond   = BondAction("BothBondUnbond")
+	EitherBondUnbond = BondAction("EitherBondUnbond")
+)
+
+func (ba BondAction) Encode(encoder scale.Encoder) error {
+	switch ba {
+	case BondOnly:
+		return encoder.PushByte(0)
+	case UnbondOnly:
+		return encoder.PushByte(1)
+	case BothBondUnbond:
+		return encoder.PushByte(2)
+	case EitherBondUnbond:
+		return encoder.PushByte(3)
+	default:
+		return fmt.Errorf("BondAction %s not supported", ba)
+	}
+}
+
+func (ba *BondAction) Decode(decoder scale.Decoder) error {
+	b, err := decoder.ReadOneByte()
+	if err != nil {
+		return err
+	}
+
+	switch b {
+	case 0:
+		*ba = BondOnly
+	case 1:
+		*ba = UnbondOnly
+	case 2:
+		*ba = BothBondUnbond
+	case 3:
+		*ba = EitherBondUnbond
+	default:
+		return fmt.Errorf("BondAction decode error: %d", b)
+	}
+
+	return nil
+}
+
 type VoteState struct {
 	VotesFor     []types.AccountID
 	VotesAgainst []types.AccountID
@@ -240,6 +290,18 @@ type PoolSnapshot struct {
 	BondState PoolBondState
 }
 
+type BondReportType uint8
+
+const (
+	NewBondReport       = BondReportType(0)
+	BondAndReportActive = BondReportType(1)
+)
+
+type BondCall struct {
+	ReportType BondReportType
+	Action     BondAction
+}
+
 type EraPoolUpdatedFlow struct {
 	Symbol        core.RSymbol
 	Era           uint32
@@ -247,17 +309,27 @@ type EraPoolUpdatedFlow struct {
 	LastVoter     types.AccountID
 	LastVoterFlag bool
 	Snap          *PoolSnapshot
+	LeastBond     *big.Int
+	BondCall      *BondCall
+	Active        *big.Int
+	Reward        *big.Int
 }
 
 type BondReportedFlow struct {
-	Symbol        core.RSymbol
-	ShotId        types.Hash
-	LastVoter     types.AccountID
-	LastVoterFlag bool
-	Snap          *PoolSnapshot
-	LastEra       uint32
-	SubAccounts   []types.Bytes
-	Stashes       []types.AccountID
+	Symbol              core.RSymbol
+	ShotId              types.Hash
+	LastVoter           types.AccountID
+	LastVoterFlag       bool
+	Snap                *PoolSnapshot
+	LastEra             uint32
+	EraBlock            uint64
+	Unstaked            types.U128
+	SubAccounts         []types.Bytes
+	Stashes             []types.AccountID
+	ValidatorId         interface{}
+	MultiTransaction    *ethmodel.MultiTransaction
+	NewActiveReportFlag bool
+	LeastBond           *big.Int
 }
 
 type ActiveReportedFlow struct {
@@ -312,17 +384,19 @@ type GetEraNominatedFlow struct {
 }
 
 type MultiEventFlow struct {
-	EventId         string
-	Symbol          core.RSymbol
-	EventData       interface{}
-	Threshold       uint16
-	SubAccounts     []types.Bytes
-	Key             *signature.KeyringPair
-	Others          []types.AccountID
-	OpaqueCalls     []*MultiOpaqueCall
-	PaymentInfo     *rpc.PaymentQueryInfo
-	NewMulCallHashs map[string]bool
-	MulExeCallHashs map[string]bool
+	EventId          string
+	Symbol           core.RSymbol
+	EventData        interface{}
+	Threshold        uint16
+	SubAccounts      []types.Bytes
+	Key              *signature.KeyringPair
+	Others           []types.AccountID
+	OpaqueCalls      []*MultiOpaqueCall
+	PaymentInfo      *rpc.PaymentQueryInfo
+	NewMulCallHashs  map[string]bool
+	MulExeCallHashs  map[string]bool
+	ValidatorId      interface{}
+	MultiTransaction *ethmodel.MultiTransaction
 }
 
 type EventNewMultisig struct {
@@ -434,6 +508,7 @@ type Transaction struct {
 type OriginalTx string
 
 const (
+	OriginalTxDefault      = OriginalTx("default")
 	OriginalTransfer       = OriginalTx("Transfer") //transfer
 	OriginalBond           = OriginalTx("Bond")     //bond or unbond
 	OriginalUnbond         = OriginalTx("Unbond")
@@ -491,6 +566,31 @@ type SubmitSignatureParams struct {
 	Signature  types.Bytes
 }
 
+func (ssp *SubmitSignatureParams) EncodeToHash() (common.Hash, error) {
+	symBz, err := types.EncodeToBytes(ssp.Symbol)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	eraBz, err := types.EncodeToBytes(ssp.Era)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	txTypeBz, err := types.EncodeToBytes(ssp.TxType)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	packed := make([]byte, 0)
+	packed = append(packed, symBz...)
+	packed = append(packed, eraBz...)
+	packed = append(packed, ssp.Pool...)
+	packed = append(packed, txTypeBz...)
+
+	return crypto.Keccak256Hash(packed), nil
+}
+
 type GetReceiversParams struct {
 	Symbol core.RSymbol
 	Era    types.U32
@@ -505,6 +605,31 @@ type SubmitSignatures struct {
 	ProposalId types.Bytes
 	Signature  []types.Bytes
 	Threshold  uint32
+}
+
+func (ss *SubmitSignatures) EncodeToHash() (common.Hash, error) {
+	symBz, err := types.EncodeToBytes(ss.Symbol)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	eraBz, err := types.EncodeToBytes(ss.Era)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	txTypeBz, err := types.EncodeToBytes(ss.TxType)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	packed := make([]byte, 0)
+	packed = append(packed, symBz...)
+	packed = append(packed, eraBz...)
+	packed = append(packed, ss.Pool...)
+	packed = append(packed, txTypeBz...)
+
+	return crypto.Keccak256Hash(packed), nil
 }
 
 type SignaturesKey struct {

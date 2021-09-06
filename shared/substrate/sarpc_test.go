@@ -24,7 +24,7 @@ const (
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
-	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	//sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
@@ -41,7 +41,7 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 
 	for i := 8537570; i <= 8538000; i++ {
 		//if i % 10 == 0 {
-			t.Log("i", i)
+		t.Log("i", i)
 		//}
 
 		_, err := sc.GetEvents(uint64(i))

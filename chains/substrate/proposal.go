@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
@@ -56,6 +56,50 @@ func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bo
 	return &submodel.Proposal{Call: call, Symbol: symbol, BondId: bondId, MethodName: method}, nil
 }
 
+func (c *Connection) NewBondReportProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodNewBondReport
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		flow.Symbol,
+		flow.ShotId,
+		flow.BondCall.Action,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
+}
+
+func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodBondAndReportActive
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		flow.Symbol,
+		flow.ShotId,
+		flow.BondCall.Action,
+		types.NewU128(*flow.Active),
+		types.NewU128(*flow.Reward),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
+}
+
 func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
 	meta, err := c.LatestMetadata()
 	if err != nil {
@@ -69,6 +113,28 @@ func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*sub
 		flow.Symbol,
 		flow.ShotId,
 		flow.Snap.Active,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
+}
+
+func (c *Connection) NewActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
+	meta, err := c.LatestMetadata()
+	if err != nil {
+		return nil, err
+	}
+	method := config.MethodNewActiveReport
+
+	call, err := types.NewCall(
+		meta,
+		method,
+		flow.Symbol,
+		flow.ShotId,
+		flow.Snap.Active,
+		flow.Unstaked,
 	)
 	if err != nil {
 		return nil, err

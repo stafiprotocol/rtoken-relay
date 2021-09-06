@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -15,7 +17,8 @@ import (
 )
 
 var (
-	multiEndError = errors.New("multiEnd")
+	multiEndError             = errors.New("multiEnd")
+	eraSnapShotsNotExistError = errors.New("eraSnapShots not exist")
 
 	EventEraIsOldError                = errors.New("EventEraIsOldError")
 	BondStateNotEraUpdatedError       = errors.New("BondStateNotEraUpdatedError")
@@ -128,8 +131,23 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	var validatorId interface{}
+	var leastBond *big.Int
+	if data.Symbol == core.RMATIC || data.Symbol == core.RBNB {
+		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+
+		leastBond, err = l.leastBond(snap.Symbol)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
 	data.Snap = snap
+	data.LeastBond = leastBond
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.EraPoolUpdatedEventId,
@@ -137,6 +155,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		EventData:   data,
 		Threshold:   th,
 		SubAccounts: sub,
+		ValidatorId: validatorId,
 	}, nil
 }
 
@@ -181,10 +200,36 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
+	var validatorId interface{}
+	var leastBond *big.Int
+	if snap.Symbol == core.RMATIC || snap.Symbol == core.RBNB {
+		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+
+		leastBond, err = l.leastBond(snap.Symbol)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	flow.LastEra = snap.Era - 1
+	if snap.Symbol == core.RBNB {
+		_, err = l.eraSnapShots(snap.Symbol, flow.LastEra)
+		if err != nil {
+			if err.Error() != eraSnapShotsNotExistError.Error() {
+				return nil, err
+			}
+			flow.LastEra = 0
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
-	flow.LastEra = snap.Era - 1
 	flow.SubAccounts = sub
+	flow.ValidatorId = validatorId
+	flow.LeastBond = leastBond
 
 	return flow, nil
 }
@@ -197,9 +242,10 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	if !l.cared(flow.Symbol) {
 		return nil, ErrNotCared
 	}
-	//turn to processActiveReportedEvtForRAtom
-	if flow.Symbol == core.RATOM {
-		return l.processActiveReportedEvtForRAtom(evt)
+
+	//turn to processActiveReportedEvtAsWithdrawReported
+	if flow.Symbol == core.RATOM || flow.Symbol == core.RBNB {
+		return l.processActiveReportedEvtAsWithdrawReported(evt)
 	}
 
 	snap, err := l.snapshot(flow.Symbol, flow.ShotId)
@@ -233,6 +279,14 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
+	var valdatorId interface{}
+	if snap.Symbol == core.RMATIC {
+		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 
@@ -242,10 +296,11 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
+		ValidatorId: valdatorId,
 	}, nil
 }
 
-func (l *listener) processActiveReportedEvtForRAtom(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
+func (l *listener) processActiveReportedEvtAsWithdrawReported(evt *submodel.ChainEvent) (*submodel.MultiEventFlow, error) {
 	flow, err := submodel.EventWithdrawReported(evt)
 	if err != nil {
 		return nil, err
@@ -345,6 +400,14 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
+	var valdatorId interface{}
+	if snap.Symbol == core.RMATIC {
+		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
 	flow.Snap = snap
 	flow.Receives = receives
@@ -356,6 +419,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		EventData:   flow,
 		Threshold:   th,
 		SubAccounts: sub,
+		ValidatorId: valdatorId,
 	}, nil
 }
 
@@ -575,24 +639,7 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 }
 
 func (l *listener) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
-	poolBz, err := types.EncodeToBytes(pool)
-	if err != nil {
-		return 0, err
-	}
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return 0, err
-	}
-
-	var threshold uint16
-	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
-	if err != nil {
-		return 0, err
-	}
-	if !exist {
-		return 0, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
-	}
-	return threshold, nil
+	return l.conn.threshold(symbol, pool)
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {
@@ -617,27 +664,111 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	}
 
 	amounts := make(map[string]types.U128)
+	recipients := make([]string, 0)
 	for _, ub := range unbonds {
 		rec := hexutil.Encode(ub.Recipient)
 		acc, ok := amounts[rec]
 		if !ok {
 			amounts[rec] = ub.Value
+			recipients = append(recipients, rec)
 		} else {
 			amounts[rec] = utils.AddU128(acc, ub.Value)
 		}
 	}
 
+	sort.Strings(recipients)
 	receives := make([]*submodel.Receive, 0)
 	total := types.NewU128(*big.NewInt(0))
-	for k, v := range amounts {
-		r, err := hexutil.Decode(k)
-		if err != nil {
-			return nil, types.U128{}, fmt.Errorf("hexutil.Decode err %s,k: %v", err, k)
-		}
+	for _, rec := range recipients {
+		v := amounts[rec]
+		r, _ := hexutil.Decode(rec)
 		rec := &submodel.Receive{Recipient: r, Value: types.NewUCompact(v.Int)}
 		receives = append(receives, rec)
 		total = utils.AddU128(total, v)
 	}
 
 	return receives, total, nil
+}
+
+func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (interface{}, error) {
+	poolBz, err := types.EncodeToBytes(pool)
+	if err != nil {
+		return nil, err
+	}
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	validatorIds := make([]types.Bytes, 0)
+	exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageNominated, symBz, poolBz, &validatorIds)
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		return nil, fmt.Errorf("validatorId of symbol: %s, pool: %s not exist", symbol, hexutil.Encode(pool))
+	}
+
+	if len(validatorIds) == 0 {
+		return nil, fmt.Errorf("no available validatorId, symbol: %s, pool: %s", symbol, hexutil.Encode(pool))
+	}
+
+	l.log.Info("get validatorId", "id", hexutil.Encode(validatorIds[0]), "symbol", symbol, "pool", hexutil.Encode(pool))
+
+	switch symbol {
+	case core.RMATIC:
+		return big.NewInt(0).SetBytes(validatorIds[0]), nil
+	case core.RBNB:
+		addr, err := bncCmnTypes.ValAddressFromBech32(string(validatorIds[0]))
+		if err != nil {
+			return nil, err
+		}
+		return addr, nil
+	default:
+		return nil, fmt.Errorf("validatorId: symbol %s not supported", symbol)
+	}
+}
+
+func (l *listener) leastBond(symbol core.RSymbol) (*big.Int, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	var least types.U128
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageLeastBond, symBz, nil, &least)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return big.NewInt(0), nil
+	}
+
+	return least.Int, nil
+}
+
+func (l *listener) eraSnapShots(symbol core.RSymbol, lastEra uint32) ([]types.Hash, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	eraBz, err := types.EncodeToBytes(lastEra)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]types.Hash, 0)
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StorageEraSnapShots, symBz, eraBz, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, eraSnapShotsNotExistError
+	}
+
+	return ids, nil
+
 }

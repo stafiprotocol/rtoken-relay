@@ -50,7 +50,7 @@ func (r *Router) Send(msg *Message) error {
 		return fmt.Errorf("unknown destination symbol: %s", msg.Destination)
 	}
 
-	if msg.Destination == RFIS {
+	if msg.Destination == RFIS || msg.Destination == RMATIC {
 		r.QueueMsg(msg)
 	} else {
 		go w.ResolveMessage(msg)
@@ -72,10 +72,11 @@ func (r *Router) QueueMsg(m *Message) {
 
 func (r *Router) MsgHandler() {
 	r.lock.Lock()
-	w := r.registry[RFIS]
-	if w == nil {
+	rfis := r.registry[RFIS]
+	if rfis == nil {
 		panic("RFIS writer not exist")
 	}
+	rmatic := r.registry[RMATIC]
 	r.lock.Unlock()
 
 out:
@@ -85,7 +86,15 @@ out:
 			r.log.Info("RFIS msgHandler stop")
 			break out
 		case msg := <-r.msgChan:
-			w.ResolveMessage(msg)
+			switch msg.Destination {
+			case RMATIC:
+				if rmatic == nil {
+					panic("RMATIC writer not exist")
+				}
+				rmatic.ResolveMessage(msg)
+			default:
+				rfis.ResolveMessage(msg)
+			}
 		}
 	}
 }
