@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stafiprotocol/go-sdk/keys"
 	subtypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/models/bnc"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -14,12 +15,16 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	bncRpc "github.com/stafiprotocol/go-sdk/client/rpc"
+	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
+	bncTypes "github.com/stafiprotocol/go-sdk/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/TokenHub"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
@@ -161,6 +166,12 @@ func TestTransferOut(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	bal, err := client.Client().BalanceAt(context.Background(), owner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal)
+
 	hub, err := TokenHub.NewTokenHub(tokenHubContract, client.Client())
 	if err != nil {
 		t.Fatal(err)
@@ -168,7 +179,7 @@ func TestTransferOut(t *testing.T) {
 	_ = hub
 
 	receiver := common.HexToAddress("0x5acf525eccbe80a8dad05ad208e9bc94c89bab1f")
-	amount := big.NewInt(5e17)
+	amount := big.NewInt(0).Add(big.NewInt(1e10), big.NewInt(1e8))
 	value := big.NewInt(0).Add(amount, relayfee)
 
 	err = client.LockAndUpdateOpts(big.NewInt(0), value)
@@ -183,6 +194,14 @@ func TestTransferOut(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("txHash", tx.Hash())
+
+	time.Sleep(2 * time.Minute)
+
+	bal, err = client.Client().BalanceAt(context.Background(), owner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal-after", bal)
 }
 
 func TestBatchTransferOut(t *testing.T) {
@@ -278,4 +297,124 @@ func TestStakingReward(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(sr1.Total)
+}
+
+func TestValidatorId(t *testing.T) {
+	addr, err := bncCmnTypes.ValAddressFromBech32("bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(addr)
+
+	a := []byte(`bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q`)
+	b := hexutil.Encode(a)
+	t.Log(b) // 0x627661316375647778666165337275343674366c796d656c79737070676b743865376535677a30663971
+}
+
+func TestRpcClient(t *testing.T) {
+	rpcEndpoint := "tcp://data-seed-pre-1-s3.binance.org:80"
+
+	keyManager, err := keys.NewPrivateKeyManager("64967ded205b00b1f872f59242031d4cc02a1bcca47017361d7f3854e86c545e")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.TestNetwork)
+	t.Log("IsActive", client.IsActive())
+	bal, err := client.GetBalance(keyManager.GetAddr(), "BNB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal.Free)
+
+	dels, err := client.QuerySideChainDelegations(bncTypes.ChapelNet, keyManager.GetAddr())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, del := range dels {
+		t.Log(del)
+	}
+
+	addr, err := bncCmnTypes.AccAddressFromBech32("tbnb1ufrtxk7f5w0skl5evusrmsd6cundpxvmpz4n4n")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unbonds, err := client.QuerySideChainUnbondingDelegations(bncTypes.ChapelNet, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(unbonds)
+}
+
+func TestIsactive(t *testing.T) {
+	client := bncRpc.NewRPCClient("tcp://data-seed-pre-1-s3.binance.org:80", bncCmnTypes.TestNetwork)
+	t.Log("IsActive", client.IsActive())
+
+	addr, err := bncCmnTypes.AccAddressFromBech32("tbnb1tt84yhkvh6q23kksttfq36dujnyfh2cldrzux5")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bal, err := client.GetBalance(addr, "BNB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal.Free)
+}
+
+func TestTxHashStatus(t *testing.T) {
+	txHash := common.HexToHash("0x35976b21bfca498cc14241fff3ebdbaea4565d216f8778a0f0a229c091bce871")
+
+	client := newBscTestClient()
+	receipt, err := client.TransactionReceipt(txHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("status", receipt.Status)
+
+	anotherTxHash := common.HexToHash("0x65765caa0099feba25d973e47ec4376aa6367d401a94d1419907128669467b0b")
+	receipt1, err := client.TransactionReceipt(anotherTxHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("status1", receipt1.Status)
+}
+
+func TestBcTxhash(t *testing.T) {
+	//url := "https://testnet-dex.binance.org/api/v1/tx/AF1C536217B7B797622B9414B373A0E217EB3665F429720DF10A6A545BECA718"
+	url1 := "https://testnet-dex.binance.org/api/v1/tx/A95B078EDE38E89FAC1819A019B7B135D3E0350A25F840636E9C73304EF8CE89"
+
+	resp, err := http.Get(url1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(string(body))
+
+	thr := new(bnc.TxHashResult)
+	if err := json.Unmarshal(body, thr); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(thr)
+}
+
+func TestTxHashStatus1(t *testing.T) {
+	txHash := common.HexToHash("0x4c112c9fb5b1861579840b6eaf9229955c9de2737990addf586e779be3ebbf2e")
+
+	client := newBscTestClient()
+	receipt, err := client.TransactionReceipt(txHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("status", receipt.Status)
 }
