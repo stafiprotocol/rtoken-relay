@@ -188,7 +188,7 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 		}
 		return true
 	}
-	return true
+	return false
 }
 
 func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error) {
