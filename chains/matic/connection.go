@@ -272,9 +272,15 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 }
 
 func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error) {
+	c.log.Info("WithdrawNonce", "share", share, "pool", pool)
+
 	latestNonce, err := c.UnbondNonce(share, pool)
 	if err != nil {
 		return nil, err
+	}
+
+	if latestNonce.Uint64() == 0 {
+		return big.NewInt(0), nil
 	}
 
 	currentEpoch, err := c.stakeManager.Epoch(nil)
@@ -288,7 +294,9 @@ func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error)
 	}
 	c.log.Info("WithdrawNonce", "currentEpoch", currentEpoch, "delay", delay)
 
-	for i := uint64(1); i <= latestNonce.Uint64(); i++ {
+	ableIdx := uint64(0)
+	unableIdx := uint64(0)
+	for i := latestNonce.Uint64(); i <= 1; i-- {
 		nonce := big.NewInt(int64(i))
 		shares, withdrawEpoch, err := c.Unbond(share, pool, nonce)
 		if err != nil {
@@ -296,19 +304,29 @@ func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error)
 		}
 
 		if shares.Uint64() == 0 {
-			continue
+			if ableIdx == 0 && unableIdx == 0 {
+				return big.NewInt(0), nil
+			} else if ableIdx != 0 {
+				return big.NewInt(int64(ableIdx)), nil
+			} else {
+				return nil, errors.New("found nonce but unable to withdraw")
+			}
 		}
 
-		c.log.Info("WithdrawNonce: smallest nonce", "nonce", nonce, "withdrawEpoch", withdrawEpoch, "share", share, "pool", pool)
 		withdrawEpoch.Add(withdrawEpoch, delay)
-		if withdrawEpoch.Cmp(currentEpoch) > 0 {
-			return big.NewInt(0), nil
-		}
+		if withdrawEpoch.Cmp(currentEpoch) <= 0 {
+			if unableIdx == 0 {
+				ableIdx = i
+				continue
+			}
 
-		return nonce, nil
+			return nonce, nil
+		} else {
+			unableIdx = i
+		}
 	}
 
-	return big.NewInt(0), nil
+	return big.NewInt(int64(ableIdx)), nil
 }
 
 func (c *Connection) WithdrawCall(share, pool common.Address, nonce *big.Int) (*ethmodel.MultiTransaction, error) {

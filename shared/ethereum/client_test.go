@@ -615,3 +615,80 @@ func TestSortStrings(t *testing.T) {
 		t.Log(str)
 	}
 }
+
+func TestManinetWithdrawable(t *testing.T) {
+	client := NewMainetClient()
+
+	manager, err := StakeManager.NewStakeManager(mainnetStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	//
+	//id := big.NewInt(9)
+	//shareData, err := manager.Validators(nil, id)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+
+	shareContract := common.HexToAddress("0x4E332D23eA1D9f8247DEb4d8f03aC7b6785Be36B")
+	t.Log("ShareContract", shareContract)
+
+	//valFalg, err := manager.IsValidator(nil, id)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("valFalg", valFalg)
+
+	share, err := ValidatorShare.NewValidatorShare(shareContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool := common.HexToAddress("0x33e91fb7e5FeD3ba103FB4B0fd1e5cdB6E555361")
+	//stake, rate, err := share.GetTotalStake(nil, pool)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//t.Log("rate", rate)
+	//t.Log("stake", stake)
+
+	nonce, err := share.UnbondNonces(nil, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("nonce", nonce)
+
+	currentEpoch, err := manager.Epoch(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("currentEpoch", currentEpoch)
+
+	delay, err := manager.WITHDRAWALDELAY(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("delay", delay)
+
+	for i := uint64(1); i <= nonce.Uint64(); i++ {
+		unbond, err := share.UnbondsNew(nil, pool, big.NewInt(int64(i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if unbond.Shares.Uint64() == 0 {
+			continue
+		}
+
+		withdrawEpoch := big.NewInt(0).Add(unbond.WithdrawEpoch, delay)
+		if withdrawEpoch.Cmp(currentEpoch) > 0 {
+			break
+		}
+	}
+
+	unbond, err := share.UnbondsNew(nil, pool, big.NewInt(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("unbondAmount", unbond)
+}
