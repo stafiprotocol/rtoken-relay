@@ -296,7 +296,7 @@ func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error)
 
 	ableIdx := uint64(0)
 	unableIdx := uint64(0)
-	for i := latestNonce.Uint64(); i <= 1; i-- {
+	for i := latestNonce.Uint64(); i >= 1; i-- {
 		nonce := big.NewInt(int64(i))
 		shares, withdrawEpoch, err := c.Unbond(share, pool, nonce)
 		if err != nil {
@@ -304,26 +304,19 @@ func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error)
 		}
 
 		if shares.Uint64() == 0 {
-			if ableIdx == 0 && unableIdx == 0 {
-				return big.NewInt(0), nil
-			} else if ableIdx != 0 {
-				return big.NewInt(int64(ableIdx)), nil
-			} else {
-				return nil, errors.New("found nonce but unable to withdraw")
-			}
+			break
 		}
 
 		withdrawEpoch.Add(withdrawEpoch, delay)
 		if withdrawEpoch.Cmp(currentEpoch) <= 0 {
-			if unableIdx == 0 {
-				ableIdx = i
-				continue
-			}
-
-			return nonce, nil
+			ableIdx = i
 		} else {
 			unableIdx = i
 		}
+	}
+
+	if ableIdx == 0 && unableIdx != 0 {
+		return nil, fmt.Errorf("found nonce but unable to withdraw, ableIdx: %d, unableIdx: %d", ableIdx, unableIdx)
 	}
 
 	return big.NewInt(int64(ableIdx)), nil
