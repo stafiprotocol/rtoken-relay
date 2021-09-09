@@ -350,7 +350,8 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 
 	if nonce.Uint64() == 0 {
 		w.log.Info("withdrawn", "shareAddr", shareAddr, "poolAddr", poolAddr)
-		return true
+		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
+		return w.informChain(m.Destination, m.Source, mef)
 	}
 
 	tx, err := w.conn.WithdrawCall(shareAddr, common.BytesToAddress(snap.Pool), nonce)
