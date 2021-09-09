@@ -190,12 +190,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	if !unbondable {
-		w.log.Info("processEraPoolUpdated not unbondable")
-		flow.BondCall.Action = submodel.EitherBondUnbond
-		return w.informChain(m.Destination, m.Source, mef)
-	}
-
 	bond := snap.Bond.Int64()
 	unbond := snap.Unbond.Int64()
 	least := flow.LeastBond.Int64()
@@ -257,13 +251,17 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 		flow.BondCall.Action = submodel.BothBondUnbond
 	case submodel.UnbondOnly:
-		err = w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
-		if err != nil {
-			w.log.Error("ExecuteUnbond error", "error", err)
-			return false
-		}
+		if unbondable {
+			err = w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
+			if err != nil {
+				w.log.Error("ExecuteUnbond error", "error", err)
+				return false
+			}
 
-		flow.BondCall.Action = submodel.BothBondUnbond
+			flow.BondCall.Action = submodel.BothBondUnbond
+		} else {
+			flow.BondCall.Action = submodel.InterDeduct
+		}
 	case submodel.BothBondUnbond, submodel.EitherBondUnbond, submodel.InterDeduct:
 		w.log.Info("processEraPoolUpdated: no need to bond or unbond")
 		flow.BondCall.Action = action

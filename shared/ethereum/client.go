@@ -161,6 +161,7 @@ func (c *Client) LockAndUpdateOpts(limit, value *big.Int) error {
 
 	gasPrice, err := c.SafeEstimateGas(context.TODO())
 	if err != nil {
+		c.optsLock.Unlock()
 		return err
 	}
 	c.opts.GasPrice = gasPrice
