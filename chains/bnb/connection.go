@@ -311,6 +311,7 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 									return CheckBcBalanceError
 								}
 
+								c.log.Info("TransferFromBscToBc realBal after swap", "realBal", realBal)
 								if realBal.Free.Value() >= futureBal {
 									return nil
 								}
