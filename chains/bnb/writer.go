@@ -321,9 +321,18 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		}
 	}
 
-	diff := snap.Bond.Int64() - snap.Unbond.Int64()
-	if diff > 0 && diff < flow.LeastBond.Int64() {
-		staked += diff
+	bond := snap.Bond.Int64()
+	unbond := snap.Unbond.Int64()
+	if bond > unbond {
+		diff := bond - unbond
+		if diff < flow.LeastBond.Int64() {
+			staked += diff
+		}
+	} else if unbond > bond {
+		diff := unbond - bond
+		if diff < flow.LeastBond.Int64() {
+			staked -= diff
+		}
 	}
 
 	flow.Snap.Active = types.NewU128(*big.NewInt(staked))
