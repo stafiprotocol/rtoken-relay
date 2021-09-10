@@ -418,3 +418,18 @@ func TestTxHashStatus1(t *testing.T) {
 	}
 	t.Log("status", receipt.Status)
 }
+
+func TestBalance(t *testing.T) {
+	bncCmnTypes.Network = bncCmnTypes.TestNetwork
+	addr, err := bncCmnTypes.AccAddressFromBech32("tbnb1v5umyy5snft4xep474gt55k9gvan7dvwt4m90n")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := bncRpc.NewRPCClient("tcp://data-seed-pre-1-s3.binance.org:80", bncCmnTypes.TestNetwork)
+	bal, err := client.GetBalance(addr, "BNB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal.Free)
+}

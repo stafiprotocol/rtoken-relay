@@ -39,9 +39,10 @@ import (
 )
 
 var (
-	DefaultValue   = big.NewInt(0)
-	ErrNonceTooLow = errors.New("nonce too low")
-	NoBondError    = errors.New("Staked found no bond")
+	DefaultValue        = big.NewInt(0)
+	ErrNonceTooLow      = errors.New("nonce too low")
+	NoBondError         = errors.New("Staked found no bond")
+	CheckBcBalanceError = errors.New("check bc balance error")
 
 	TxRetryInterval  = time.Second * 2
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
@@ -58,6 +59,8 @@ const (
 	bondFee     = int64(20000)
 	unbondFee   = int64(40000)
 	transferFee = int64(7500)
+
+	CoinSymbol = "BNB"
 )
 
 type BcActionType int
@@ -257,7 +260,15 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 		return fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, leastBal)
 	}
 
+	curBal, err := c.bcRpcClient.GetBalance(bcKey.GetAddr(), CoinSymbol)
+	if err != nil {
+		return err
+	}
+	futureBal := curBal.Free.Value() + amount
+	c.log.Info("TransferFromBscToBc bc balance", "curBal", curBal, "futureBal", futureBal)
+
 	receiver := common.HexToAddress(hexutil.Encode(bcKey.GetAddr()))
+
 	expireTime := time.Now().Add(time.Hour).Unix()
 
 	for i := 0; i < TxRetryLimit; i++ {
@@ -276,7 +287,7 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 			if err == nil {
 				c.log.Info("TransferFromBscToBc result", "tx", tx.Hash(), "gasPrice", tx.GasPrice())
 
-				timer := time.NewTimer(5 * time.Minute)
+				timer := time.NewTimer(10 * time.Minute)
 				defer timer.Stop()
 
 				for {
@@ -294,7 +305,18 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 						}
 
 						if receipt.Status == ethCoreTypes.ReceiptStatusSuccessful {
-							return nil
+							for {
+								realBal, err := c.bcRpcClient.GetBalance(bcKey.GetAddr(), CoinSymbol)
+								if err != nil {
+									return CheckBcBalanceError
+								}
+
+								if realBal.Free.Value() >= futureBal {
+									return nil
+								}
+
+								time.Sleep(10 * time.Second)
+							}
 						} else {
 							return errors.New("TransferFromBscToBc TransactionReceipt status fail")
 						}
@@ -375,7 +397,7 @@ func (c *Connection) ExecuteBond(pool common.Address, validator bncCmnTypes.ValA
 	}
 
 	c.bcRpcClient.SetKeyManager(bcKey)
-	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 
 	res, err := c.bcRpcClient.SideChainDelegate(sideChainId, validator, coin, bncRpc.Sync)
 	if err != nil {
@@ -419,7 +441,7 @@ func (c *Connection) ExecuteUnbond(pool common.Address, validator bncCmnTypes.Va
 	}
 
 	c.bcRpcClient.SetKeyManager(bcKey)
-	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 
 	res, err := c.bcRpcClient.SideChainUnbond(sideChainId, validator, coin, bncRpc.Sync)
 	if err != nil {
@@ -539,7 +561,7 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 	}
 
 	c.bcRpcClient.SetKeyManager(bcKey)
-	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 	expireTime := time.Now().Add(time.Hour).Unix()
 
 	tx, err := c.bcRpcClient.TransferOut(msgtype.SmartChainAddress(pool), coin, expireTime, bncRpc.Sync)
@@ -691,7 +713,7 @@ func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action BcActionType
 
 func (c *Connection) bcBalance(key bnckeys.KeyManager) (int64, error) {
 	addr := key.GetAddr()
-	bal, err := c.bcRpcClient.GetBalance(addr, "BNB")
+	bal, err := c.bcRpcClient.GetBalance(addr, CoinSymbol)
 	if err != nil {
 		return 0, err
 	}
