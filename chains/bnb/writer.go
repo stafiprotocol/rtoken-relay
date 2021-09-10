@@ -206,6 +206,13 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		swapFun := func() bool {
 			err = w.conn.TransferFromBscToBc(poolAddr, bond)
 			if err != nil {
+				if err.Error() == CheckBcBalanceError.Error() {
+					err = DeleteSwap(w.swapRecord, swap)
+					if err != nil {
+						w.log.Error("processEraPoolUpdated delete swap error", "error", err)
+						return false
+					}
+				}
 				w.log.Error("processEraPoolUpdated swap error", "error", err)
 				return false
 			}
