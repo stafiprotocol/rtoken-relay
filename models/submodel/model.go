@@ -232,6 +232,8 @@ func (ba BondAction) Encode(encoder scale.Encoder) error {
 		return encoder.PushByte(2)
 	case EitherBondUnbond:
 		return encoder.PushByte(3)
+	case InterDeduct:
+		return encoder.PushByte(4)
 	default:
 		return fmt.Errorf("BondAction %s not supported", ba)
 	}
@@ -252,6 +254,8 @@ func (ba *BondAction) Decode(decoder scale.Decoder) error {
 		*ba = BothBondUnbond
 	case 3:
 		*ba = EitherBondUnbond
+	case 4:
+		*ba = InterDeduct
 	default:
 		return fmt.Errorf("BondAction decode error: %d", b)
 	}

@@ -361,14 +361,14 @@ func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.B
 	if bond < unbond {
 		diff := unbond - bond
 		if diff < leastBond {
-			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, EitherBondUnbond")
+			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, InterDeduct")
 			return submodel.InterDeduct, 0
 		}
 		return submodel.UnbondOnly, diff
 	} else if bond > unbond {
 		diff := bond - unbond
 		if diff < leastBond {
-			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, EitherBondUnbond")
+			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, InterDeduct")
 			return submodel.InterDeduct, 0
 		}
 		return submodel.BondOnly, diff
