@@ -323,7 +323,7 @@ func (w *writer) processBondReported(m *core.Message) bool {
 
 	diff := snap.Bond.Int64() - snap.Unbond.Int64()
 	if diff > 0 && diff < flow.LeastBond.Int64() {
-		reward += diff
+		staked += diff
 	}
 
 	flow.Snap.Active = types.NewU128(*big.NewInt(staked))
