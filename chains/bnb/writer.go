@@ -198,7 +198,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
 	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
 
-	if bond > 0 && (diff <= 0 || diff >= least){
+	if bond > 0 && (diff <= 0 || diff >= least) {
 		swap := &Swap{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era), From: FromBsc}
 		historied := IsSwapExist(w.swapHistory, swap)
 		recorded := IsSwapExist(w.swapRecord, swap)
