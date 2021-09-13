@@ -226,45 +226,45 @@ func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
 	return c.bcKeys[pool] != nil && c.bscClients[pool] != nil
 }
 
-func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) error {
+func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) (int64, error) {
 	c.log.Info("TransferFromBscToBc", "pool", pool, "amount", amount)
 
 	bcKey := c.bcKeys[pool]
 	if bcKey == nil {
-		return fmt.Errorf("TransferFromBscToBc no bc key found: %s", pool.Hex())
+		return 0, fmt.Errorf("TransferFromBscToBc no bc key found: %s", pool.Hex())
 	}
 
 	bscClient := c.bscClients[pool]
 	if bscClient == nil {
-		return fmt.Errorf("TransferFromBscToBc found no bsc client : %s", pool.Hex())
+		return 0, fmt.Errorf("TransferFromBscToBc found no bsc client : %s", pool.Hex())
 	}
 
 	bscBalance, err := c.bscClient.Client().BalanceAt(context.Background(), pool, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	hub, err := TokenHub.NewTokenHub(c.tokenHubContract, bscClient.Client())
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	fee, err := hub.RelayFee(nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	amt := big.NewInt(0).Mul(big.NewInt(1e10), big.NewInt(amount))
 	leastBal := big.NewInt(0).Add(fee, amt)
 	if bscBalance.Cmp(leastBal) < 0 {
-		return fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, leastBal)
+		return 0, fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, leastBal)
 	}
 
-	curBal, err := c.bcRpcClient.GetBalance(bcKey.GetAddr(), CoinSymbol)
+	curBal, err := c.bcBalance(bcKey)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	futureBal := curBal.Free.Value() + amount
+	futureBal := curBal + amount
 	c.log.Info("TransferFromBscToBc bc balance", "curBal", curBal, "futureBal", futureBal)
 
 	receiver := common.HexToAddress(hexutil.Encode(bcKey.GetAddr()))
@@ -274,11 +274,11 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 	for i := 0; i < TxRetryLimit; i++ {
 		select {
 		case <-c.stop:
-			return errors.New("TransferFromBscToBc stopped")
+			return 0, errors.New("TransferFromBscToBc stopped")
 		default:
 			err = bscClient.LockAndUpdateOpts(big.NewInt(0), leastBal)
 			if err != nil {
-				return err
+				return 0, err
 			}
 
 			tx, err := hub.TransferOut(bscClient.Opts(), ZeroAddress, receiver, amt, uint64(expireTime))
@@ -287,13 +287,13 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 			if err == nil {
 				c.log.Info("TransferFromBscToBc result", "tx", tx.Hash(), "gasPrice", tx.GasPrice())
 
-				timer := time.NewTimer(10 * time.Minute)
+				timer := time.NewTimer(5 * time.Minute)
 				defer timer.Stop()
 
 				for {
 					select {
 					case <-timer.C:
-						return errors.New("TransferFromBscToBc transaction status timeout")
+						return 0, errors.New("TransferFromBscToBc transaction status timeout")
 					default:
 						receipt, err := bscClient.TransactionReceipt(tx.Hash())
 						if err != nil {
@@ -301,25 +301,13 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 								time.Sleep(2 * time.Second)
 								continue
 							}
-							return fmt.Errorf("TransferFromBscToBc TransactionReceipt error: %s", err)
+							return 0, fmt.Errorf("TransferFromBscToBc TransactionReceipt error: %s", err)
 						}
 
 						if receipt.Status == ethCoreTypes.ReceiptStatusSuccessful {
-							for {
-								realBal, err := c.bcRpcClient.GetBalance(bcKey.GetAddr(), CoinSymbol)
-								if err != nil {
-									return CheckBcBalanceError
-								}
-
-								c.log.Info("TransferFromBscToBc realBal after swap", "realBal", realBal)
-								if realBal.Free.Value() >= futureBal {
-									return nil
-								}
-
-								time.Sleep(10 * time.Second)
-							}
+							return futureBal, nil
 						} else {
-							return errors.New("TransferFromBscToBc TransactionReceipt status fail")
+							return 0, errors.New("TransferFromBscToBc TransactionReceipt status fail")
 						}
 					}
 				}
@@ -332,7 +320,36 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 			}
 		}
 	}
-	return fmt.Errorf("TransferFromBscToBc failed")
+	return 0, fmt.Errorf("TransferFromBscToBc failed")
+}
+
+func (c *Connection) CheckBcBalance(pool common.Address, future int64) error {
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return fmt.Errorf("CheckBcBalance no bc key found: %s", pool.Hex())
+	}
+
+	timer := time.NewTimer(5 * time.Minute)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			return errors.New("CheckBcBalance timeout")
+		default:
+			realBal, err := c.bcBalance(bcKey)
+			if err != nil {
+				return err
+			}
+
+			c.log.Info("CheckBcBalance realBal", "realBal", realBal, "future", future)
+			if realBal >= future {
+				return nil
+			}
+
+			time.Sleep(30 * time.Second)
+		}
+	}
 }
 
 func (c *Connection) Unbondable(pool common.Address, validator bncCmnTypes.ValAddress) (bool, error) {
