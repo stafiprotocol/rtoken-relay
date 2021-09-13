@@ -416,12 +416,14 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		}
 	}
 
-	err = w.conn.BatchTransfer(poolAddr, flow.Receives, total)
+	transformedTotal := big.NewInt(0).Mul(flow.TotalAmount.Int, big.NewInt(1e10))
+	txHash, err := w.conn.BatchTransfer(poolAddr, flow.Receives, transformedTotal)
 	if err != nil {
 		w.log.Error("processActiveReported BatchTransfer error", "error", err)
 		return false
 	}
 
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
 }

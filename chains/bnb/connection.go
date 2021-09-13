@@ -590,37 +590,37 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 	}
 }
 
-func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Receive, amount int64) error {
+func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Receive, total *big.Int) (common.Hash, error) {
 	bscClient := c.bscClients[pool]
 	if bscClient == nil {
-		return fmt.Errorf("BatchTransfer no bsc client found: %s", pool.Hex())
+		return common.Hash{}, fmt.Errorf("BatchTransfer no bsc client found: %s", pool.Hex())
 	}
 
 	bscBalance, err := bscClient.Client().BalanceAt(context.Background(), pool, nil)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
-	amt := big.NewInt(amount)
-	if bscBalance.Cmp(amt) <= 0 {
-		return fmt.Errorf("bscBalance: %v too small to transfer, amount: %v", bscBalance, amt)
+	if bscBalance.Cmp(total) <= 0 {
+		return common.Hash{}, fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, total)
 	}
 
 	sender, err := MultiSendCallOnly.NewMultiSendCallOnly(c.multisendContract, bscClient.Client())
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	bts := make(ethmodel.BatchTransactions, 0)
 	totalGas := big.NewInt(0)
 	for _, rec := range receives {
 		addr := common.BytesToAddress(rec.Recipient)
-		value := big.Int(rec.Value)
+		val := big.Int(rec.Value)
+		value := big.NewInt(0).Mul(&val, big.NewInt(1e10))
 
 		bt := &ethmodel.BatchTransaction{
 			Operation:  uint8(ethmodel.Call),
 			To:         addr,
-			Value:      &value,
+			Value:      value,
 			DataLength: big.NewInt(0),
 			Data:       nil,
 		}
@@ -631,11 +631,11 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 	for i := 0; i < TxRetryLimit; i++ {
 		select {
 		case <-c.stop:
-			return errors.New("BatchTransfer stopped")
+			return common.Hash{}, errors.New("BatchTransfer stopped")
 		default:
-			err = bscClient.LockAndUpdateOpts(totalGas, amt)
+			err = bscClient.LockAndUpdateOpts(totalGas, total)
 			if err != nil {
-				return err
+				return common.Hash{}, err
 			}
 			tx, err := sender.MultiSend(bscClient.Opts(), bts.Encode())
 			bscClient.UnlockOpts()
@@ -649,7 +649,7 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 				for {
 					select {
 					case <-timer.C:
-						return errors.New("BatchTransfer transaction status timeout")
+						return common.Hash{}, errors.New("BatchTransfer transaction status timeout")
 					default:
 						receipt, err := bscClient.TransactionReceipt(tx.Hash())
 						if err != nil {
@@ -657,13 +657,13 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 								time.Sleep(2 * time.Second)
 								continue
 							}
-							return fmt.Errorf("BatchTransfer TransactionReceipt error: %s", err)
+							return common.Hash{}, fmt.Errorf("BatchTransfer TransactionReceipt error: %s", err)
 						}
 
 						if receipt.Status == ethCoreTypes.ReceiptStatusSuccessful {
-							return nil
+							return tx.Hash(), nil
 						} else {
-							return errors.New("BatchTransfer TransactionReceipt status fail")
+							return common.Hash{}, errors.New("BatchTransfer TransactionReceipt status fail")
 						}
 					}
 				}
@@ -676,7 +676,7 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 			}
 		}
 	}
-	return fmt.Errorf("BatchTransfer failed")
+	return common.Hash{}, fmt.Errorf("BatchTransfer failed")
 }
 
 func (c *Connection) FreeBalance(pool common.Address) (int64, error) {
