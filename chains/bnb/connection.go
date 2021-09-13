@@ -496,7 +496,7 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 	for i := 0; i < TxRetryLimit; i++ {
 		total, height, err := c.totalAndLastHeight(delegator)
 		if err != nil {
-			c.log.Info("totalAndLastHeight error", "err", err)
+			c.log.Error("totalAndLastHeight error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}
@@ -507,28 +507,15 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 			return 0, nil
 		}
 
-		api := c.rewardApi(delegator, total, 0)
-		sr, err := bnc.GetStakingReward(api)
+		rewardSum, err := c.stakingReward(delegator, total, curHeight, lastHeight)
 		if err != nil {
-			c.log.Info("GetStakingReward error", "err", err)
+			c.log.Error("stakingReward error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}
 			continue
 		}
 
-		rewardSum := int64(0)
-		for _, rd := range sr.RewardDetails {
-			if rd.Height > curHeight {
-				continue
-			}
-
-			if rd.Height <= lastHeight {
-				break
-			}
-
-			rewardSum += int64(rd.Reward * 1e8)
-		}
 		return rewardSum, nil
 	}
 
@@ -755,6 +742,38 @@ func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) 
 	}
 
 	return sr.Total, sr.RewardDetails[0].Height, nil
+}
+
+func (c *Connection) stakingReward(delegator string, total, curHeight, lastHeight int64) (int64, error) {
+	offset := int64(0)
+	rewardSum := int64(0)
+
+OUT:
+	for i := total; i > 0; i -= 100 {
+		api := c.rewardApi(delegator, 100, offset)
+
+		sr, err := bnc.GetStakingReward(api)
+		if err != nil {
+			c.log.Info("stakingReward GetStakingReward error", "err", err)
+			return 0, err
+		}
+
+		for _, rd := range sr.RewardDetails {
+			if rd.Height > curHeight {
+				continue
+			}
+
+			if rd.Height <= lastHeight {
+				break OUT
+			}
+
+			rewardSum += int64(rd.Reward * 1e8)
+		}
+
+		offset += 100
+	}
+
+	return rewardSum, nil
 }
 
 func (c *Connection) rewardApi(delegator string, limit, offset int64) string {
