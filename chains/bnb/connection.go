@@ -502,8 +502,12 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 
 		rewardSum := int64(0)
 		for _, rd := range sr.RewardDetails {
-			if rd.Height > curHeight || rd.Height < lastHeight {
-				return rewardSum, nil
+			if rd.Height > curHeight {
+				continue
+			}
+
+			if rd.Height <= lastHeight {
+				break
 			}
 
 			rewardSum += int64(rd.Reward * 1e8)
