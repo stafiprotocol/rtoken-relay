@@ -1,0 +1,49 @@
+{
+  "chains": [
+    {
+      "name": "Stafi",
+      "type": "substrate",
+      "rsymbol": "RFIS",
+      "endpoint": "ws://127.0.0.1:9944",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
+      "accounts": [
+        "35arN8keEJhSeSnpyH9Cu6CBsmGchGgJi577CxHyPUuobUhg"
+      ],
+      "latestBlockFlag": false,
+      "opts": {
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
+        "startBlock": "1201",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
+        "chainType": "stafi",
+        "cares": [
+          "RATOM"
+        ],
+        "addressType": "AccountId"
+      }
+    },
+    {
+      "name": "stargate",
+      "type": "cosmos",
+      "endpoint": "http://127.0.0.1:26657",
+      "rsymbol": "RATOM",
+      "accounts": [
+        "key0key1key2"
+      ],
+      "keystorePath": "/Users/tpkeeper/.gaia",
+      "opts": {
+        "key0key1key2": "key0",
+        "chainId": "chain-AALfXF",
+        "denom": "stake",
+        "gasPrice": "0.00001stake",
+        "eraBlockNumber": "100",
+        "validatorTargets": [
+          "cosmosvaloper1u22lut8qgqg8znxam72pwgqp8c09rnvmummr4w"
+        ],
+        "validatorsNoNeedRedelegate": [
+          "cosmosvaloper1tgdut5ldng5gr9dh4ypxvdvznptgn6q8txjc46",
+          "cosmosvaloper1u22lut8qgqg8znxam72pwgqp8c09rnvmummr4w"
+        ]
+      }
+    }
+  ]
+}

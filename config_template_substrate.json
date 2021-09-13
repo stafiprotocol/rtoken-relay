@@ -1,0 +1,43 @@
+{
+  "chains": [
+    {
+      "name": "Stafi",
+      "type": "substrate",
+      "rsymbol": "RFIS",
+      "endpoint": "ws://127.0.0.1:9944",
+      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys",
+      "accounts": [
+        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+      ],
+      "latestBlockFlag": false,
+      "opts": {
+        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
+        "startBlock": "1",
+        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "chainType": "stafi",
+        "cares": ["RDOT"],
+        "addressType": "AccountId"
+      }
+    },
+    {
+      "name": "polkadot",
+      "type": "substrate",
+      "rsymbol": "RDOT",
+      "endpoint": "ws://127.0.0.1:9944",
+      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys",
+      "accounts": [
+        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov",
+        "receiver-address"
+      ],
+      "latestBlockFlag": true,
+      "opts": {
+        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
+        "blockstorePath": "",
+        "chainType": "polkadot",
+        "addressType": "MultiAddress",
+        "transferRecord": "/Users/fwj/Go/stafi/rtoken-relay/datas/symbol-address-transfers.csv",
+        "transferRecordHistory": "/Users/fwj/Go/stafi/rtoken-relay/datas/symbol-address-transfer-histories.csv"
+      }
+    }
+  ]
+}

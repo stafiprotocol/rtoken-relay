@@ -1,0 +1,43 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.DS_Store
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+coverage.txt
+
+# IDE
+.idea/
+.vscode/
+.history
+
+# Builds
+build/
+bin/
+site/
+
+# golang
+.env
+keys/
+
+config.toml
+config.json
+config0.json
+config1.json
+config2.json
+config3.json
+rmatic*.json
+matic*.json
+bnb*.json
+*.block
+/cfgBuilder/*.toml
+relay_log*.json
+datas/
+config_template_cosmos2.json
