@@ -479,6 +479,7 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 	for i := 0; i < TxRetryLimit; i++ {
 		total, height, err := c.totalAndLastHeight(delegator)
 		if err != nil {
+			c.log.Info("totalAndLastHeight error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}
@@ -492,6 +493,7 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 		api := c.rewardApi(delegator, total, 0)
 		sr, err := bnc.GetStakingReward(api)
 		if err != nil {
+			c.log.Info("GetStakingReward error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}
@@ -500,16 +502,13 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 
 		rewardSum := int64(0)
 		for _, rd := range sr.RewardDetails {
-			if rd.Height > curHeight {
-				continue
-			}
-
-			if rd.Height < lastHeight {
+			if rd.Height > curHeight || rd.Height < lastHeight {
 				return rewardSum, nil
 			}
 
 			rewardSum += int64(rd.Reward * 1e8)
 		}
+		return rewardSum, nil
 	}
 
 	return 0, fmt.Errorf("Reward failed")
