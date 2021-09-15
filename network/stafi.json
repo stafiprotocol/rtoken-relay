@@ -424,5 +424,46 @@
         "u128"
       ]
     ]
+  },
+  "BondSwap": {
+    "type": "struct",
+    "type_mapping": [
+      [
+        "bonder",
+        "AccountId"
+      ],
+      [
+        "swap_fee",
+        "Balance"
+      ],
+      [
+        "swap_receiver",
+        "AccountId"
+      ],
+      [
+        "bridger",
+        "AccountId"
+      ],
+      [
+        "recipient",
+        "Vec<u8>"
+      ],
+      [
+        "dest_id",
+        "ChainId"
+      ],
+      [
+        "expire",
+        "BlockNumber"
+      ],
+      [
+        "bond_state",
+        "BondState"
+      ],
+      [
+        "refunded",
+        "bool"
+      ]
+    ]
   }
 }
