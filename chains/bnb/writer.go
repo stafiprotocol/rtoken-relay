@@ -192,27 +192,32 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 	bond := snap.Bond.Int64()
 	unbond := snap.Unbond.Int64()
+	diff := bond - unbond
 	least := flow.LeastBond.Int64()
 	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
 	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
 	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
 
-	if bond > 0 {
+	if bond > 0 && (diff <= 0 || diff >= least) {
 		swap := &Swap{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era), From: FromBsc}
 		historied := IsSwapExist(w.swapHistory, swap)
 		recorded := IsSwapExist(w.swapRecord, swap)
 		w.log.Info("processEraPoolUpdated", "historied", historied, "recorded", recorded)
 
 		swapFun := func() bool {
-			err = w.conn.TransferFromBscToBc(poolAddr, bond)
+			futureBal, err := w.conn.TransferFromBscToBc(poolAddr, bond)
 			if err != nil {
 				w.log.Error("processEraPoolUpdated swap error", "error", err)
 				return false
 			}
 
-			err = DeleteSwap(w.swapRecord, swap)
-			if err != nil {
+			if err := DeleteSwap(w.swapRecord, swap); err != nil {
 				w.log.Error("processEraPoolUpdated delete swap error", "error", err)
+				return false
+			}
+
+			if err := w.conn.CheckBcBalance(poolAddr, futureBal); err != nil {
+				w.log.Info("CheckBcBalance error", "err", err)
 				return false
 			}
 
@@ -314,6 +319,20 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		}
 	}
 
+	bond := snap.Bond.Int64()
+	unbond := snap.Unbond.Int64()
+	if bond > unbond {
+		diff := bond - unbond
+		if diff < flow.LeastBond.Int64() {
+			staked += diff
+		}
+	} else if unbond > bond {
+		diff := unbond - bond
+		if diff < flow.LeastBond.Int64() {
+			staked -= diff
+		}
+	}
+
 	flow.Snap.Active = types.NewU128(*big.NewInt(staked))
 	flow.Unstaked = types.NewU128(*big.NewInt(reward))
 	flow.NewActiveReportFlag = true
@@ -394,12 +413,14 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		}
 	}
 
-	err = w.conn.BatchTransfer(poolAddr, flow.Receives, total)
+	transformedTotal := big.NewInt(0).Mul(flow.TotalAmount.Int, big.NewInt(1e10))
+	txHash, err := w.conn.BatchTransfer(poolAddr, flow.Receives, transformedTotal)
 	if err != nil {
 		w.log.Error("processActiveReported BatchTransfer error", "error", err)
 		return false
 	}
 
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
 }

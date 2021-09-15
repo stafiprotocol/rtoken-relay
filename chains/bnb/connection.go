@@ -39,9 +39,10 @@ import (
 )
 
 var (
-	DefaultValue   = big.NewInt(0)
-	ErrNonceTooLow = errors.New("nonce too low")
-	NoBondError    = errors.New("Staked found no bond")
+	DefaultValue        = big.NewInt(0)
+	ErrNonceTooLow      = errors.New("nonce too low")
+	NoBondError         = errors.New("Staked found no bond")
+	CheckBcBalanceError = errors.New("check bc balance error")
 
 	TxRetryInterval  = time.Second * 2
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
@@ -58,6 +59,8 @@ const (
 	bondFee     = int64(20000)
 	unbondFee   = int64(40000)
 	transferFee = int64(7500)
+
+	CoinSymbol = "BNB"
 )
 
 type BcActionType int
@@ -223,51 +226,59 @@ func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
 	return c.bcKeys[pool] != nil && c.bscClients[pool] != nil
 }
 
-func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) error {
+func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) (int64, error) {
 	c.log.Info("TransferFromBscToBc", "pool", pool, "amount", amount)
 
 	bcKey := c.bcKeys[pool]
 	if bcKey == nil {
-		return fmt.Errorf("TransferFromBscToBc no bc key found: %s", pool.Hex())
+		return 0, fmt.Errorf("TransferFromBscToBc no bc key found: %s", pool.Hex())
 	}
 
 	bscClient := c.bscClients[pool]
 	if bscClient == nil {
-		return fmt.Errorf("TransferFromBscToBc found no bsc client : %s", pool.Hex())
+		return 0, fmt.Errorf("TransferFromBscToBc found no bsc client : %s", pool.Hex())
 	}
 
 	bscBalance, err := c.bscClient.Client().BalanceAt(context.Background(), pool, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	hub, err := TokenHub.NewTokenHub(c.tokenHubContract, bscClient.Client())
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	fee, err := hub.RelayFee(nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	amt := big.NewInt(0).Mul(big.NewInt(1e10), big.NewInt(amount))
 	leastBal := big.NewInt(0).Add(fee, amt)
 	if bscBalance.Cmp(leastBal) < 0 {
-		return fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, leastBal)
+		return 0, fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, leastBal)
 	}
 
+	curBal, err := c.bcBalance(bcKey)
+	if err != nil {
+		return 0, err
+	}
+	futureBal := curBal + amount
+	c.log.Info("TransferFromBscToBc bc balance", "curBal", curBal, "futureBal", futureBal)
+
 	receiver := common.HexToAddress(hexutil.Encode(bcKey.GetAddr()))
+
 	expireTime := time.Now().Add(time.Hour).Unix()
 
 	for i := 0; i < TxRetryLimit; i++ {
 		select {
 		case <-c.stop:
-			return errors.New("TransferFromBscToBc stopped")
+			return 0, errors.New("TransferFromBscToBc stopped")
 		default:
 			err = bscClient.LockAndUpdateOpts(big.NewInt(0), leastBal)
 			if err != nil {
-				return err
+				return 0, err
 			}
 
 			tx, err := hub.TransferOut(bscClient.Opts(), ZeroAddress, receiver, amt, uint64(expireTime))
@@ -282,7 +293,7 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 				for {
 					select {
 					case <-timer.C:
-						return errors.New("TransferFromBscToBc transaction status timeout")
+						return 0, errors.New("TransferFromBscToBc transaction status timeout")
 					default:
 						receipt, err := bscClient.TransactionReceipt(tx.Hash())
 						if err != nil {
@@ -290,13 +301,13 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 								time.Sleep(2 * time.Second)
 								continue
 							}
-							return fmt.Errorf("TransferFromBscToBc TransactionReceipt error: %s", err)
+							return 0, fmt.Errorf("TransferFromBscToBc TransactionReceipt error: %s", err)
 						}
 
 						if receipt.Status == ethCoreTypes.ReceiptStatusSuccessful {
-							return nil
+							return futureBal, nil
 						} else {
-							return errors.New("TransferFromBscToBc TransactionReceipt status fail")
+							return 0, errors.New("TransferFromBscToBc TransactionReceipt status fail")
 						}
 					}
 				}
@@ -309,7 +320,36 @@ func (c *Connection) TransferFromBscToBc(pool common.Address, amount int64) erro
 			}
 		}
 	}
-	return fmt.Errorf("TransferFromBscToBc failed")
+	return 0, fmt.Errorf("TransferFromBscToBc failed")
+}
+
+func (c *Connection) CheckBcBalance(pool common.Address, future int64) error {
+	bcKey := c.bcKeys[pool]
+	if bcKey == nil {
+		return fmt.Errorf("CheckBcBalance no bc key found: %s", pool.Hex())
+	}
+
+	timer := time.NewTimer(5 * time.Minute)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			return errors.New("CheckBcBalance timeout")
+		default:
+			realBal, err := c.bcBalance(bcKey)
+			if err != nil {
+				return err
+			}
+
+			c.log.Info("CheckBcBalance realBal", "realBal", realBal, "future", future)
+			if realBal >= future {
+				return nil
+			}
+
+			time.Sleep(30 * time.Second)
+		}
+	}
 }
 
 func (c *Connection) Unbondable(pool common.Address, validator bncCmnTypes.ValAddress) (bool, error) {
@@ -338,14 +378,14 @@ func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.B
 	if bond < unbond {
 		diff := unbond - bond
 		if diff < leastBond {
-			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, EitherBondUnbond")
+			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, InterDeduct")
 			return submodel.InterDeduct, 0
 		}
 		return submodel.UnbondOnly, diff
 	} else if bond > unbond {
 		diff := bond - unbond
 		if diff < leastBond {
-			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, EitherBondUnbond")
+			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, InterDeduct")
 			return submodel.InterDeduct, 0
 		}
 		return submodel.BondOnly, diff
@@ -375,7 +415,7 @@ func (c *Connection) ExecuteBond(pool common.Address, validator bncCmnTypes.ValA
 	}
 
 	c.bcRpcClient.SetKeyManager(bcKey)
-	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 
 	res, err := c.bcRpcClient.SideChainDelegate(sideChainId, validator, coin, bncRpc.Sync)
 	if err != nil {
@@ -419,7 +459,7 @@ func (c *Connection) ExecuteUnbond(pool common.Address, validator bncCmnTypes.Va
 	}
 
 	c.bcRpcClient.SetKeyManager(bcKey)
-	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 
 	res, err := c.bcRpcClient.SideChainUnbond(sideChainId, validator, coin, bncRpc.Sync)
 	if err != nil {
@@ -456,6 +496,7 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 	for i := 0; i < TxRetryLimit; i++ {
 		total, height, err := c.totalAndLastHeight(delegator)
 		if err != nil {
+			c.log.Error("totalAndLastHeight error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}
@@ -466,27 +507,16 @@ func (c *Connection) Reward(pool common.Address, curHeight, lastHeight int64) (i
 			return 0, nil
 		}
 
-		api := c.rewardApi(delegator, total, 0)
-		sr, err := bnc.GetStakingReward(api)
+		rewardSum, err := c.stakingReward(delegator, total, curHeight, lastHeight)
 		if err != nil {
+			c.log.Error("stakingReward error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}
 			continue
 		}
 
-		rewardSum := int64(0)
-		for _, rd := range sr.RewardDetails {
-			if rd.Height > curHeight {
-				continue
-			}
-
-			if rd.Height < lastHeight {
-				return rewardSum, nil
-			}
-
-			rewardSum += int64(rd.Reward * 1e8)
-		}
+		return rewardSum, nil
 	}
 
 	return 0, fmt.Errorf("Reward failed")
@@ -539,7 +569,7 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 	}
 
 	c.bcRpcClient.SetKeyManager(bcKey)
-	coin := bncCmnTypes.Coin{Denom: "BNB", Amount: amount}
+	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 	expireTime := time.Now().Add(time.Hour).Unix()
 
 	tx, err := c.bcRpcClient.TransferOut(msgtype.SmartChainAddress(pool), coin, expireTime, bncRpc.Sync)
@@ -567,37 +597,37 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 	}
 }
 
-func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Receive, amount int64) error {
+func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Receive, total *big.Int) (common.Hash, error) {
 	bscClient := c.bscClients[pool]
 	if bscClient == nil {
-		return fmt.Errorf("BatchTransfer no bsc client found: %s", pool.Hex())
+		return common.Hash{}, fmt.Errorf("BatchTransfer no bsc client found: %s", pool.Hex())
 	}
 
 	bscBalance, err := bscClient.Client().BalanceAt(context.Background(), pool, nil)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
-	amt := big.NewInt(amount)
-	if bscBalance.Cmp(amt) <= 0 {
-		return fmt.Errorf("bscBalance: %v too small to transfer, amount: %v", bscBalance, amt)
+	if bscBalance.Cmp(total) <= 0 {
+		return common.Hash{}, fmt.Errorf("bscBalance: %v too small to transfer, total: %v", bscBalance, total)
 	}
 
 	sender, err := MultiSendCallOnly.NewMultiSendCallOnly(c.multisendContract, bscClient.Client())
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	bts := make(ethmodel.BatchTransactions, 0)
 	totalGas := big.NewInt(0)
 	for _, rec := range receives {
 		addr := common.BytesToAddress(rec.Recipient)
-		value := big.Int(rec.Value)
+		val := big.Int(rec.Value)
+		value := big.NewInt(0).Mul(&val, big.NewInt(1e10))
 
 		bt := &ethmodel.BatchTransaction{
 			Operation:  uint8(ethmodel.Call),
 			To:         addr,
-			Value:      &value,
+			Value:      value,
 			DataLength: big.NewInt(0),
 			Data:       nil,
 		}
@@ -608,11 +638,11 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 	for i := 0; i < TxRetryLimit; i++ {
 		select {
 		case <-c.stop:
-			return errors.New("BatchTransfer stopped")
+			return common.Hash{}, errors.New("BatchTransfer stopped")
 		default:
-			err = bscClient.LockAndUpdateOpts(totalGas, amt)
+			err = bscClient.LockAndUpdateOpts(totalGas, total)
 			if err != nil {
-				return err
+				return common.Hash{}, err
 			}
 			tx, err := sender.MultiSend(bscClient.Opts(), bts.Encode())
 			bscClient.UnlockOpts()
@@ -626,7 +656,7 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 				for {
 					select {
 					case <-timer.C:
-						return errors.New("BatchTransfer transaction status timeout")
+						return common.Hash{}, errors.New("BatchTransfer transaction status timeout")
 					default:
 						receipt, err := bscClient.TransactionReceipt(tx.Hash())
 						if err != nil {
@@ -634,13 +664,13 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 								time.Sleep(2 * time.Second)
 								continue
 							}
-							return fmt.Errorf("BatchTransfer TransactionReceipt error: %s", err)
+							return common.Hash{}, fmt.Errorf("BatchTransfer TransactionReceipt error: %s", err)
 						}
 
 						if receipt.Status == ethCoreTypes.ReceiptStatusSuccessful {
-							return nil
+							return tx.Hash(), nil
 						} else {
-							return errors.New("BatchTransfer TransactionReceipt status fail")
+							return common.Hash{}, errors.New("BatchTransfer TransactionReceipt status fail")
 						}
 					}
 				}
@@ -653,7 +683,7 @@ func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Rec
 			}
 		}
 	}
-	return fmt.Errorf("BatchTransfer failed")
+	return common.Hash{}, fmt.Errorf("BatchTransfer failed")
 }
 
 func (c *Connection) FreeBalance(pool common.Address) (int64, error) {
@@ -691,7 +721,7 @@ func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action BcActionType
 
 func (c *Connection) bcBalance(key bnckeys.KeyManager) (int64, error) {
 	addr := key.GetAddr()
-	bal, err := c.bcRpcClient.GetBalance(addr, "BNB")
+	bal, err := c.bcRpcClient.GetBalance(addr, CoinSymbol)
 	if err != nil {
 		return 0, err
 	}
@@ -712,6 +742,38 @@ func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) 
 	}
 
 	return sr.Total, sr.RewardDetails[0].Height, nil
+}
+
+func (c *Connection) stakingReward(delegator string, total, curHeight, lastHeight int64) (int64, error) {
+	offset := int64(0)
+	rewardSum := int64(0)
+
+OUT:
+	for i := total; i > 0; i -= 100 {
+		api := c.rewardApi(delegator, 100, offset)
+
+		sr, err := bnc.GetStakingReward(api)
+		if err != nil {
+			c.log.Info("stakingReward GetStakingReward error", "err", err)
+			return 0, err
+		}
+
+		for _, rd := range sr.RewardDetails {
+			if rd.Height > curHeight {
+				continue
+			}
+
+			if rd.Height <= lastHeight {
+				break OUT
+			}
+
+			rewardSum += int64(rd.Reward * 1e8)
+		}
+
+		offset += 100
+	}
+
+	return rewardSum, nil
 }
 
 func (c *Connection) rewardApi(delegator string, limit, offset int64) string {
