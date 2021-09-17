@@ -17,7 +17,7 @@ import (
 var (
 	BlockDelay         = uint64(10)
 	BlockRetryInterval = time.Second * 10
-	EraInterval        = time.Minute * 2
+	EraInterval        = time.Minute * 5
 	BlockRetryLimit    = 30
 	ErrFatalPolling    = errors.New("listener block polling failed")
 )
@@ -102,7 +102,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if latestBlock%100 == 0 {
+			if latestBlock%1000 == 0 {
 				l.log.Debug("pollBlocks", "latest", latestBlock)
 			}
 

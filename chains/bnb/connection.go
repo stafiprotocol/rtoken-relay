@@ -75,7 +75,7 @@ type Connection struct {
 	url               string
 	symbol            core.RSymbol
 	bscClient         *ethereum.Client
-	bcClient          bncClient.DexClient
+	keyManager        bnckeys.KeyManager
 	bcKeys            map[common.Address]bnckeys.KeyManager
 	bscClients        map[common.Address]*ethereum.Client
 	bcRpcClient       *bncRpc.HTTP
@@ -118,7 +118,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	var bscClient *ethereum.Client
-	var bcClient bncClient.DexClient
+	var keyManager bnckeys.KeyManager
 	bcKeys := make(map[common.Address]bnckeys.KeyManager)
 	bscClients := make(map[common.Address]*ethereum.Client)
 	acSize := len(cfg.Accounts)
@@ -150,11 +150,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		bscClients[address] = conn
 		if i == 0 {
 			bscClient = conn
-
-			bcClient, err = bncClient.NewDexClient(baseUrl, bncCmnTypes.Network, km)
-			if err != nil {
-				return nil, err
-			}
+			keyManager = km
 		}
 	}
 
@@ -172,7 +168,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		url:               cfg.Endpoint,
 		symbol:            cfg.Symbol,
 		bscClient:         bscClient,
-		bcClient:          bcClient,
+		keyManager:        keyManager,
 		bcKeys:            bcKeys,
 		bscClients:        bscClients,
 		bcRpcClient:       rpcClient,
@@ -190,9 +186,14 @@ func (c *Connection) ReConnect() error {
 
 // LatestBlock returns the latest block from the current chain
 func (c *Connection) LatestBlock() (int64, error) {
+	bcClient, err := bncClient.NewDexClient(baseUrl, bncCmnTypes.Network, c.keyManager)
+	if err != nil {
+		return 0, err
+	}
+
 	quit := make(chan struct{})
 	defer close(quit)
-	ch, err := c.bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
+	ch, err := bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
 		var event websocket.BlockHeightEvent
 		err := json.Unmarshal(bz, &event)
 		return event.BlockHeight, err
