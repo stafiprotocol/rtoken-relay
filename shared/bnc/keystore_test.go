@@ -300,16 +300,16 @@ func TestStakingReward(t *testing.T) {
 }
 
 func TestValidatorId(t *testing.T) {
-	addr, err := bncCmnTypes.ValAddressFromBech32("bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q")
+	addr, err := bncCmnTypes.ValAddressFromBech32("bva16kujlngdxq4pvyf87gpzx2x7ya4lgsz96j0aqt")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(addr)
 
-	a := []byte(`bva1cudwxfae3ru46t6lymelysppgkt8e7e5gz0f9q`)
+	a := []byte(`bva16kujlngdxq4pvyf87gpzx2x7ya4lgsz96j0aqt`)
 	b := hexutil.Encode(a)
-	t.Log(b) // 0x627661316375647778666165337275343674366c796d656c79737070676b743865376535677a30663971
+	t.Log(b) // 0x62766131366b756a6c6e676478713470767966383767707a783278377961346c67737a39366a30617174
 }
 
 func TestRpcClient(t *testing.T) {
@@ -348,6 +348,25 @@ func TestRpcClient(t *testing.T) {
 	}
 
 	t.Log(unbonds)
+}
+
+func TestMainnetRpcClient(t *testing.T) {
+	rpcEndpoint := "tcp://dataseed3.ninicoin.io:80"
+
+	addr, err := bncCmnTypes.AccAddressFromBech32("bnb17eak3g00hn5mvvlz6f0dv09p83z7cu5ym7cesl")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.ProdNetwork)
+	t.Log("IsActive", client.IsActive())
+
+
+	bal, err := client.GetBalance(addr, "BNB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("bal", bal.Free)
 }
 
 func TestIsactive(t *testing.T) {
