@@ -31,7 +31,7 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
 	assert.NoError(t, err)
 
-	for i := 8537570; i <= 8538000; i++ {
+	for i := 9317260; i >= 9315731; i-- {
 		//if i % 10 == 0 {
 		t.Log("i", i)
 		//}
