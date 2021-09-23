@@ -34,10 +34,10 @@ type listener struct {
 // Frequency of polling for a new block
 var (
 	OneBlockTime              = 5 * time.Second
-	BlockRetryInterval        = time.Second * 1
-	BlockRetryLimit           = 5
+	BlockRetryInterval        = time.Second * 6
+	BlockRetryLimit           = 100
 	BlockIntervalToProcessEra = uint64(10)
-	EventRetryLimit           = 10
+	EventRetryLimit           = 6000
 	EventRetryInterval        = 100 * time.Millisecond
 )
 
