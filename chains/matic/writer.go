@@ -172,7 +172,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
 		w.log.Error("processEraPoolUpdated get GetValidator error", "error", err)
-		return true
+		return false
 	}
 
 	poolAddr := common.BytesToAddress(snap.Pool)
@@ -256,7 +256,7 @@ func (w *writer) processBondReported(m *core.Message) bool {
 	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
 		w.log.Error("processBondReported get GetValidator error", "error", err)
-		return true
+		return false
 	}
 
 	poolAddr := common.BytesToAddress(snap.Pool)
@@ -326,7 +326,7 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
 		w.log.Error("processActiveReported get GetValidator error", "error", err)
-		return true
+		return false
 	}
 
 	poolAddr := common.BytesToAddress(snap.Pool)
@@ -345,12 +345,13 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	nonce, err := w.conn.WithdrawNonce(shareAddr, poolAddr)
 	if err != nil {
 		w.log.Error("WithdrawNonce error", "err", err, "shareAddr", shareAddr, "poolAddr", poolAddr)
-		return true
+		return false
 	}
 
 	if nonce.Uint64() == 0 {
-		w.log.Error("need to withdraw, but no nonce is withdrawable", "shareAddr", shareAddr, "poolAddr", poolAddr)
-		return false
+		w.log.Info("withdrawn", "shareAddr", shareAddr, "poolAddr", poolAddr)
+		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
+		return w.informChain(m.Destination, m.Source, mef)
 	}
 
 	tx, err := w.conn.WithdrawCall(shareAddr, common.BytesToAddress(snap.Pool), nonce)
@@ -419,7 +420,7 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 	balance, err := w.conn.BalanceOf(poolAddr)
 	if err != nil {
 		w.log.Error("BalanceOf  error", "err", err, "Address", poolAddr)
-		return true
+		return false
 	}
 
 	if balance.Cmp(flow.TotalAmount.Int) < 0 {

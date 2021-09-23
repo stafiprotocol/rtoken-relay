@@ -541,7 +541,6 @@ func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submode
 	if len(sigs) < int(th) {
 		return nil, fmt.Errorf("sigs len < threshold,sigs len: %d ,threshold: %d", len(sigs), th)
 	}
-	useSigs := sigs[:]
 
 	return &submodel.SubmitSignatures{
 		Symbol:     data.RSymbol,
@@ -549,7 +548,7 @@ func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submode
 		Pool:       data.Pool,
 		TxType:     data.TxType,
 		ProposalId: data.ProposalId,
-		Signature:  useSigs,
+		Signature:  sigs[:],
 		Threshold:  uint32(th),
 	}, nil
 }

@@ -394,8 +394,8 @@ func TestClient_QueryDelegations(t *testing.T) {
 	res, err := client.QueryDelegations(addrMultiSig2, 0)
 	assert.NoError(t, err)
 	t.Log(res.String())
-	for i,d:=range res.GetDelegationResponses(){
-		t.Log(i,d.Balance.Amount.IsZero())
+	for i, d := range res.GetDelegationResponses() {
+		t.Log(i, d.Balance.Amount.IsZero())
 	}
 }
 
@@ -410,12 +410,12 @@ func TestClient_QueryDelegationTotalRewards(t *testing.T) {
 	initClient()
 	res, err := client.QueryDelegationTotalRewards(addrMultiSig2, 0)
 	assert.NoError(t, err)
-	for i,_:=range res.Rewards{
-		t.Log(i,res.Rewards[i].Reward.AmountOf(client.GetDenom()))
-		t.Log(i,res.Rewards[i].Reward.AmountOf(client.GetDenom()).TruncateInt())
+	for i, _ := range res.Rewards {
+		t.Log(i, res.Rewards[i].Reward.AmountOf(client.GetDenom()))
+		t.Log(i, res.Rewards[i].Reward.AmountOf(client.GetDenom()).TruncateInt())
 
 	}
-	t.Log("total ",res.GetTotal().AmountOf(client.GetDenom()).TruncateInt())
+	t.Log("total ", res.GetTotal().AmountOf(client.GetDenom()).TruncateInt())
 }
 
 func TestClient_GetSequence(t *testing.T) {

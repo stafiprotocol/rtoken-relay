@@ -615,6 +615,8 @@ github.com/itering/scale.go v1.0.66 h1:UntYkGdicR1EPFrvYwAdv4OZpJxV1nkzb7XFGQMaz
 github.com/itering/scale.go v1.0.66/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/scale.go v1.0.67 h1:lAAGaMfwg5bnEFxKzT9Z32TfAfjvTaDBR8QxyBm5Wgg=
 github.com/itering/scale.go v1.0.67/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
+github.com/itering/scale.go v1.1.1 h1:bVNqThvBynCEF9fnuW8EqvZZRLpUyv/IMapSUE11WNo=
+github.com/itering/scale.go v1.1.1/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/substrate-api-rpc v0.2.0/go.mod h1:mhWsiQusRakyHDvLF+QkA1KMVaohI0ntuVoWABlEc68=
 github.com/itering/substrate-api-rpc v0.3.5 h1:Vd23NddQSNNAEj/laKBzniAoggWeQjFP8HMtTCIWdgI=
 github.com/itering/substrate-api-rpc v0.3.5/go.mod h1:fnFYfNtIjUhIsjOWTW+E/fJ93iSBxuFMuCPPU9ATI+I=
