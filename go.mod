@@ -3,7 +3,7 @@ module github.com/stafiprotocol/rtoken-relay
 go 1.15
 
 require (
-    github.com/stafiprotocol/go-sdk v1.3.1
+	github.com/stafiprotocol/go-sdk v1.3.1
 	github.com/ChainSafe/log15 v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
 	github.com/cosmos/cosmos-sdk v0.42.4
