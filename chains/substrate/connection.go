@@ -444,7 +444,7 @@ func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
 		}
 	}
 
-	return errors.New(fmt.Sprintf("asmulti reach limit symbol %s", flow.Symbol))
+	return fmt.Errorf("asmulti reach limit symbol %s", flow.Symbol)
 }
 
 func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
@@ -703,6 +703,11 @@ func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool
 		c.log.Info("submitSignature on chain...")
 		ext, err := c.gc.NewUnsignedExtrinsic(config.SubmitSignatures, param.Symbol, param.Era, param.Pool,
 			param.TxType, param.ProposalId, param.Signature)
+		if err != nil {
+			c.log.Warn("submitSignature error will retry", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
 		err = c.gc.SignAndSubmitTx(ext)
 		if err != nil {
 			if err.Error() == TerminatedError.Error() {
@@ -715,7 +720,7 @@ func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool
 		}
 		return true
 	}
-	return true
+	return false
 }
 
 func (c *Connection) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
