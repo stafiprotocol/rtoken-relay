@@ -196,16 +196,28 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	least := flow.LeastBond.Int64()
 	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
 	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
-	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era)
 
-	if bond > 0 && (diff <= 0 || diff >= least) {
+	lastEra := int64(snap.Era - 1)
+	eraBeforeLast := lastEra - 1
+	eraBlock := int64(w.conn.EraBlock())
+	lastHeight := eraBeforeLast * eraBlock
+	curHeight := lastEra * eraBlock
+	reward, err := w.conn.Reward(poolAddr, curHeight, lastHeight)
+	if err != nil {
+		w.log.Error("processEraPoolUpdated last era reward error", "err", err)
+		return false
+	}
+
+	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era, "reward", reward)
+
+	if bond > 0 && bond > reward && (diff <= 0 || diff >= least) {
 		swap := &Swap{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era), From: FromBsc}
 		historied := IsSwapExist(w.swapHistory, swap)
 		recorded := IsSwapExist(w.swapRecord, swap)
 		w.log.Info("processEraPoolUpdated", "historied", historied, "recorded", recorded)
 
 		swapFun := func() bool {
-			futureBal, err := w.conn.TransferFromBscToBc(poolAddr, bond)
+			futureBal, err := w.conn.TransferFromBscToBc(poolAddr, bond-reward)
 			if err != nil {
 				w.log.Error("processEraPoolUpdated swap error", "error", err)
 				return false

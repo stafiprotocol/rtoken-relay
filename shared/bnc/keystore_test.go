@@ -361,7 +361,6 @@ func TestMainnetRpcClient(t *testing.T) {
 	client := bncRpc.NewRPCClient(rpcEndpoint, bncCmnTypes.ProdNetwork)
 	t.Log("IsActive", client.IsActive())
 
-
 	bal, err := client.GetBalance(addr, "BNB")
 	if err != nil {
 		t.Fatal(err)
