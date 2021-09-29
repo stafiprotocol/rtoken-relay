@@ -22,7 +22,7 @@ import (
 
 var retryLimit = 50
 var waitTime = time.Second * 5
-var backCheckLen = 10
+var backCheckLen = 6
 
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)
@@ -56,8 +56,8 @@ var MultisigTxUnStakeType = MultisigTxType("unstake")
 var MultisigTxWithdrawType = MultisigTxType("withdraw")
 var MultisigTxTransferType = MultisigTxType("transfer")
 
-func GetMultisigTxAccountPubkey(baseAccount, programID solCommon.PublicKey, txType MultisigTxType, era uint32) (solCommon.PublicKey, string) {
-	seed := fmt.Sprintf("multisig:%s:%d", txType, era)
+func GetMultisigTxAccountPubkey(baseAccount, programID solCommon.PublicKey, txType MultisigTxType, era uint32, stakeBaseAccountIndex int) (solCommon.PublicKey, string) {
+	seed := fmt.Sprintf("multisig:%s:%d:%d", txType, era, stakeBaseAccountIndex)
 	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
 }
 
@@ -76,165 +76,162 @@ func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solComm
 func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	poolAddrBase58Str string, currentEra uint32, shotId subTypes.Hash, pool []byte) bool {
 	rpcClient := poolClient.GetRpcClient()
-	//get derived account
-	canWithdrawAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
-	canMergeAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
-	stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), poolClient.StakeBaseAccount.PublicKey.ToBase58())
-	if err != nil {
-		w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
-			"pool  address", poolAddrBase58Str,
-			"stake account", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
-			"error", err)
-		return false
-	}
-	creditsStakeBaseAccount := stakeBaseAccountInfo.StakeAccount.Info.Stake.CreditsObserved
-	for i := uint32(0); i < uint32(backCheckLen); i++ {
-		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
-		accountInfo, err := rpcClient.GetStakeActivation(
-			context.Background(),
-			stakeAccountPubkey.ToBase58(),
-			solClient.GetStakeActivationConfig{})
 
+	// must deal every stakeBaseAccounts
+	for stakeBaseAccountIndex, useStakeBaseAccount := range poolClient.StakeBaseAccounts {
+
+		//get derived account
+		canWithdrawAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
+		canMergeAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
+		stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), useStakeBaseAccount.PublicKey.ToBase58())
 		if err != nil {
-			if strings.Contains(err.Error(), "account not found") {
-				continue
-			} else {
+			w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
+				"pool  address", poolAddrBase58Str,
+				"stake account", useStakeBaseAccount.PublicKey.ToBase58(),
+				"error", err)
+			return false
+		}
+		creditsStakeBaseAccount := stakeBaseAccountInfo.StakeAccount.Info.Stake.CreditsObserved
+		for i := uint32(0); i < uint32(backCheckLen); i++ {
+			stakeAccountPubkey, _ := GetStakeAccountPubkey(useStakeBaseAccount.PublicKey, currentEra-i)
+			accountInfo, err := rpcClient.GetStakeActivation(
+				context.Background(),
+				stakeAccountPubkey.ToBase58(),
+				solClient.GetStakeActivationConfig{})
+
+			if err != nil {
+				if strings.Contains(err.Error(), "account not found") {
+					continue
+				} else {
+					w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
+						"pool  address", poolAddrBase58Str,
+						"stake account", stakeAccountPubkey.ToBase58(),
+						"error", err)
+					return false
+				}
+			}
+			//filter credite observed not equal to stakeBaseAccount
+			stakeAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
+			if err != nil {
 				w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
 					"pool  address", poolAddrBase58Str,
 					"stake account", stakeAccountPubkey.ToBase58(),
 					"error", err)
 				return false
 			}
+
+			if stakeAccountInfo.StakeAccount.Info.Stake.CreditsObserved != creditsStakeBaseAccount {
+				continue
+			}
+
+			//filter account
+			if accountInfo.State == solClient.StakeActivationStateInactive {
+				//withdraw all balance
+				accountInfo.Inactive = stakeAccountInfo.Lamports
+				canWithdrawAccounts[stakeAccountPubkey] = accountInfo
+			} else if accountInfo.State == solClient.StakeActivationStateActive {
+				canMergeAccounts[stakeAccountPubkey] = accountInfo
+			}
 		}
-		//filter credite observed not equal to stakeBaseAccount
-		stakeAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
-		if err != nil {
-			w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
+
+		//no need withdraw,just report to stafi
+		if len(canWithdrawAccounts) == 0 && len(canMergeAccounts) == 0 {
+			w.log.Info("MergeAndWithdraw no need merge and withdraw ",
+				"pool address", poolAddrBase58Str,
+				"era", currentEra,
+				"snapId", shotId.Hex())
+
+			return true
+		}
+		w.log.Info("canWithdrawAccounts", "accouts", mapToString(canWithdrawAccounts))
+		w.log.Info("canMergeAccounts", "accounts", mapToString(canMergeAccounts))
+
+		//create multisig withdraw tx account
+		multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
+			poolClient.MultisigTxBaseAccount.PublicKey,
+			poolClient.MultisigProgramId,
+			MultisigTxWithdrawType,
+			currentEra,
+			stakeBaseAccountIndex)
+
+		withdrawAndMergeInstructions := make([]solTypes.Instruction, 0)
+
+		programIds := make([]solCommon.PublicKey, 0)
+		accountMetas := make([][]solTypes.AccountMeta, 0)
+		txDatas := make([][]byte, 0)
+
+		for stakeAccountPubkey, accountInfo := range canWithdrawAccounts {
+			withdrawInstruction := stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
+				poolClient.MultisignerPubkey, accountInfo.Inactive, solCommon.PublicKey{})
+
+			withdrawAndMergeInstructions = append(withdrawAndMergeInstructions, withdrawInstruction)
+
+			programIds = append(programIds, withdrawInstruction.ProgramID)
+			accountMetas = append(accountMetas, withdrawInstruction.Accounts)
+			txDatas = append(txDatas, withdrawInstruction.Data)
+		}
+
+		for stakeAccountPubkey, _ := range canMergeAccounts {
+			mergeInstruction := stakeprog.Merge(
+				useStakeBaseAccount.PublicKey,
+				stakeAccountPubkey,
+				poolClient.MultisignerPubkey)
+
+			withdrawAndMergeInstructions = append(withdrawAndMergeInstructions, mergeInstruction)
+
+			programIds = append(programIds, mergeInstruction.ProgramID)
+			accountMetas = append(accountMetas, mergeInstruction.Accounts)
+			txDatas = append(txDatas, mergeInstruction.Data)
+		}
+		remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
+
+		_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+		if err != nil && err == solClient.ErrAccountNotFound {
+			sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
+				multisigTxAccountPubkey, multisigTxAccountSeed, "MergeAndWithdraw")
+			if !sendOk {
+				return false
+			}
+		}
+		if err != nil && err != solClient.ErrAccountNotFound {
+			w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo err",
 				"pool  address", poolAddrBase58Str,
-				"stake account", stakeAccountPubkey.ToBase58(),
-				"error", err)
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
 			return false
 		}
 
-		if stakeAccountInfo.StakeAccount.Info.Stake.CreditsObserved != creditsStakeBaseAccount {
-			continue
-		}
-
-		//filter account
-		if accountInfo.State == solClient.StakeActivationStateInactive {
-			//withdraw all balance
-			accountInfo.Inactive = stakeAccountInfo.Lamports
-			canWithdrawAccounts[stakeAccountPubkey] = accountInfo
-		} else if accountInfo.State == solClient.StakeActivationStateActive {
-			canMergeAccounts[stakeAccountPubkey] = accountInfo
-		}
-	}
-
-	//no need withdraw,just report to stafi
-	if len(canWithdrawAccounts) == 0 && len(canMergeAccounts) == 0 {
-		w.log.Info("MergeAndWithdraw no need merge and withdraw ",
-			"pool address", poolAddrBase58Str,
-			"era", currentEra,
-			"snapId", shotId.Hex())
-
-		return true
-	}
-	w.log.Info("canWithdrawAccounts", "accouts", mapToString(canWithdrawAccounts))
-	w.log.Info("canMergeAccounts", "accounts", mapToString(canMergeAccounts))
-
-	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
-	if err != nil {
-		w.log.Error("MergeAndWithdraw GetMinimumBalanceForRentExemption failed",
-			"pool address", poolAddrBase58Str,
-			"err", err)
-		return false
-	}
-	miniMumBalanceForTx *= 2
-
-	//create multisig withdraw tx account
-	multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
-		poolClient.MultisigTxBaseAccount.PublicKey,
-		poolClient.MultisigProgramId,
-		MultisigTxWithdrawType,
-		currentEra)
-
-	withdrawAndMergeInstructions := make([]solTypes.Instruction, 0)
-
-	programIds := make([]solCommon.PublicKey, 0)
-	accountMetas := make([][]solTypes.AccountMeta, 0)
-	txDatas := make([][]byte, 0)
-
-	for stakeAccountPubkey, accountInfo := range canWithdrawAccounts {
-		withdrawInstruction := stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
-			poolClient.MultisignerPubkey, accountInfo.Inactive, solCommon.PublicKey{})
-
-		withdrawAndMergeInstructions = append(withdrawAndMergeInstructions, withdrawInstruction)
-
-		programIds = append(programIds, withdrawInstruction.ProgramID)
-		accountMetas = append(accountMetas, withdrawInstruction.Accounts)
-		txDatas = append(txDatas, withdrawInstruction.Data)
-	}
-
-	for stakeAccountPubkey, _ := range canMergeAccounts {
-		mergeInstruction := stakeprog.Merge(
-			poolClient.StakeBaseAccount.PublicKey,
-			stakeAccountPubkey,
-			poolClient.MultisignerPubkey)
-
-		withdrawAndMergeInstructions = append(withdrawAndMergeInstructions, mergeInstruction)
-
-		programIds = append(programIds, mergeInstruction.ProgramID)
-		accountMetas = append(accountMetas, mergeInstruction.Accounts)
-		txDatas = append(txDatas, mergeInstruction.Data)
-	}
-	remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
-
-	_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-	if err != nil && err == solClient.ErrAccountNotFound {
-		sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
-			multisigTxAccountPubkey, multisigTxAccountSeed, "MergeAndWithdraw")
-		if !sendOk {
+		//check multisig tx account is created
+		create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
+		if !create {
 			return false
 		}
-	}
-	if err != nil && err != solClient.ErrAccountNotFound {
-		w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo err",
-			"pool  address", poolAddrBase58Str,
-			"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-			"err", err)
-		return false
-	}
+		w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
-	//check multisig tx account is created
-	create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
-	if !create {
-		return false
-	}
-	w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+		valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
+		if !valid {
+			w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
+		//if has exe just return
+		isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
+		if isExe {
+			w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			return true
+		}
+		//approve multisig tx
+		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
+		if !send {
+			return false
+		}
 
-	valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
-	if !valid {
-		w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-		return false
-	}
-	//if has exe just return
-	isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
-	if isExe {
+		//check multisig exe result
+		exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
+		if !exe {
+			return false
+		}
 		w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-		return true
 	}
-	//approve multisig tx
-	send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
-	if !send {
-		return false
-	}
-
-	//check multisig exe result
-	exe := w.waitingForMultisigTxExe(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "MergeAndWithdraw")
-	if !exe {
-		return false
-	}
-	w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 	return true
 }
 

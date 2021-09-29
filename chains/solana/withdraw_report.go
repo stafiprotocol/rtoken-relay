@@ -19,6 +19,10 @@ import (
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
+var (
+	multisigSendMaxNumber = 5
+)
+
 func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -50,7 +54,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 	}
 	rpcClient := poolClient.GetRpcClient()
 
-	for i := 0; i <= len(flow.Receives)/5; i++ {
+	for i := 0; i <= len(flow.Receives)/multisigSendMaxNumber; i++ {
 		multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkeyForTransfer(
 			poolClient.MultisigTxBaseAccount.PublicKey,
 			poolClient.MultisigProgramId,
@@ -62,8 +66,8 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		accountMetas := make([][]solTypes.AccountMeta, 0)
 		txDatas := make([][]byte, 0)
 
-		for j := 0; j < 5; j++ {
-			index := i*5 + j
+		for j := 0; j < multisigSendMaxNumber; j++ {
+			index := i*multisigSendMaxNumber + j
 			//check overflow
 			if index > len(flow.Receives)-1 {
 				break

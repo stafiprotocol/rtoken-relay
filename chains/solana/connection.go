@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ChainSafe/log15"
@@ -29,11 +30,12 @@ type Connection struct {
 }
 
 type PoolAccounts struct {
-	FeeAccount            string `json:"feeAccount"`
-	StakeBaseAccount      string `json:"stakeBaseAccount"`
-	MultisigTxBaseAccount string `json:"multisigTxBaseAccount"`
-	MultisigInfoPubkey    string `json:"multisigInfoPubkey"`
-	MultisigProgramId     string `json:"multisigProgramId"`
+	FeeAccount            string   `json:"feeAccount"`
+	StakeBaseAccount      string   `json:"stakeBaseAccount"`
+	StakeBaseAccounts     []string `json:"stakeBaseAccounts"`
+	MultisigTxBaseAccount string   `json:"multisigTxBaseAccount"`
+	MultisigInfoPubkey    string   `json:"multisigInfoPubkey"`
+	MultisigProgramId     string   `json:"multisigProgramId"`
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -72,12 +74,21 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	for _, pool := range cfg.Accounts {
-
 		pAccounts := poolAccounts[pool]
+		stakeBaseAccounts := make([]solTypes.Account, 0)
+		for _, account := range pAccounts.StakeBaseAccounts {
+			stakeBaseAccounts = append(stakeBaseAccounts,
+				solTypes.AccountFromPrivateKeyBytes(privKeyMap[account]))
+		}
+		//sort accounts
+		sort.SliceStable(stakeBaseAccounts, func(i, j int) bool {
+			return stakeBaseAccounts[i].PublicKey.ToBase58() < stakeBaseAccounts[j].PublicKey.ToBase58()
+		})
 
 		poolAccounts := solana.PoolAccounts{
 			FeeAccount:            solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.FeeAccount]),
 			StakeBaseAccount:      solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.StakeBaseAccount]),
+			StakeBaseAccounts:     stakeBaseAccounts,
 			MultisigTxBaseAccount: solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.MultisigTxBaseAccount]),
 			MultisigInfoPubkey:    solCommon.PublicKeyFromString(pAccounts.MultisigInfoPubkey),
 			MultisignerPubkey:     solCommon.PublicKeyFromString(pool),

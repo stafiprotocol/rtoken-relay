@@ -39,40 +39,45 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	}
 
 	activeTotal := int64(0)
-	//get base account
-	accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(),
-		poolClient.StakeBaseAccount.PublicKey.ToBase58())
+	// must deal every stakeBaseAccounts
+	for _, useStakeBaseAccount := range poolClient.StakeBaseAccounts {
 
-	if err != nil {
-		w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
-			"pool  address", poolAddrBase58Str,
-			"stake base account", poolClient.StakeBaseAccount.PublicKey.ToBase58(),
-			"error", err)
-		return false
-	}
+		//get base account
+		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(),
+			useStakeBaseAccount.PublicKey.ToBase58())
 
-	activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
-	//get derived account
-	for i := uint32(0); i < uint32(backCheckLen); i++ {
-		//this use current era not snap era
-		stakeAccountPubkey, _ := GetStakeAccountPubkey(poolClient.StakeBaseAccount.PublicKey, currentEra-i)
-		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 		if err != nil {
-			if err == solClient.ErrAccountNotFound {
-				continue
-			} else {
-				w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
-					"pool  address", poolAddrBase58Str,
-					"stake account", stakeAccountPubkey.ToBase58(),
-					"error", err)
-				return false
+			w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
+				"pool  address", poolAddrBase58Str,
+				"stake base account", useStakeBaseAccount.PublicKey.ToBase58(),
+				"error", err)
+			return false
+		}
+
+		activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
+		//get derived account
+		for i := uint32(0); i < uint32(backCheckLen); i++ {
+			//this use current era not snap era
+			stakeAccountPubkey, _ := GetStakeAccountPubkey(useStakeBaseAccount.PublicKey, currentEra-i)
+			accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
+			if err != nil {
+				if err == solClient.ErrAccountNotFound {
+					continue
+				} else {
+					w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
+						"pool  address", poolAddrBase58Str,
+						"stake account", stakeAccountPubkey.ToBase58(),
+						"error", err)
+					return false
+				}
+			}
+
+			//filter account used to stake
+			if accountInfo.StakeAccount.IsStakeAndNoDeactive() {
+				activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 			}
 		}
 
-		//filter account used to stake
-		if accountInfo.StakeAccount.IsStakeAndNoDeactive() {
-			activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
-		}
 	}
 
 	flow.Snap.Active = substrateTypes.NewU128(*big.NewInt(activeTotal))

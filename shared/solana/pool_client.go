@@ -17,6 +17,7 @@ type PoolClient struct {
 type PoolAccounts struct {
 	FeeAccount            solTypes.Account
 	StakeBaseAccount      solTypes.Account
+	StakeBaseAccounts     []solTypes.Account
 	MultisigTxBaseAccount solTypes.Account
 	MultisigInfoPubkey    solCommon.PublicKey
 	MultisignerPubkey     solCommon.PublicKey
