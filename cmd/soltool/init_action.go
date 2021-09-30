@@ -41,17 +41,21 @@ func initAction(ctx *cli.Context) error {
 		privKeyMap[privKey.PublicKey().String()] = privKey
 	}
 
+	stakeBaseStrToValidator := make(map[string]solCommon.PublicKey, 0)
+	stakeBaseStrToAccount := make(map[string]solTypes.Account, 0)
+	for stakeBaseStr, validatorStr := range pc.StakeBaseAccountToValidator {
+		if privateKey, exist := privKeyMap[stakeBaseStr]; exist {
+			stakeBaseStrToAccount[stakeBaseStr] = solTypes.AccountFromPrivateKeyBytes(privateKey)
+			stakeBaseStrToValidator[stakeBaseStr] = solCommon.PublicKeyFromString(validatorStr)
+		} else {
+			return fmt.Errorf("stakeBaseAccount doesn't have privateKey,%s", stakeBaseStr)
+		}
+	}
+
 	FeeAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.FeeAccount])
-	StakeBaseAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.StakeBaseAccount])
 	MultisigTxBaseAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.MultisigTxBaseAccount])
 	MultisigInfoAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.MultisigInfoPubkey])
 	MultisigProgramId := solCommon.PublicKeyFromString(pc.MultisigProgramId)
-	ValidatorPubkey := solCommon.PublicKeyFromString(pc.Validator)
-	multisignerPubkey, nonce, err := solCommon.FindProgramAddress([][]byte{MultisigInfoAccount.PublicKey.Bytes()}, MultisigProgramId)
-	if err != nil {
-		return err
-	}
-	fmt.Println("multisigner:", multisignerPubkey.ToBase58())
 
 	otherFeeAccount := make([]solTypes.Account, 0)
 	owners := make([]solCommon.PublicKey, 0)
@@ -61,12 +65,13 @@ func initAction(ctx *cli.Context) error {
 		otherFeeAccount = append(otherFeeAccount, a)
 		owners = append(owners, a.PublicKey)
 	}
-
-	c := solClient.NewClient(pc.Endpoint)
-	res, err := c.GetRecentBlockhash(context.Background())
+	multisignerPubkey, nonce, err := solCommon.FindProgramAddress([][]byte{MultisigInfoAccount.PublicKey.Bytes()}, MultisigProgramId)
 	if err != nil {
 		return err
 	}
+	fmt.Println("multisigner:", multisignerPubkey.ToBase58())
+
+	c := solClient.NewClient(pc.Endpoint)
 	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(), 200)
 	if err != nil {
 		return err
@@ -75,171 +80,234 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	//create stakeBaseAccount
-	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-		Instructions: []solTypes.Instruction{
-			sysprog.CreateAccount(
-				FeeAccount.PublicKey,
-				StakeBaseAccount.PublicKey,
-				solCommon.StakeProgramID,
-				2000000000+stakeAccountMiniMum*2,
-				200,
-			),
-			stakeprog.Initialize(
-				StakeBaseAccount.PublicKey,
-				stakeprog.Authorized{
-					Staker:     multisignerPubkey,
-					Withdrawer: multisignerPubkey,
-				},
-				stakeprog.Lockup{},
-			),
-		},
-		Signers:         []solTypes.Account{FeeAccount, StakeBaseAccount},
-		FeePayer:        FeeAccount.PublicKey,
-		RecentBlockHash: res.Blockhash,
-	})
-	if err != nil {
-		return fmt.Errorf("generate tx error, err: %v", err)
-	}
 
-	txHash, err := c.SendRawTransaction(context.Background(), rawTx)
-	if err != nil {
-		return fmt.Errorf("send tx error, err: %v", err)
-	}
-	fmt.Println("createStakeAccount txHash:", txHash)
-	time.Sleep(time.Second * 2)
+	//create if stakeBaseAccount not exist on chain
 
-	res, err = c.GetRecentBlockhash(context.Background())
-	if err != nil {
-		return fmt.Errorf("get recent block hash error, err: %v", err)
-	}
-
-	//create multisigInfo account
-	rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-		Instructions: []solTypes.Instruction{
-			sysprog.CreateAccount(
-				FeeAccount.PublicKey,
-				MultisigInfoAccount.PublicKey,
-				MultisigProgramId,
-				multisigAccountMiniMum*2,
-				1000,
-			),
-			multisigprog.CreateMultisig(
-				MultisigProgramId,
-				MultisigInfoAccount.PublicKey,
-				owners,
-				uint64(pc.Threshold),
-				uint8(nonce),
-			),
-		},
-		Signers:         []solTypes.Account{FeeAccount, MultisigInfoAccount},
-		FeePayer:        FeeAccount.PublicKey,
-		RecentBlockHash: res.Blockhash,
-	})
-	if err != nil {
-		return fmt.Errorf("generate tx error, err: %v", err)
-	}
-	txHash, err = c.SendRawTransaction(context.Background(), rawTx)
-	if err != nil {
-		return fmt.Errorf("send tx error, err: %v", err)
-	}
-	fmt.Println("createMultisig txHash:", txHash)
-	time.Sleep(time.Second * 2)
-
-	//create multisig transaction for stake
-	res, err = c.GetRecentBlockhash(context.Background())
-	if err != nil {
-		return fmt.Errorf("get recent block hash error, err: %v", err)
-	}
-	stakeInstruction := stakeprog.DelegateStake(StakeBaseAccount.PublicKey, multisignerPubkey, ValidatorPubkey)
-	rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-		Instructions: []solTypes.Instruction{
-			sysprog.CreateAccount(
-				FeeAccount.PublicKey,
-				MultisigTxBaseAccount.PublicKey,
-				MultisigProgramId,
-				multisigAccountMiniMum*2,
-				1000,
-			),
-			multisigprog.CreateTransaction(
-				MultisigProgramId,
-				[]solCommon.PublicKey{solCommon.StakeProgramID},
-				[][]solTypes.AccountMeta{stakeInstruction.Accounts},
-				[][]byte{stakeInstruction.Data},
-				MultisigInfoAccount.PublicKey,
-				MultisigTxBaseAccount.PublicKey,
-				FeeAccount.PublicKey,
-			),
-		},
-		Signers:         []solTypes.Account{FeeAccount, MultisigTxBaseAccount},
-		FeePayer:        FeeAccount.PublicKey,
-		RecentBlockHash: res.Blockhash,
-	})
-
-	if err != nil {
-		return fmt.Errorf("generate createTransaction tx error, err: %v", err)
-	}
-
-	txHash, err = c.SendRawTransaction(context.Background(), rawTx)
-	if err != nil {
-		return fmt.Errorf("send tx error, err: %v", err)
-	}
-	fmt.Println("Create Transaction txHash:", txHash)
-	time.Sleep(time.Second * 2)
-
-	//other fee account approve
-	for i := 0; i < len(otherFeeAccount); i++ {
-
-		res, err = c.GetRecentBlockhash(context.Background())
+	for stakeAccoountStr, account := range stakeBaseStrToAccount {
+		res, err := c.GetRecentBlockhash(context.Background())
 		if err != nil {
-			return fmt.Errorf("get recent block hash error, err: %v", err)
+			return err
 		}
-		remainingAccounts := multisigprog.GetRemainAccounts([]solTypes.Instruction{stakeInstruction})
+		_, err = c.GetStakeAccountInfo(context.Background(), stakeAccoountStr)
+		if err != nil && err != solClient.ErrAccountNotFound {
+			return err
+		}
+		if err == nil {
+			continue
+		}
 
-		rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+		//create stakeBaseAccount and transfer 2.xxx sol to stakeBaseAccount
+		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 			Instructions: []solTypes.Instruction{
-				multisigprog.Approve(
-					MultisigProgramId,
-					MultisigInfoAccount.PublicKey,
-					multisignerPubkey,
-					MultisigTxBaseAccount.PublicKey,
-					otherFeeAccount[i].PublicKey,
-					remainingAccounts,
+				sysprog.CreateAccount(
+					FeeAccount.PublicKey,
+					account.PublicKey,
+					solCommon.StakeProgramID,
+					2000000000+stakeAccountMiniMum*2,
+					200,
+				),
+				stakeprog.Initialize(
+					account.PublicKey,
+					stakeprog.Authorized{
+						Staker:     multisignerPubkey,
+						Withdrawer: multisignerPubkey,
+					},
+					stakeprog.Lockup{},
 				),
 			},
-			Signers:         []solTypes.Account{otherFeeAccount[i], FeeAccount},
+			Signers:         []solTypes.Account{FeeAccount, account},
 			FeePayer:        FeeAccount.PublicKey,
 			RecentBlockHash: res.Blockhash,
 		})
-
 		if err != nil {
-			return fmt.Errorf("generate Approve tx error, err: %v", err)
+			return fmt.Errorf("generate tx error, err: %v", err)
 		}
 
-		txHash, err = c.SendRawTransaction(context.Background(), rawTx)
+		txHash, err := c.SendRawTransaction(context.Background(), rawTx)
 		if err != nil {
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
-		fmt.Printf("Approve txHash: %s otherfeeAccount:%s\n", txHash, otherFeeAccount[i].PublicKey.ToBase58())
-		time.Sleep(time.Second * 5)
+		fmt.Println("createStakeAccount txHash:", txHash, stakeAccoountStr)
+		time.Sleep(time.Second * 2)
 	}
 
-	for i := 0; i < 10; i++ {
-		time.Sleep(5 * time.Second)
-		txInfo, err := c.GetMultisigTxAccountInfo(context.Background(), MultisigTxBaseAccount.PublicKey.ToBase58())
+	//create multisigInfo account if not exist on chain
+	_, err = c.GetMultisigInfoAccountInfo(ctx.Context, MultisigInfoAccount.PublicKey.ToBase58())
+	if err != nil && err != solClient.ErrAccountNotFound {
+		return err
+	}
+	if err == solClient.ErrAccountNotFound {
+		res, err := c.GetRecentBlockhash(context.Background())
 		if err != nil {
-			fmt.Println("GetMultisigTxAccountInfo failed will retry ...", err)
+			return fmt.Errorf("get recent block hash error, err: %v", err)
+		}
+		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+			Instructions: []solTypes.Instruction{
+				sysprog.CreateAccount(
+					FeeAccount.PublicKey,
+					MultisigInfoAccount.PublicKey,
+					MultisigProgramId,
+					multisigAccountMiniMum*2,
+					1000,
+				),
+				multisigprog.CreateMultisig(
+					MultisigProgramId,
+					MultisigInfoAccount.PublicKey,
+					owners,
+					uint64(pc.Threshold),
+					uint8(nonce),
+				),
+			},
+			Signers:         []solTypes.Account{FeeAccount, MultisigInfoAccount},
+			FeePayer:        FeeAccount.PublicKey,
+			RecentBlockHash: res.Blockhash,
+		})
+		if err != nil {
+			return fmt.Errorf("generate tx error, err: %v", err)
+		}
+		txHash, err := c.SendRawTransaction(context.Background(), rawTx)
+		if err != nil {
+			return fmt.Errorf("send tx error, err: %v", err)
+		}
+		fmt.Println("createMultisig txHash:", txHash)
+		time.Sleep(time.Second * 2)
+	}
+
+	//init stakeBaseAccount if stake base account`s stake amount is zero
+	for stakeAccoountStr, account := range stakeBaseStrToAccount {
+		accountInfo, err := c.GetStakeAccountInfo(context.Background(), stakeAccoountStr)
+		if err != nil {
+			return err
+		}
+		stakeAmount := accountInfo.StakeAccount.Info.Stake.Delegation.Stake
+		if stakeAmount > 0 {
+			fmt.Printf("stake base account %s has stake %d will skip init", stakeAccoountStr, stakeAmount)
 			continue
 		}
 
-		if txInfo.DidExecute == 1 {
-			fmt.Println("init success")
-			return nil
-		} else {
-			fmt.Println("not init yet, waiting...")
-			continue
+		//create derived multisig tx account if not exist onchain
+		multisigTxAccountPubkey, multisigTxAccountSeed := getMultisigTxAccountPubkey(
+			MultisigTxBaseAccount.PublicKey,
+			MultisigProgramId,
+			account.PublicKey,
+			0)
+		validatorPubkey := stakeBaseStrToValidator[stakeAccoountStr]
+		stakeInstruction := stakeprog.DelegateStake(account.PublicKey, multisignerPubkey, validatorPubkey)
+
+		_, err = c.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+		if err != nil && err != solClient.ErrAccountNotFound {
+			return err
+		}
+		if err == solClient.ErrAccountNotFound {
+			res, err := c.GetRecentBlockhash(context.Background())
+			if err != nil {
+				return fmt.Errorf("get recent block hash error, err: %v", err)
+			}
+
+			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+				Instructions: []solTypes.Instruction{
+					sysprog.CreateAccountWithSeed(
+						FeeAccount.PublicKey,
+						multisigTxAccountPubkey,
+						MultisigTxBaseAccount.PublicKey,
+						MultisigProgramId,
+						multisigTxAccountSeed,
+						multisigAccountMiniMum*2,
+						1000,
+					),
+					multisigprog.CreateTransaction(
+						MultisigProgramId,
+						[]solCommon.PublicKey{solCommon.StakeProgramID},
+						[][]solTypes.AccountMeta{stakeInstruction.Accounts},
+						[][]byte{stakeInstruction.Data},
+						MultisigInfoAccount.PublicKey,
+						multisigTxAccountPubkey,
+						FeeAccount.PublicKey,
+					),
+				},
+				Signers:         []solTypes.Account{FeeAccount, MultisigTxBaseAccount},
+				FeePayer:        FeeAccount.PublicKey,
+				RecentBlockHash: res.Blockhash,
+			})
+
+			if err != nil {
+				return fmt.Errorf("generate createTransaction tx error, err: %v", err)
+			}
+
+			txHash, err := c.SendRawTransaction(context.Background(), rawTx)
+			if err != nil {
+				return fmt.Errorf("send tx error, err: %v", err)
+			}
+			fmt.Println("Create multisig tx Transaction txHash:", txHash)
+			time.Sleep(time.Second * 2)
+		}
+
+		//other fee account approve
+		for i := 0; i < len(otherFeeAccount); i++ {
+			res, err := c.GetRecentBlockhash(context.Background())
+			if err != nil {
+				return fmt.Errorf("get recent block hash error, err: %v", err)
+			}
+			remainingAccounts := multisigprog.GetRemainAccounts([]solTypes.Instruction{stakeInstruction})
+			rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+				Instructions: []solTypes.Instruction{
+					multisigprog.Approve(
+						MultisigProgramId,
+						MultisigInfoAccount.PublicKey,
+						multisignerPubkey,
+						multisigTxAccountPubkey,
+						otherFeeAccount[i].PublicKey,
+						remainingAccounts,
+					),
+				},
+				Signers:         []solTypes.Account{otherFeeAccount[i], FeeAccount},
+				FeePayer:        FeeAccount.PublicKey,
+				RecentBlockHash: res.Blockhash,
+			})
+
+			if err != nil {
+				return fmt.Errorf("generate Approve tx error, err: %v", err)
+			}
+
+			txHash, err := c.SendRawTransaction(context.Background(), rawTx)
+			if err != nil {
+				return fmt.Errorf("send tx error, err: %v", err)
+			}
+			fmt.Printf("Approve txHash: %s otherfeeAccount:%s\n", txHash, otherFeeAccount[i].PublicKey.ToBase58())
+			time.Sleep(time.Second * 5)
+		}
+
+		retry := 0
+		retryLimit := 30
+		for {
+			if retry > retryLimit {
+				return err
+			}
+			txInfo, err := c.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+			if err != nil {
+				fmt.Println("GetMultisigTxAccountInfo failed will retry ...", err)
+				retry++
+				time.Sleep(3 * time.Second)
+				continue
+			}
+
+			if txInfo.DidExecute == 1 {
+				fmt.Printf("stakeBaseAccount %s init success", stakeAccoountStr)
+				break
+			} else {
+				fmt.Printf("stakeBaseAccount %s not init yet, waiting...", stakeAccoountStr)
+				retry++
+				time.Sleep(3 * time.Second)
+				continue
+			}
 		}
 	}
-	fmt.Println("sorry init failed")
+
+	fmt.Println("all account init success")
 	return nil
+}
+
+func getMultisigTxAccountPubkey(baseAccount, programID, stakeBaseAccount solCommon.PublicKey, index int) (solCommon.PublicKey, string) {
+	seed := fmt.Sprintf("initAccount:%s:%d", stakeBaseAccount.ToBase58(), index)
+	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
 }
