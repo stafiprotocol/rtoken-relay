@@ -15,6 +15,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+//1 create stakeBaseAccount if not exist on chain
+//2 create multisigInfo account if not exist on chain
+//3 init stake for stakeBaseAccount if stakeBaseAccount`s stake amount is zero
 func initAction(ctx *cli.Context) error {
 	path := ctx.String(configFlag.Name)
 	pc := PoolAccounts{}
@@ -22,7 +25,7 @@ func initAction(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("accounts info %+v\n\n", pc)
+	fmt.Printf("accounts info:\n %+v\n\n", pc)
 	v, err := vault.NewVaultFromWalletFile(pc.KeystorePath)
 	if err != nil {
 		return err
@@ -41,15 +44,20 @@ func initAction(ctx *cli.Context) error {
 		privKeyMap[privKey.PublicKey().String()] = privKey
 	}
 
-	stakeBaseStrToValidator := make(map[string]solCommon.PublicKey, 0)
-	stakeBaseStrToAccount := make(map[string]solTypes.Account, 0)
+	stakeBaseStrToValidator := make(map[string]solCommon.PublicKey)
+	stakeBaseStrToAccount := make(map[string]solTypes.Account)
 	for stakeBaseStr, validatorStr := range pc.StakeBaseAccountToValidator {
 		if privateKey, exist := privKeyMap[stakeBaseStr]; exist {
 			stakeBaseStrToAccount[stakeBaseStr] = solTypes.AccountFromPrivateKeyBytes(privateKey)
 			stakeBaseStrToValidator[stakeBaseStr] = solCommon.PublicKeyFromString(validatorStr)
 		} else {
-			return fmt.Errorf("stakeBaseAccount doesn't have privateKey,%s", stakeBaseStr)
+			return fmt.Errorf("stakeBaseAccount: %s, doesn't have privateKey", stakeBaseStr)
 		}
+	}
+
+	if len(pc.StakeBaseAccountToValidator) != len(stakeBaseStrToAccount) ||
+		len(stakeBaseStrToAccount) != len(stakeBaseStrToValidator) {
+		return fmt.Errorf("stakeBaseAccountToValidator config not right")
 	}
 
 	FeeAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.FeeAccount])
@@ -81,8 +89,7 @@ func initAction(ctx *cli.Context) error {
 		return err
 	}
 
-	//create if stakeBaseAccount not exist on chain
-
+	//1 create stakeBaseAccount if not exist on chain
 	for stakeAccoountStr, account := range stakeBaseStrToAccount {
 		res, err := c.GetRecentBlockhash(context.Background())
 		if err != nil {
@@ -93,6 +100,7 @@ func initAction(ctx *cli.Context) error {
 			return err
 		}
 		if err == nil {
+			fmt.Printf("stakeBaseAccount: %s exist on chain and will not create\n", stakeAccoountStr)
 			continue
 		}
 
@@ -127,16 +135,16 @@ func initAction(ctx *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
-		fmt.Println("createStakeAccount txHash:", txHash, stakeAccoountStr)
+		fmt.Println("createStakeBaseAccount txHash:", txHash, stakeAccoountStr)
 		time.Sleep(time.Second * 2)
 	}
 
-	//create multisigInfo account if not exist on chain
+	//2 create multisigInfo account if not exist on chain
 	_, err = c.GetMultisigInfoAccountInfo(ctx.Context, MultisigInfoAccount.PublicKey.ToBase58())
-	if err != nil && err != solClient.ErrAccountNotFound {
-		return err
-	}
-	if err == solClient.ErrAccountNotFound {
+	if err != nil {
+		if err != solClient.ErrAccountNotFound {
+			return err
+		}
 		res, err := c.GetRecentBlockhash(context.Background())
 		if err != nil {
 			return fmt.Errorf("get recent block hash error, err: %v", err)
@@ -169,22 +177,38 @@ func initAction(ctx *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
-		fmt.Println("createMultisig txHash:", txHash)
+		fmt.Println("create multisigInfo account txHash:", txHash)
 		time.Sleep(time.Second * 2)
+
+	} else {
+		fmt.Printf("multisigInfoAccount: %s exist on chain and will not create\n", MultisigInfoAccount.PublicKey.ToBase58())
 	}
 
-	//init stakeBaseAccount if stake base account`s stake amount is zero
+	//3 init stake for stakeBaseAccount if stakeBaseAccount`s stake amount is zero
 	for stakeAccoountStr, account := range stakeBaseStrToAccount {
-		accountInfo, err := c.GetStakeAccountInfo(context.Background(), stakeAccoountStr)
-		if err != nil {
-			return err
+		var accountInfo *solClient.StakeAccountRsp
+		var err error
+		retry := 0
+		retryLimit := 50
+		for {
+			if retry > retryLimit {
+				return err
+			}
+			accountInfo, err = c.GetStakeAccountInfo(context.Background(), stakeAccoountStr)
+			if err != nil {
+				retry++
+				time.Sleep(time.Second * 3)
+				continue
+			}
+			break
 		}
 		stakeAmount := accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 		if stakeAmount > 0 {
-			fmt.Printf("stake base account %s has stake %d will skip init", stakeAccoountStr, stakeAmount)
+			fmt.Printf("stakeBaseAccount: %s has stake %d will skip init\n", stakeAccoountStr, stakeAmount)
 			continue
 		}
 
+		fmt.Printf("\nstart init stake for stakeBaseAccount: %s\n", stakeAccoountStr)
 		//create derived multisig tx account if not exist onchain
 		multisigTxAccountPubkey, multisigTxAccountSeed := getMultisigTxAccountPubkey(
 			MultisigTxBaseAccount.PublicKey,
@@ -195,10 +219,11 @@ func initAction(ctx *cli.Context) error {
 		stakeInstruction := stakeprog.DelegateStake(account.PublicKey, multisignerPubkey, validatorPubkey)
 
 		_, err = c.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err != nil && err != solClient.ErrAccountNotFound {
-			return err
-		}
-		if err == solClient.ErrAccountNotFound {
+		if err != nil {
+			if err != solClient.ErrAccountNotFound {
+				return err
+			}
+
 			res, err := c.GetRecentBlockhash(context.Background())
 			if err != nil {
 				return fmt.Errorf("get recent block hash error, err: %v", err)
@@ -238,8 +263,11 @@ func initAction(ctx *cli.Context) error {
 			if err != nil {
 				return fmt.Errorf("send tx error, err: %v", err)
 			}
-			fmt.Println("Create multisig tx Transaction txHash:", txHash)
+			fmt.Printf("create multisig tx account: %s Transaction txHash: %s\n", multisigTxAccountPubkey.ToBase58(), txHash)
 			time.Sleep(time.Second * 2)
+
+		} else {
+			fmt.Printf("multisig tx Account: %s exist on chain and will not create\n", multisigTxAccountPubkey.ToBase58())
 		}
 
 		//other fee account approve
@@ -273,12 +301,11 @@ func initAction(ctx *cli.Context) error {
 			if err != nil {
 				return fmt.Errorf("send tx error, err: %v", err)
 			}
-			fmt.Printf("Approve txHash: %s otherfeeAccount:%s\n", txHash, otherFeeAccount[i].PublicKey.ToBase58())
+			fmt.Printf("Approve txHash: %s otherfeeAccount: %s\n", txHash, otherFeeAccount[i].PublicKey.ToBase58())
 			time.Sleep(time.Second * 5)
 		}
 
-		retry := 0
-		retryLimit := 30
+		retry = 0
 		for {
 			if retry > retryLimit {
 				return err
@@ -292,10 +319,10 @@ func initAction(ctx *cli.Context) error {
 			}
 
 			if txInfo.DidExecute == 1 {
-				fmt.Printf("stakeBaseAccount %s init success", stakeAccoountStr)
+				fmt.Printf("stakeBaseAccount %s init success\n\n", stakeAccoountStr)
 				break
 			} else {
-				fmt.Printf("stakeBaseAccount %s not init yet, waiting...", stakeAccoountStr)
+				fmt.Printf("stakeBaseAccount %s not init yet, waiting...\n", stakeAccoountStr)
 				retry++
 				time.Sleep(3 * time.Second)
 				continue
@@ -308,6 +335,6 @@ func initAction(ctx *cli.Context) error {
 }
 
 func getMultisigTxAccountPubkey(baseAccount, programID, stakeBaseAccount solCommon.PublicKey, index int) (solCommon.PublicKey, string) {
-	seed := fmt.Sprintf("initAccount:%s:%d", stakeBaseAccount.ToBase58(), index)
+	seed := fmt.Sprintf("initAccount:%s:%d", stakeBaseAccount.ToBase58()[:4], index)
 	return solCommon.CreateWithSeed(baseAccount, seed, programID), seed
 }
