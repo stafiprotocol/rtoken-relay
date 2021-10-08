@@ -15,6 +15,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var retryLimit = 50
+
 //1 create stakeBaseAccount if not exist on chain
 //2 create multisigInfo account if not exist on chain
 //3 init stake for stakeBaseAccount if stakeBaseAccount`s stake amount is zero
@@ -135,8 +137,23 @@ func initAction(ctx *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
-		fmt.Println("createStakeBaseAccount txHash:", txHash, stakeAccoountStr)
+		fmt.Println("create stakeBaseAccount txHash:", txHash, stakeAccoountStr)
 		time.Sleep(time.Second * 2)
+
+		retry := 0
+		for {
+			if retry > retryLimit {
+				return err
+			}
+			_, err = c.GetStakeAccountInfo(context.Background(), stakeAccoountStr)
+			if err != nil {
+				fmt.Printf("stakeBaseAccount %s not init yet, waiting...\n", MultisigInfoAccount.PublicKey.ToBase58())
+				retry++
+				time.Sleep(3 * time.Second)
+				continue
+			}
+			break
+		}
 	}
 
 	//2 create multisigInfo account if not exist on chain
@@ -177,8 +194,23 @@ func initAction(ctx *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
-		fmt.Println("create multisigInfo account txHash:", txHash)
+		fmt.Println("create multisigInfoAccount txHash:", txHash)
 		time.Sleep(time.Second * 2)
+
+		retry := 0
+		for {
+			if retry > retryLimit {
+				return err
+			}
+			_, err = c.GetMultisigInfoAccountInfo(ctx.Context, MultisigInfoAccount.PublicKey.ToBase58())
+			if err != nil {
+				fmt.Printf("multisigInfoAccount %s not init yet, waiting...\n", MultisigInfoAccount.PublicKey.ToBase58())
+				retry++
+				time.Sleep(3 * time.Second)
+				continue
+			}
+			break
+		}
 
 	} else {
 		fmt.Printf("multisigInfoAccount: %s exist on chain and will not create\n", MultisigInfoAccount.PublicKey.ToBase58())
@@ -189,7 +221,6 @@ func initAction(ctx *cli.Context) error {
 		var accountInfo *solClient.StakeAccountRsp
 		var err error
 		retry := 0
-		retryLimit := 50
 		for {
 			if retry > retryLimit {
 				return err
