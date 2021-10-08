@@ -76,6 +76,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	// must deal every stakeBaseAccounts
 	for stakeBaseAccountIndex, useStakeBaseAccount := range poolClient.StakeBaseAccounts {
+		w.log.Info("processEraPoolUpdatedEvt is dealing stakeBaseAccounts", "index", stakeBaseAccountIndex,
+			"stakeBaseAccount", useStakeBaseAccount.PublicKey.ToBase58())
 		//check exist and create
 		stakeAccountPubkey, stakeAccountSeed := GetStakeAccountPubkey(useStakeBaseAccount.PublicKey, snap.Era)
 		multisigTxtype := MultisigTxStakeType
@@ -132,7 +134,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							stakeprog.Lockup{},
 						),
 					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
+					Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
 					FeePayer:        poolClient.FeeAccount.PublicKey,
 					RecentBlockHash: res.Blockhash,
 				})
@@ -149,7 +151,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 							stakeAccountDataLength,
 						),
 					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, poolClient.StakeBaseAccount},
+					Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
 					FeePayer:        poolClient.FeeAccount.PublicKey,
 					RecentBlockHash: res.Blockhash,
 				})

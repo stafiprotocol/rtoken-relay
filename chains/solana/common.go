@@ -20,8 +20,8 @@ import (
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
-var retryLimit = 50
-var waitTime = time.Second * 5
+var retryLimit = 200
+var waitTime = time.Second * 6
 var backCheckLen = 6
 
 func (w *writer) printContentError(m *core.Message, err error) {
@@ -79,7 +79,8 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 
 	// must deal every stakeBaseAccounts
 	for stakeBaseAccountIndex, useStakeBaseAccount := range poolClient.StakeBaseAccounts {
-
+		w.log.Info("MergeAndWithdraw is dealing stakeBaseAccounts", "index", stakeBaseAccountIndex,
+			"stakeBaseAccount", useStakeBaseAccount.PublicKey.ToBase58())
 		//get derived account
 		canWithdrawAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
 		canMergeAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
@@ -98,7 +99,6 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 				context.Background(),
 				stakeAccountPubkey.ToBase58(),
 				solClient.GetStakeActivationConfig{})
-
 			if err != nil {
 				if strings.Contains(err.Error(), "account not found") {
 					continue
@@ -136,12 +136,13 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 
 		//no need withdraw,just report to stafi
 		if len(canWithdrawAccounts) == 0 && len(canMergeAccounts) == 0 {
-			w.log.Info("MergeAndWithdraw no need merge and withdraw ",
+			w.log.Info("MergeAndWithdraw no need merge and withdraw,will deal next stakeBaseAccount ",
+				"stakeBaseAccount", useStakeBaseAccount.PublicKey.ToBase58(),
 				"pool address", poolAddrBase58Str,
 				"era", currentEra,
 				"snapId", shotId.Hex())
 
-			return true
+			continue
 		}
 		w.log.Info("canWithdrawAccounts", "accouts", mapToString(canWithdrawAccounts))
 		w.log.Info("canMergeAccounts", "accounts", mapToString(canMergeAccounts))
@@ -217,7 +218,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 		if isExe {
 			w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-			return true
+			continue
 		}
 		//approve multisig tx
 		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
@@ -238,7 +239,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 func mapToString(accountsMap map[solCommon.PublicKey]solClient.GetStakeActivationResponse) string {
 	ret := ""
 	for account, active := range accountsMap {
-		ret = ret + account.ToBase58() + fmt.Sprintf(" : %+v", active) + "\n"
+		ret = ret + account.ToBase58() + fmt.Sprintf(" : %+v\n", active)
 	}
 	return ret
 }

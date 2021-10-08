@@ -31,7 +31,6 @@ type Connection struct {
 
 type PoolAccounts struct {
 	FeeAccount            string   `json:"feeAccount"`
-	StakeBaseAccount      string   `json:"stakeBaseAccount"`
 	StakeBaseAccounts     []string `json:"stakeBaseAccounts"`
 	MultisigTxBaseAccount string   `json:"multisigTxBaseAccount"`
 	MultisigInfoPubkey    string   `json:"multisigInfoPubkey"`
@@ -87,7 +86,6 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 		poolAccounts := solana.PoolAccounts{
 			FeeAccount:            solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.FeeAccount]),
-			StakeBaseAccount:      solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.StakeBaseAccount]),
 			StakeBaseAccounts:     stakeBaseAccounts,
 			MultisigTxBaseAccount: solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.MultisigTxBaseAccount]),
 			MultisigInfoPubkey:    solCommon.PublicKeyFromString(pAccounts.MultisigInfoPubkey),
