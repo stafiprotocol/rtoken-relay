@@ -20,8 +20,8 @@ import (
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
-var retryLimit = 200
-var waitTime = time.Second * 6
+var retryLimit = 400
+var waitTime = time.Second * 3
 var backCheckLen = 6
 
 func (w *writer) printContentError(m *core.Message, err error) {

@@ -4,15 +4,15 @@
       "name": "Stafi",
       "type": "substrate",
       "rsymbol": "RFIS",
-      "endpoint": "wss://stafi-seiya.stafi.io",
+      "endpoint": "ws://127.0.0.1:9944",
       "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "123PKYndfZtuFaQuWkDdAgGvJwUpn6DA1WNafP738oSDvuhj"
+        "35arN8keEJhSeSnpyH9Cu6CBsmGchGgJi577CxHyPUuobUhg"
       ],
       "latestBlockFlag": false,
       "opts": {
         "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
-        "startBlock": "21856",
+        "startBlock": "340",
         "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "chainType": "stafi",
         "cares": [
@@ -22,21 +22,27 @@
       }
     },
     {
-      "name": "solanaTestnet",
+      "name": "solanaMainnet",
       "type": "solana",
-      "endpoint": "https://testnet.solana.com",
+      "endpoint": "http://127.0.0.1:8899",
       "rsymbol": "RSOL",
       "accounts": [
-        "9Riwnxn53S4wmy5h5nbQN1gxTCm1EvgqB4Gc5aKDAPyc"
+        "AycgB5EyyTmuQCrKTkymFQnn6F3PPNRyKuzv6dkuwBhc"
       ],
       "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys/solana-vault.json",
       "opts": {
-        "9Riwnxn53S4wmy5h5nbQN1gxTCm1EvgqB4Gc5aKDAPyc": {
-          "feeAccount": "4gK7CJc8EepimFR5MhhL2Bzq6vFXUyePew2ivbchrek5",
-          "stakeBaseAccount": "Gnr9LuHUh85Dt7Qr3tayXrxFAEn32jRDfsgTAyywFhyh",
-          "multisigTxBaseAccount": "ByorhXUES7EQHxx5epzgD7PM5fyorqE7L4XmAY2Qz6Vm",
-          "multisigInfoPubkey": "4eKCjYpqB4ojg1DtyeGMLEtNAsGUa9QAbPZTeK7eq4Av",
-          "multisigProgramId": "2hNMLYb3DPqTKPi1s2KuSCYNMzoJBP524JUyEiS1dTA6"
+        "AycgB5EyyTmuQCrKTkymFQnn6F3PPNRyKuzv6dkuwBhc": {
+          "feeAccount": "D2Qux8umtJ6VAaBuLfDPi9VyHBHhiEB1dKhPKFocKg6q",
+          "stakeBaseAccounts": [
+            "DSjuiD1JjE8iUEsoNkPfTkxHWWeFV6UMGSaDPwNLsuP7",
+            "BmHZVLMTGdt9nHrdmpXXW2G9MJ9vfngazryDj6WL2ufF",
+            "8MMLQC81fBgpy6otutGxjyz3nyjPUemsNTxDP3Ep1HmH",
+            "6i2acixUhnvXtHSw7SiZe3yara1tCAzRJpudGVqaPhVK",
+            "J6L2EyHooCuRLKR17ABFmLmCD9Uq9xwDuboJUpZ5wdH7"
+          ],
+          "multisigTxBaseAccount": "4nyVLK53qrTDyvedPpikckNKfANrYTdAta9wjJr3Q6fY",
+          "multisigInfoPubkey": "EL56ZS43MXghYvvjvk9wXqEWZeA9eJ8gpmGPLnrB81Nk",
+          "multisigProgramId": "G6ZS2HHHG8sbzTgx6QxbXLLmDLRXvAZuxi5vz8PQ9HF4"
         }
       }
     }

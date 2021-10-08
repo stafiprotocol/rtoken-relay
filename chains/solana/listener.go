@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	BlockRetryInterval = time.Second * 6
-	BlockRetryLimit    = 100
-	EraInterval        = time.Minute * 2
+	BlockRetryInterval = time.Second * 3
+	BlockRetryLimit    = 400
+	EraInterval        = time.Minute * 1
 )
 
 //listen event or block update from solana

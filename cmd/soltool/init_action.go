@@ -15,7 +15,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var retryLimit = 50
+var retryLimit = 200
 
 //1 create stakeBaseAccount if not exist on chain
 //2 create multisigInfo account if not exist on chain
