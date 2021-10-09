@@ -343,7 +343,6 @@ func (w *writer) createMultisigTxAccount(
 			"err", err)
 		return false
 	}
-	miniMumBalanceForTx *= 2
 	//send from one relayers
 	//create multisig tx account of this era
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{

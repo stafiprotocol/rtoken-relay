@@ -99,7 +99,6 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 				"err", err)
 			return false
 		}
-		miniMumBalanceForStake *= 2
 
 		_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 		if err != nil && err == solClient.ErrAccountNotFound {
