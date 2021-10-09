@@ -40,16 +40,16 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	activeTotal := int64(0)
 	// must deal every stakeBaseAccounts
-	for _, useStakeBaseAccount := range poolClient.StakeBaseAccounts {
+	for _, useStakeBaseAccountPubKey := range poolClient.StakeBaseAccountPubkeys {
 
 		//get base account
 		accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(),
-			useStakeBaseAccount.PublicKey.ToBase58())
+			useStakeBaseAccountPubKey.ToBase58())
 
 		if err != nil {
 			w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
 				"pool  address", poolAddrBase58Str,
-				"stake base account", useStakeBaseAccount.PublicKey.ToBase58(),
+				"stake base account", useStakeBaseAccountPubKey.ToBase58(),
 				"error", err)
 			return false
 		}
@@ -58,7 +58,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		//get derived account
 		for i := uint32(0); i < uint32(backCheckLen); i++ {
 			//this use current era not snap era
-			stakeAccountPubkey, _ := GetStakeAccountPubkey(useStakeBaseAccount.PublicKey, currentEra-i)
+			stakeAccountPubkey, _ := GetStakeAccountPubkey(useStakeBaseAccountPubKey, currentEra-i)
 			accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 			if err != nil {
 				if err == solClient.ErrAccountNotFound {

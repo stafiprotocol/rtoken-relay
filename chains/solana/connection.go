@@ -67,30 +67,57 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, fmt.Errorf("opening: %w", err)
 	}
 
-	privKeyMap := make(map[string]vault.PrivateKey)
+	//collect privkey
+	pubKeyStrToPrivKey := make(map[string]vault.PrivateKey)
 	for _, privKey := range v.KeyBag {
-		privKeyMap[privKey.PublicKey().String()] = privKey
+		pubKeyStrToPrivKey[privKey.PublicKey().String()] = privKey
 	}
 
+	//create pool client
 	for _, pool := range cfg.Accounts {
 		pAccounts := poolAccounts[pool]
-		stakeBaseAccounts := make([]solTypes.Account, 0)
+		stakeBasePubkeyToAccounts := make(map[solCommon.PublicKey]solTypes.Account)
+		stakeBaseAccountPubkeys := make([]solCommon.PublicKey, 0)
 		for _, account := range pAccounts.StakeBaseAccounts {
-			stakeBaseAccounts = append(stakeBaseAccounts,
-				solTypes.AccountFromPrivateKeyBytes(privKeyMap[account]))
+			accountPubkey := solCommon.PublicKeyFromString(account)
+			//stake base account privkey may not exist
+			if pKey, exist := pubKeyStrToPrivKey[account]; exist {
+				stakeBasePubkeyToAccounts[accountPubkey] = solTypes.AccountFromPrivateKeyBytes(pKey)
+			}
+			stakeBaseAccountPubkeys = append(stakeBaseAccountPubkeys, accountPubkey)
 		}
-		//sort accounts
-		sort.SliceStable(stakeBaseAccounts, func(i, j int) bool {
-			return stakeBaseAccounts[i].PublicKey.ToBase58() < stakeBaseAccounts[j].PublicKey.ToBase58()
+
+		//sort stake base account pubkeys
+		sort.SliceStable(stakeBaseAccountPubkeys, func(i, j int) bool {
+			return stakeBaseAccountPubkeys[i].ToBase58() < stakeBaseAccountPubkeys[j].ToBase58()
 		})
 
+		if _, exist := pubKeyStrToPrivKey[pAccounts.FeeAccount]; !exist {
+			return nil, fmt.Errorf("feeAccount privkey must exist")
+		}
+
+		var multisigTxBaseAccount *solTypes.Account
+		if pKey, exist := pubKeyStrToPrivKey[pAccounts.MultisigTxBaseAccount]; exist {
+			account := solTypes.AccountFromPrivateKeyBytes(pKey)
+			multisigTxBaseAccount = &account
+		}
+
+		//check auth
+		hasBaseAccountAuth := false
+		if len(stakeBaseAccountPubkeys) == len(stakeBasePubkeyToAccounts) && multisigTxBaseAccount != nil {
+			hasBaseAccountAuth = true
+		}
+
 		poolAccounts := solana.PoolAccounts{
-			FeeAccount:            solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.FeeAccount]),
-			StakeBaseAccounts:     stakeBaseAccounts,
-			MultisigTxBaseAccount: solTypes.AccountFromPrivateKeyBytes(privKeyMap[pAccounts.MultisigTxBaseAccount]),
-			MultisigInfoPubkey:    solCommon.PublicKeyFromString(pAccounts.MultisigInfoPubkey),
-			MultisignerPubkey:     solCommon.PublicKeyFromString(pool),
-			MultisigProgramId:     solCommon.PublicKeyFromString(pAccounts.MultisigProgramId),
+			FeeAccount:                  solTypes.AccountFromPrivateKeyBytes(pubKeyStrToPrivKey[pAccounts.FeeAccount]),
+			StakeBaseAccountPubkeys:     stakeBaseAccountPubkeys,
+			StakeBasePubkeyToAccounts:   stakeBasePubkeyToAccounts,
+			MultisigTxBaseAccount:       multisigTxBaseAccount,
+			MultisigTxBaseAccountPubkey: solCommon.PublicKeyFromString(pAccounts.MultisigTxBaseAccount),
+			MultisigInfoPubkey:          solCommon.PublicKeyFromString(pAccounts.MultisigInfoPubkey),
+			MultisignerPubkey:           solCommon.PublicKeyFromString(pool),
+			MultisigProgramId:           solCommon.PublicKeyFromString(pAccounts.MultisigProgramId),
+			HasBaseAccountAuth:          hasBaseAccountAuth,
 		}
 		poolClientMap[pool] = solana.NewPoolClient(log, solClient.NewClient(cfg.Endpoint), poolAccounts)
 

@@ -23,7 +23,6 @@ type listener struct {
 	name   string
 	symbol core.RSymbol
 	conn   *Connection
-	//subscriptions map[*eventId]eventHandler // Handlers for specific events
 	router chains.Router
 	log    log15.Logger
 	stop   <-chan int
@@ -35,7 +34,6 @@ func NewListener(name string, symbol core.RSymbol, conn *Connection, log log15.L
 		name:   name,
 		symbol: symbol,
 		conn:   conn,
-		//subscriptions: make(map[*eventId]eventHandler),
 		log:    log,
 		stop:   stop,
 		sysErr: sysErr,
@@ -66,7 +64,7 @@ func (l *listener) pollBlocks() error {
 	for {
 		select {
 		case <-l.stop:
-			return TerminatedError
+			return ErrorTerminated
 		case <-ticker.C:
 			if retry <= 0 {
 				return fmt.Errorf("poolBlocks reach retry limit ,symbol: %s", l.symbol)

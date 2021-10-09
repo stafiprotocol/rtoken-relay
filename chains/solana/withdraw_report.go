@@ -56,7 +56,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 
 	for i := 0; i <= len(flow.Receives)/multisigSendMaxNumber; i++ {
 		multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkeyForTransfer(
-			poolClient.MultisigTxBaseAccount.PublicKey,
+			poolClient.MultisigTxBaseAccountPubkey,
 			poolClient.MultisigProgramId,
 			flow.Snap.Era,
 			i)
@@ -85,23 +85,29 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		}
 		remainingAccounts := multisigprog.GetRemainAccounts(transferInstructions)
 
-		_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err != nil && err == solClient.ErrAccountNotFound {
-			sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
-				multisigTxAccountPubkey, multisigTxAccountSeed, "processWithdrawReportedEvent")
-			if !sendOk {
+		if poolClient.HasBaseAccountAuth {
+			if poolClient.MultisigTxBaseAccount == nil {
+				w.log.Error("MultisigTxBaseAccount privkey not exist", "MultisigTxBaseAccount", poolClient.MultisigTxBaseAccountPubkey)
+				return false
+			}
+
+			_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+			if err != nil && err == solClient.ErrAccountNotFound {
+				sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
+					multisigTxAccountPubkey, multisigTxAccountSeed, "processWithdrawReportedEvent")
+				if !sendOk {
+					return false
+				}
+			}
+
+			if err != nil && err != solClient.ErrAccountNotFound {
+				w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo err",
+					"pool  address", poolAddrBase58Str,
+					"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+					"err", err)
 				return false
 			}
 		}
-
-		if err != nil && err != solClient.ErrAccountNotFound {
-			w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo err",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-				"err", err)
-			return false
-		}
-
 		//check multisig tx account is created
 		create := w.waitingForMultisigTxCreate(rpcClient, poolAddrBase58Str, multisigTxAccountPubkey.ToBase58(), "processWithdrawReportedEvent")
 		if !create {

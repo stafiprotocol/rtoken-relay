@@ -7,7 +7,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
-var TerminatedError = errors.New("terminated")
+var ErrorTerminated = errors.New("terminated")
 
 type Chain struct {
 	cfg      *core.ChainConfig // The config of the chain

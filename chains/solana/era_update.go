@@ -72,20 +72,20 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			"err", err)
 		return false
 	}
-	stakeBaseAccountLen := len(poolClient.StakeBaseAccounts)
+	stakeBaseAccountLen := len(poolClient.StakeBaseAccountPubkeys)
 
 	// must deal every stakeBaseAccounts
-	for stakeBaseAccountIndex, useStakeBaseAccount := range poolClient.StakeBaseAccounts {
+	for stakeBaseAccountIndex, useStakeBaseAccountPubKey := range poolClient.StakeBaseAccountPubkeys {
 		w.log.Info("processEraPoolUpdatedEvt is dealing stakeBaseAccounts", "index", stakeBaseAccountIndex,
-			"stakeBaseAccount", useStakeBaseAccount.PublicKey.ToBase58())
+			"stakeBaseAccount", useStakeBaseAccountPubKey.ToBase58())
 		//check exist and create
-		stakeAccountPubkey, stakeAccountSeed := GetStakeAccountPubkey(useStakeBaseAccount.PublicKey, snap.Era)
+		stakeAccountPubkey, stakeAccountSeed := GetStakeAccountPubkey(useStakeBaseAccountPubKey, snap.Era)
 		multisigTxtype := MultisigTxStakeType
 		if bondCmpUnbondResult < 0 {
 			multisigTxtype = MultisigTxUnStakeType
 		}
 		multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkey(
-			poolClient.MultisigTxBaseAccount.PublicKey,
+			poolClient.MultisigTxBaseAccountPubkey,
 			poolClient.MultisigProgramId,
 			multisigTxtype,
 			snap.Era,
@@ -99,87 +99,95 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 				"err", err)
 			return false
 		}
+		miniMumBalanceForStake += 100 // stake account balance must > minRent
 
-		_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
-		if err != nil && err == solClient.ErrAccountNotFound {
-			//send from  relayers no need multisig
-			//create new stake acount of this era
-			res, err := rpcClient.GetRecentBlockhash(context.Background())
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
-					"pool address", poolAddrBase58Str,
+		if poolClient.HasBaseAccountAuth {
+			useStakeBaseAccount, exist := poolClient.StakeBasePubkeyToAccounts[useStakeBaseAccountPubKey]
+			if !exist {
+				w.log.Error("stakeBaseAccount privkey not exist", "stakeBaseAccount", useStakeBaseAccountPubKey.ToBase58())
+				return false
+			}
+			_, err = rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
+			if err != nil && err == solClient.ErrAccountNotFound {
+				//send from  relayers no need multisig
+				//create new stake acount of this era
+				res, err := rpcClient.GetRecentBlockhash(context.Background())
+				if err != nil {
+					w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
+						"pool address", poolAddrBase58Str,
+						"err", err)
+					return false
+				}
+				var rawTx []byte
+				if bondCmpUnbondResult > 0 {
+					rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+						Instructions: []solTypes.Instruction{
+							sysprog.CreateAccountWithSeed(
+								poolClient.FeeAccount.PublicKey,
+								stakeAccountPubkey,
+								useStakeBaseAccountPubKey,
+								solCommon.StakeProgramID,
+								stakeAccountSeed,
+								miniMumBalanceForStake,
+								stakeAccountDataLength,
+							),
+							stakeprog.Initialize(
+								stakeAccountPubkey,
+								stakeprog.Authorized{
+									Staker:     poolClient.MultisignerPubkey,
+									Withdrawer: poolClient.MultisignerPubkey,
+								},
+								stakeprog.Lockup{},
+							),
+						},
+						Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
+						FeePayer:        poolClient.FeeAccount.PublicKey,
+						RecentBlockHash: res.Blockhash,
+					})
+				} else {
+					rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+						Instructions: []solTypes.Instruction{
+							sysprog.CreateAccountWithSeed(
+								poolClient.FeeAccount.PublicKey,
+								stakeAccountPubkey,
+								useStakeBaseAccountPubKey,
+								solCommon.StakeProgramID,
+								stakeAccountSeed,
+								miniMumBalanceForStake,
+								stakeAccountDataLength,
+							),
+						},
+						Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
+						FeePayer:        poolClient.FeeAccount.PublicKey,
+						RecentBlockHash: res.Blockhash,
+					})
+				}
+				if err != nil {
+					w.log.Error("processEraPoolUpdatedEvt CreateRawTransaction failed",
+						"pool address", poolAddrBase58Str,
+						"err", err)
+					return false
+				}
+				txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+				if err != nil {
+					w.log.Error("processEraPoolUpdatedEvt SendRawTransaction failed",
+						"pool address", poolAddrBase58Str,
+						"err", err)
+					return false
+				}
+				w.log.Info("processEraPoolUpdatedEvt create stake account",
+					"tx hash", txHash,
+					"stake account", stakeAccountPubkey.ToBase58())
+
+			}
+
+			if err != nil && err != solClient.ErrAccountNotFound {
+				w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
+					"pool  address", poolAddrBase58Str,
+					"stake address", stakeAccountPubkey.ToBase58(),
 					"err", err)
 				return false
 			}
-			var rawTx []byte
-			if bondCmpUnbondResult > 0 {
-				rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-					Instructions: []solTypes.Instruction{
-						sysprog.CreateAccountWithSeed(
-							poolClient.FeeAccount.PublicKey,
-							stakeAccountPubkey,
-							useStakeBaseAccount.PublicKey,
-							solCommon.StakeProgramID,
-							stakeAccountSeed,
-							miniMumBalanceForStake,
-							stakeAccountDataLength,
-						),
-						stakeprog.Initialize(
-							stakeAccountPubkey,
-							stakeprog.Authorized{
-								Staker:     poolClient.MultisignerPubkey,
-								Withdrawer: poolClient.MultisignerPubkey,
-							},
-							stakeprog.Lockup{},
-						),
-					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
-					FeePayer:        poolClient.FeeAccount.PublicKey,
-					RecentBlockHash: res.Blockhash,
-				})
-			} else {
-				rawTx, err = solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
-					Instructions: []solTypes.Instruction{
-						sysprog.CreateAccountWithSeed(
-							poolClient.FeeAccount.PublicKey,
-							stakeAccountPubkey,
-							useStakeBaseAccount.PublicKey,
-							solCommon.StakeProgramID,
-							stakeAccountSeed,
-							miniMumBalanceForStake,
-							stakeAccountDataLength,
-						),
-					},
-					Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
-					FeePayer:        poolClient.FeeAccount.PublicKey,
-					RecentBlockHash: res.Blockhash,
-				})
-			}
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt CreateRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
-			if err != nil {
-				w.log.Error("processEraPoolUpdatedEvt SendRawTransaction failed",
-					"pool address", poolAddrBase58Str,
-					"err", err)
-				return false
-			}
-			w.log.Info("processEraPoolUpdatedEvt create stake account",
-				"tx hash", txHash,
-				"stake account", stakeAccountPubkey.ToBase58())
-
-		}
-
-		if err != nil && err != solClient.ErrAccountNotFound {
-			w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
-				"pool  address", poolAddrBase58Str,
-				"stake address", stakeAccountPubkey.ToBase58(),
-				"err", err)
-			return false
 		}
 
 		//check stakeaccount is created
@@ -207,11 +215,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		var accountMetas [][]solTypes.AccountMeta
 		var datas [][]byte
 
-		stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), useStakeBaseAccount.PublicKey.ToBase58())
+		stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), useStakeBaseAccountPubKey.ToBase58())
 		if err != nil {
 			w.log.Error("processEraPoolUpdatedEvt GetStakeAccountInfo err",
 				"pool  address", poolAddrBase58Str,
-				"stake base address", useStakeBaseAccount.PublicKey.ToBase58(),
+				"stake base address", useStakeBaseAccountPubKey.ToBase58(),
 				"err", err)
 			return false
 		}
@@ -235,7 +243,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			//unstake average to stakeBaseAccount
 			val := new(big.Int).Div(totalVal, big.NewInt(int64(stakeBaseAccountLen)))
 
-			splitInstruction = stakeprog.Split(useStakeBaseAccount.PublicKey,
+			splitInstruction = stakeprog.Split(useStakeBaseAccountPubKey,
 				poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
 			deactiveInstruction = stakeprog.Deactivate(stakeAccountPubkey, poolClient.MultisignerPubkey)
 			remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
@@ -244,21 +252,28 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			datas = [][]byte{splitInstruction.Data, deactiveInstruction.Data}
 		}
 
-		_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-		if err != nil && err == solClient.ErrAccountNotFound {
-			sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programsIds, accountMetas, datas,
-				multisigTxAccountPubkey, multisigTxAccountSeed, "processEraPoolUpdatedEvt")
-			if !sendOk {
+		if poolClient.HasBaseAccountAuth {
+			if poolClient.MultisigTxBaseAccount == nil {
+				w.log.Error("MultisigTxBaseAccount privkey not exist", "MultisigTxBaseAccount", poolClient.MultisigTxBaseAccountPubkey)
 				return false
 			}
-		}
 
-		if err != nil && err != solClient.ErrAccountNotFound {
-			w.log.Error("GetMultisigTxAccountInfo err",
-				"pool  address", poolAddrBase58Str,
-				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-				"err", err)
-			return false
+			_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+			if err != nil && err == solClient.ErrAccountNotFound {
+				sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programsIds, accountMetas, datas,
+					multisigTxAccountPubkey, multisigTxAccountSeed, "processEraPoolUpdatedEvt")
+				if !sendOk {
+					return false
+				}
+			}
+
+			if err != nil && err != solClient.ErrAccountNotFound {
+				w.log.Error("GetMultisigTxAccountInfo err",
+					"pool  address", poolAddrBase58Str,
+					"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+					"err", err)
+				return false
+			}
 		}
 
 		//check multisig tx account is created
