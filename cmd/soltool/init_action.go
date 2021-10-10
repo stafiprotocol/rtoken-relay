@@ -86,13 +86,13 @@ func initAction(ctx *cli.Context) error {
 	c := solClient.NewClient(pc.Endpoint)
 
 	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
-		solClient.GetStakeAccountInfoConfigDefault.DataSlice.Length)
+		solClient.StakeAccountInfoLengthDefault)
 	if err != nil {
 		return err
 	}
 
 	multisigAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
-		solClient.MultisigTxAccountLengthDefault)
+		solClient.MultisigInfoAccountLengthDefault)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func initAction(ctx *cli.Context) error {
 					account.PublicKey,
 					solCommon.StakeProgramID,
 					initStakeAmount+stakeAccountMiniMum,
-					solClient.GetStakeAccountInfoConfigDefault.DataSlice.Length,
+					solClient.StakeAccountInfoLengthDefault,
 				),
 				stakeprog.Initialize(
 					account.PublicKey,
@@ -179,7 +179,7 @@ func initAction(ctx *cli.Context) error {
 					MultisigInfoAccount.PublicKey,
 					MultisigProgramId,
 					multisigAccountMiniMum*2,
-					solClient.MultisigTxAccountLengthDefault,
+					solClient.MultisigInfoAccountLengthDefault,
 				),
 				multisigprog.CreateMultisig(
 					MultisigProgramId,

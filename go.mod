@@ -19,7 +19,7 @@ require (
 	github.com/stafiprotocol/chainbridge v0.0.0-20210122054647-25195c4be148
 	github.com/stafiprotocol/go-sdk v1.3.1
 	github.com/stafiprotocol/go-substrate-rpc-client v1.1.0
-	github.com/stafiprotocol/solana-go-sdk v0.3.10
+	github.com/stafiprotocol/solana-go-sdk v0.3.11
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.9
 	github.com/urfave/cli/v2 v2.3.0

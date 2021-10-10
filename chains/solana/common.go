@@ -23,6 +23,7 @@ import (
 var retryLimit = 400
 var waitTime = time.Second * 3
 var backCheckLen = 6
+var initStakeAmount = uint64(100)
 
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)
@@ -341,14 +342,14 @@ func (w *writer) createMultisigTxAccount(
 			"err", err)
 		return false
 	}
-	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), 1000)
+	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), solClient.MultisigTxAccountLengthDefault)
 	if err != nil {
 		w.log.Error(fmt.Sprintf("[%s] GetMinimumBalanceForRentExemption failed", processName),
 			"pool address", poolAddress,
 			"err", err)
 		return false
 	}
-	miniMumBalanceForTx += 100
+	miniMumBalanceForTx += initStakeAmount
 	//send from one relayers
 	//create multisig tx account of this era
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
@@ -360,7 +361,7 @@ func (w *writer) createMultisigTxAccount(
 				poolClient.MultisigProgramId,
 				multisigTxAccountSeed,
 				miniMumBalanceForTx,
-				1000,
+				solClient.MultisigTxAccountLengthDefault,
 			),
 			multisigprog.CreateTransaction(
 				poolClient.MultisigProgramId,

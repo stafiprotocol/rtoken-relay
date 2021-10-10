@@ -18,10 +18,6 @@ import (
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
-var (
-	stakeAccountDataLength = uint64(200)
-)
-
 //process eraPoolUpdate event
 //0 check bond/unbond
 //  (1)if no need just report bond to stafi
@@ -92,14 +88,15 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 			stakeBaseAccountIndex)
 
 		rpcClient := poolClient.GetRpcClient()
-		miniMumBalanceForStake, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), stakeAccountDataLength)
+		miniMumBalanceForStake, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(),
+			solClient.StakeAccountInfoLengthDefault)
 		if err != nil {
 			w.log.Error("processEraPoolUpdatedEvt GetMinimumBalanceForRentExemption failed",
 				"pool address", poolAddrBase58Str,
 				"err", err)
 			return false
 		}
-		miniMumBalanceForStake += 100 // stake account balance must > minRent
+		miniMumBalanceForStake += initStakeAmount // stake account balance must > minRent
 
 		if poolClient.HasBaseAccountAuth {
 			useStakeBaseAccount, exist := poolClient.StakeBasePubkeyToAccounts[useStakeBaseAccountPubKey]
@@ -129,7 +126,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 								solCommon.StakeProgramID,
 								stakeAccountSeed,
 								miniMumBalanceForStake,
-								stakeAccountDataLength,
+								solClient.StakeAccountInfoLengthDefault,
 							),
 							stakeprog.Initialize(
 								stakeAccountPubkey,
@@ -154,7 +151,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 								solCommon.StakeProgramID,
 								stakeAccountSeed,
 								miniMumBalanceForStake,
-								stakeAccountDataLength,
+								solClient.StakeAccountInfoLengthDefault,
 							),
 						},
 						Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
