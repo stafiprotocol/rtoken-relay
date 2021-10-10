@@ -16,6 +16,7 @@ import (
 )
 
 var retryLimit = 200
+var initStakeAmount = uint64(100)
 
 //1 create stakeBaseAccount if not exist on chain
 //2 create multisigInfo account if not exist on chain
@@ -75,18 +76,23 @@ func initAction(ctx *cli.Context) error {
 		otherFeeAccount = append(otherFeeAccount, a)
 		owners = append(owners, a.PublicKey)
 	}
-	multisignerPubkey, nonce, err := solCommon.FindProgramAddress([][]byte{MultisigInfoAccount.PublicKey.Bytes()}, MultisigProgramId)
+	multisignerPubkey, nonce, err := solCommon.FindProgramAddress(
+		[][]byte{MultisigInfoAccount.PublicKey.Bytes()}, MultisigProgramId)
 	if err != nil {
 		return err
 	}
 	fmt.Println("multisigner:", multisignerPubkey.ToBase58())
 
 	c := solClient.NewClient(pc.Endpoint)
-	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(), 200)
+
+	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
+		solClient.GetStakeAccountInfoConfigDefault.DataSlice.Length)
 	if err != nil {
 		return err
 	}
-	multisigAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(), 1000)
+
+	multisigAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
+		solClient.MultisigTxAccountLengthDefault)
 	if err != nil {
 		return err
 	}
@@ -106,15 +112,15 @@ func initAction(ctx *cli.Context) error {
 			continue
 		}
 
-		//create stakeBaseAccount and transfer 2.xxx sol to stakeBaseAccount
+		//create stakeBaseAccount and transfer 100+rent lamport to stakeBaseAccount
 		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 			Instructions: []solTypes.Instruction{
 				sysprog.CreateAccount(
 					FeeAccount.PublicKey,
 					account.PublicKey,
 					solCommon.StakeProgramID,
-					2000000000+stakeAccountMiniMum*2,
-					200,
+					initStakeAmount+stakeAccountMiniMum,
+					solClient.GetStakeAccountInfoConfigDefault.DataSlice.Length,
 				),
 				stakeprog.Initialize(
 					account.PublicKey,
@@ -173,7 +179,7 @@ func initAction(ctx *cli.Context) error {
 					MultisigInfoAccount.PublicKey,
 					MultisigProgramId,
 					multisigAccountMiniMum*2,
-					1000,
+					solClient.MultisigTxAccountLengthDefault,
 				),
 				multisigprog.CreateMultisig(
 					MultisigProgramId,
@@ -269,7 +275,7 @@ func initAction(ctx *cli.Context) error {
 						MultisigProgramId,
 						multisigTxAccountSeed,
 						multisigAccountMiniMum*2,
-						1000,
+						solClient.MultisigTxAccountLengthDefault,
 					),
 					multisigprog.CreateTransaction(
 						MultisigProgramId,
