@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -84,10 +85,50 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 			"err", err)
 		return false
 	}
-	stakeBaseAccountLen := len(poolClient.StakeBaseAccountPubkeys)
+	rpcClient := poolClient.GetRpcClient()
+	//get stake amount
+	stakeBaseAccountPubkeyToStakeAmount := make(map[solCommon.PublicKey]int64)
+	willUseStakeBaseAccounts := make([]solCommon.PublicKey, 0)
+	for _, stakeBaseAccountPubKey := range poolClient.StakeBaseAccountPubkeys {
+		stakeAccount, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeBaseAccountPubKey.ToBase58())
+		if err != nil {
+			w.log.Error("processUnStake GetStakeAccountInfo failed",
+				"stake account", stakeBaseAccountPubKey.ToBase58(),
+				"err", err)
+			return false
+		}
+		stakeBaseAccountPubkeyToStakeAmount[stakeBaseAccountPubKey] = stakeAccount.StakeAccount.Info.Stake.Delegation.Stake
+		willUseStakeBaseAccounts = append(willUseStakeBaseAccounts, stakeBaseAccountPubKey)
+	}
+	//sort by amount
+	//sort stakeAccount pubkey by delegate amount
+	sort.Slice(willUseStakeBaseAccounts, func(i int, j int) bool {
+		return stakeBaseAccountPubkeyToStakeAmount[willUseStakeBaseAccounts[i]] >
+			stakeBaseAccountPubkeyToStakeAmount[willUseStakeBaseAccounts[j]]
+	})
+	//choose validators to be undelegated
+	choosedStakeBaseAccount := make([]solCommon.PublicKey, 0)
+	choosedAmount := make(map[solCommon.PublicKey]int64)
+	willUseTotalVal := new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int).Int64()
+	selectedAmount := int64(0)
+	for _, baseAccount := range willUseStakeBaseAccounts {
+		nowValMaxUnDeleAmount := stakeBaseAccountPubkeyToStakeAmount[baseAccount] - int64(initStakeAmount)
+		if selectedAmount+nowValMaxUnDeleAmount >= willUseTotalVal {
+			willUseChoosedAmount := willUseTotalVal - selectedAmount
 
-	// must deal every stakeBaseAccounts
-	for stakeBaseAccountIndex, useStakeBaseAccountPubKey := range poolClient.StakeBaseAccountPubkeys {
+			choosedStakeBaseAccount = append(choosedStakeBaseAccount, baseAccount)
+			choosedAmount[baseAccount] = willUseChoosedAmount
+			selectedAmount = selectedAmount + willUseChoosedAmount
+			break
+		}
+
+		choosedStakeBaseAccount = append(choosedStakeBaseAccount, baseAccount)
+		choosedAmount[baseAccount] = nowValMaxUnDeleAmount
+		selectedAmount = selectedAmount + nowValMaxUnDeleAmount
+	}
+
+	// must deal every selected takeBaseAccounts
+	for stakeBaseAccountIndex, useStakeBaseAccountPubKey := range choosedStakeBaseAccount {
 		w.log.Info("processEraPoolUpdatedEvt is dealing stakeBaseAccounts", "index", stakeBaseAccountIndex,
 			"stakeBaseAccount", useStakeBaseAccountPubKey.ToBase58())
 		//check exist and create
@@ -100,7 +141,6 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 			snap.Era,
 			stakeBaseAccountIndex)
 
-		rpcClient := poolClient.GetRpcClient()
 		miniMumBalanceForStake, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(),
 			solClient.StakeAccountInfoLengthDefault)
 		if err != nil {
@@ -187,13 +227,11 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 		var accountMetas [][]solTypes.AccountMeta
 		var datas [][]byte
 
-		//unstake
-		totalVal := new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int)
-		//unstake average to stakeBaseAccount
-		val := new(big.Int).Div(totalVal, big.NewInt(int64(stakeBaseAccountLen)))
-
+		//unstake val
+		val := choosedAmount[useStakeBaseAccountPubKey]
 		splitInstruction = stakeprog.Split(useStakeBaseAccountPubKey,
-			poolClient.MultisignerPubkey, stakeAccountPubkey, val.Uint64())
+			poolClient.MultisignerPubkey, stakeAccountPubkey, uint64(val))
+
 		deactiveInstruction = stakeprog.Deactivate(stakeAccountPubkey, poolClient.MultisignerPubkey)
 		remainingAccounts = multisigprog.GetRemainAccounts([]solTypes.Instruction{splitInstruction, deactiveInstruction})
 		programsIds = []solCommon.PublicKey{splitInstruction.ProgramID, deactiveInstruction.ProgramID}
