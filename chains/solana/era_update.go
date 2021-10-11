@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 	"sort"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mr-tron/base58"
@@ -86,20 +87,41 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 		return false
 	}
 	rpcClient := poolClient.GetRpcClient()
-	//get stake amount
+
+	//collect stake amount
+	//will check stakeAccounts derived in this era for preventing the case of interruption
+	//if exist add the stake amount of derived stakeAccount to stakeBaseAccount
 	stakeBaseAccountPubkeyToStakeAmount := make(map[solCommon.PublicKey]int64)
 	willUseStakeBaseAccounts := make([]solCommon.PublicKey, 0)
 	for _, stakeBaseAccountPubKey := range poolClient.StakeBaseAccountPubkeys {
-		stakeAccount, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeBaseAccountPubKey.ToBase58())
+		stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeBaseAccountPubKey.ToBase58())
 		if err != nil {
 			w.log.Error("processUnStake GetStakeAccountInfo failed",
 				"stake account", stakeBaseAccountPubKey.ToBase58(),
 				"err", err)
 			return false
 		}
-		stakeBaseAccountPubkeyToStakeAmount[stakeBaseAccountPubKey] = stakeAccount.StakeAccount.Info.Stake.Delegation.Stake
+		stakeAmount := stakeBaseAccountInfo.StakeAccount.Info.Stake.Delegation.Stake
+
+		//add stake amount of  derived stake account if exist
+		derivedStakeAccountPubkey, _ := GetStakeAccountPubkey(stakeBaseAccountPubKey, snap.Era)
+		derivedStakeAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), derivedStakeAccountPubkey.ToBase58())
+		if err != nil {
+			if err != solClient.ErrAccountNotFound {
+				w.log.Error("processUnStake GetStakeAccountInfo failed",
+					"stake account", stakeBaseAccountPubKey.ToBase58(),
+					"err", err)
+				return false
+			}
+		} else {
+			stakeAmount += derivedStakeAccountInfo.StakeAccount.Info.Stake.Delegation.Stake
+		}
+
+		stakeBaseAccountPubkeyToStakeAmount[stakeBaseAccountPubKey] = stakeAmount
 		willUseStakeBaseAccounts = append(willUseStakeBaseAccounts, stakeBaseAccountPubKey)
+		time.Sleep(500 * time.Millisecond)
 	}
+
 	//sort by amount
 	//sort stakeAccount pubkey by delegate amount
 	sort.Slice(willUseStakeBaseAccounts, func(i int, j int) bool {
