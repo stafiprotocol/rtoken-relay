@@ -23,7 +23,7 @@ import (
 var retryLimit = 400
 var waitTime = time.Second * 3
 var backCheckLen = 6
-var initStakeAmount = uint64(100)
+var initStakeAmount = uint64(10000)
 
 func (w *writer) printContentError(m *core.Message, err error) {
 	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason, "err", err)

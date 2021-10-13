@@ -16,7 +16,7 @@ import (
 )
 
 var retryLimit = 200
-var initStakeAmount = uint64(100)
+var initStakeAmount = uint64(10000)
 
 //1 create stakeBaseAccount if not exist on chain
 //2 create multisigInfo account if not exist on chain
