@@ -15,6 +15,9 @@ import (
 	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/itering/substrate-api-rpc/util"
 	gsrpc "github.com/stafiprotocol/go-substrate-rpc-client"
+	gsrpcConfig "github.com/stafiprotocol/go-substrate-rpc-client/config"
+	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	wbskt "github.com/stafiprotocol/rtoken-relay/shared/substrate/websocket"
 	"github.com/stafiprotocol/rtoken-relay/types/polkadot"
@@ -27,7 +30,13 @@ const (
 )
 
 type SarpcClient struct {
-	endpoint           string
+	endpoint    string
+	addressType string
+	api         *gsrpc.SubstrateAPI
+	key         *signature.KeyringPair
+	genesisHash types.Hash
+	stop        <-chan int
+
 	wsPool             wbskt.Pool
 	log                log15.Logger
 	chainType          string
@@ -35,6 +44,7 @@ type SarpcClient struct {
 	typesPath          string
 	currentSpecVersion int
 	metaDecoder        interface{}
+	metaDataVersion int
 }
 
 var (
@@ -44,17 +54,29 @@ var (
 	}
 )
 
-func NewSarpcClient(chainType, endpoint, typesPath string, log log15.Logger) (*SarpcClient, error) {
+func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *signature.KeyringPair, log log15.Logger, stop <-chan int) (*SarpcClient, error) {
+	log.Info("Connecting to substrate chain with sarpc", "endpoint", endpoint)
+
+	if addressType != AddressTypeAccountId && addressType != AddressTypeMultiAddress {
+		return nil, errors.New("addressType not supported")
+	}
+
 	api, err := gsrpc.NewSubstrateAPI(endpoint)
 	if err != nil {
 		return nil, err
 	}
 
+	gsrpcConfig.SetSubscribeTimeout(2 * time.Minute)
 	latestHash, err := api.RPC.Chain.GetFinalizedHead()
 	if err != nil {
 		return nil, err
 	}
 	log.Info("NewSarpcClient", "latestHash", latestHash.Hex())
+
+	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
+	if err != nil {
+		return nil, err
+	}
 
 	md := metaDecoders[chainType]
 	if md == nil {
@@ -62,8 +84,13 @@ func NewSarpcClient(chainType, endpoint, typesPath string, log log15.Logger) (*S
 	}
 
 	sc := &SarpcClient{
-		chainType:          chainType,
 		endpoint:           endpoint,
+		chainType:          chainType,
+		addressType:        addressType,
+		api:                api,
+		key:                key,
+		genesisHash:        genesisHash,
+		stop:               stop,
 		wsPool:             nil,
 		log:                log,
 		metaRaw:            "",
@@ -177,12 +204,14 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 			if err := md.Process(); err != nil {
 				return err
 			}
+			sc.metaDataVersion = md.VersionNumber
 		case ChainTypePolkadot:
 			md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
 			md.Init(utiles.HexToBytes(metaRaw))
 			if err := md.Process(); err != nil {
 				return err
 			}
+			sc.metaDataVersion = md.VersionNumber
 		default:
 			return errors.New("chainType not supported")
 		}

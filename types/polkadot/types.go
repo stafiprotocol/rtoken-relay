@@ -3,12 +3,8 @@ package polkadot
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	"github.com/huandu/xstrings"
-	"github.com/itering/scale.go/utiles"
-	"github.com/itering/scale.go/utiles/crypto/ethereum"
-	"github.com/itering/scale.go/utiles/uint128"
-	"github.com/shopspring/decimal"
 	"io"
 	"math"
 	"math/big"
@@ -16,6 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/huandu/xstrings"
+	"github.com/itering/scale.go/utiles"
+	"github.com/itering/scale.go/utiles/crypto/ethereum"
+	"github.com/itering/scale.go/utiles/uint128"
+	"github.com/shopspring/decimal"
+
+	"github.com/stafiprotocol/rtoken-relay/types"
 )
 
 type HexBytes struct {
@@ -145,19 +149,25 @@ func (b *Bool) Process() {
 	b.Value = b.getNextBool()
 }
 
-type Moment struct {
+type CompactMoment struct {
 	CompactU32
 }
 
-func (m *Moment) Init(data ScaleBytes, option *ScaleDecoderOption) {
-	m.TypeString = "Compact<Moment>"
-	m.ScaleDecoder.Init(data, option)
-}
-
-func (m *Moment) Process() {
+func (m *CompactMoment) Process() {
 	m.CompactU32.Process()
 	if m.Value.(int) > 10000000000 {
 		m.Value = m.Value.(int) / 1000
+	}
+}
+
+type Moment struct {
+	U64
+}
+
+func (m *Moment) Process() {
+	m.U64.Process()
+	if m.Value.(uint64) > 10000000000 {
+		m.Value = m.Value.(uint64) / 1000
 	}
 }
 
@@ -194,7 +204,7 @@ func (v *Vec) Process() {
 	elementCount := v.ProcessAndUpdateData("Compact<u32>").(int)
 	var result []interface{}
 	if elementCount > 50000 {
-		panic(fmt.Sprintf("Vec length %d exceeds %d", elementCount, 50000))
+		panic(fmt.Sprintf("Vec length %d exceeds %d with subType %s", elementCount, 50000, v.SubType))
 	}
 	for i := 0; i < elementCount; i++ {
 		element := v.ProcessAndUpdateData(v.SubType)
@@ -211,13 +221,18 @@ type BoundedVec struct {
 // https://github.com/paritytech/substrate/pull/8556
 func (v *BoundedVec) Init(data ScaleBytes, option *ScaleDecoderOption) {
 	if option != nil {
-		if BoundedArr := strings.Split(option.SubType, ","); len(BoundedArr) > 2 {
+		if BoundedArr := strings.Split(option.SubType, ","); len(BoundedArr) >= 2 {
 			size := BoundedArr[len(BoundedArr)-1]
 			v.SubType = strings.Replace(option.SubType, fmt.Sprintf(",%s", size), "", 1)
 			option.SubType = v.SubType
 		}
 	}
 	v.ScaleDecoder.Init(data, option)
+}
+
+// https://github.com/paritytech/substrate/pull/8842
+type WeakBoundedVec struct {
+	BoundedVec
 }
 
 type Address struct {
@@ -296,8 +311,8 @@ func (e *Enum) Process() {
 				break
 			}
 		}
-		rustEnum := make(map[int]string)
 		if isCLikeEnum {
+			rustEnum := make(map[int]string)
 			for index, v := range e.TypeMapping.Names {
 				rustEnum[utiles.StringToInt(e.TypeMapping.Types[index])] = v
 			}
@@ -305,6 +320,16 @@ func (e *Enum) Process() {
 			return
 		}
 		if subType := e.TypeMapping.Types[e.Index]; subType != "" {
+			// struct subType
+			var typeMap [][]string
+			if len(subType) > 4 && subType[0:2] == "[[" && json.Unmarshal([]byte(subType), &typeMap) == nil && len(typeMap) > 0 && len(typeMap[0]) == 2 {
+				result := make(map[string]interface{})
+				for _, v := range typeMap {
+					result[v[0]] = e.ProcessAndUpdateData(v[1])
+				}
+				e.Value = map[string]interface{}{e.TypeMapping.Names[e.Index]: result}
+				return
+			}
 			e.Value = map[string]interface{}{e.TypeMapping.Names[e.Index]: e.ProcessAndUpdateData(subType)}
 			return
 		}
@@ -356,10 +381,10 @@ func (s *BoxProposal) Process() {
 		"call_name":   callModule.Call.Name,
 		"call_module": callModule.Module.Name,
 	}
-	var param []ExtrinsicParam
+	var param []types.ExtrinsicParam
 	s.Module = callModule.Module.Name
 	for _, arg := range callModule.Call.Args {
-		param = append(param, ExtrinsicParam{
+		param = append(param, types.ExtrinsicParam{
 			Name:  arg.Name,
 			Type:  arg.Type,
 			Value: s.ProcessAndUpdateData(arg.Type),
@@ -436,7 +461,7 @@ func (s *Set) Process() {
 type LogDigest struct{ Enum }
 
 func (l *LogDigest) Init(data ScaleBytes, option *ScaleDecoderOption) {
-	l.ValueList = []string{"Other", "AuthoritiesChange", "ChangesTrieRoot", "SealV0", "Consensus", "Seal", "PreRuntime", "ChangesTrieSignal"}
+	l.ValueList = []string{"Other", "AuthoritiesChange", "ChangesTrieRoot", "SealV0", "Consensus", "Seal", "PreRuntime", "ChangesTrieSignal", "RuntimeEnvironmentUpdated"}
 	l.Enum.Init(data, option)
 }
 
@@ -547,6 +572,8 @@ type RawBabePreDigestPrimary struct{ Struct }
 
 type RawBabePreDigestSecondary struct{ Struct }
 
+type RuntimeEnvironmentUpdated struct{ Null }
+
 type SlotNumber struct{ U64 }
 
 type BabeBlockWeight struct{ U32 }
@@ -597,13 +624,17 @@ func (f *FixedLengthArray) Init(data ScaleBytes, option *ScaleDecoderOption) {
 func (f *FixedLengthArray) Process() {
 	var result []interface{}
 	if f.FixedLength > 0 {
+		if strings.EqualFold(f.SubType, "u8") {
+			f.Value = utiles.BytesToHex(f.NextBytes(f.FixedLength))
+			return
+		}
 		for i := 0; i < f.FixedLength; i++ {
 			result = append(result, f.ProcessAndUpdateData(f.SubType))
 		}
+		f.Value = result
 	} else {
 		f.GetNextU8()
 	}
-	f.Value = result
 }
 
 type AuthorityId struct{ H256 }
@@ -628,10 +659,10 @@ func (s *Call) Process() {
 		"call_name":   callModule.Call.Name,
 		"call_module": callModule.Module.Name,
 	}
-	var param []ExtrinsicParam
+	var param []types.ExtrinsicParam
 	s.Module = callModule.Module.Name
 	for _, arg := range callModule.Call.Args {
-		param = append(param, ExtrinsicParam{
+		param = append(param, types.ExtrinsicParam{
 			Name:  arg.Name,
 			Type:  arg.Type,
 			Value: s.ProcessAndUpdateData(arg.Type),
