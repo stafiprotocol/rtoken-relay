@@ -712,7 +712,7 @@ func (c *Connection) isBalanceEnough(key bnckeys.KeyManager, action BcActionType
 	case BcBondAction:
 		return amount+bondFee < free, nil
 	case BcUnbondAction:
-		return amount+unbondFee < free, nil
+		return unbondFee < free, nil
 	case BcSwapAction:
 		return amount+transferFee < free, nil
 	default:
