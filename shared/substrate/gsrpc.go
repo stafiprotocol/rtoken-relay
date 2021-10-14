@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -102,10 +103,14 @@ func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 		return false, err
 	}
 
+	fmt.Printf("entry: %+v\n", entry)
+
 	key, err := types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1, arg2)
 	if err != nil {
 		return false, err
 	}
+
+	fmt.Println("CreateStorageKeyWithEntryMeta", hexutil.Encode(key))
 
 	api, err := sc.FlashApi()
 	if err != nil {
@@ -526,8 +531,6 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 					continue
 				}
 
-				fmt.Printf("%+v\n", s)
-
 				sfm := types.StorageFunctionMetadataV13{
 					Name: types.Text(s.Name),
 				}
@@ -541,10 +544,10 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 
 				if s.Type.DoubleMapType != nil {
 					dmt := types.DoubleMapTypeV10{
-						Key1: types.Type(s.Type.DoubleMapType.Key),
-						Key2: types.Type(s.Type.DoubleMapType.Key2),
-						Value: types.Type(s.Type.DoubleMapType.Value),
-						Hasher: TransformHasher(s.Type.DoubleMapType.Hasher),
+						Key1:       types.Type(s.Type.DoubleMapType.Key),
+						Key2:       types.Type(s.Type.DoubleMapType.Key2),
+						Value:      types.Type(s.Type.DoubleMapType.Value),
+						Hasher:     TransformHasher(s.Type.DoubleMapType.Hasher),
 						Key2Hasher: TransformHasher(s.Type.DoubleMapType.Key2Hasher),
 					}
 
@@ -555,9 +558,9 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 				}
 
 				if s.Type.MapType != nil {
-					mt := types.MapTypeV10 {
-						Key: types.Type(s.Type.MapType.Key),
-						Value: types.Type(s.Type.MapType.Value),
+					mt := types.MapTypeV10{
+						Key:    types.Type(s.Type.MapType.Key),
+						Value:  types.Type(s.Type.MapType.Value),
 						Linked: s.Type.MapType.IsLinked,
 						Hasher: TransformHasher(s.Type.MapType.Hasher),
 					}
@@ -579,11 +582,10 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 						hashers = append(hashers, TransformHasher(hasher))
 					}
 
-
-					nmt := types.NMapTypeV13 {
-						Keys: keys,
+					nmt := types.NMapTypeV13{
+						Keys:    keys,
 						Hashers: hashers,
-						Value: types.Type(s.Type.NMapType.Value),
+						Value:   types.Type(s.Type.NMapType.Value),
 					}
 
 					sfm.Type = types.StorageFunctionTypeV13{
@@ -603,6 +605,35 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 }
 
 func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
+	switch sc.chainType {
+	case ChainTypeStafi:
+		meta, err := sc.api.RPC.State.GetMetadataLatest()
+		if err != nil {
+			return types.CallIndex{}, err
+		}
+
+		return meta.FindCallIndex(call)
+	case ChainTypePolkadot:
+		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		s := strings.Split(call, ".")
+
+		for _, mod := range md.Metadata.Metadata.Modules {
+			if string(mod.Name) != s[0] {
+				continue
+			}
+			for ci, f := range mod.Calls {
+				if string(f.Name) == s[1] {
+					return types.CallIndex{uint8(mod.Index), uint8(ci)}, nil
+				}
+			}
+			return types.CallIndex{}, fmt.Errorf("method %v not found within module %v for call %v", s[1], mod.Name, call)
+		}
+		return types.CallIndex{}, fmt.Errorf("module %v not found in metadata for call %v", s[0], call)
+
+	default:
+		return types.CallIndex{}, errors.New("FindCallIndex chainType not supported")
+	}
+
 	return types.CallIndex{}, nil
 }
 
@@ -633,5 +664,3 @@ func TransformHasher(Hasher string) types.StorageHasherV10 {
 
 	return types.StorageHasherV10{IsIdentity: true}
 }
-
-

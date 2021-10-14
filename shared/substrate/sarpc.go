@@ -44,7 +44,7 @@ type SarpcClient struct {
 	typesPath          string
 	currentSpecVersion int
 	metaDecoder        interface{}
-	metaDataVersion int
+	metaDataVersion    int
 }
 
 var (
@@ -204,14 +204,14 @@ func (sc *SarpcClient) UpdateMeta(blockHash string) error {
 			if err := md.Process(); err != nil {
 				return err
 			}
-			sc.metaDataVersion = md.VersionNumber
+			sc.metaDataVersion = md.Metadata.MetadataVersion
 		case ChainTypePolkadot:
 			md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
 			md.Init(utiles.HexToBytes(metaRaw))
 			if err := md.Process(); err != nil {
 				return err
 			}
-			sc.metaDataVersion = md.VersionNumber
+			sc.metaDataVersion = md.Metadata.MetadataVersion
 		default:
 			return errors.New("chainType not supported")
 		}

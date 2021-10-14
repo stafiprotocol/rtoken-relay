@@ -3,6 +3,7 @@ package substrate
 import (
 	"fmt"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -273,43 +274,53 @@ var (
 //	assert.NoError(t, err)
 //}
 //
-//func TestBatchTransfer(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
-//	jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
-//	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
-//	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
-//
-//	addrs := []types.Address{less, jun, wen, bao}
-//
-//	amount, _ := utils.StringToBigint("3000" + "000000000000")
-//	value := types.NewUCompact(amount)
-//
-//	calls := make([]types.Call, 0)
-//	meta, err := gc.GetLatestMetadata()
-//	assert.NoError(t, err)
-//
-//	for _, addr := range addrs {
-//		call, err := types.NewCall(
-//			meta,
-//			config.MethodTransferKeepAlive,
-//			addr,
-//			value,
-//		)
-//		assert.NoError(t, err)
-//		calls = append(calls, call)
-//	}
-//
-//	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
-//	assert.NoError(t, err)
-//
-//	err = gc.SignAndSubmitTx(ext)
-//	assert.NoError(t, err)
-//}
-//
+func TestBatchTransfer(t *testing.T) {
+	stop := make(chan int)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+	jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+	wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+	bao, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+
+	addrs := []types.Address{less, jun, wen, bao}
+
+	amount, _ := utils.StringToBigint("3000" + "000000000000")
+	value := types.NewUCompact(amount)
+	calls := make([]types.Call, 0)
+
+	ci, err := sc.FindCallIndex(config.MethodTransferKeepAlive)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, addr := range addrs {
+		call, err := types.NewCallWithCallIndex(
+			ci,
+			config.MethodTransferKeepAlive,
+			addr,
+			value,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		calls = append(calls, call)
+	}
+
+	ext, err := sc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sc.SignAndSubmitTx(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 //func TestBatchTransfer1(t *testing.T) {
 //	stop := make(chan int)
 //	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
@@ -439,6 +450,23 @@ func TestPolkaQueryStorage(t *testing.T) {
 
 	t.Log(index)
 }
+
+func TestStafiLocalQueryActiveEra(t *testing.T) {
+	stop := make(chan int)
+	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var index uint32
+	exist, err := sc.QueryStorage(config.StakingModuleId, config.StorageActiveEra, nil, nil, &index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(exist)
+	t.Log("activeEra", index)
+}
+
 //
 //func TestGetExistentialDeposit(t *testing.T) {
 //	stop := make(chan int)

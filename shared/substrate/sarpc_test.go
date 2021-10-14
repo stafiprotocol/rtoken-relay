@@ -33,8 +33,8 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//}
 
 	for i := 9648404; i >= 9632170; i-- {
-		if i % 10 == 0 {
-		t.Log("i", i)
+		if i%10 == 0 {
+			t.Log("i", i)
 		}
 
 		_, err := sc.GetEvents(uint64(i))

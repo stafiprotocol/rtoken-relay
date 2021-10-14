@@ -27,9 +27,8 @@ type Connection struct {
 	url     string
 	symbol  core.RSymbol
 	sc      *substrate.SarpcClient
-	gc      *substrate.GsrpcClient
 	keys    []*signature.KeyringPair
-	gcs     map[*signature.KeyringPair]*substrate.GsrpcClient
+	scs     map[*signature.KeyringPair]*substrate.SarpcClient
 	log     log15.Logger
 	stop    <-chan int
 	lastKey *signature.KeyringPair
@@ -66,13 +65,8 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, errors.New("chainType not ok")
 	}
 
-	sc, err := substrate.NewSarpcClient(chainType, cfg.Endpoint, path, log)
-	if err != nil {
-		return nil, err
-	}
-
 	keys := make([]*signature.KeyringPair, 0)
-	gcs := make(map[*signature.KeyringPair]*substrate.GsrpcClient)
+	scs := make(map[*signature.KeyringPair]*substrate.SarpcClient)
 
 	acSize := len(cfg.Accounts)
 	var lk *signature.KeyringPair
@@ -82,12 +76,12 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 		krp := kp.(*sr25519.Keypair).AsKeyringPair()
-		gc, err := substrate.NewGsrpcClient(cfg.Endpoint, addressType, krp, log, stop)
+		sc, err := substrate.NewSarpcClient(chainType, cfg.Endpoint, path, addressType, krp, log, stop)
 		if err != nil {
 			return nil, err
 		}
 		keys = append(keys, krp)
-		gcs[krp] = gc
+		scs[krp] = sc
 
 		if cfg.Symbol != core.RFIS && i+1 == acSize {
 			lk = krp
@@ -103,28 +97,27 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		symbol:  cfg.Symbol,
 		log:     log,
 		stop:    stop,
-		sc:      sc,
-		gc:      gcs[keys[0]],
+		sc:      scs[keys[0]],
 		keys:    keys,
-		gcs:     gcs,
+		scs:     scs,
 		lastKey: lk,
 	}, nil
 }
 
 func (c *Connection) GetBlockNumber(hash types.Hash) (uint64, error) {
-	return c.gc.GetBlockNumber(hash)
+	return c.sc.GetBlockNumber(hash)
 }
 
 func (c *Connection) LatestBlockNumber() (uint64, error) {
-	return c.gc.GetLatestBlockNumber()
+	return c.sc.GetLatestBlockNumber()
 }
 
 func (c *Connection) FinalizedBlockNumber() (uint64, error) {
-	return c.gc.GetFinalizedBlockNumber()
+	return c.sc.GetFinalizedBlockNumber()
 }
 
 func (c *Connection) Address() string {
-	return c.gc.Address()
+	return c.sc.Address()
 }
 
 func (c *Connection) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error) {
@@ -133,23 +126,19 @@ func (c *Connection) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error) 
 
 // queryStorage performs a storage lookup. Arguments may be nil, result must be a pointer.
 func (c *Connection) QueryStorage(prefix, method string, arg1, arg2 []byte, result interface{}) (bool, error) {
-	return c.gc.QueryStorage(prefix, method, arg1, arg2, result)
+	return c.sc.QueryStorage(prefix, method, arg1, arg2, result)
 }
 
 func (c *Connection) GetExtrinsics(blockhash string) ([]*submodel.Transaction, error) {
 	return c.sc.GetExtrinsics(blockhash)
 }
 
-func (c *Connection) LatestMetadata() (*types.Metadata, error) {
-	return c.gc.GetLatestMetadata()
-}
-
 func (c *Connection) FreeBalance(who []byte) (types.U128, error) {
-	return c.gc.FreeBalance(who)
+	return c.sc.FreeBalance(who)
 }
 
 func (c *Connection) ExistentialDeposit() (types.U128, error) {
-	return c.gc.ExistentialDeposit()
+	return c.sc.ExistentialDeposit()
 }
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
@@ -365,7 +354,7 @@ func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
 }
 
 func (c *Connection) IsLastVoter(voter types.AccountID) bool {
-	return hexutil.Encode(c.gc.PublicKey()) == hexutil.Encode(voter[:])
+	return hexutil.Encode(c.sc.PublicKey()) == hexutil.Encode(voter[:])
 }
 
 func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.KeyringPair, []types.AccountID) {
@@ -384,31 +373,31 @@ func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.Ke
 	return nil, nil
 }
 
-func (c *Connection) FoundIndexOfSubAccount(accounts []types.Bytes) (int, *substrate.GsrpcClient) {
+func (c *Connection) FoundIndexOfSubAccount(accounts []types.Bytes) (int, *substrate.SarpcClient) {
 	for i, ac := range accounts {
 		for _, key := range c.keys {
 			if hexutil.Encode(key.PublicKey) == hexutil.Encode(ac) {
-				return i, c.gcs[key]
+				return i, c.scs[key]
 			}
 		}
 	}
 	return -1, nil
 }
 
-func (c *Connection) KeyIndex(key *signature.KeyringPair) *substrate.GsrpcClient {
-	return c.gcs[key]
+func (c *Connection) KeyIndex(key *signature.KeyringPair) *substrate.SarpcClient {
+	return c.scs[key]
 }
 
 func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.MultiOpaqueCall, error) {
-	return c.gc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
+	return c.sc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
 
 func (c *Connection) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
-	return c.gc.WithdrawCall()
+	return c.sc.WithdrawCall()
 }
 
 func (c *Connection) TransferCall(recipient []byte, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
-	return c.gc.TransferCall(recipient, value)
+	return c.sc.TransferCall(recipient, value)
 }
 
 func (c *Connection) LastKey() *signature.KeyringPair {
@@ -416,7 +405,7 @@ func (c *Connection) LastKey() *signature.KeyringPair {
 }
 
 func (c *Connection) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
-	return c.gc.NominateCall(validators)
+	return c.sc.NominateCall(validators)
 }
 
 func (c *Connection) PaymentQueryInfo(ext string) (info *rpc.PaymentQueryInfo, err error) {
@@ -448,25 +437,25 @@ func (c *Connection) AsMulti(flow *submodel.MultiEventFlow) error {
 }
 
 func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
-	gc := c.gcs[flow.Key]
-	if gc == nil {
+	sc := c.scs[flow.Key]
+	if sc == nil {
 		panic(fmt.Sprintf("key disappear: %s, symbol: %s", hexutil.Encode(flow.Key.PublicKey), c.symbol))
 	}
 
 	l := len(flow.OpaqueCalls)
 	if l == 1 {
 		moc := flow.OpaqueCalls[0]
-		ext, err := gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, moc.TimePoint, moc.Opaque, false, flow.PaymentInfo.Weight)
+		ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, moc.TimePoint, moc.Opaque, false, flow.PaymentInfo.Weight)
 		if err != nil {
 			return err
 		}
 
-		return gc.SignAndSubmitTx(ext)
+		return sc.SignAndSubmitTx(ext)
 	}
 
 	calls := make([]types.Call, 0)
 	for _, oc := range flow.OpaqueCalls {
-		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, oc.TimePoint, oc.Opaque, false, flow.PaymentInfo.Weight)
+		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, oc.TimePoint, oc.Opaque, false, flow.PaymentInfo.Weight)
 		if err != nil {
 			return err
 		}
@@ -478,12 +467,12 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 		}
 	}
 
-	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+	ext, err := sc.NewUnsignedExtrinsic(config.MethodBatch, calls)
 	if err != nil {
 		return err
 	}
 
-	return gc.SignAndSubmitTx(ext)
+	return sc.SignAndSubmitTx(ext)
 }
 
 func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validatorFromStafi []types.AccountID) error {
@@ -701,14 +690,14 @@ func (c *Connection) NeedMoreSignature(params *submodel.SubmitSignatureParams) (
 func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool {
 	for i := 0; i < BlockRetryLimit; i++ {
 		c.log.Info("submitSignature on chain...")
-		ext, err := c.gc.NewUnsignedExtrinsic(config.SubmitSignatures, param.Symbol, param.Era, param.Pool,
+		ext, err := c.sc.NewUnsignedExtrinsic(config.SubmitSignatures, param.Symbol, param.Era, param.Pool,
 			param.TxType, param.ProposalId, param.Signature)
 		if err != nil {
 			c.log.Warn("submitSignature error will retry", "err", err)
 			time.Sleep(BlockRetryInterval)
 			continue
 		}
-		err = c.gc.SignAndSubmitTx(ext)
+		err = c.sc.SignAndSubmitTx(ext)
 		if err != nil {
 			if err.Error() == TerminatedError.Error() {
 				c.log.Error("submitSignature  met TerminatedError")

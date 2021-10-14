@@ -35,7 +35,6 @@ const (
 )
 
 var sc *substrate.SarpcClient
-var gc *substrate.GsrpcClient
 
 func init() {
 	var err error
