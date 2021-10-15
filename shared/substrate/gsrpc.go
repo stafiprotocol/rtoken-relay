@@ -619,7 +619,7 @@ func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
 			}
 			for ci, f := range mod.Calls {
 				if string(f.Name) == s[1] {
-					return types.CallIndex{uint8(mod.Index), uint8(ci)}, nil
+					return types.CallIndex{SectionIndex: uint8(mod.Index), MethodIndex: uint8(ci)}, nil
 				}
 			}
 			return types.CallIndex{}, fmt.Errorf("method %v not found within module %v for call %v", s[1], mod.Name, call)
@@ -629,8 +629,6 @@ func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
 	default:
 		return types.CallIndex{}, errors.New("FindCallIndex chainType not supported")
 	}
-
-	return types.CallIndex{}, nil
 }
 
 func TransformHasher(Hasher string) types.StorageHasherV10 {

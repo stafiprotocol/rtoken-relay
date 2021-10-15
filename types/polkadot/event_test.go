@@ -1,4 +1,4 @@
-package polkadot
+package polkadot_test
 
 import (
 	"encoding/json"
