@@ -161,6 +161,9 @@ func (sc *SarpcClient) NewUnsignedExtrinsic(callMethod string, args ...interface
 	sc.log.Debug("Submitting substrate call...", "callMethod", callMethod, "addressType", sc.addressType, "sender", sc.key.Address)
 
 	ci, err := sc.FindCallIndex(callMethod)
+	if err != nil {
+		return nil, err
+	}
 	call, err := types.NewCallWithCallIndex(ci, callMethod, args...)
 	if err != nil {
 		return nil, err

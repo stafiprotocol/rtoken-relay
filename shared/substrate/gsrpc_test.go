@@ -565,6 +565,9 @@ func TestActive(t *testing.T) {
 
 	a := "0xac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c"
 	mac, err := types.NewMultiAddressFromHexAccountID(a)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ledger := new(submodel.StakingLedger)
 	exist, err := sc.QueryStorage(config.StakingModuleId, config.StorageLedger, mac.AsID[:], nil, ledger)
 	if err != nil {
@@ -595,6 +598,7 @@ func TestActive1(t *testing.T) {
 	t.Log(exist)
 	t.Log(types.NewU128(big.Int(ledger.Active)))
 }
+
 //
 //func TestPoolUnbonds(t *testing.T) {
 //	stop := make(chan int)
