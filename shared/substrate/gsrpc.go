@@ -103,14 +103,10 @@ func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 		return false, err
 	}
 
-	fmt.Printf("entry: %+v\n", entry)
-
 	key, err := types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1, arg2)
 	if err != nil {
 		return false, err
 	}
-
-	fmt.Println("CreateStorageKeyWithEntryMeta", hexutil.Encode(key))
 
 	api, err := sc.FlashApi()
 	if err != nil {
