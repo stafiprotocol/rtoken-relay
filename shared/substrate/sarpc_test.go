@@ -2,7 +2,7 @@ package substrate
 
 import (
 	"github.com/ChainSafe/log15"
-	"github.com/stretchr/testify/assert"
+	"github.com/stafiprotocol/rtoken-relay/config"
 	"testing"
 )
 
@@ -22,7 +22,6 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	stop := make(chan int)
 	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
-	assert.NoError(t, err)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,46 +106,53 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 //	}
 //}
 //
-//func TestSarpcClient_GetExtrinsics1(t *testing.T) {
-//	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
-//	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
-//	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, tlog)
-//	assert.NoError(t, err)
-//
-//	/// polkadot-test
-//	exts, err := sc.GetExtrinsics("0xf85b3498c32e3944ddd301b919b110316aa0285d383c9d8dfd351eecce61b2be")
-//	assert.NoError(t, err)
-//	//exts, err := sc.GetExtrinsics("0x3d55fb40d3ac4f96373f5d2d9860154145c09df9b5b83a88062014cea0da5ad3")
-//
-//	/// stafi transfer_keep_alive
-//	//exts, err := sc.GetExtrinsics("0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da4")
-//
-//	for _, ext := range exts {
-//		fmt.Println("exthash", ext.ExtrinsicHash)
-//		fmt.Println("moduleName", ext.CallModuleName)
-//		fmt.Println("methodName", ext.CallName)
-//		fmt.Println("address", ext.Address)
-//		fmt.Println(ext.Params)
-//		for _, p := range ext.Params {
-//			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
-//				//dest, ok := p.Value.(string)
-//				//fmt.Println("ok", ok)
-//				//fmt.Println(dest)
-//
-//				// polkadot-test
-//				dest, ok := p.Value.(map[string]interface{})
-//				fmt.Println("ok", ok)
-//				v, ok := dest["Id"]
-//				fmt.Println("ok1", ok)
-//				val, ok := v.(string)
-//				fmt.Println("ok2", ok)
-//				fmt.Println(val)
-//			}
-//
-//			fmt.Println("name", p.Name, "value", p.Value, "type", p.Type)
-//		}
-//	}
-//}
+func TestSarpcClient_GetExtrinsics1(t *testing.T) {
+	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
+	stop := make(chan int)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 9661014; i >= 9632170; i-- {
+		if i%10 == 0 {
+			t.Log("i", i)
+		}
+
+		bh, err := sc.GetBlockHash(uint64(i))
+		exts, err := sc.GetExtrinsics(bh)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, ext := range exts {
+			t.Log("exthash", ext.ExtrinsicHash)
+			t.Log("moduleName", ext.CallModuleName)
+			t.Log("methodName", ext.CallName)
+			t.Log("address", ext.Address)
+			t.Log(ext.Params)
+			for _, p := range ext.Params {
+				if p.Name == config.ParamDest && p.Type == config.ParamDestType {
+					//dest, ok := p.Value.(string)
+					//fmt.Println("ok", ok)
+					//fmt.Println(dest)
+
+					// polkadot-test
+					dest, ok := p.Value.(map[string]interface{})
+					t.Log("ok", ok)
+					v, ok := dest["Id"]
+					t.Log("ok1", ok)
+					val, ok := v.(string)
+					t.Log("ok2", ok)
+					t.Log(val)
+				}
+
+				t.Log("name", p.Name, "value", p.Value, "type", p.Type)
+			}
+		}
+	}
+}
 //
 //func TestSarpcClient_GetExtrinsics2(t *testing.T) {
 //	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
