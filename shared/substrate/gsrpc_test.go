@@ -558,7 +558,7 @@ func TestStafiLocalQueryActiveEra(t *testing.T) {
 func TestActive(t *testing.T) {
 	stop := make(chan int)
 	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -836,10 +836,10 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	}
 	t.Log("info", info.Class, info.PartialFee, info.Weight)
 
-	optp := types.TimePoint{Height: 1964877, Index: 1}
-	tp := submodel.NewOptionTimePoint(optp)
+	//optp := types.TimePoint{Height: 1964877, Index: 1}
+	//tp := submodel.NewOptionTimePoint(optp)
 
-	//tp := submodel.NewOptionTimePointEmpty()
+	tp := submodel.NewOptionTimePointEmpty()
 	ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
 	if err != nil {
 		t.Fatal(err)

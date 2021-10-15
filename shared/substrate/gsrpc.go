@@ -103,10 +103,30 @@ func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 		return false, err
 	}
 
-	key, err := types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1, arg2)
-	if err != nil {
-		return false, err
+	var key types.StorageKey
+	keySeted := false
+	if entry.IsNMap() {
+		hashers, err := entry.Hashers()
+		if err != nil {
+			return false, err
+		}
+
+		if len(hashers) == 1 {
+			key, err = types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1)
+			if err != nil {
+				return false, err
+			}
+			keySeted = true
+		}
 	}
+
+	if !keySeted {
+		key, err = types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1, arg2)
+		if err != nil {
+			return false, err
+		}
+	}
+
 
 	api, err := sc.FlashApi()
 	if err != nil {
