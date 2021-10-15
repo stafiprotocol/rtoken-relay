@@ -216,7 +216,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 
 		for _, p := range ext.Params {
 			c.log.Info("TransferVerify", "name", p.Name, "type", p.Type)
-			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
+			if p.Name == config.ParamDest {
 				c.log.Debug("cmp dest", "pool", hexutil.Encode(r.Pool), "dest", p.Value)
 
 				dest, ok := p.Value.(string)
@@ -244,7 +244,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 						return submodel.PoolUnmatch, nil
 					}
 				}
-			} else if p.Name == config.ParamValue && p.Type == config.ParamValueType {
+			} else if p.Name == config.ParamValue {
 				c.log.Debug("cmp amount", "amount", r.Amount, "paramAmount", p.Value)
 				if fmt.Sprint(r.Amount) != fmt.Sprint(p.Value) {
 					return submodel.AmountUnmatch, nil

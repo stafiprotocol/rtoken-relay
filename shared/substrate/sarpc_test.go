@@ -153,6 +153,47 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 		}
 	}
 }
+
+
+func TestSarpcClient_GetExtrinsics2(t *testing.T) {
+	stop := make(chan int)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exts, err := sc.GetExtrinsics("0x6157da60a188b3f31d250afe5acb2da786417fec00973f1c7f863504fbca4642")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, ext := range exts {
+		t.Log("exthash", ext.ExtrinsicHash)
+		t.Log("moduleName", ext.CallModuleName)
+		t.Log("methodName", ext.CallName)
+		t.Log("address", ext.Address)
+		t.Log(ext.Params)
+		for _, p := range ext.Params {
+			if p.Name == config.ParamDest && p.Type == config.ParamDestType {
+				//dest, ok := p.Value.(string)
+				//fmt.Println("ok", ok)
+				//fmt.Println(dest)
+
+				// polkadot-test
+				dest, ok := p.Value.(map[string]interface{})
+				t.Log("ok", ok)
+				v, ok := dest["Id"]
+				t.Log("ok1", ok)
+				val, ok := v.(string)
+				t.Log("ok2", ok)
+				t.Log(val)
+			}
+
+			t.Log("name", p.Name, "value", p.Value, "type", p.Type)
+		}
+	}
+}
+
 //
 //func TestSarpcClient_GetExtrinsics2(t *testing.T) {
 //	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)

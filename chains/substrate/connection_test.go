@@ -39,7 +39,7 @@ var sc *substrate.SarpcClient
 func init() {
 	var err error
 	stop := make(chan int)
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, "", AliceKey, tlog, stop)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
 	}
@@ -184,4 +184,27 @@ func TestConnection_PaymentQueryInfo(t *testing.T) {
 	info, err := sc.GetPaymentQueryInfo("0x74b58b2d6fbd6319e4cc7927f1b789d48fc2629437cf9373bf8224934b831f58")
 	assert.NoError(t, err)
 	t.Log(info)
+}
+
+func TestConnection_TransferVerify1(t *testing.T) {
+	conn := Connection{sc: sc, log: tlog, symbol: core.RKSM, stop: make(chan int)}
+	pool, _ := hexutil.Decode("0x0777f13da6fead588d8662fd63336b0008c4fbe4749e18779c1a4bd89ea50141")
+	bonder, _ := hexutil.Decode("0xf698bb9fe10437d9d8b3b27d4bb4bdc683228330cf77f992c2c4f0181c1c5d72")
+	pubkey, _ := hexutil.Decode("0xf698bb9fe10437d9d8b3b27d4bb4bdc683228330cf77f992c2c4f0181c1c5d72")
+	blockHash, _ := hexutil.Decode("0x6157da60a188b3f31d250afe5acb2da786417fec00973f1c7f863504fbca4642")
+	txHash, _ := hexutil.Decode("0xde0f3f2159f82cdfcc8ae161da48ebee347ba2d18e4f4564a636bedb495b15bd")
+	bond := &submodel.BondRecord{
+		Pool:      types.NewBytes(pool),
+		Bonder:    types.NewAccountID(bonder),
+		Symbol:    core.RKSM,
+		Pubkey:    types.NewBytes(pubkey),
+		Blockhash: types.NewBytes(blockHash),
+		Txhash:    types.NewBytes(txHash),
+		Amount:    types.NewU128(*big.NewInt(1000000000000)),
+	}
+
+	result, err := conn.TransferVerify(bond)
+	assert.NoError(t, err)
+	t.Log(result)
+	assert.Equal(t, result, submodel.Pass)
 }
