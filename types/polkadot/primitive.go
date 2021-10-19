@@ -3,10 +3,12 @@ package polkadot
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/itering/scale.go/utiles"
-	"github.com/shopspring/decimal"
 	"io"
 	"math"
+	"strings"
+
+	"github.com/itering/scale.go/utiles"
+	"github.com/shopspring/decimal"
 )
 
 type Compact struct {
@@ -154,5 +156,24 @@ type BitVec struct {
 
 func (b *BitVec) Process() {
 	length := b.ProcessAndUpdateData("Compact<u32>").(int)
-	b.Value = b.NextBytes(int(math.Ceil(float64(length) / 8)))
+	b.Value = utiles.BytesToHex(b.NextBytes(int(math.Ceil(float64(length) / 8))))
+}
+
+type Results struct {
+	ScaleDecoder
+}
+
+func (b *Results) Process() {
+	optionValue := utiles.BytesToHex(b.NextBytes(1))
+	subType := strings.Split(b.SubType, ",")
+	if len(subType) != 2 {
+		panic("Results subType not illegal")
+	}
+	if optionValue == "00" || optionValue == "" {
+		b.Value = map[string]interface{}{"Ok": b.ProcessAndUpdateData(subType[0])}
+	} else if optionValue == "01" {
+		b.Value = map[string]interface{}{"Error": b.ProcessAndUpdateData(subType[1])}
+	} else {
+		panic("illegal Results data")
+	}
 }

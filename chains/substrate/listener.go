@@ -174,12 +174,10 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if l.symbol == core.RFIS {
-				// Write to blockstore
-				err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
-				if err != nil {
-					l.log.Error("Failed to write to blockstore", "err", err)
-				}
+			// Write to blockstore
+			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
+			if err != nil {
+				l.log.Error("Failed to write to blockstore", "err", err)
 			}
 			currentBlock++
 			retry = BlockRetryLimit

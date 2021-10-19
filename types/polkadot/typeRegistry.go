@@ -3,11 +3,12 @@ package polkadot
 import (
 	"errors"
 	"fmt"
-	"github.com/itering/scale.go/source"
-	"github.com/itering/scale.go/utiles"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/itering/scale.go/source"
+	"github.com/itering/scale.go/utiles"
 )
 
 type RuntimeType struct {
@@ -43,6 +44,7 @@ func (r RuntimeType) Reg() *RuntimeType {
 		&Bytes{},
 		&Vec{},
 		&BoundedVec{},
+		&WeakBoundedVec{},
 		&Set{},
 		&CompactU32{},
 		&Bool{},
@@ -109,18 +111,25 @@ func (r RuntimeType) Reg() *RuntimeType {
 		&MetadataV13ModuleStorageEntry{},
 		&MetadataV8Module{},
 		// &MetadataV8Decoder{},
-		// &MetadataV9Decoder{},
-		// &MetadataV10Decoder{},
+		&MetadataV9Decoder{},
+		&MetadataV10Decoder{},
 		&MetadataV11Decoder{},
 		&MetadataV12Decoder{},
 		&MetadataV13Decoder{},
+		&MetadataV14Decoder{},
 		&MetadataV12Module{},
 		&MetadataV13Module{},
+		&MetadataV14Module{},
+		&MetadataV14ModuleStorage{},
+		&MetadataV14ModuleStorageEntry{},
+		&PalletConstantMetadataV14{},
 		&MetadataModuleError{},
 		&GenericLookupSource{},
 		&BTreeMap{},
 		&BTreeSet{},
 		&Box{},
+		&Results{},
+		&RuntimeEnvironmentUpdated{},
 	}
 	for _, class := range scales {
 		valueOf := reflect.ValueOf(class)
@@ -131,8 +140,10 @@ func (r RuntimeType) Reg() *RuntimeType {
 		}
 	}
 	registry["compact<u32>"] = &CompactU32{}
-	registry["compact<moment>"] = &Moment{}
+	registry["compact<moment>"] = &CompactMoment{}
+	registry["str"] = &String{}
 	registry["hash"] = &H256{}
+	registry["blockhash"] = &H256{}
 	registry["i8"] = &IntFixed{FixedLength: 1}
 	registry["i16"] = &IntFixed{FixedLength: 2}
 	registry["i32"] = &IntFixed{FixedLength: 4}
@@ -162,10 +173,11 @@ func (r *RuntimeType) getCodecInstant(t string, spec int) (reflect.Type, reflect
 	if err != nil {
 		rt = TypeRegistry[strings.ToLower(t)]
 		if rt == nil && t != "[]" && string(t[0]) == "[" && t[len(t)-1:] == "]" {
-			if typePart := strings.Split(t[1:len(t)-1], ";"); len(typePart) == 2 {
+			if typePart := strings.Split(t[1:len(t)-1], ";"); len(typePart) >= 2 {
+				remainPart := typePart[0 : len(typePart)-1]
 				fixed := FixedLengthArray{
-					FixedLength: utiles.StringToInt(strings.TrimSpace(typePart[1])),
-					SubType:     strings.TrimSpace(typePart[0]),
+					FixedLength: utiles.StringToInt(strings.TrimSpace(typePart[len(typePart)-1])),
+					SubType:     strings.TrimSpace(strings.Join(remainPart, ";")),
 				}
 				rt = &fixed
 			}
@@ -179,6 +191,9 @@ func (r *RuntimeType) getCodecInstant(t string, spec int) (reflect.Type, reflect
 	if value.Kind() == reflect.Ptr {
 		value = reflect.Indirect(value)
 	}
+	//if f := value.FieldByName("TypeString"); f.String() == "" && f.IsValid() && f.CanSet() {
+	//	f.SetString(t)
+	//}
 	p := reflect.New(value.Type())
 	p.Elem().Set(value)
 	return p.Type(), p, nil
@@ -222,10 +237,7 @@ func (r *RuntimeType) DecoderClass(typeString string, spec int) (reflect.Type, r
 	// namespace
 	if strings.Contains(typeString, "::") && typeString != "::" {
 		namespaceSlice := strings.Split(typeString, "::")
-		class, rc, err := r.getCodecInstant(namespaceSlice[len(namespaceSlice)-1], spec)
-		if err == nil {
-			return class, rc, ""
-		}
+		return r.DecoderClass(namespaceSlice[len(namespaceSlice)-1], spec)
 	}
 
 	return nil, reflect.ValueOf((*error)(nil)).Elem(), ""
@@ -243,25 +255,4 @@ func (r *RuntimeType) specialVersionCodec(t string, spec int) (interface{}, erro
 		}
 	}
 	return rt, fmt.Errorf("not found")
-}
-
-var typesModules = map[string]map[string]string{
-	"parasInclusion": {"validatorindex": "ParaValidatorIndex"},
-	"inclusion":      {"validatorindex": "ParaValidatorIndex"},
-	"parasScheduler": {"validatorindex": "ParaValidatorIndex"},
-	"parasShared":    {"validatorindex": "ParaValidatorIndex"},
-	"scheduler":      {"validatorindex": "ParaValidatorIndex"},
-	"shared":         {"validatorindex": "ParaValidatorIndex"},
-	"assets":         {"approval": "AssetApproval", "approvalkey": "AssetApprovalKey", "balance": "TAssetBalance", "destroywitness": "AssetDestroyWitness"},
-}
-
-func (r *RuntimeType) overrideModuleType(t string) string {
-	moduleTypes, ok := typesModules[strings.ToLower(r.Module)]
-	if !ok {
-		return t
-	}
-	if overrideType, ok := moduleTypes[t]; ok {
-		return overrideType
-	}
-	return t
 }

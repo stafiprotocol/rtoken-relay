@@ -18,14 +18,14 @@ var ErrExpired = errors.New("proposal expired")
 var ErrAlreadyVoted = errors.New("proposal already voted")
 
 func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	method := config.MethodExecuteBondRecord
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodExecuteBondRecord
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		flow.Symbol,
 		flow.BondId,
@@ -39,13 +39,13 @@ func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.P
 }
 
 func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bondId, shotId types.Hash) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		symbol,
 		shotId,
@@ -58,14 +58,14 @@ func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bo
 }
 
 func (c *Connection) NewBondReportProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	method := config.MethodNewBondReport
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodNewBondReport
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		flow.Symbol,
 		flow.ShotId,
@@ -79,14 +79,14 @@ func (c *Connection) NewBondReportProposal(flow *submodel.EraPoolUpdatedFlow) (*
 }
 
 func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	method := config.MethodBondAndReportActive
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodBondAndReportActive
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		flow.Symbol,
 		flow.ShotId,
@@ -102,14 +102,14 @@ func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFl
 }
 
 func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	method := config.MethodActiveReport
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodActiveReport
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		flow.Symbol,
 		flow.ShotId,
@@ -123,14 +123,14 @@ func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*sub
 }
 
 func (c *Connection) NewActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	method := config.MethodNewActiveReport
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodNewActiveReport
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		flow.Symbol,
 		flow.ShotId,
@@ -170,13 +170,13 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 
 		c.log.Info("Acknowledging proposal on chain...")
 		//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
-		ext, err := c.gc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Symbol, prop.BondId, inFavour, prop.Call)
+		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Symbol, prop.BondId, inFavour, prop.Call)
 		if err != nil {
 			c.log.Error("NewUnsignedExtrinsic error", "err", err)
 			time.Sleep(BlockRetryInterval)
 			continue
 		}
-		err = c.gc.SignAndSubmitTx(ext)
+		err = c.sc.SignAndSubmitTx(ext)
 		if err != nil {
 			if err.Error() == TerminatedError.Error() {
 				c.log.Error("Acknowledging proposal met TerminatedError")
@@ -221,11 +221,11 @@ func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error
 		return false, fmt.Sprintf("CurrentVoteStatus: %s", state.Status), nil
 	}
 
-	if containsVote(state.VotesFor, types.NewAccountID(c.gc.PublicKey())) {
+	if containsVote(state.VotesFor, types.NewAccountID(c.sc.PublicKey())) {
 		return false, "already voted for", ErrAlreadyVoted
 	}
 
-	if containsVote(state.VotesAgainst, types.NewAccountID(c.gc.PublicKey())) {
+	if containsVote(state.VotesAgainst, types.NewAccountID(c.sc.PublicKey())) {
 		return false, "already voted against", ErrAlreadyVoted
 	}
 
@@ -233,14 +233,14 @@ func (c *Connection) proposalValid(prop *submodel.Proposal) (bool, string, error
 }
 
 func (c *Connection) SetChainEraProposal(symbol core.RSymbol, bondId types.Hash, newEra uint32) (*submodel.Proposal, error) {
-	meta, err := c.LatestMetadata()
+	method := config.MethodSetChainEra
+	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	method := config.MethodSetChainEra
 
-	call, err := types.NewCall(
-		meta,
+	call, err := types.NewCallWithCallIndex(
+		ci,
 		method,
 		symbol,
 		newEra,

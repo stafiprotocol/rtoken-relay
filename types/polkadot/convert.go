@@ -16,11 +16,13 @@ func ConvertType(name string, option ...interface{}) string {
 	name = strings.ReplaceAll(name, "<T, I>", "")
 	name = strings.ReplaceAll(name, "\n", " ")
 	name = strings.ReplaceAll(name, `&'static[u8]`, "Bytes")
+	name = strings.ReplaceAll(name, `BoundedBTreeSet`, "BTreeSet")
+	if strings.EqualFold(name, "Vec<u8>") {
+		name = "Bytes"
+	}
 	switch name {
 	case "()", "<InherentOfflineReport as InherentOfflineReport>::Inherent":
 		name = "Null"
-	case "Vec<u8>":
-		name = "Bytes"
 	case "<Lookup as StaticLookup>::Source":
 		name = "Address"
 	case "<Balance as HasCompact>::Type":

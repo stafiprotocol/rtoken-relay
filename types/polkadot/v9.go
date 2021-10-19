@@ -2,7 +2,6 @@ package polkadot
 
 import (
 	"encoding/json"
-
 	"github.com/huandu/xstrings"
 	"github.com/itering/scale.go/utiles"
 )
