@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -285,7 +284,14 @@ func (c *Connection) GetTx(poolClient *cosmos.PoolClient, txHash string) (*types
 			retryTx++
 			continue
 		}
-		currentHeight := atomic.LoadInt64(&c.currentHeight)
+		currentHeight, err := poolClient.GetRpcClient().GetCurrentBLockHeight()
+		if err != nil {
+			c.log.Warn(fmt.Sprintf("GetCurrentBLockHeight err: %s ,will retry queryTx after %f second", err, BlockRetryInterval.Seconds()))
+			time.Sleep(BlockRetryInterval)
+			retryTx++
+			continue
+		}
+
 		if txRes.Height+BlockConfirmNumber > currentHeight {
 			c.log.Warn(fmt.Sprintf("confirm number is smaller than %d ,will retry queryTx after %f second", BlockConfirmNumber, BlockRetryInterval.Seconds()))
 			time.Sleep(BlockRetryInterval)

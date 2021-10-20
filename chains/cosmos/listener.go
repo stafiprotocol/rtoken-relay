@@ -25,11 +25,10 @@ type listener struct {
 	startBlock uint64
 	blockstore blockstore.Blockstorer
 	conn       *Connection
-	//subscriptions map[*eventId]eventHandler // Handlers for specific events
-	router chains.Router
-	log    log15.Logger
-	stop   <-chan int
-	sysErr chan<- error
+	router     chains.Router
+	log        log15.Logger
+	stop       <-chan int
+	sysErr     chan<- error
 }
 
 func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
@@ -39,10 +38,9 @@ func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockst
 		startBlock: startBlock,
 		blockstore: bs,
 		conn:       conn,
-		//subscriptions: make(map[*eventId]eventHandler),
-		log:    log,
-		stop:   stop,
-		sysErr: sysErr,
+		log:        log,
+		stop:       stop,
+		sysErr:     sysErr,
 	}
 }
 
