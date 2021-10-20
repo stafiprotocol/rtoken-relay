@@ -61,9 +61,9 @@ func initClient() {
 		panic(err)
 	}
 
-	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
+	client, err = rpc.NewClient(key, "stargate-final", "key0", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
 	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
-	client, _ = rpc.NewClient(key, "cosmoshub-4", "self", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
+	// client, _ = rpc.NewClient(key, "cosmoshub-4", "self", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
 	if err != nil {
 		panic(err)
 	}
@@ -153,14 +153,24 @@ func TestClient_BroadcastTx(t *testing.T) {
 
 func TestClient_QueryTxByHash(t *testing.T) {
 	initClient()
-	res, err := client.QueryTxByHash("6C017062FD3F48F13B640E5FEDD59EB050B148E67EF12EC0A511442D32BD4C88")
-	t.Log(err)
-	assert.NoError(t, err)
-	for _, msg := range res.GetTx().GetMsgs() {
 
-		t.Log(msg.String())
-		t.Log(msg.Type())
-		t.Log(msg.Route())
+	for {
+
+		res, err := client.QueryTxByHash("cb21ff0aae81b98f39e1488bb26c098597fab336db45521be7d8aad057a973e3")
+		assert.NoError(t, err)
+		t.Log(res.Height)
+		// for _, msg := range res.GetTx().GetMsgs() {
+
+		// 	t.Log(msg.String())
+		// 	t.Log(msg.Type())
+		// 	t.Log(msg.Route())
+		// }
+
+		curBlock, err := client.GetCurrentBLockHeight()
+		assert.NoError(t, err)
+		t.Log(curBlock)
+		time.Sleep(1 * time.Second)
+		t.Log("\n")
 	}
 }
 
