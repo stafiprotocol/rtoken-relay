@@ -211,6 +211,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 }
 
 func (w *writer) processLiquidityBondResult(m *core.Message) bool {
+	w.log.Info("processLiquidityBondResult")
 	flow, ok := m.Content.(*submodel.BondFlow)
 	if !ok {
 		w.printContentError(m)
