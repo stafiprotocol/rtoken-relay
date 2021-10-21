@@ -18,13 +18,11 @@ var ErrExpired = errors.New("proposal expired")
 var ErrAlreadyVoted = errors.New("proposal already voted")
 
 func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.Proposal, error) {
-	c.log.Info("create LiquidityBondProposal")
 	method := config.MethodExecuteBondRecord
 	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {
 		return nil, err
 	}
-	c.log.Info("FindCallIndex ok")
 
 	call, err := types.NewCallWithCallIndex(
 		ci,
@@ -147,7 +145,6 @@ func (c *Connection) NewActiveReportProposal(flow *submodel.BondReportedFlow) (*
 }
 
 func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) bool {
-	c.log.Info("resolveProposal")
 	for i := 0; i < BlockRetryLimit; i++ {
 		// Ensure we only submit a vote if status of the proposal is Initiated
 		valid, reason, err := c.proposalValid(prop)

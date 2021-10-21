@@ -93,7 +93,6 @@ out:
 				}
 				rmatic.ResolveMessage(msg)
 			default:
-				r.log.Info("rFIS msg handler")
 				rfis.ResolveMessage(msg)
 			}
 		}
