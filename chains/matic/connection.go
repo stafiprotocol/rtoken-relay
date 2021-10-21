@@ -345,7 +345,7 @@ func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction, pool common.Ad
 
 func (c *Connection) IsEraSigner(era uint32, subAccounts []types.Bytes) bool {
 	len := uint32(len(subAccounts))
-	index := len % era
+	index := era % len
 	acc := subAccounts[index]
 
 	for _, key := range c.publicKeys {
