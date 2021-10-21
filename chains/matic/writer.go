@@ -215,6 +215,22 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
+	state, err := w.conn.TxHashState(txHash, poolAddr)
+	if err != nil {
+		w.log.Error("processEraPoolUpdated: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
+		return false
+	}
+
+	if state == ethmodel.HashStateSuccess {
+		flow.Active, flow.Reward, err = w.conn.StakedAndReward(txHash, shareAddr, poolAddr)
+		if err != nil {
+			w.log.Error("processEraPoolUpdated: RewardByTxHash error", "error", err, "txHash", txHash, "pool", poolAddr)
+			return false
+		}
+		w.log.Info("processEraPoolUpdated RewardByTxHash", "reward", flow.Active, "txHash", txHash, "pool", poolAddr)
+		return w.informChain(m.Destination, m.Source, mef)
+	}
+
 	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
 	signature, err := crypto.Sign(msg[:], key.PrivateKey())
 	if err != nil {
@@ -279,6 +295,33 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return false
 	}
 
+	state, err := w.conn.TxHashState(txHash, poolAddr)
+	if err != nil {
+		w.log.Error("processBondReported: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
+		return false
+	}
+
+	if state == ethmodel.HashStateSuccess {
+		active, err := w.conn.TotalStaked(shareAddr, poolAddr)
+		if err != nil {
+			w.log.Error("processBondReported TotalStaked error", "error", err, "share", shareAddr, "pool", poolAddr)
+			return false
+		}
+
+		bond, unbond := snap.Bond.Int, snap.Unbond.Int
+		if bond.Cmp(unbond) > 0 {
+			diff := big.NewInt(0).Sub(bond, unbond)
+			if diff.Cmp(flow.LeastBond) <= 0 {
+				active = active.Add(active, diff)
+			}
+		}
+		flow.Snap.Active = types.NewU128(*active)
+
+		w.log.Info("processBondReported total active", "pool", poolAddr, "active", active)
+		msg := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.ActiveReport, Content: flow}
+		return w.submitMessage(msg)
+	}
+
 	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
 	signature, err := crypto.Sign(msg[:], key.PrivateKey())
 	if err != nil {
@@ -340,6 +383,16 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processActiveReported EncodeToHash error", "error", err)
 		return false
+	}
+
+	state, err := w.conn.TxHashState(txHash, poolAddr)
+	if err != nil {
+		w.log.Error("processActiveReported: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
+		return false
+	}
+
+	if state == ethmodel.HashStateSuccess {
+		return w.informChain(m.Destination, m.Source, mef)
 	}
 
 	nonce, err := w.conn.WithdrawNonce(shareAddr, poolAddr)
@@ -409,6 +462,16 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processWithdrawReported EncodeToHash error", "error", err)
 		return false
+	}
+
+	state, err := w.conn.TxHashState(txHash, poolAddr)
+	if err != nil {
+		w.log.Error("processActiveReported: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
+		return false
+	}
+
+	if state == ethmodel.HashStateSuccess {
+		return w.informChain(m.Destination, m.Source, mef)
 	}
 
 	if flow.TotalAmount.Uint64() == 0 {
@@ -487,7 +550,6 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	vs, rs, ss := utils.DecomposeSignature(signatures)
 	to := common.BytesToAddress(proposalId[:20])
 	calldata := proposalId[20:]
-	msg := sigs.Signature[0][:32]
 	poolAddr := common.BytesToAddress(sigs.Pool)
 
 	txHash, err := sigs.EncodeToHash()
@@ -500,6 +562,10 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 	var bondFlow *submodel.BondReportedFlow
 	var operation ethmodel.CallEnum
 	var value, safeGas, totalGas *big.Int
+	var subAccounts []types.Bytes
+	var era uint32
+
+	txTypeErr := fmt.Errorf("processSignatureEnough TxType %s not supported", sigs.TxType)
 	if sigs.TxType != submodel.OriginalClaimRewards {
 		mef, ok = w.getEvents(txHash)
 		if !ok {
@@ -511,6 +577,21 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		value = mef.MultiTransaction.Value
 		safeGas = mef.MultiTransaction.SafeTxGas
 		totalGas = mef.MultiTransaction.TotalGas
+		subAccounts = mef.SubAccounts
+		switch sigs.TxType {
+		case submodel.OriginalBond, submodel.OriginalUnbond:
+			flow, _ := mef.EventData.(*submodel.EraPoolUpdatedFlow)
+			era = flow.Era
+		case submodel.OriginalWithdrawUnbond:
+			flow, _ := mef.EventData.(*submodel.ActiveReportedFlow)
+			era = flow.Snap.Era
+		case submodel.OriginalTransfer:
+			flow, _ := mef.EventData.(*submodel.WithdrawReportedFlow)
+			era = flow.Snap.Era
+		default:
+			w.log.Error(txTypeErr.Error())
+			return false
+		}
 	} else {
 		bondFlow, ok = w.getBondReported(txHash)
 		if !ok {
@@ -522,9 +603,10 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		safeGas = bondFlow.MultiTransaction.SafeTxGas
 		value = bondFlow.MultiTransaction.Value
 		totalGas = bondFlow.MultiTransaction.TotalGas
+		subAccounts = bondFlow.SubAccounts
+		era = bondFlow.Snap.Era
 	}
 
-	txTypeErr := fmt.Errorf("processSignatureEnough TxType %s not supported", sigs.TxType)
 	report := func() bool {
 		switch sigs.TxType {
 		case submodel.OriginalBond, submodel.OriginalUnbond:
@@ -575,9 +657,9 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 		return report()
 	}
 
-	firstSignerFlag := w.conn.IsFirstSigner(msg, signatures[0])
-	if !firstSignerFlag {
-		w.log.Info("processSignatureEnough", "FirstSignerFlag", firstSignerFlag, "txHash", txHash)
+	eraSignerFlag := w.conn.IsEraSigner(era, subAccounts)
+	if !eraSignerFlag {
+		w.log.Info("processSignatureEnough", "eraSignerFlag", eraSignerFlag, "txHash", txHash)
 		err = w.conn.WaitTxHashSuccess(txHash, poolAddr, sigs.TxType)
 		if err != nil {
 			w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)

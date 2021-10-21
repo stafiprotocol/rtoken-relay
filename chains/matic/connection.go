@@ -343,14 +343,13 @@ func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction, pool common.Ad
 	return tx.MessageToSign(txHash, pool)
 }
 
-func (c *Connection) IsFirstSigner(msg, sig []byte) bool {
-	sigPublicKey, err := crypto.Ecrecover(msg, sig)
-	if err != nil {
-		panic(err)
-	}
+func (c *Connection) IsEraSigner(era uint32, subAccounts []types.Bytes) bool {
+	len := uint32(len(subAccounts))
+	index := era % len
+	acc := subAccounts[index]
 
 	for _, key := range c.publicKeys {
-		if bytes.Equal(sigPublicKey, key) {
+		if bytes.Equal(acc, key) {
 			return true
 		}
 	}
