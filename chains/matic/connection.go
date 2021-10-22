@@ -26,7 +26,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var (
@@ -111,7 +110,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		symbol:               cfg.Symbol,
 		conn:                 conn,
 		keys:                 keys,
-		addrs:                publicKeys,
+		addrs:                addrs,
 		log:                  log,
 		stop:                 stop,
 		stakeManager:         stakeManager,
