@@ -459,8 +459,8 @@ github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mq
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
 github.com/itering/scale.go v0.7.0/go.mod h1:ufrA/8oz/qi4mtK8TXz4LFZzfJ4ZUQ+4z+cUNpY9jts=
 github.com/itering/scale.go v1.0.3/go.mod h1:ufrA/8oz/qi4mtK8TXz4LFZzfJ4ZUQ+4z+cUNpY9jts=
-github.com/itering/scale.go v1.1.20 h1:x+jmGy3oASBAbHwlIa4vhW1V2Q8MNdty101WHF295zM=
-github.com/itering/scale.go v1.1.20/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
+github.com/itering/scale.go v1.1.24 h1:ulegaI5Sc1etEAWZJf8TKrEmYe+ZexOO6iRfVBJKGOE=
+github.com/itering/scale.go v1.1.24/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/substrate-api-rpc v0.2.0/go.mod h1:mhWsiQusRakyHDvLF+QkA1KMVaohI0ntuVoWABlEc68=
 github.com/itering/substrate-api-rpc v0.3.5 h1:Vd23NddQSNNAEj/laKBzniAoggWeQjFP8HMtTCIWdgI=
 github.com/itering/substrate-api-rpc v0.3.5/go.mod h1:fnFYfNtIjUhIsjOWTW+E/fJ93iSBxuFMuCPPU9ATI+I=
