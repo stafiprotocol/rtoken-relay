@@ -127,7 +127,6 @@ func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 		}
 	}
 
-
 	api, err := sc.FlashApi()
 	if err != nil {
 		return false, err

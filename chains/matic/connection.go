@@ -45,13 +45,13 @@ const (
 )
 
 type Connection struct {
-	url        string
-	symbol     core.RSymbol
-	conn       *ethereum.Client
-	keys       []*secp256k1.Keypair
-	publicKeys [][]byte
-	log        log15.Logger
-	stop       <-chan int
+	url    string
+	symbol core.RSymbol
+	conn   *ethereum.Client
+	keys   []*secp256k1.Keypair
+	addrs  [][]byte
+	log    log15.Logger
+	stop   <-chan int
 
 	stakeManager         *StakeManager.StakeManager
 	stateManagerContract common.Address
@@ -65,7 +65,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 	var key *secp256k1.Keypair
 	keys := make([]*secp256k1.Keypair, 0)
-	publicKeys := make([][]byte, 0)
+	addrs := make([][]byte, 0)
 	acSize := len(cfg.Accounts)
 	for i := 0; i < acSize; i++ {
 		kpI, err := keystore.KeypairFromAddress(cfg.Accounts[i], keystore.EthChain, cfg.KeystorePath, cfg.Insecure)
@@ -73,10 +73,9 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 		kp, _ := kpI.(*secp256k1.Keypair)
-		pk := utils.PublicKeyFromKeypair(kp)
 
 		keys = append(keys, kp)
-		publicKeys = append(publicKeys, pk)
+		addrs = append(addrs, kp.CommonAddress().Bytes())
 
 		if i == acSize-1 {
 			key = kp
@@ -112,7 +111,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		symbol:               cfg.Symbol,
 		conn:                 conn,
 		keys:                 keys,
-		publicKeys:           publicKeys,
+		addrs:                publicKeys,
 		log:                  log,
 		stop:                 stop,
 		stakeManager:         stakeManager,
@@ -348,8 +347,8 @@ func (c *Connection) IsEraSigner(era uint32, subAccounts []types.Bytes) bool {
 	index := era % len
 	acc := subAccounts[index]
 
-	for _, key := range c.publicKeys {
-		if bytes.Equal(acc, key) {
+	for _, addr := range c.addrs {
+		if bytes.Equal(acc, addr) {
 			return true
 		}
 	}

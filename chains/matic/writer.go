@@ -659,7 +659,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 
 	eraSignerFlag := w.conn.IsEraSigner(era, subAccounts)
 	if !eraSignerFlag {
-		w.log.Info("processSignatureEnough", "eraSignerFlag", eraSignerFlag, "txHash", txHash)
+		w.log.Info("processSignatureEnough", "eraSignerFlag", eraSignerFlag, "era", era, "len(subAccounts)", len(subAccounts), "txHash", txHash)
 		err = w.conn.WaitTxHashSuccess(txHash, poolAddr, sigs.TxType)
 		if err != nil {
 			w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)

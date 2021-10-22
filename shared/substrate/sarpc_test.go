@@ -154,7 +154,6 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 	}
 }
 
-
 func TestSarpcClient_GetExtrinsics2(t *testing.T) {
 	stop := make(chan int)
 	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
