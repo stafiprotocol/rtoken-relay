@@ -35,7 +35,7 @@ var (
 
 	NetworkFlag = &cli.StringFlag{
 		Name:  "network",
-		Usage: "specify network for subkey",
+		Usage: "specify network for subkey like [stafi polkadot kusama ...]",
 		Value: "stafi",
 	}
 )

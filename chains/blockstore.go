@@ -13,6 +13,7 @@ func NewBlockstore(bsCfg interface{}, relayer string) (*blockstore.Blockstore, e
 		return nil, errors.New("blockstorePath not string")
 	}
 
+	//todo change chainId for different rToken
 	return blockstore.NewBlockstore(bsPath, msg.ChainId(100), relayer)
 }
 
