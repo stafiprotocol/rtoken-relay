@@ -11,54 +11,31 @@ import (
 var (
 	ConfigFileFlag = &cli.StringFlag{
 		Name:  "config",
-		Usage: "TOML configuration file",
+		Usage: "json configuration file",
+		Value: DefaultConfigPath,
 	}
 
 	VerbosityFlag = &cli.StringFlag{
 		Name:  "verbosity",
-		Usage: "Supports levels crit (silent) to trce (trace)",
+		Usage: "supports levels crit (silent) to trce (trace)",
 		Value: log.LvlInfo.String(),
 	}
 
 	KeystorePathFlag = &cli.StringFlag{
 		Name:  "keystore",
-		Usage: "Path to keystore directory",
+		Usage: "path to keystore directory",
 		Value: DefaultKeystorePath,
-	}
-
-	BlockstorePathFlag = &cli.StringFlag{
-		Name:  "blockstore",
-		Usage: "Specify path for blockstore",
-		Value: "", // Empty will use home dir
-	}
-
-	FreshStartFlag = &cli.BoolFlag{
-		Name:  "fresh",
-		Usage: "Disables loading from blockstore at start. Opts will still be used if specified.",
-	}
-
-	LatestBlockFlag = &cli.BoolFlag{
-		Name:  "latest",
-		Usage: "Overrides blockstore and start block, starts from latest block",
 	}
 
 	BncNetwork = &cli.StringFlag{
 		Name:  "bncnetwork",
-		Usage: "Specify network for bc chain, set test for TestNetwork, others will be ProdNetwork",
+		Usage: "specify network for bc chain, set test for TestNetwork, others will be ProdNetwork",
 		Value: "",
 	}
-)
 
-// Metrics flags
-var (
-	MetricsFlag = &cli.BoolFlag{
-		Name:  "metrics",
-		Usage: "Enables metric server",
-	}
-
-	MetricsPort = &cli.IntFlag{
-		Name:  "metricsPort",
-		Usage: "Port to serve metrics on",
-		Value: 8001,
+	NetworkFlag = &cli.StringFlag{
+		Name:  "network",
+		Usage: "specify network for subkey",
+		Value: "stafi",
 	}
 )
