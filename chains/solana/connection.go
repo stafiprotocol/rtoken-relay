@@ -119,14 +119,14 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			MultisigProgramId:           solCommon.PublicKeyFromString(pAccounts.MultisigProgramId),
 			HasBaseAccountAuth:          hasBaseAccountAuth,
 		}
-		poolClientMap[pool] = solana.NewPoolClient(log, solClient.NewClient(cfg.Endpoint), poolAccounts)
+		poolClientMap[pool] = solana.NewPoolClient(log, solClient.NewClient([]string{cfg.Endpoint}), poolAccounts)
 
 	}
 
 	return &Connection{
 		endpoint:    cfg.Endpoint,
 		symbol:      cfg.Symbol,
-		queryClient: solClient.NewClient(cfg.Endpoint),
+		queryClient: solClient.NewClient([]string{cfg.Endpoint}),
 		log:         log,
 		stop:        stop,
 		poolClients: poolClientMap,

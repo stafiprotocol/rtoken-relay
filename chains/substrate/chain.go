@@ -35,7 +35,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	bs, err := chains.NewBlockstore(cfg.Opts["blockstorePath"], conn.Address())
+	bs, err := chains.NewBlockstore(cfg.Opts["blockstorePath"], conn.BlockStoreUseAddress())
 	if err != nil {
 		return nil, err
 	}

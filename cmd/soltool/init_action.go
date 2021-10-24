@@ -83,7 +83,7 @@ func initAction(ctx *cli.Context) error {
 	}
 	fmt.Println("multisigner:", multisignerPubkey.ToBase58())
 
-	c := solClient.NewClient(pc.Endpoint)
+	c := solClient.NewClient([]string{pc.Endpoint})
 
 	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
 		solClient.StakeAccountInfoLengthDefault)

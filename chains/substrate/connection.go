@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/itering/substrate-api-rpc/rpc"
+	"github.com/stafiprotocol/chainbridge/utils/crypto"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
@@ -24,14 +25,15 @@ import (
 )
 
 type Connection struct {
-	url     string
-	symbol  core.RSymbol
-	sc      *substrate.SarpcClient
-	keys    []*signature.KeyringPair
-	scs     map[*signature.KeyringPair]*substrate.SarpcClient
-	log     log15.Logger
-	stop    <-chan int
-	lastKey *signature.KeyringPair
+	url                  string
+	symbol               core.RSymbol
+	sc                   *substrate.SarpcClient
+	keys                 []*signature.KeyringPair
+	scs                  map[*signature.KeyringPair]*substrate.SarpcClient
+	log                  log15.Logger
+	stop                 <-chan int
+	lastKey              *signature.KeyringPair
+	blockstoreUseAddress string
 }
 
 var (
@@ -70,8 +72,11 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 
 	acSize := len(cfg.Accounts)
 	var lk *signature.KeyringPair
+	var blockstoreUseAddress string
 	for i := 0; i < acSize; i++ {
-		kp, err := keystore.KeypairFromAddress(cfg.Accounts[i], keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
+		var kp crypto.Keypair
+		var err error
+		kp, blockstoreUseAddress, err = keystore.KeypairFromAddressV2(cfg.Accounts[i], keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
 		if err != nil {
 			return nil, err
 		}
@@ -93,14 +98,15 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:     cfg.Endpoint,
-		symbol:  cfg.Symbol,
-		log:     log,
-		stop:    stop,
-		sc:      scs[keys[0]],
-		keys:    keys,
-		scs:     scs,
-		lastKey: lk,
+		url:                  cfg.Endpoint,
+		symbol:               cfg.Symbol,
+		log:                  log,
+		stop:                 stop,
+		sc:                   scs[keys[0]],
+		keys:                 keys,
+		scs:                  scs,
+		lastKey:              lk,
+		blockstoreUseAddress: blockstoreUseAddress,
 	}, nil
 }
 
@@ -118,6 +124,10 @@ func (c *Connection) FinalizedBlockNumber() (uint64, error) {
 
 func (c *Connection) Address() string {
 	return c.sc.Address()
+}
+
+func (c *Connection) BlockStoreUseAddress() string {
+	return c.blockstoreUseAddress
 }
 
 func (c *Connection) GetEvents(blockNum uint64) ([]*submodel.ChainEvent, error) {
