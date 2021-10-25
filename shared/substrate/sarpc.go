@@ -268,11 +268,15 @@ func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*submodel.Transaction,
 		for _, raw := range blk.Extrinsics {
 			e.Init(polkadot.ScaleBytes{Data: util.HexToBytes(raw)}, &option)
 			e.Process()
+			decodeExtrinsic := e.Value.(map[string]interface{})
+			var ce ChainExtrinsic
+			eb, _ := json.Marshal(decodeExtrinsic)
+			_ = json.Unmarshal(eb, &ce)
 			if e.ExtrinsicHash != "" && e.ContainsTransaction {
 				ext := &submodel.Transaction{
 					ExtrinsicHash:  e.ExtrinsicHash,
-					CallModuleName: e.CallModule.Name,
-					CallName:       e.Call.Name,
+					CallModuleName: ce.CallModule,
+					CallName:       ce.CallModuleFunction,
 					Address:        e.Address,
 					Params:         e.Params,
 				}

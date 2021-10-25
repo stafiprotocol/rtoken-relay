@@ -31,7 +31,7 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//	t.Log(e.EventId)
 	//}
 
-	for i := 9669190; i <= 9672490; i++ {
+	for i := 9806539; i <= 9906538; i++ {
 		if i%10 == 0 {
 			t.Log("i", i)
 		}
@@ -110,12 +110,12 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := 9661014; i >= 9632170; i-- {
+	for i := 7411010; i >= 7311010; i-- {
 		if i%10 == 0 {
 			t.Log("i", i)
 		}
@@ -132,24 +132,24 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 			t.Log("methodName", ext.CallName)
 			t.Log("address", ext.Address)
 			t.Log(ext.Params)
-			for _, p := range ext.Params {
-				if p.Name == config.ParamDest && p.Type == config.ParamDestType {
-					//dest, ok := p.Value.(string)
-					//fmt.Println("ok", ok)
-					//fmt.Println(dest)
-
-					// polkadot-test
-					dest, ok := p.Value.(map[string]interface{})
-					t.Log("ok", ok)
-					v, ok := dest["Id"]
-					t.Log("ok1", ok)
-					val, ok := v.(string)
-					t.Log("ok2", ok)
-					t.Log(val)
-				}
-
-				t.Log("name", p.Name, "value", p.Value, "type", p.Type)
-			}
+			//for _, p := range ext.Params {
+			//	if p.Name == config.ParamDest && p.Type == config.ParamDestType {
+			//		//dest, ok := p.Value.(string)
+			//		//fmt.Println("ok", ok)
+			//		//fmt.Println(dest)
+			//
+			//		// polkadot-test
+			//		dest, ok := p.Value.(map[string]interface{})
+			//		t.Log("ok", ok)
+			//		v, ok := dest["Id"]
+			//		t.Log("ok1", ok)
+			//		val, ok := v.(string)
+			//		t.Log("ok2", ok)
+			//		t.Log(val)
+			//	}
+			//
+			//	t.Log("name", p.Name, "value", p.Value, "type", p.Type)
+			//}
 		}
 	}
 }
