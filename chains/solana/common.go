@@ -466,45 +466,84 @@ func (w *writer) CheckMultisigTx(
 	programsIds []solCommon.PublicKey,
 	accountMetas [][]solTypes.AccountMeta,
 	datas [][]byte) bool {
-	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-	if err == nil {
-		thisProgramsIdsBts, err := solCommon.SerializeData(programsIds)
-		if err != nil {
+
+	retry := 0
+	var err error
+	var accountInfo *solClient.GetMultisigTxAccountInfo
+	for {
+		if retry >= retryLimit {
+			w.log.Error("CheckMultisigTx reach retry limit",
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
 			return false
 		}
-		thisAccountMetasBts, err := solCommon.SerializeData(accountMetas)
+		accountInfo, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err != nil {
-			return false
+			w.log.Warn("CheckMultisigTx failed, waiting...",
+				"multisig tx account", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		} else {
+			break
 		}
-		thisDatasBts, err := solCommon.SerializeData(datas)
-		if err != nil {
-			return false
-		}
-		onchainProgramsIdsBts, err := solCommon.SerializeData(accountInfo.ProgramID)
-		if err != nil {
-			return false
-		}
-		onchainAccountMetasBts, err := solCommon.SerializeData(accountInfo.Accounts)
-		if err != nil {
-			return false
-		}
-		onchainDatasBts, err := solCommon.SerializeData(accountInfo.Data)
-		if err != nil {
-			return false
-		}
-		if bytes.Equal(thisProgramsIdsBts, onchainProgramsIdsBts) &&
-			bytes.Equal(thisAccountMetasBts, onchainAccountMetasBts) &&
-			bytes.Equal(thisDatasBts, onchainDatasBts) {
-			return true
-		}
-		w.log.Error("CheckMultisigTx not equal ",
-			"thisprogramsIds", hex.EncodeToString(thisProgramsIdsBts),
-			"onchainProgramnsIdsBts", hex.EncodeToString(onchainProgramsIdsBts),
-			"thisAccountMetasBts", hex.EncodeToString(thisAccountMetasBts),
-			"onchainAccountMetasBts", hex.EncodeToString(onchainAccountMetasBts),
-			"thisDatasBts", hex.EncodeToString(thisDatasBts),
-			"onchainDatasBts", hex.EncodeToString(onchainDatasBts))
 	}
+
+	thisProgramsIdsBts, err := solCommon.SerializeData(programsIds)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"programsIds", programsIds,
+			"err", err)
+		return false
+	}
+	thisAccountMetasBts, err := solCommon.SerializeData(accountMetas)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountMetas", accountMetas,
+			"err", err)
+		return false
+	}
+	thisDatasBts, err := solCommon.SerializeData(datas)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"datas", datas,
+			"err", err)
+		return false
+	}
+	onchainProgramsIdsBts, err := solCommon.SerializeData(accountInfo.ProgramID)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountInfo.ProgramID", accountInfo.ProgramID,
+			"err", err)
+		return false
+	}
+	onchainAccountMetasBts, err := solCommon.SerializeData(accountInfo.Accounts)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountInfo.Accounts", accountInfo.Accounts,
+			"err", err)
+		return false
+	}
+	onchainDatasBts, err := solCommon.SerializeData(accountInfo.Data)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountInfo.Data", accountInfo.Data,
+			"err", err)
+		return false
+	}
+	if bytes.Equal(thisProgramsIdsBts, onchainProgramsIdsBts) &&
+		bytes.Equal(thisAccountMetasBts, onchainAccountMetasBts) &&
+		bytes.Equal(thisDatasBts, onchainDatasBts) {
+		return true
+	}
+	w.log.Error("CheckMultisigTx not equal ",
+		"thisprogramsIds", hex.EncodeToString(thisProgramsIdsBts),
+		"onchainProgramnsIdsBts", hex.EncodeToString(onchainProgramsIdsBts),
+		"thisAccountMetasBts", hex.EncodeToString(thisAccountMetasBts),
+		"onchainAccountMetasBts", hex.EncodeToString(onchainAccountMetasBts),
+		"thisDatasBts", hex.EncodeToString(thisDatasBts),
+		"onchainDatasBts", hex.EncodeToString(onchainDatasBts))
 
 	return false
 }
