@@ -569,6 +569,14 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 		return fmt.Errorf("TransferFromBcToBsc no bc key found: %s", pool.Hex())
 	}
 
+	bscBalance, err := c.bscClient.Client().BalanceAt(context.Background(), pool, nil)
+	if err != nil {
+		return err
+	}
+
+	bscAmount := big.NewInt(0).Mul(big.NewInt(1e10), big.NewInt(amount))
+	newBalance := bscAmount.Add(bscAmount, bscBalance)
+
 	c.bcRpcClient.SetKeyManager(bcKey)
 	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 	expireTime := time.Now().Add(time.Hour).Unix()
@@ -590,10 +598,17 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 		default:
 			err = c.txHashResult(tx.Hash.String())
 			if err == nil {
-				return nil
+				bscBalance, err := c.bscClient.Client().BalanceAt(context.Background(), pool, nil)
+				if err != nil {
+					return err
+				}
+
+				if bscBalance.Cmp(newBalance) >= 0 {
+					return nil
+				}
 			}
 
-			time.Sleep(2 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}
 }
