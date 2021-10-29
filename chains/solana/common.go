@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -84,6 +85,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		//get derived account
 		canWithdrawAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
 		canMergeAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
+
 		stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), useStakeBaseAccountPubKey.ToBase58())
 		if err != nil {
 			w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
@@ -161,7 +163,18 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		accountMetas := make([][]solTypes.AccountMeta, 0)
 		txDatas := make([][]byte, 0)
 
-		for stakeAccountPubkey, accountInfo := range canWithdrawAccounts {
+		//sort account
+		canWithdrawKeys := make([]solCommon.PublicKey, 0)
+		for key, _ := range canWithdrawAccounts {
+			canWithdrawKeys = append(canWithdrawKeys, key)
+		}
+		sort.SliceStable(canWithdrawKeys, func(i, j int) bool {
+			return canWithdrawKeys[i].ToBase58() < canWithdrawKeys[j].ToBase58()
+		})
+
+		for _, stakeAccountPubkey := range canWithdrawKeys {
+			accountInfo := canWithdrawAccounts[stakeAccountPubkey]
+
 			withdrawInstruction := stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
 				poolClient.MultisignerPubkey, accountInfo.Inactive, solCommon.PublicKey{})
 
@@ -172,7 +185,16 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 			txDatas = append(txDatas, withdrawInstruction.Data)
 		}
 
-		for stakeAccountPubkey, _ := range canMergeAccounts {
+		//sort account
+		canMergeKeys := make([]solCommon.PublicKey, 0)
+		for key, _ := range canMergeAccounts {
+			canMergeKeys = append(canMergeKeys, key)
+		}
+		sort.SliceStable(canMergeKeys, func(i, j int) bool {
+			return canMergeKeys[i].ToBase58() < canMergeKeys[j].ToBase58()
+		})
+
+		for _, stakeAccountPubkey := range canMergeKeys {
 			mergeInstruction := stakeprog.Merge(
 				useStakeBaseAccountPubKey,
 				stakeAccountPubkey,
@@ -184,6 +206,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 			accountMetas = append(accountMetas, mergeInstruction.Accounts)
 			txDatas = append(txDatas, mergeInstruction.Data)
 		}
+
 		remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
 
 		if poolClient.HasBaseAccountAuth {
@@ -215,17 +238,21 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		}
 		w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
-		valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
-		if !valid {
-			w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
 		//if has exe just return
 		isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 		if isExe {
 			w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 			continue
 		}
+
+		if w.conn.currentEra != 241 {
+			valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
+			if !valid {
+				w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+				return false
+			}
+		}
+
 		//approve multisig tx
 		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
 		if !send {
