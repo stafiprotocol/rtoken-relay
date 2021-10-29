@@ -245,12 +245,10 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 			continue
 		}
 
-		if w.conn.currentEra != 241 {
-			valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
-			if !valid {
-				w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-				return false
-			}
+		valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
+		if !valid {
+			w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			return false
 		}
 
 		//approve multisig tx
