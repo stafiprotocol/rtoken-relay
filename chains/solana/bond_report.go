@@ -3,6 +3,7 @@ package solana
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/mr-tron/base58"
@@ -53,7 +54,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 				"error", err)
 			return false
 		}
-
+		w.log.Info("active total will add base", "account", fmt.Sprintf(" %#v", accountInfo))
 		activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 		//get derived account
 		for i := uint32(0); i < uint32(backCheckLen); i++ {
@@ -74,6 +75,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 			//filter account used to stake
 			if accountInfo.StakeAccount.IsStakeAndNoDeactive() {
+				w.log.Info("active total will add", "account", fmt.Sprintf(" %#v", accountInfo))
 				activeTotal += accountInfo.StakeAccount.Info.Stake.Delegation.Stake
 			}
 		}
