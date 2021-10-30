@@ -31,7 +31,7 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//	t.Log(e.EventId)
 	//}
 
-	for i := 9806539; i <= 9906538; i++ {
+	for i := 9866422; i <= 9875093; i++ {
 		if i%10 == 0 {
 			t.Log("i", i)
 		}

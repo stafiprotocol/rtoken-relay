@@ -25,24 +25,10 @@ func (m *MetadataDecoder) Process() error {
 		m.Version = m.ProcessAndUpdateData("MetadataVersion").(string)
 		m.Metadata = m.ProcessAndUpdateData(m.Version).(MetadataStruct)
 		m.Metadata.MetadataVersion = int(metadataVersion.Int64())
-		m.CodecTypes = utiles.UniqueSlice(RuntimeCodecType)
 		return nil
 	}
 	return errors.New("not metadata")
-
 }
 
-func (m *MetadataDecoder) CheckRegistry() (notReg []string) {
-	r := RuntimeType{}
-
-	if TypeRegistry == nil {
-		r.Reg()
-	}
-
-	for _, typeString := range m.CodecTypes {
-		if class, _, _ := r.DecoderClass(typeString, 0); class == nil {
-			notReg = append(notReg, typeString)
-		}
-	}
-	return
-}
+// CheckRegistry deprecated, metadata v14 will auto register all types
+func (m *MetadataDecoder) CheckRegistry() (notReg []string) { return }

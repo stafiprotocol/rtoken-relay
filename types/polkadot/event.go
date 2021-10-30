@@ -61,6 +61,9 @@ func (e *EventRecord) Process() map[string]interface{} {
 		e.ExtrinsicIdx = int(e.ProcessAndUpdateData("U32").(uint32))
 	}
 	e.Type = utiles.BytesToHex(e.NextBytes(2))
+	if e.Type == "" {
+		e.Type = "0000"
+	}
 
 	call, ok := e.Metadata.EventIndex[e.Type]
 	if !ok {
