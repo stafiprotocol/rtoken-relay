@@ -15,8 +15,8 @@ var (
 	ValidatorShareAbi, _ = abi.JSON(strings.NewReader(ValidatorShare.ValidatorShareABI))
 	MultiSendAbi, _      = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
 
-	BuyVoucherSafeTxGas     = big.NewInt(300000)
-	SellVoucherNewSafeTxGas = big.NewInt(300000)
+	BuyVoucherSafeTxGas     = big.NewInt(450000)
+	SellVoucherNewSafeTxGas = big.NewInt(450000)
 	RestakeSafeTxGas        = big.NewInt(200000)
 	WithdrawTxGas           = big.NewInt(300000)
 	TransferTxGas           = big.NewInt(100000)
