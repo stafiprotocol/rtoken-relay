@@ -192,7 +192,6 @@ func (c *Connection) LatestBlock() (int64, error) {
 	}
 
 	quit := make(chan struct{})
-	defer close(quit)
 	ch, err := bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
 		var event websocket.BlockHeightEvent
 		err := json.Unmarshal(bz, &event)
