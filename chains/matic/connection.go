@@ -138,8 +138,20 @@ func (c *Connection) Address() string {
 	return c.conn.Keypair().Address()
 }
 
-func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
-	return c.conn.TransferVerify(r, c.maticTokenContract)
+func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
+	for i := 0; i < 10; i++ {
+		result, err = c.conn.TransferVerify(r, c.maticTokenContract)
+		if err != nil {
+			return
+		}
+
+		if result == submodel.BlockhashUnmatch {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+	}
+
+	return
 }
 
 func (c *Connection) FoundKey(accounts []types.Bytes) *secp256k1.Keypair {

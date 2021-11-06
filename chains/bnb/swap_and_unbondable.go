@@ -16,6 +16,12 @@ type Swap struct {
 	From   string
 }
 
+type Unbondable struct {
+	Symbol string
+	Pool   string
+	Era    string
+}
+
 func CreateSwap(filePath string, swap *Swap) error {
 	lines := utils.ReadCSV(filePath)
 	newline := []string{swap.Symbol, swap.Pool, swap.Era, swap.From}
@@ -52,4 +58,26 @@ func DeleteSwap(filePath string, swap *Swap) error {
 	}
 
 	return utils.WriteCSV(filePath, newLines)
+}
+
+func CreateUnbondable(filePath string, u *Unbondable) error {
+	lines := utils.ReadCSV(filePath)
+	newline := []string{u.Symbol, u.Pool, u.Era}
+	lines = append(lines, newline)
+
+	return utils.WriteCSV(filePath, lines)
+}
+
+func IsUnbondableExist(filePath string, u *Unbondable) bool {
+	lines := utils.ReadCSV(filePath)
+	for _, line := range lines {
+		if len(line) != 3 {
+			panic("IsSwapExist size of line is not 3")
+		}
+		if line[0] == u.Symbol && line[1] == u.Pool && line[2] == u.Era {
+			return true
+		}
+	}
+
+	return false
 }
