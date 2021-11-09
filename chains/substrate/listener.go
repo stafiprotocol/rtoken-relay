@@ -129,11 +129,13 @@ func (l *listener) registerEventHandler(name eventName, handler eventHandler) er
 func (l *listener) pollBlocks() error {
 	var currentBlock = l.startBlock
 	var retry = BlockRetryLimit
+	l.log.Info("Polling Blocks...", "currentBLock", currentBlock)
 	for {
 		select {
 		case <-l.stop:
 			return TerminatedError
 		default:
+			l.log.Info("Polling Block", "currentBLock", currentBlock)
 			// No more retries, goto next block
 			if retry == 0 {
 				l.sysErr <- fmt.Errorf("event polling retries exceeded: %s", l.symbol)
@@ -175,6 +177,7 @@ func (l *listener) pollBlocks() error {
 			}
 
 			// Write to blockstore
+			l.log.Info("storeBlock", "currentBlock", currentBlock)
 			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
 			if err != nil {
 				l.log.Error("Failed to write to blockstore", "err", err)
