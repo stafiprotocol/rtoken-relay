@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
@@ -108,7 +109,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 
 	var bondReason submodel.BondReason
 	var err error
-	if flow.VerifyTimes >= 5 {
+	if flow.VerifyTimes >= 10 {
 		bondReason = submodel.BlockhashUnmatch
 	} else {
 		bondReason, err = w.conn.TransferVerify(flow.Record)
@@ -740,6 +741,7 @@ func (w *writer) start() error {
 				w.log.Info("writer stopped")
 				return
 			case msg := <-w.liquidityBonds:
+				time.Sleep(5 * time.Second)
 				result := w.processLiquidityBond(msg)
 				w.log.Info("retry processLiquidityBond", "result", result)
 			}

@@ -269,3 +269,30 @@ func TestTxhashReward(t *testing.T) {
 		//return c.RewardByTransactionHash(evt.Raw.TxHash, pool)
 	}
 }
+
+func TestMaticMainet(t *testing.T) {
+	client := NewMainetClient()
+	pool := common.HexToAddress("0x33e91fb7e5FeD3ba103FB4B0fd1e5cdB6E555361")
+
+	manager, err := StakeManager.NewStakeManager(mainnetStakeManagerContract, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	share, err := manager.Validators(nil, big.NewInt(22))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("share", share.ContractAddress)
+
+	shr, err := ValidatorShare.NewValidatorShare(share.ContractAddress, client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	total, _, err := shr.GetTotalStake(nil, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("totalStake", total)
+}

@@ -192,7 +192,6 @@ func (c *Connection) LatestBlock() (int64, error) {
 	}
 
 	quit := make(chan struct{})
-	defer close(quit)
 	ch, err := bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
 		var event websocket.BlockHeightEvent
 		err := json.Unmarshal(bz, &event)
@@ -219,8 +218,20 @@ func (c *Connection) LatestBlock() (int64, error) {
 	}
 }
 
-func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
-	return c.bscClient.BnbTransferVerify(r)
+func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
+	for i := 0; i < 5; i++ {
+		result, err = c.bscClient.BnbTransferVerify(r)
+		if err != nil {
+			return
+		}
+
+		if result == submodel.BlockhashUnmatch {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+	}
+
+	return
 }
 
 func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
