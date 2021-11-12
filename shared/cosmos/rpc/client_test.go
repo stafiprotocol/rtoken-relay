@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
+
 	// "strings"
 	"sync"
 	"testing"
@@ -40,6 +42,7 @@ var adrValidatorForbole, _ = types.ValAddressFromBech32("cosmosvaloper1w96rrh9sx
 
 var addrReleaseAddress, _ = types.AccAddressFromBech32("cosmos1wmk9ys49zxgmx77pqs7cjnpamnnxuspqu2r87y")
 var addrReleaseVal, _ = types.ValAddressFromBech32("cosmosvaloper14jlpmqquh0gste6nzf4dn43kc8h50l6fmx6dfs")
+var addrReleaseValWetez, _ = types.ValAddressFromBech32("cosmosvaloper1s05va5d09xlq3et8mapsesqh6r5lqy7mkhwshm")
 
 func TestGetAddrHex(t *testing.T) {
 	t.Log("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc", hexutil.Encode(addrValidatorTestnet.Bytes()))
@@ -442,8 +445,14 @@ func TestClient_GetSequence(t *testing.T) {
 	// assert.NoError(t,err)
 	// t.Log(txRes.String())
 
-	res, err := client.QueryUnbondingDelegation(addrReleaseAddress, addrReleaseVal, 0)
-	assert.NoError(t, err)
+	res, err := client.QueryUnbondingDelegation(addrReleaseAddress, addrReleaseValWetez, 0)
+	if err!=nil{
+		if strings.Contains(err.Error(),"NotFound") {
+			t.Log(err)
+		}
+		
+		t.Fatal(err)
+	}
 	t.Log(res.String())
 	t.Log(len(res.GetUnbond().Entries))
 }

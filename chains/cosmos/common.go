@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -275,6 +276,11 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 		for _, val := range valAddrs {
 			res, err := client.QueryUnbondingDelegation(poolAddr, val, 0)
 			if err != nil {
+				// unbonding empty case
+				if strings.Contains(err.Error(), "NotFound") {
+					canUseValAddrs = append(canUseValAddrs, val)
+					continue
+				}
 				return nil, err
 			}
 			if len(res.GetUnbond().Entries) < 7 {
