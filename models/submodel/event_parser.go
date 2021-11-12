@@ -404,6 +404,9 @@ func parseBytes(value interface{}) ([]byte, error) {
 
 	bz, err := hexutil.Decode(utiles.AddHex(val))
 	if err != nil {
+		if err.Error() == hexutil.ErrSyntax.Error() {
+			return []byte(val), nil
+		}
 		return nil, err
 	}
 

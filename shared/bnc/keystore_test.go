@@ -307,7 +307,7 @@ func TestValidatorId(t *testing.T) {
 
 	t.Log(addr)
 
-	a := []byte(`bva16kujlngdxq4pvyf87gpzx2x7ya4lgsz96j0aqt`)
+	a := []byte(`bva15mgzha93ny878kuvjl0pnqmjygwccdad08uecu`)
 	b := hexutil.Encode(a)
 	t.Log(b) // 0x62766131366b756a6c6e676478713470767966383767707a783278377961346c67737a39366a30617174
 }
