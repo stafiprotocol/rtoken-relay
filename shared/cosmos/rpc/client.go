@@ -20,53 +20,77 @@ type Client struct {
 	rpcClient     rpcClient.Client
 	gasPrice      string
 	denom         string
-	endPoint      string
 	accountNumber uint64
 }
 
 func NewClient(k keyring.Keyring, chainId, fromName, gasPrice, denom, endPoint string) (*Client, error) {
 	encodingConfig := MakeEncodingConfig()
-	info, err := k.Key(fromName)
-	if err != nil {
-		return nil, fmt.Errorf("keyring get address from name:%s err: %s", fromName, err)
-	}
-	rpcClient, err := rpcHttp.New(endPoint, "/websocket")
-	if err != nil {
-		return nil, err
-	}
+	var retClient *Client
+	if len(fromName) != 0 {
+		info, err := k.Key(fromName)
+		if err != nil {
+			return nil, fmt.Errorf("keyring get address from name:%s err: %s", fromName, err)
+		}
+		rpcClient, err := rpcHttp.New(endPoint, "/websocket")
+		if err != nil {
+			return nil, err
+		}
 
-	initClientCtx := client.Context{}.
-		WithJSONMarshaler(encodingConfig.Marshaler).
-		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
-		WithTxConfig(encodingConfig.TxConfig).
-		WithLegacyAmino(encodingConfig.Amino).
-		WithInput(os.Stdin).
-		WithAccountRetriever(xAuthTypes.AccountRetriever{}).
-		WithBroadcastMode(flags.BroadcastBlock).
-		WithChainID(chainId).
-		WithClient(rpcClient).
-		WithSkipConfirmation(true).         //skip password confirm
-		WithFromName(fromName).             //keyBase need FromName to find key info
-		WithFromAddress(info.GetAddress()). //accountRetriever need FromAddress
-		WithKeyring(k)
+		initClientCtx := client.Context{}.
+			WithJSONMarshaler(encodingConfig.Marshaler).
+			WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
+			WithTxConfig(encodingConfig.TxConfig).
+			WithLegacyAmino(encodingConfig.Amino).
+			WithInput(os.Stdin).
+			WithAccountRetriever(xAuthTypes.AccountRetriever{}).
+			WithBroadcastMode(flags.BroadcastBlock).
+			WithChainID(chainId).
+			WithClient(rpcClient).
+			WithSkipConfirmation(true).         //skip password confirm
+			WithFromName(fromName).             //keyBase need FromName to find key info
+			WithFromAddress(info.GetAddress()). //accountRetriever need FromAddress
+			WithKeyring(k)
 
-	client := &Client{
-		clientCtx: initClientCtx,
-		rpcClient: rpcClient,
-	}
+		retClient = &Client{
+			clientCtx: initClientCtx,
+			rpcClient: rpcClient,
+		}
 
-	account, err := client.GetAccount()
-	if err != nil {
-		return nil, err
-	}
-	client.accountNumber = account.GetAccountNumber()
+		account, err := retClient.GetAccount()
+		if err != nil {
+			return nil, err
+		}
+		retClient.accountNumber = account.GetAccountNumber()
 
-	client.setDenom(denom)
-	err = client.setGasPrice(gasPrice)
-	if err != nil {
-		return nil, err
+		retClient.setDenom(denom)
+		err = retClient.setGasPrice(gasPrice)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		rpcClient, err := rpcHttp.New(endPoint, "/websocket")
+		if err != nil {
+			return nil, err
+		}
+
+		initClientCtx := client.Context{}.
+			WithJSONMarshaler(encodingConfig.Marshaler).
+			WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
+			WithTxConfig(encodingConfig.TxConfig).
+			WithLegacyAmino(encodingConfig.Amino).
+			WithInput(os.Stdin).
+			WithAccountRetriever(xAuthTypes.AccountRetriever{}).
+			WithBroadcastMode(flags.BroadcastBlock).
+			WithChainID(chainId).
+			WithClient(rpcClient).
+			WithSkipConfirmation(true) //skip password confirm
+
+		retClient = &Client{
+			clientCtx: initClientCtx,
+			rpcClient: rpcClient,
+		}
 	}
-	return client, nil
+	return retClient, nil
 }
 
 //update clientCtx.FromName and clientCtx.FromAddress
