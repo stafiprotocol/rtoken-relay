@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	// "strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/JFJun/go-substrate-crypto/ss58"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	// "github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -38,6 +40,10 @@ var adrValidatorTestnetTecos, _ = types.ValAddressFromBech32("cosmosvaloper1p7e3
 var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1tflk30mq5vgqjdly92kkhhq3raev2hnz6eete3")
 var adrValidatorForbole, _ = types.ValAddressFromBech32("cosmosvaloper1w96rrh9sx0h7n7qak00l90un0kx5wala2prmxt")
 
+var addrReleaseAddress, _ = types.AccAddressFromBech32("cosmos1wmk9ys49zxgmx77pqs7cjnpamnnxuspqu2r87y")
+var addrReleaseVal, _ = types.ValAddressFromBech32("cosmosvaloper14jlpmqquh0gste6nzf4dn43kc8h50l6fmx6dfs")
+var addrReleaseValWetez, _ = types.ValAddressFromBech32("cosmosvaloper1s05va5d09xlq3et8mapsesqh6r5lqy7mkhwshm")
+
 func TestGetAddrHex(t *testing.T) {
 	t.Log("cosmosvaloper17tpddyr578avyn95xngkjl8nl2l2tf6auh8kpc", hexutil.Encode(addrValidatorTestnet.Bytes()))
 	t.Log("cosmosvaloper1x5wgh6vwye60wv3dtshs9dmqggwfx2ldk5cvqu", hexutil.Encode(addrValidatorTestnetStation.Bytes()))
@@ -56,14 +62,16 @@ func TestGetAddrHex(t *testing.T) {
 }
 
 func initClient() {
-	key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, "/Users/tpkeeper/.gaia", strings.NewReader("tpkeeper\n"))
-	if err != nil {
-		panic(err)
-	}
+	// key, err := keyring.New(types.KeyringServiceName(), keyring.BackendFile, "/Users/tpkeeper/.gaia", strings.NewReader("tpkeeper\n"))
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	client, err = rpc.NewClient(key, "stargate-final", "key0", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
+	// client, err = rpc.NewClient(key, "stargate-final", "key0", "0.04umuon", "umuon", "https://testcosmosrpc.wetez.io:443")
 	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
 	// client, _ = rpc.NewClient(key, "cosmoshub-4", "self", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
+	var err error
+	client, err = rpc.NewClient(nil, "cosmoshub-4", "", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
 	if err != nil {
 		panic(err)
 	}
@@ -401,7 +409,7 @@ func TestAddress(t *testing.T) {
 
 func TestClient_QueryDelegations(t *testing.T) {
 	initClient()
-	res, err := client.QueryDelegations(addrMultiSig2, 0)
+	res, err := client.QueryDelegations(addrReleaseAddress, 0)
 	assert.NoError(t, err)
 	t.Log(res.String())
 	for i, d := range res.GetDelegationResponses() {
@@ -430,10 +438,23 @@ func TestClient_QueryDelegationTotalRewards(t *testing.T) {
 
 func TestClient_GetSequence(t *testing.T) {
 	initClient()
-	seq, err := client.GetSequence(0, addrMultiSig1)
+	seq, err := client.GetSequence(0, addrReleaseAddress)
 	assert.NoError(t, err)
 	t.Log(seq)
-	t.Log(hex.EncodeToString(addrValidatorTestnetAteam.Bytes()))
+	// txRes,err:=client.QueryTxByHash("FBD05BD4B9DB0386B16E679184EAC88D444B38DA992F8AFC35B5A580B3FC6AA4")
+	// assert.NoError(t,err)
+	// t.Log(txRes.String())
+
+	res, err := client.QueryUnbondingDelegation(addrReleaseAddress, addrReleaseValWetez, 0)
+	if err!=nil{
+		if strings.Contains(err.Error(),"NotFound") {
+			t.Log(err)
+		}
+		
+		t.Fatal(err)
+	}
+	t.Log(res.String())
+	t.Log(len(res.GetUnbond().Entries))
 }
 
 func TestMaxTransfer(t *testing.T) {
@@ -515,7 +536,7 @@ func TestMultiThread(t *testing.T) {
 }
 
 func TestSort(t *testing.T) {
-	a := []string{"cosmos1kuyde8vpt8c0ty4pxqgxw3makse7md80umthvg", "cosmos156kk2kqtwwwfps86g547swdlrc2cw6qctm6c8w", "cosmos1jkkhflu8qedqt4cyasd6tg70gjwx4jkhrse6rz"}
+	a := []string{"cosmos1kuyde8vpt8c0ty4pxqgxw3makse7md80umthvg"}
 	t.Log(a)
 	sort.SliceStable(a, func(i, j int) bool {
 		return bytes.Compare([]byte(a[i]), []byte(a[j])) < 0

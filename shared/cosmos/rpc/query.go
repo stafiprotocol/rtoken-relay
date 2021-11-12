@@ -48,6 +48,23 @@ func (c *Client) QueryDelegation(delegatorAddr types.AccAddress, validatorAddr t
 	return cc.(*xStakeTypes.QueryDelegationResponse), nil
 }
 
+func (c *Client) QueryUnbondingDelegation(delegatorAddr types.AccAddress, validatorAddr types.ValAddress, height int64) (*xStakeTypes.QueryUnbondingDelegationResponse, error) {
+	client := c.clientCtx.WithHeight(height)
+	queryClient := xStakeTypes.NewQueryClient(client)
+	params := &xStakeTypes.QueryUnbondingDelegationRequest{
+		DelegatorAddr: delegatorAddr.String(),
+		ValidatorAddr: validatorAddr.String(),
+	}
+
+	cc, err := retry(func() (interface{}, error) {
+		return queryClient.UnbondingDelegation(context.Background(), params)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*xStakeTypes.QueryUnbondingDelegationResponse), nil
+}
+
 func (c *Client) QueryDelegations(delegatorAddr types.AccAddress, height int64) (*xStakeTypes.QueryDelegatorDelegationsResponse, error) {
 	client := c.clientCtx.WithHeight(height)
 	queryClient := xStakeTypes.NewQueryClient(client)

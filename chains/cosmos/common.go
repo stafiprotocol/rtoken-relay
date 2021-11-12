@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -229,6 +230,7 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 		if err != nil {
 			return nil, err
 		}
+
 		valAddrs = append(valAddrs, valAddr)
 		totalDelegateAmount = totalDelegateAmount.Add(dele.GetBalance().Amount)
 		deleAmount[valAddr.String()] = dele.GetBalance().Amount
@@ -264,10 +266,31 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 		//make val <= totalDelegateAmount-3*len and we revserve 3 uatom
 		val := unbond.Int.Sub(unbond.Int, bond.Int)
 		willUsetotalDelegateAmount := totalDelegateAmount.Sub(types.NewInt(3 * int64(valAddrsLen)))
-		if val.Cmp(willUsetotalDelegateAmount.BigInt()) >= 0 {
-			val = willUsetotalDelegateAmount.BigInt()
+		if val.Cmp(willUsetotalDelegateAmount.BigInt()) > 0 {
+			return nil, fmt.Errorf("no enough value can be used to unbond, pool: %s", poolAddr)
 		}
 		willUseTotalVal := types.NewIntFromBigInt(val)
+
+		//remove if unbonding >= 7
+		canUseValAddrs := make([]types.ValAddress, 0)
+		for _, val := range valAddrs {
+			res, err := client.QueryUnbondingDelegation(poolAddr, val, 0)
+			if err != nil {
+				// unbonding empty case
+				if strings.Contains(err.Error(), "NotFound") {
+					canUseValAddrs = append(canUseValAddrs, val)
+					continue
+				}
+				return nil, err
+			}
+			if len(res.GetUnbond().Entries) < 7 {
+				canUseValAddrs = append(canUseValAddrs, val)
+			}
+		}
+		valAddrs = canUseValAddrs
+		if len(valAddrs) == 0 {
+			return nil, fmt.Errorf("no valAddrs can be used to unbond, pool: %s", poolAddr)
+		}
 
 		//sort validators by delegate amount
 		sort.Slice(valAddrs, func(i int, j int) bool {
@@ -280,20 +303,28 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 		choosedAmount := make(map[string]types.Int)
 
 		selectedAmount := types.NewInt(0)
+		enough := false
 		for _, validator := range valAddrs {
 			nowValMaxUnDeleAmount := deleAmount[validator.String()].Sub(types.NewInt(3))
+			//if we find all validators needed
 			if selectedAmount.Add(nowValMaxUnDeleAmount).GTE(willUseTotalVal) {
 				willUseChoosedAmount := willUseTotalVal.Sub(selectedAmount)
 
 				choosedVals = append(choosedVals, validator)
 				choosedAmount[validator.String()] = willUseChoosedAmount
 				selectedAmount = selectedAmount.Add(willUseChoosedAmount)
+
+				enough = true
 				break
 			}
 
 			choosedVals = append(choosedVals, validator)
 			choosedAmount[validator.String()] = nowValMaxUnDeleAmount
 			selectedAmount = selectedAmount.Add(nowValMaxUnDeleAmount)
+		}
+
+		if !enough {
+			return nil, fmt.Errorf("can't find enough valAddrs to unbond, pool: %s", poolAddr)
 		}
 
 		unSignedTx, err = client.GenMultiSigRawUnDelegateTxV2(
