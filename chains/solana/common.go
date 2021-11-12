@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -84,6 +85,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		//get derived account
 		canWithdrawAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
 		canMergeAccounts := make(map[solCommon.PublicKey]solClient.GetStakeActivationResponse)
+
 		stakeBaseAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), useStakeBaseAccountPubKey.ToBase58())
 		if err != nil {
 			w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
@@ -161,7 +163,18 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		accountMetas := make([][]solTypes.AccountMeta, 0)
 		txDatas := make([][]byte, 0)
 
-		for stakeAccountPubkey, accountInfo := range canWithdrawAccounts {
+		//sort account
+		canWithdrawKeys := make([]solCommon.PublicKey, 0)
+		for key, _ := range canWithdrawAccounts {
+			canWithdrawKeys = append(canWithdrawKeys, key)
+		}
+		sort.SliceStable(canWithdrawKeys, func(i, j int) bool {
+			return canWithdrawKeys[i].ToBase58() < canWithdrawKeys[j].ToBase58()
+		})
+
+		for _, stakeAccountPubkey := range canWithdrawKeys {
+			accountInfo := canWithdrawAccounts[stakeAccountPubkey]
+
 			withdrawInstruction := stakeprog.Withdraw(stakeAccountPubkey, poolClient.MultisignerPubkey,
 				poolClient.MultisignerPubkey, accountInfo.Inactive, solCommon.PublicKey{})
 
@@ -172,7 +185,16 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 			txDatas = append(txDatas, withdrawInstruction.Data)
 		}
 
-		for stakeAccountPubkey, _ := range canMergeAccounts {
+		//sort account
+		canMergeKeys := make([]solCommon.PublicKey, 0)
+		for key, _ := range canMergeAccounts {
+			canMergeKeys = append(canMergeKeys, key)
+		}
+		sort.SliceStable(canMergeKeys, func(i, j int) bool {
+			return canMergeKeys[i].ToBase58() < canMergeKeys[j].ToBase58()
+		})
+
+		for _, stakeAccountPubkey := range canMergeKeys {
 			mergeInstruction := stakeprog.Merge(
 				useStakeBaseAccountPubKey,
 				stakeAccountPubkey,
@@ -184,6 +206,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 			accountMetas = append(accountMetas, mergeInstruction.Accounts)
 			txDatas = append(txDatas, mergeInstruction.Data)
 		}
+
 		remainingAccounts := multisigprog.GetRemainAccounts(withdrawAndMergeInstructions)
 
 		if poolClient.HasBaseAccountAuth {
@@ -215,17 +238,19 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		}
 		w.log.Info("MergeAndWithdraw multisigTxAccount has create", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 
-		valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
-		if !valid {
-			w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
-			return false
-		}
 		//if has exe just return
 		isExe := w.IsMultisigTxExe(rpcClient, multisigTxAccountPubkey)
 		if isExe {
 			w.log.Info("MergeAndWithdraw multisigTxAccount has execute", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
 			continue
 		}
+
+		valid := w.CheckMultisigTx(rpcClient, multisigTxAccountPubkey, programIds, accountMetas, txDatas)
+		if !valid {
+			w.log.Info("MergeAndWithdraw CheckMultisigTx failed", "multisigTxAccount", multisigTxAccountPubkey.ToBase58())
+			return false
+		}
+
 		//approve multisig tx
 		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
 		if !send {
@@ -466,45 +491,84 @@ func (w *writer) CheckMultisigTx(
 	programsIds []solCommon.PublicKey,
 	accountMetas [][]solTypes.AccountMeta,
 	datas [][]byte) bool {
-	accountInfo, err := rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-	if err == nil {
-		thisProgramsIdsBts, err := solCommon.SerializeData(programsIds)
-		if err != nil {
+
+	retry := 0
+	var err error
+	var accountInfo *solClient.GetMultisigTxAccountInfo
+	for {
+		if retry >= retryLimit {
+			w.log.Error("CheckMultisigTx reach retry limit",
+				"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
 			return false
 		}
-		thisAccountMetasBts, err := solCommon.SerializeData(accountMetas)
+		accountInfo, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
 		if err != nil {
-			return false
+			w.log.Warn("CheckMultisigTx failed, waiting...",
+				"multisig tx account", multisigTxAccountPubkey.ToBase58(),
+				"err", err)
+			time.Sleep(waitTime)
+			retry++
+			continue
+		} else {
+			break
 		}
-		thisDatasBts, err := solCommon.SerializeData(datas)
-		if err != nil {
-			return false
-		}
-		onchainProgramsIdsBts, err := solCommon.SerializeData(accountInfo.ProgramID)
-		if err != nil {
-			return false
-		}
-		onchainAccountMetasBts, err := solCommon.SerializeData(accountInfo.Accounts)
-		if err != nil {
-			return false
-		}
-		onchainDatasBts, err := solCommon.SerializeData(accountInfo.Data)
-		if err != nil {
-			return false
-		}
-		if bytes.Equal(thisProgramsIdsBts, onchainProgramsIdsBts) &&
-			bytes.Equal(thisAccountMetasBts, onchainAccountMetasBts) &&
-			bytes.Equal(thisDatasBts, onchainDatasBts) {
-			return true
-		}
-		w.log.Error("CheckMultisigTx not equal ",
-			"thisprogramsIds", hex.EncodeToString(thisProgramsIdsBts),
-			"onchainProgramnsIdsBts", hex.EncodeToString(onchainProgramsIdsBts),
-			"thisAccountMetasBts", hex.EncodeToString(thisAccountMetasBts),
-			"onchainAccountMetasBts", hex.EncodeToString(onchainAccountMetasBts),
-			"thisDatasBts", hex.EncodeToString(thisDatasBts),
-			"onchainDatasBts", hex.EncodeToString(onchainDatasBts))
 	}
+
+	thisProgramsIdsBts, err := solCommon.SerializeData(programsIds)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"programsIds", programsIds,
+			"err", err)
+		return false
+	}
+	thisAccountMetasBts, err := solCommon.SerializeData(accountMetas)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountMetas", accountMetas,
+			"err", err)
+		return false
+	}
+	thisDatasBts, err := solCommon.SerializeData(datas)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"datas", datas,
+			"err", err)
+		return false
+	}
+	onchainProgramsIdsBts, err := solCommon.SerializeData(accountInfo.ProgramID)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountInfo.ProgramID", accountInfo.ProgramID,
+			"err", err)
+		return false
+	}
+	onchainAccountMetasBts, err := solCommon.SerializeData(accountInfo.Accounts)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountInfo.Accounts", accountInfo.Accounts,
+			"err", err)
+		return false
+	}
+	onchainDatasBts, err := solCommon.SerializeData(accountInfo.Data)
+	if err != nil {
+		w.log.Error("CheckMultisigTx serializeData err",
+			"accountInfo.Data", accountInfo.Data,
+			"err", err)
+		return false
+	}
+	if bytes.Equal(thisProgramsIdsBts, onchainProgramsIdsBts) &&
+		bytes.Equal(thisAccountMetasBts, onchainAccountMetasBts) &&
+		bytes.Equal(thisDatasBts, onchainDatasBts) {
+		return true
+	}
+	w.log.Error("CheckMultisigTx not equal ",
+		"thisprogramsIds", hex.EncodeToString(thisProgramsIdsBts),
+		"onchainProgramnsIdsBts", hex.EncodeToString(onchainProgramsIdsBts),
+		"thisAccountMetasBts", hex.EncodeToString(thisAccountMetasBts),
+		"onchainAccountMetasBts", hex.EncodeToString(onchainAccountMetasBts),
+		"thisDatasBts", hex.EncodeToString(thisDatasBts),
+		"onchainDatasBts", hex.EncodeToString(onchainDatasBts))
 
 	return false
 }

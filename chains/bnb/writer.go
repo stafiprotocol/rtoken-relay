@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,6 +35,7 @@ type writer struct {
 	stop            <-chan int
 	swapRecord      string
 	swapHistory     string
+	unbondables     string
 }
 
 const (
@@ -51,6 +53,11 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 		panic("no filepath to save SwapRecord history")
 	}
 
+	unbondables, ok := opts["Unbondables"].(string)
+	if !ok {
+		panic("no filepath to save unbondables")
+	}
+
 	if _, err := os.Stat(record); os.IsNotExist(err) {
 		err = utils.WriteCSV(record, [][]string{})
 		if err != nil {
@@ -60,6 +67,13 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 
 	if _, err := os.Stat(history); os.IsNotExist(err) {
 		err = utils.WriteCSV(history, [][]string{})
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if _, err := os.Stat(unbondables); os.IsNotExist(err) {
+		err = utils.WriteCSV(unbondables, [][]string{})
 		if err != nil {
 			panic(err)
 		}
@@ -76,6 +90,7 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 		stop:            stop,
 		swapRecord:      record,
 		swapHistory:     history,
+		unbondables:     unbondables,
 	}
 }
 
@@ -277,6 +292,12 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 
 			flow.BondCall.Action = submodel.BothBondUnbond
 		} else {
+			u := &Unbondable{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era)}
+			err = CreateUnbondable(w.unbondables, u)
+			if err != nil {
+				w.log.Error("processEraPoolUpdated: create unbondable err", "err", err, "unbondable", *u)
+				return false
+			}
 			flow.BondCall.Action = submodel.InterDeduct
 		}
 	case submodel.BothBondUnbond, submodel.EitherBondUnbond, submodel.InterDeduct:
@@ -340,7 +361,8 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		}
 	} else if unbond > bond {
 		diff := unbond - bond
-		if diff < flow.LeastBond.Int64() {
+		u := &Unbondable{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era)}
+		if IsUnbondableExist(w.unbondables, u) || diff < flow.LeastBond.Int64() {
 			staked -= diff
 		}
 	}
@@ -482,6 +504,7 @@ func (w *writer) start() error {
 				w.log.Info("writer stopped")
 				return
 			case msg := <-w.liquidityBonds:
+				time.Sleep(2 * time.Second)
 				result := w.processLiquidityBond(msg)
 				w.log.Info("retry processLiquidityBond", "result", result)
 			}

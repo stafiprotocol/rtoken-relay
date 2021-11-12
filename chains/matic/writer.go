@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
@@ -108,7 +109,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 
 	var bondReason submodel.BondReason
 	var err error
-	if flow.VerifyTimes >= 5 {
+	if flow.VerifyTimes >= 10 {
 		bondReason = submodel.BlockhashUnmatch
 	} else {
 		bondReason, err = w.conn.TransferVerify(flow.Record)
@@ -215,22 +216,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return false
 	}
 
-	state, err := w.conn.TxHashState(txHash, poolAddr)
-	if err != nil {
-		w.log.Error("processEraPoolUpdated: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
-		return false
-	}
-
-	if state == ethmodel.HashStateSuccess {
-		flow.Active, flow.Reward, err = w.conn.StakedAndReward(txHash, shareAddr, poolAddr)
-		if err != nil {
-			w.log.Error("processEraPoolUpdated: RewardByTxHash error", "error", err, "txHash", txHash, "pool", poolAddr)
-			return false
-		}
-		w.log.Info("processEraPoolUpdated RewardByTxHash", "reward", flow.Active, "txHash", txHash, "pool", poolAddr)
-		return w.informChain(m.Destination, m.Source, mef)
-	}
-
 	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
 	signature, err := crypto.Sign(msg[:], key.PrivateKey())
 	if err != nil {
@@ -295,33 +280,6 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return false
 	}
 
-	state, err := w.conn.TxHashState(txHash, poolAddr)
-	if err != nil {
-		w.log.Error("processBondReported: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
-		return false
-	}
-
-	if state == ethmodel.HashStateSuccess {
-		active, err := w.conn.TotalStaked(shareAddr, poolAddr)
-		if err != nil {
-			w.log.Error("processBondReported TotalStaked error", "error", err, "share", shareAddr, "pool", poolAddr)
-			return false
-		}
-
-		bond, unbond := snap.Bond.Int, snap.Unbond.Int
-		if bond.Cmp(unbond) > 0 {
-			diff := big.NewInt(0).Sub(bond, unbond)
-			if diff.Cmp(flow.LeastBond) <= 0 {
-				active = active.Add(active, diff)
-			}
-		}
-		flow.Snap.Active = types.NewU128(*active)
-
-		w.log.Info("processBondReported total active", "pool", poolAddr, "active", active)
-		msg := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.ActiveReport, Content: flow}
-		return w.submitMessage(msg)
-	}
-
 	msg := w.conn.MessageToSign(tx, poolAddr, txHash)
 	signature, err := crypto.Sign(msg[:], key.PrivateKey())
 	if err != nil {
@@ -383,16 +341,6 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processActiveReported EncodeToHash error", "error", err)
 		return false
-	}
-
-	state, err := w.conn.TxHashState(txHash, poolAddr)
-	if err != nil {
-		w.log.Error("processActiveReported: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
-		return false
-	}
-
-	if state == ethmodel.HashStateSuccess {
-		return w.informChain(m.Destination, m.Source, mef)
 	}
 
 	nonce, err := w.conn.WithdrawNonce(shareAddr, poolAddr)
@@ -462,16 +410,6 @@ func (w *writer) processWithdrawReported(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("processWithdrawReported EncodeToHash error", "error", err)
 		return false
-	}
-
-	state, err := w.conn.TxHashState(txHash, poolAddr)
-	if err != nil {
-		w.log.Error("processActiveReported: TxHashState error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
-		return false
-	}
-
-	if state == ethmodel.HashStateSuccess {
-		return w.informChain(m.Destination, m.Source, mef)
 	}
 
 	if flow.TotalAmount.Uint64() == 0 {
@@ -659,7 +597,7 @@ func (w *writer) processSignatureEnough(m *core.Message) bool {
 
 	eraSignerFlag := w.conn.IsEraSigner(era, subAccounts)
 	if !eraSignerFlag {
-		w.log.Info("processSignatureEnough", "eraSignerFlag", eraSignerFlag, "txHash", txHash)
+		w.log.Info("processSignatureEnough", "eraSignerFlag", eraSignerFlag, "era", era, "len(subAccounts)", len(subAccounts), "txHash", txHash)
 		err = w.conn.WaitTxHashSuccess(txHash, poolAddr, sigs.TxType)
 		if err != nil {
 			w.log.Error("processSignatureEnough: WaitTxHashSuccess error", "error", err, "txHash", txHash, "poolAddr", poolAddr)
@@ -803,6 +741,7 @@ func (w *writer) start() error {
 				w.log.Info("writer stopped")
 				return
 			case msg := <-w.liquidityBonds:
+				time.Sleep(5 * time.Second)
 				result := w.processLiquidityBond(msg)
 				w.log.Info("retry processLiquidityBond", "result", result)
 			}

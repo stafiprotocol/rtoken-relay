@@ -19,14 +19,14 @@ import (
 
 var app = cli.NewApp()
 
-var cliFlags = []cli.Flag{
+var mainFlags = []cli.Flag{
 	config.ConfigFileFlag,
 	config.VerbosityFlag,
-	config.KeystorePathFlag,
 }
 
 var generateFlags = []cli.Flag{
 	config.KeystorePathFlag,
+	config.NetworkFlag,
 }
 
 var bncGenerateFlags = []cli.Flag{
@@ -45,21 +45,21 @@ var accountCommand = cli.Command{
 		"\tTo list keys: chainbridge accounts list",
 	Subcommands: []*cli.Command{
 		{
-			Action:      wrapHandler(handleGenerateSubCmd),
+			Action:      handleGenerateSubCmd,
 			Name:        "gensub",
 			Usage:       "generate subsrate keystore",
 			Flags:       generateFlags,
 			Description: "The generate subcommand is used to generate the substrate keystore.",
 		},
 		{
-			Action:      wrapHandler(handleGenerateEthCmd),
+			Action:      handleGenerateEthCmd,
 			Name:        "geneth",
 			Usage:       "generate ethereum keystore",
 			Flags:       generateFlags,
 			Description: "The generate subcommand is used to generate the ethereum keystore.",
 		},
 		{
-			Action:      wrapHandler(handleGenerateBcCmd),
+			Action:      handleGenerateBcCmd,
 			Name:        "genbc",
 			Usage:       "generate bc chain keystore",
 			Flags:       bncGenerateFlags,
@@ -81,7 +81,7 @@ func init() {
 		&accountCommand,
 	}
 
-	app.Flags = append(app.Flags, cliFlags...)
+	app.Flags = append(app.Flags, mainFlags...)
 }
 
 func main() {
@@ -94,7 +94,6 @@ func main() {
 func startLogger(ctx *cli.Context) error {
 	logger := log.Root()
 	var lvl log.Lvl
-
 	if lvlToInt, err := strconv.Atoi(ctx.String(config.VerbosityFlag.Name)); err == nil {
 		lvl = log.Lvl(lvlToInt)
 	} else if lvl, err = log.LvlFromString(ctx.String(config.VerbosityFlag.Name)); err != nil {

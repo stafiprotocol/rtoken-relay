@@ -14,7 +14,7 @@ import (
 var (
 	BlockRetryInterval = time.Second * 6
 	BlockRetryLimit    = 50
-	BlockConfirmNumber = int64(6)
+	BlockConfirmNumber = int64(3)
 	EraInterval        = time.Minute * 2
 )
 

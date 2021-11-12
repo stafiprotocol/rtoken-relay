@@ -60,6 +60,7 @@ func (l *listener) start() error {
 func (l *listener) pollBlocks() error {
 	var retry = BlockRetryLimit
 	ticker := time.NewTicker(EraInterval)
+	l.updateEra()
 	defer ticker.Stop()
 	for {
 		select {

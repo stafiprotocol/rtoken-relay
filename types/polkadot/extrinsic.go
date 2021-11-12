@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/itering/scale.go/utiles"
-	"github.com/shopspring/decimal"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/stafiprotocol/rtoken-relay/types"
@@ -23,8 +22,6 @@ type ExtrinsicDecoder struct {
 	Era                 string                 `json:"era"`
 	CallIndex           string                 `json:"call_index"`
 	Tip                 interface{}            `json:"tip"`
-	CallModule          MetadataModules        `json:"call_module"`
-	Call                MetadataCalls          `json:"call"`
 	Params              []types.ExtrinsicParam `json:"params"`
 	Metadata            *MetadataStruct
 }
@@ -71,44 +68,7 @@ func (e *ExtrinsicDecoder) Process() {
 		"extrinsic_length": e.ExtrinsicLength,
 		"version_info":     e.VersionInfo,
 	}
-
-	if e.VersionInfo == "01" || e.VersionInfo == "81" {
-
-		if e.ContainsTransaction {
-			e.Address = e.ProcessAndUpdateData("Address").(string)
-			e.Signature = e.ProcessAndUpdateData("Signature").(string)
-			e.Nonce = e.ProcessAndUpdateData("Compact<u32>").(int)
-			e.Era = e.ProcessAndUpdateData("Era").(string)
-			e.ExtrinsicHash = e.generateHash()
-		}
-		e.CallIndex = utiles.BytesToHex(e.NextBytes(2))
-
-	} else if e.VersionInfo == "02" || e.VersionInfo == "82" {
-
-		if e.ContainsTransaction {
-			e.Address = e.ProcessAndUpdateData("Address").(string)
-			e.Signature = e.ProcessAndUpdateData("Signature").(string)
-			e.Era = e.ProcessAndUpdateData("Era").(string)
-			e.Nonce = int(e.ProcessAndUpdateData("Compact<U64>").(uint64))
-			e.Tip = e.ProcessAndUpdateData("Compact<Balance>").(decimal.Decimal)
-			e.ExtrinsicHash = e.generateHash()
-		}
-		e.CallIndex = utiles.BytesToHex(e.NextBytes(2))
-
-	} else if e.VersionInfo == "03" || e.VersionInfo == "83" {
-
-		if e.ContainsTransaction {
-			e.Address = e.ProcessAndUpdateData("Address").(string)
-			e.Signature = e.ProcessAndUpdateData("Signature").(string)
-			e.Era = e.ProcessAndUpdateData("Era").(string)
-			e.Nonce = int(e.ProcessAndUpdateData("Compact<U64>").(uint64))
-			e.Tip = e.ProcessAndUpdateData("Compact<Balance>").(decimal.Decimal)
-			e.ExtrinsicHash = e.generateHash()
-		}
-		e.CallIndex = utiles.BytesToHex(e.NextBytes(2))
-
-	} else if e.VersionInfo == "04" || e.VersionInfo == "84" {
-
+	if e.VersionInfo == "04" || e.VersionInfo == "84" {
 		if e.ContainsTransaction {
 			// Address
 			address := e.ProcessAndUpdateData("Address")
@@ -155,15 +115,15 @@ func (e *ExtrinsicDecoder) Process() {
 	if !ok {
 		panic(fmt.Sprintf("Not find Extrinsic Lookup %s, please check metadata info", e.CallIndex))
 	}
-	e.Call = call.Call
-	e.CallModule = call.Module
+	e.Module = call.Module.Name
 
-	for _, arg := range e.Call.Args {
-		e.Module = e.CallModule.Name
+	for _, arg := range call.Call.Args {
+		value := e.ProcessAndUpdateData(arg.Type)
 		e.Params = append(e.Params, types.ExtrinsicParam{
 			Name:  arg.Name,
 			Type:  arg.Type,
-			Value: e.ProcessAndUpdateData(arg.Type)})
+			Value: value,
+		})
 	}
 
 	if e.ContainsTransaction {
@@ -176,8 +136,8 @@ func (e *ExtrinsicDecoder) Process() {
 
 	if e.CallIndex != "" {
 		result["call_code"] = e.CallIndex
-		result["call_module_function"] = e.Call.Name
-		result["call_module"] = e.CallModule.Name
+		result["call_module_function"] = call.Call.Name
+		result["call_module"] = call.Module.Name
 	}
 
 	result["nonce"] = e.Nonce

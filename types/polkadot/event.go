@@ -43,13 +43,12 @@ func (e *EventsDecoder) Process() {
 type EventRecord struct {
 	ScaleDecoder
 	Metadata     *MetadataStruct
-	Phase        int             `json:"phase"`
-	ExtrinsicIdx int             `json:"extrinsic_idx"`
-	Type         string          `json:"type"`
-	Params       []EventParam    `json:"params"`
-	Event        MetadataEvents  `json:"event"`
-	EventModule  MetadataModules `json:"event_module"`
-	Topic        []string        `json:"topic"`
+	Phase        int            `json:"phase"`
+	ExtrinsicIdx int            `json:"extrinsic_idx"`
+	Type         string         `json:"type"`
+	Params       []EventParam   `json:"params"`
+	Event        MetadataEvents `json:"event"`
+	Topic        []string       `json:"topic"`
 }
 
 func (e *EventRecord) Process() map[string]interface{} {
@@ -62,18 +61,19 @@ func (e *EventRecord) Process() map[string]interface{} {
 		e.ExtrinsicIdx = int(e.ProcessAndUpdateData("U32").(uint32))
 	}
 	e.Type = utiles.BytesToHex(e.NextBytes(2))
+	if e.Type == "" {
+		e.Type = "0000"
+	}
 
 	call, ok := e.Metadata.EventIndex[e.Type]
 	if !ok {
-		panic(fmt.Sprintf("Not find Extrinsic Lookup %s, please check metadata info", e.Type))
+		panic(fmt.Sprintf("Not find Event Lookup %s, please check metadata info", e.Type))
 	}
 
 	e.Event = call.Call
-	e.EventModule = call.Module
-
 	for _, argType := range e.Event.Args {
-		e.Module = e.EventModule.Name
-		e.Params = append(e.Params, EventParam{Type: argType, Value: e.ProcessAndUpdateData(argType)})
+		value := e.ProcessAndUpdateData(argType)
+		e.Params = append(e.Params, EventParam{Type: argType, Value: value})
 	}
 
 	if e.Metadata.MetadataVersion >= 5 {
@@ -89,7 +89,7 @@ func (e *EventRecord) Process() map[string]interface{} {
 		"phase":         e.Phase,
 		"extrinsic_idx": e.ExtrinsicIdx,
 		"type":          e.Type,
-		"module_id":     e.EventModule.Name,
+		"module_id":     call.Module.Name,
 		"event_id":      e.Event.Name,
 		"params":        e.Params,
 		"topic":         e.Topic,

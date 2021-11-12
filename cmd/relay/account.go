@@ -20,67 +20,30 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-//dataHandler is a struct which wraps any extra data our CMD functions need that cannot be passed through parameters
-type dataHandler struct {
-	datadir string
-}
-
-// wrapHandler takes in a Cmd function (all declared below) and wraps
-// it in the correct signature for the Cli Commands
-func wrapHandler(hdl func(*cli.Context, *dataHandler) error) cli.ActionFunc {
-
-	return func(ctx *cli.Context) error {
-		err := startLogger(ctx)
-		if err != nil {
-			return err
-		}
-
-		datadir, err := getDataDir(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to access the datadir: %s", err)
-		}
-
-		return hdl(ctx, &dataHandler{datadir: datadir})
-	}
-}
-
-func handleGenerateSubCmd(ctx *cli.Context, dHandler *dataHandler) error {
+func handleGenerateSubCmd(ctx *cli.Context) error {
 	log.Info("Generating substrate keyfile by rawseed...")
 	path := ctx.String(config.KeystorePathFlag.Name)
-	return generateKeyFileByRawseed(path)
+	network := ctx.String(config.NetworkFlag.Name)
+	return generateKeyFileByRawseed(path, network)
 }
 
-func handleGenerateEthCmd(ctx *cli.Context, dHandler *dataHandler) error {
+func handleGenerateEthCmd(ctx *cli.Context) error {
 	log.Info("Generating ethereum keyfile by private key...")
 	path := ctx.String(config.KeystorePathFlag.Name)
 	return generateKeyFileByPrivateKey(path)
 }
 
-func handleGenerateBcCmd(ctx *cli.Context, dHandler *dataHandler) error {
+func handleGenerateBcCmd(ctx *cli.Context) error {
 	log.Info("Generating bc chain keyfile by private key...")
 	path := ctx.String(config.KeystorePathFlag.Name)
 	network := ctx.String(config.BncNetwork.Name)
 	return generateBcKeyFileByPrivateKey(path, network)
 }
 
-// getDataDir obtains the path to the keystore and returns it as a string
-func getDataDir(ctx *cli.Context) (string, error) {
-	// key directory is datadir/keystore/
-	if dir := ctx.String(config.KeystorePathFlag.Name); dir != "" {
-		datadir, err := filepath.Abs(dir)
-		if err != nil {
-			return "", err
-		}
-		log.Trace(fmt.Sprintf("Using keystore dir: %s", datadir))
-		return datadir, nil
-	}
-	return "", fmt.Errorf("datadir flag not supplied")
-}
-
 // keypath example: /Homepath/chainbridge/keys
-func generateKeyFileByRawseed(keypath string) error {
+func generateKeyFileByRawseed(keypath, network string) error {
 	key := keystore.GetPassword("Enter mnemonic/rawseed:")
-	kp, err := sr25519.NewKeypairFromSeed(string(key), "polkadot")
+	kp, err := sr25519.NewKeypairFromSeed(string(key), network)
 	if err != nil {
 		return err
 	}

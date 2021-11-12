@@ -192,7 +192,6 @@ func (c *Connection) LatestBlock() (int64, error) {
 	}
 
 	quit := make(chan struct{})
-	defer close(quit)
 	ch, err := bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
 		var event websocket.BlockHeightEvent
 		err := json.Unmarshal(bz, &event)
@@ -219,8 +218,20 @@ func (c *Connection) LatestBlock() (int64, error) {
 	}
 }
 
-func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
-	return c.bscClient.BnbTransferVerify(r)
+func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
+	for i := 0; i < 5; i++ {
+		result, err = c.bscClient.BnbTransferVerify(r)
+		if err != nil {
+			return
+		}
+
+		if result == submodel.BlockhashUnmatch {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+	}
+
+	return
 }
 
 func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
@@ -569,6 +580,14 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 		return fmt.Errorf("TransferFromBcToBsc no bc key found: %s", pool.Hex())
 	}
 
+	bscBalance, err := c.bscClient.Client().BalanceAt(context.Background(), pool, nil)
+	if err != nil {
+		return err
+	}
+
+	bscAmount := big.NewInt(0).Mul(big.NewInt(1e10), big.NewInt(amount))
+	newBalance := bscAmount.Add(bscAmount, bscBalance)
+
 	c.bcRpcClient.SetKeyManager(bcKey)
 	coin := bncCmnTypes.Coin{Denom: CoinSymbol, Amount: amount}
 	expireTime := time.Now().Add(time.Hour).Unix()
@@ -590,10 +609,17 @@ func (c *Connection) TransferFromBcToBsc(pool common.Address, amount int64) erro
 		default:
 			err = c.txHashResult(tx.Hash.String())
 			if err == nil {
-				return nil
+				bscBalance, err := c.bscClient.Client().BalanceAt(context.Background(), pool, nil)
+				if err != nil {
+					return err
+				}
+
+				if bscBalance.Cmp(newBalance) >= 0 {
+					return nil
+				}
 			}
 
-			time.Sleep(2 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}
 }
