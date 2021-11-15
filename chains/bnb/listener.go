@@ -94,7 +94,7 @@ func (l *listener) pollBlocks() error {
 				return nil
 			}
 
-			latestBlock, err := l.conn.LatestBlock()
+			latestBlock, err := l.conn.LatestBlock2()
 			if err != nil {
 				l.log.Error("Unable to get latest block", "err", err)
 				retry--

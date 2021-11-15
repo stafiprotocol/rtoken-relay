@@ -218,6 +218,19 @@ func (c *Connection) LatestBlock() (int64, error) {
 	}
 }
 
+// LatestBlock returns the latest block from the current chain
+func (c *Connection) LatestBlock2() (int64, error) {
+	bcClient, err := bncClient.NewDexClient(baseUrl, bncCmnTypes.Network, c.keyManager)
+	if err != nil {
+		return 0, err
+	}
+	nodeInfo, err := bcClient.GetNodeInfo()
+	if err != nil {
+		return 0, err
+	}
+	return nodeInfo.SyncInfo.LatestBlockHeight, nil
+}
+
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
 	for i := 0; i < 5; i++ {
 		result, err = c.bscClient.BnbTransferVerify(r)
