@@ -39,10 +39,10 @@ lint-fix:
 
 build:
 	@echo "  >  \033[32mBuilding binary...\033[0m "
-	cd cmd/relay && env GOARCH=amd64 go build -o ../../build/relay
-	cd cmd/gencos && env GOARCH=amd64 go build -o ../../build/gencos
-	cd cmd/solvault && env GOARCH=amd64 go build -o ../../build/solvault
-	cd cmd/soltool && env GOARCH=amd64 go build -o ../../build/soltool
+	cd cmd/relay && go build -o ../../build/relay
+	cd cmd/gencos && go build -o ../../build/gencos
+	cd cmd/solvault && go build -o ../../build/solvault
+	cd cmd/soltool && go build -o ../../build/soltool
 
 install:
 	@echo "  >  \033[32mInstalling rtoken-relay...\033[0m "
