@@ -1,6 +1,8 @@
 package bnb
 
 import (
+	"strconv"
+
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -58,6 +60,29 @@ func DeleteSwap(filePath string, swap *Swap) error {
 	}
 
 	return utils.WriteCSV(filePath, newLines)
+}
+
+func LastBscSwapEra(filePath string) int64 {
+	lines := utils.ReadCSV(filePath)
+
+	for i := len(lines) - 1; i >= 0; i-- {
+		if len(lines[i]) != 4 {
+			panic("Swap size is not 4")
+		}
+
+		if lines[i][3] != FromBsc {
+			continue
+		}
+
+		era, err := strconv.Atoi(lines[i][2])
+		if err != nil {
+			panic(err.Error())
+		}
+
+		return int64(era)
+	}
+
+	return 1
 }
 
 func CreateUnbondable(filePath string, u *Unbondable) error {

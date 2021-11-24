@@ -212,10 +212,10 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
 	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
 
+	lastSwapEra := LastBscSwapEra(w.swapHistory) - 1
 	lastEra := int64(snap.Era - 1)
-	eraBeforeLast := lastEra - 1
 	eraBlock := int64(w.conn.EraBlock())
-	lastHeight := eraBeforeLast * eraBlock
+	lastHeight := lastSwapEra * eraBlock
 	curHeight := lastEra * eraBlock
 	reward, err := w.conn.Reward(poolAddr, curHeight, lastHeight)
 	if err != nil {
