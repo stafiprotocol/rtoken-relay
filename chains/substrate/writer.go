@@ -242,6 +242,17 @@ func (w *writer) processNewEra(m *core.Message) bool {
 		return false
 	}
 
+	if w.currentChainEra == 0 {
+		currentEra, err := w.conn.CurrentChainEra(m.Source)
+		if err != nil {
+			if err.Error() != fmt.Sprintf("era of symbol %s not exist", m.Source) {
+				w.log.Error("failed to get CurrentChainEra", "error", err)
+				return false
+			}
+		}
+		w.currentChainEra = currentEra
+	}
+
 	if w.currentChainEra != 0 && cur <= w.currentChainEra {
 		return true
 	}
