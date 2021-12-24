@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/itering/scale.go/source"
 	"github.com/itering/scale.go/utiles"
@@ -19,8 +20,10 @@ type Special struct {
 }
 
 var TypeRegistry map[string]interface{}
+var TypeRegistryMutex sync.RWMutex
 
 var specialRegistry map[string][]Special
+var specialRegistryMutex sync.RWMutex
 
 func (r RuntimeType) Reg() *RuntimeType {
 	registry := make(map[string]interface{})
@@ -140,7 +143,10 @@ func (r RuntimeType) Reg() *RuntimeType {
 	registry["[u8; 2]"] = &VecU8FixedLength{FixedLength: 2}
 	registry["[u8; 256]"] = &VecU8FixedLength{FixedLength: 256}
 	registry["[u128; 3]"] = &FixedLengthArray{FixedLength: 3, SubType: "u128"}
+
+	TypeRegistryMutex.Lock()
 	TypeRegistry = registry
+	TypeRegistryMutex.Unlock()
 
 	RegCustomTypes(source.LoadTypeRegistry([]byte(source.BaseType)))
 	return &r
@@ -151,7 +157,9 @@ func (r *RuntimeType) getCodecInstant(t string, spec int) (reflect.Type, reflect
 	rt, err := r.specialVersionCodec(t, spec)
 
 	if err != nil {
+		TypeRegistryMutex.RLock()
 		rt = TypeRegistry[strings.ToLower(t)]
+		TypeRegistryMutex.RUnlock()
 		if rt == nil && t != "[]" && string(t[0]) == "[" && string(t[len(t)-1:]) == "]" {
 			if typePart := strings.Split(string(t[1:len(t)-1]), ";"); len(typePart) == 2 {
 				fixed := FixedLengthArray{
@@ -212,7 +220,8 @@ func (r *RuntimeType) DecoderClass(typeString string, spec int) (reflect.Type, r
 
 func (r *RuntimeType) specialVersionCodec(t string, spec int) (interface{}, error) {
 	var rt interface{}
-
+	specialRegistryMutex.RLock()
+	defer specialRegistryMutex.RUnlock()
 	if specials, ok := specialRegistry[t]; ok {
 		for _, special := range specials {
 			if spec >= special.Version[0] && spec <= special.Version[1] {

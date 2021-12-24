@@ -24,7 +24,9 @@ func RegCustomTypes(registry map[string]source.TypeStruct) {
 		switch typeStruct.Type {
 		case "string":
 			typeString := typeStruct.TypeString
+			TypeRegistryMutex.RLock()
 			instant := TypeRegistry[strings.ToLower(typeString)]
+			TypeRegistryMutex.RUnlock()
 			if instant != nil {
 				regCustomKey(key, instant)
 				continue
@@ -33,7 +35,9 @@ func RegCustomTypes(registry map[string]source.TypeStruct) {
 			// Explained
 			if explainedType, ok := registry[typeString]; ok {
 				if explainedType.Type == "string" {
+					TypeRegistryMutex.RLock()
 					instant := TypeRegistry[strings.ToLower(explainedType.TypeString)]
+					TypeRegistryMutex.RUnlock()
 					if instant != nil {
 						regCustomKey(key, instant)
 						continue
@@ -114,6 +118,7 @@ func RegCustomTypes(registry map[string]source.TypeStruct) {
 }
 
 func regCustomKey(key string, rt interface{}) {
+
 	slice := strings.Split(key, "#")
 	if len(slice) == 2 { // for Special
 		special := Special{Registry: rt, Version: []int{0, 99999999}}
@@ -123,6 +128,7 @@ func regCustomKey(key string, rt interface{}) {
 				special.Version[1] = utiles.StringToInt(version[1])
 			}
 		}
+		specialRegistryMutex.Lock()
 		if specialRegistry == nil {
 			specialRegistry = make(map[string][]Special)
 		}
@@ -132,9 +138,12 @@ func regCustomKey(key string, rt interface{}) {
 		} else {
 			specialRegistry[slice[0]] = []Special{special}
 		}
+		specialRegistryMutex.Unlock()
 
 	} else {
+		TypeRegistryMutex.Lock()
 		TypeRegistry[key] = rt
+		TypeRegistryMutex.Unlock()
 	}
 
 }
