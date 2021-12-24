@@ -22,6 +22,7 @@ import (
 	wbskt "github.com/stafiprotocol/rtoken-relay/shared/substrate/websocket"
 	"github.com/stafiprotocol/rtoken-relay/types/polkadot"
 	"github.com/stafiprotocol/rtoken-relay/types/stafi"
+	stafiTypes "github.com/stafiprotocol/stafi-types"
 )
 
 const (
@@ -45,6 +46,7 @@ type SarpcClient struct {
 	currentSpecVersion int
 	metaDecoder        interface{}
 	metaDataVersion    int
+	stafiTypes         *stafiTypes.Types
 }
 
 var (
@@ -98,7 +100,12 @@ func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *sig
 		currentSpecVersion: 0,
 		metaDecoder:        md,
 	}
-
+	stafiTypes, err := stafiTypes.NewTypes(sc, log, 60, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	sc.stafiTypes = stafiTypes
+	sc.stafiTypes.StartMonitor()
 	sc.regCustomTypes()
 
 	err = sc.UpdateMeta(latestHash.Hex())
@@ -110,21 +117,24 @@ func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *sig
 }
 
 func (sc *SarpcClient) regCustomTypes() {
-	content, err := ioutil.ReadFile(sc.typesPath)
-	if err != nil {
-		panic(err)
-	}
-
 	switch sc.chainType {
 	case ChainTypeStafi:
 		stafi.RuntimeType{}.Reg()
-		stafi.RegCustomTypes(source.LoadTypeRegistry(content))
+		stafi.RegCustomTypes(source.LoadTypeRegistry(sc.stafiTypes.GetStafiJsonTypes()))
 	case ChainTypePolkadot:
+		content, err := ioutil.ReadFile(sc.typesPath)
+		if err != nil {
+			panic(err)
+		}
 		polkadot.RuntimeType{}.Reg()
 		polkadot.RegCustomTypes(source.LoadTypeRegistry(content))
 	default:
 		panic("chainType not supported")
 	}
+}
+
+func (sc *SarpcClient) RegCustomTypes(content []byte) {
+	stafi.RegCustomTypes(source.LoadTypeRegistry(content))
 }
 
 func (sc *SarpcClient) initial() (*wbskt.PoolConn, error) {
@@ -227,6 +237,18 @@ func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 	}
 	rpcBlock := v.ToBlock()
 	return &rpcBlock.Block, nil
+}
+
+func (sc *SarpcClient) GetSystemChain() (string, error) {
+	v := &rpc.JsonRpcResult{}
+	if err := sc.sendWsRequest(nil, v, rpc.SystemChain(wsId)); err != nil {
+		return "", err
+	}
+	retStr, ok := v.Result.(string)
+	if !ok {
+		return "", fmt.Errorf("result: %v", v.Result)
+	}
+	return retStr, nil
 }
 
 func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*submodel.Transaction, error) {

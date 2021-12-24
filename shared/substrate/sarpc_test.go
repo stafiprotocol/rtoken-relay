@@ -2,10 +2,10 @@ package substrate
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/config"
-	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
 var (
@@ -13,27 +13,33 @@ var (
 )
 
 const (
-	stafiTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json"
-	polkaTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/polkadot.json"
+	stafiTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json"
+	polkaTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/polkadot.json"
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
-	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
+	// sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	chain, err := sc.GetSystemChain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(chain)
 	//evt, err := sc.GetEvents(7112781)
 	//assert.NoError(t, err)
 	//for _, e := range evt {
 	//	t.Log(e.EventId)
 	//}
 
-	for i := 9866422; i <= 9875093; i++ {
+	for i := 0; i <= 9875093; i++ {
 		if i%10 == 0 {
 			t.Log("i", i)
 		}
@@ -61,22 +67,17 @@ func TestSarpcClient_GetChainEvents1(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	evts, err := sc.GetEvents(4561481)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, evt := range evts {
-		if evt.EventId != config.NominationUpdatedEventId {
-			continue
-		}
-		flow, err := submodel.EventNominationUpdated(evt)
+	for i := 4561480; i < 4661580; i++ {
+		evts, err := sc.GetEvents(uint64(i))
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Log(flow)
-		//t.Log(evt.ModuleId)
-		//t.Log(evt.EventId)
-		//t.Log(evt.Params)
+		for _, evt := range evts {
+			time.Sleep(3 * time.Second)
+			t.Log(evt.ModuleId)
+			t.Log(evt.EventId)
+			t.Log(evt.Params)
+		}
 	}
 }
 
