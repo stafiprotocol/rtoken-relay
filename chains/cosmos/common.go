@@ -83,19 +83,11 @@ func ParseClaimRewardProposalId(content []byte) (shotId substrateTypes.Hash, hei
 	return
 }
 
-func GetTransferProposalId(txHash [32]byte) []byte {
-	proposalId := make([]byte, 32)
+func GetTransferProposalId(txHash [32]byte, seq uint64) []byte {
+	proposalId := make([]byte, 40)
 	copy(proposalId, txHash[:])
+	binary.BigEndian.PutUint64(proposalId[32:], seq)
 	return proposalId
-}
-
-func ParseTransferProposalId(content []byte) (shotId substrateTypes.Hash, err error) {
-	if len(content) != 32 {
-		err = errors.New("cont length is not right")
-		return
-	}
-	shotId = substrateTypes.NewHash(content)
-	return
 }
 
 func GetValidatorUpdateProposalId(content []byte) []byte {
