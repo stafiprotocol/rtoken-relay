@@ -161,6 +161,14 @@ func (c *Client) GetCurrentBLockHeight() (int64, error) {
 	return status.SyncInfo.LatestBlockHeight, nil
 }
 
+func (c *Client) GetCurrentBLockAndTimestamp() (int64, int64, error) {
+	status, err := c.GetStatus()
+	if err != nil {
+		return 0, 0, err
+	}
+	return status.SyncInfo.LatestBlockHeight, status.SyncInfo.LatestBlockTime.Unix(), nil
+}
+
 func (c *Client) GetStatus() (*ctypes.ResultStatus, error) {
 	cc, err := retry(func() (interface{}, error) {
 		return c.clientCtx.Client.Status(context.Background())

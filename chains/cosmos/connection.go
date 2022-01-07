@@ -28,7 +28,6 @@ type Connection struct {
 	symbol                    core.RSymbol
 	validatorTargets          []types.ValAddress
 	validatorNoNeedRedelegate map[string]bool
-	currentHeight             int64
 	poolClients               map[string]*cosmos.PoolClient //map[addressHexStr]subClient
 	log                       log15.Logger
 	stop                      <-chan int
@@ -104,16 +103,27 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	if !ok || len(gasPrice) == 0 {
 		return nil, errors.New("config must has gasPrice")
 	}
-	eraBlockNumberStr, ok := cfg.Opts[config.EraBlockNumber].(string)
+	eraSecondsStr, ok := cfg.Opts[config.EraSeconds].(string)
 	if !ok {
-		return nil, errors.New("config must has eraBlockNumber")
+		return nil, errors.New("config must has eraSeconds")
 	}
-	eraBlockNumber, err := strconv.ParseInt(eraBlockNumberStr, 10, 64)
+	eraSeconds, err := strconv.ParseInt(eraSecondsStr, 10, 64)
 	if err != nil {
-		return nil, errors.New("config parse eraBlockNumber failed")
+		return nil, errors.New("config parse eraSeconds failed")
 	}
-	if eraBlockNumber == 0 {
-		return nil, errors.New("eraBlockNumber is zero")
+	if eraSeconds == 0 {
+		return nil, errors.New("eraSeconds is zero")
+	}
+	eraFactorStr, ok := cfg.Opts[config.EraFactor].(string)
+	if !ok {
+		return nil, errors.New("config must has eraFactor")
+	}
+	eraFactor, err := strconv.ParseInt(eraFactorStr, 10, 64)
+	if err != nil {
+		return nil, errors.New("config parse eraFactor failed")
+	}
+	if eraFactor == 0 {
+		return nil, errors.New("eraFactor is zero")
 	}
 
 	subClients := make(map[string]*cosmos.PoolClient)
@@ -136,7 +146,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 			return nil, err
 		}
 		addrHexStr := hex.EncodeToString(keyInfo.GetAddress().Bytes())
-		subClients[addrHexStr] = cosmos.NewPoolClient(log, client, subKeys[account], eraBlockNumber)
+		subClients[addrHexStr] = cosmos.NewPoolClient(client, subKeys[account], eraSeconds, eraFactor)
 		keys = append(keys, addrHexStr)
 	}
 

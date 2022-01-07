@@ -153,7 +153,14 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	client := poolClient.GetRpcClient()
-	height := poolClient.GetHeightByEra(snap.Era)
+	height, err := poolClient.GetHeightByEra(snap.Era)
+	if err != nil {
+		w.log.Error("GetHeightByEra failed",
+			"pool address", poolAddr.String(),
+			"err", snap.Era,
+			"err", err)
+		return false
+	}
 	unSignedTx, err := GetBondUnbondUnsignedTxWithTargets(client, snap.Bond, snap.Unbond, poolAddr, height, w.conn.validatorTargets)
 	if err != nil {
 		w.log.Error("GetBondUnbondUnsignedTx failed",
@@ -248,7 +255,14 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	height := poolClient.GetHeightByEra(flow.Snap.Era)
+	height, err := poolClient.GetHeightByEra(flow.Snap.Era)
+	if err != nil {
+		w.log.Error("GetHeightByEra failed",
+			"pool address", poolAddr.String(),
+			"err", flow.Snap.Era,
+			"err", err)
+		return false
+	}
 	client := poolClient.GetRpcClient()
 	unSignedTx, genTxType, totalDeleAmount, err := GetClaimRewardUnsignedTx(client, poolAddr, height, flow.Snap.Bond, flow.Snap.Unbond)
 	if err != nil && err != rpc.ErrNoMsgs {
@@ -471,7 +485,14 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 	client := poolClient.GetRpcClient()
-	height := poolClient.GetHeightByEra(flow.Era)
+	height, err := poolClient.GetHeightByEra(flow.Era)
+	if err != nil {
+		w.log.Error("GetHeightByEra failed",
+			"pool address", poolAddr.String(),
+			"err", flow.Era,
+			"err", err)
+		return false
+	}
 	oldValidator, err := types.ValAddressFromHex(hex.EncodeToString(flow.OldValidator))
 	if err != nil {
 		w.log.Error("old validator cast to cosmos AccAddress failed",

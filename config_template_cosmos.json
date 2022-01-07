@@ -35,7 +35,8 @@
         "chainId": "chain-AALfXF",
         "denom": "stake",
         "gasPrice": "0.00001stake",
-        "eraBlockNumber": "100",
+        "eraSeconds": "100000",
+        "eraFactor": "100",
         "validatorTargets": [
           "cosmosvaloper1u22lut8qgqg8znxam72pwgqp8c09rnvmummr4w"
         ],

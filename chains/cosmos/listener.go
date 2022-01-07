@@ -6,7 +6,6 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	"sync/atomic"
 	"time"
 )
 
@@ -90,13 +89,10 @@ func (l *listener) updateEra() error {
 		return err
 	}
 
-	height, era, err := client.GetCurrentEra()
+	era, err := client.GetCurrentEra()
 	if err != nil {
 		return err
 	}
-	//update height
-	atomic.StoreInt64(&l.conn.currentHeight, height)
-
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
 	l.submitMessage(msg, nil)
 	return nil
