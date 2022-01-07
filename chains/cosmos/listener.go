@@ -3,7 +3,6 @@ package cosmos
 import (
 	"fmt"
 	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"time"
@@ -22,7 +21,6 @@ type listener struct {
 	name       string
 	symbol     core.RSymbol
 	startBlock uint64
-	blockstore blockstore.Blockstorer
 	conn       *Connection
 	router     chains.Router
 	log        log15.Logger
@@ -30,12 +28,11 @@ type listener struct {
 	sysErr     chan<- error
 }
 
-func NewListener(name string, symbol core.RSymbol, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, startBlock uint64, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	return &listener{
 		name:       name,
 		symbol:     symbol,
 		startBlock: startBlock,
-		blockstore: bs,
 		conn:       conn,
 		log:        log,
 		stop:       stop,

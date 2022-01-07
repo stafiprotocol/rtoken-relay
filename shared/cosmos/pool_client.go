@@ -71,7 +71,6 @@ func (pc *PoolClient) CachedUnsignedTxNumber() int {
 }
 
 func (pc *PoolClient) GetHeightByEra(era uint32) (int64, error) {
-
 	targetTimestamp := (int64(era) + pc.eraFactor) * pc.eraSeconds
 	blockNumber, timestamp, err := pc.GetRpcClient().GetCurrentBLockAndTimestamp()
 	if err != nil {

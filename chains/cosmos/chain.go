@@ -3,8 +3,6 @@ package cosmos
 import (
 	"errors"
 	"github.com/ChainSafe/log15"
-	"github.com/stafiprotocol/chainbridge/utils/blockstore"
-
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
@@ -29,10 +27,9 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	bs := new(blockstore.Blockstore)
 	startBlock := uint64(0)
 	// Setup listener & writer
-	l := NewListener(cfg.Name, cfg.Symbol, startBlock, bs, conn, logger, stop, sysErr)
+	l := NewListener(cfg.Name, cfg.Symbol, startBlock, conn, logger, stop, sysErr)
 	w := NewWriter(conn, logger, sysErr)
 	return &Chain{cfg: cfg, conn: conn, listener: l, writer: w, stop: stop}, nil
 }
