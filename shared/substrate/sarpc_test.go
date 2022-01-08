@@ -56,9 +56,9 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 
 func TestSarpcClient_GetChainEvents1(t *testing.T) {
 	stop := make(chan int)
-	// sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	// sc, err := NewSarpcClient(ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestSarpcClient_GetChainEvents1(t *testing.T) {
 	// fmt.Println(exist)
 	// fmt.Println(ledger)
 
-	for i := 11890; i < 30000; i++ {
+	for i := 11790; i < 30000; i++ {
 
 		evts, err := sc.GetEvents(uint64(i))
 		if err != nil {
@@ -139,48 +139,26 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := 7411010; i >= 7311010; i-- {
-		if i%10 == 0 {
-			t.Log("i", i)
-		}
+	// blockHash, err := sc.GetBlockHash(14148)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// t.Log(blockHash)
 
-		bh, err := sc.GetBlockHash(uint64(i))
-		exts, err := sc.GetExtrinsics(bh)
-		if err != nil {
-			t.Fatal(err)
-		}
+	blockHash:="0x1e762795b773520f599712a273c277fee18313e5c520cdf6c982eec131665bbd"
 
-		for _, ext := range exts {
-			t.Log("exthash", ext.ExtrinsicHash)
-			t.Log("moduleName", ext.CallModuleName)
-			t.Log("methodName", ext.CallName)
-			t.Log("address", ext.Address)
-			t.Log(ext.Params)
-			//for _, p := range ext.Params {
-			//	if p.Name == config.ParamDest && p.Type == config.ParamDestType {
-			//		//dest, ok := p.Value.(string)
-			//		//fmt.Println("ok", ok)
-			//		//fmt.Println(dest)
-			//
-			//		// polkadot-test
-			//		dest, ok := p.Value.(map[string]interface{})
-			//		t.Log("ok", ok)
-			//		v, ok := dest["Id"]
-			//		t.Log("ok1", ok)
-			//		val, ok := v.(string)
-			//		t.Log("ok2", ok)
-			//		t.Log(val)
-			//	}
-			//
-			//	t.Log("name", p.Name, "value", p.Value, "type", p.Type)
-			//}
-		}
+	ext, err := sc.GetExtrinsics(blockHash)
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Log(ext)
+
 }
 
 func TestSarpcClient_GetExtrinsics2(t *testing.T) {
