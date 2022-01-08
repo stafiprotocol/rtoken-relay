@@ -3,9 +3,9 @@ package stafi
 import (
 	"fmt"
 
+	scale "github.com/itering/scale.go"
 	"github.com/itering/scale.go/utiles"
 	"github.com/shopspring/decimal"
-	"github.com/stafiprotocol/rtoken-relay/types"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -24,7 +24,7 @@ type ExtrinsicDecoder struct {
 	Tip                 interface{}            `json:"tip"`
 	CallModule          MetadataModules        `json:"call_module"`
 	Call                MetadataCalls          `json:"call"`
-	Params              []types.ExtrinsicParam `json:"params"`
+	Params              []scale.ExtrinsicParam `json:"params"`
 	Metadata            *MetadataStruct
 }
 
@@ -32,7 +32,7 @@ func (e *ExtrinsicDecoder) Init(data ScaleBytes, option *ScaleDecoderOption) {
 	if option == nil || option.Metadata == nil {
 		panic("ExtrinsicDecoder option metadata required")
 	}
-	e.Params = []types.ExtrinsicParam{}
+	e.Params = []scale.ExtrinsicParam{}
 	e.Metadata = option.Metadata
 	e.ScaleDecoder.Init(data, option)
 }
@@ -154,7 +154,7 @@ func (e *ExtrinsicDecoder) Process() {
 	e.CallModule = call.Module
 
 	for _, arg := range e.Call.Args {
-		e.Params = append(e.Params, types.ExtrinsicParam{
+		e.Params = append(e.Params, scale.ExtrinsicParam{
 			Name:  arg.Name,
 			Type:  arg.Type,
 			Value: e.ProcessAndUpdateData(arg.Type)})

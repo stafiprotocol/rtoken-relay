@@ -1,9 +1,11 @@
 package substrate
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
@@ -54,30 +56,43 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 
 func TestSarpcClient_GetChainEvents1(t *testing.T) {
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	// sc, err := NewSarpcClient(ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
-	// sc, err := NewSarpcClient(ChainTypePolkadot,"wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	evts, err := sc.GetEvents(4561482)
+	era := uint32(5)
+	bz, err := types.EncodeToBytes(era)
+	re := new(submodel.EraRewardPoints)
+	exist1, err := sc.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, re)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, evt := range evts {
-		if evt.EventId != config.NominationUpdatedEventId {
-			continue
-		}
-		flow, err := submodel.EventNominationUpdated(evt)
+	fmt.Println(exist1)
+	fmt.Println(re)
+	var index uint32
+	_, err = sc.QueryStorage(config.StakingModuleId, config.StorageActiveEra, nil, nil, &index)
+	if err != nil {
+		panic(err)
+	}
+
+	// ledger := new(submodel.StakingLedger)
+	// exist, err := sc.QueryStorage(config.StakingModuleId, config.StorageLedger, addr.AsAccountID[:], nil, ledger)
+	// assert.NoError(t, err)
+	// fmt.Println(exist)
+	// fmt.Println(ledger)
+
+	for i := 11890; i < 30000; i++ {
+
+		evts, err := sc.GetEvents(uint64(i))
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Log(flow)
-		//t.Log(evt.ModuleId)
-		//t.Log(evt.EventId)
-		//t.Log(evt.Params)
+		t.Log(i, evts)
 	}
+
 }
 
 //func TestSarpcClient_GetExtrinsics(t *testing.T) {

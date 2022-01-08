@@ -13,7 +13,6 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stafiprotocol/rtoken-relay/types/polkadot"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -98,6 +97,30 @@ func (sc *SarpcClient) GetBlockNumber(blockHash types.Hash) (uint64, error) {
 
 // queryStorage performs a storage lookup. Arguments may be nil, result must be a pointer.
 func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, result interface{}) (bool, error) {
+
+	hash, err := sc.api.RPC.Chain.GetBlockHashLatest()
+	if err != nil {
+		return false, err
+	}
+
+	metaDataVersion := int(0)
+	switch sc.chainType {
+	case ChainTypeStafi:
+		md, err := sc.getStafiMetaDecoder(hexutil.Encode(hash[:]))
+		if err != nil {
+			return false, err
+		}
+		metaDataVersion = md.Metadata.MetadataVersion
+	case ChainTypePolkadot:
+		md, err := sc.getPolkaMetaDecoder(hexutil.Encode(hash[:]))
+		if err != nil {
+			return false, err
+		}
+		metaDataVersion = md.Metadata.MetadataVersion
+	default:
+		panic("chainType not supported")
+	}
+
 	entry, err := sc.FindStorageEntryMetadata(prefix, method)
 	if err != nil {
 		return false, err
@@ -112,7 +135,7 @@ func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 		}
 
 		if len(hashers) == 1 {
-			key, err = types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1)
+			key, err = types.CreateStorageKeyWithEntryMeta(uint8(metaDataVersion), entry, prefix, method, arg1)
 			if err != nil {
 				return false, err
 			}
@@ -121,7 +144,7 @@ func (sc *SarpcClient) QueryStorage(prefix, method string, arg1, arg2 []byte, re
 	}
 
 	if !keySeted {
-		key, err = types.CreateStorageKeyWithEntryMeta(uint8(sc.metaDataVersion), entry, prefix, method, arg1, arg2)
+		key, err = types.CreateStorageKeyWithEntryMeta(uint8(metaDataVersion), entry, prefix, method, arg1, arg2)
 		if err != nil {
 			return false, err
 		}
@@ -479,11 +502,18 @@ func (sc *SarpcClient) ExistentialDeposit() (types.U128, error) {
 }
 
 func (sc *SarpcClient) GetConst(prefix, name string, res interface{}) error {
+	hash, err := sc.api.RPC.Chain.GetBlockHashLatest()
+	if err != nil {
+		return err
+	}
 	switch sc.chainType {
 	case ChainTypeStafi:
 		return sc.api.RPC.State.GetConst(prefix, name, &res)
 	case ChainTypePolkadot:
-		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		md, err := sc.getPolkaMetaDecoder(hexutil.Encode(hash[:]))
+		if err != nil {
+			return err
+		}
 
 		for _, mod := range md.Metadata.Metadata.Modules {
 			if string(mod.Prefix) == prefix {
@@ -530,6 +560,10 @@ func OpaqueCall(ext interface{}) (*submodel.MultiOpaqueCall, error) {
 }
 
 func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types.StorageEntryMetadata, error) {
+	hash, err := sc.api.RPC.Chain.GetBlockHashLatest()
+	if err != nil {
+		return nil, err
+	}
 	switch sc.chainType {
 	case ChainTypeStafi:
 		meta, err := sc.api.RPC.State.GetMetadataLatest()
@@ -539,7 +573,11 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 
 		return meta.FindStorageEntryMetadata(module, fn)
 	case ChainTypePolkadot:
-		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		md, err := sc.getPolkaMetaDecoder(hexutil.Encode(hash[:]))
+		if err != nil {
+			return nil, err
+		}
+
 		for _, mod := range md.Metadata.Metadata.Modules {
 			if string(mod.Prefix) != module {
 				continue
@@ -623,6 +661,10 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 }
 
 func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
+	hash, err := sc.api.RPC.Chain.GetBlockHashLatest()
+	if err != nil {
+		return types.CallIndex{}, err
+	}
 	switch sc.chainType {
 	case ChainTypeStafi:
 		meta, err := sc.api.RPC.State.GetMetadataLatest()
@@ -632,7 +674,10 @@ func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
 
 		return meta.FindCallIndex(call)
 	case ChainTypePolkadot:
-		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		md, err := sc.getPolkaMetaDecoder(hexutil.Encode(hash[:]))
+		if err != nil {
+			return types.CallIndex{}, err
+		}
 		s := strings.Split(call, ".")
 
 		for _, mod := range md.Metadata.Metadata.Modules {

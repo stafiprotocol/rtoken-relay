@@ -13,7 +13,6 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	chainTypes "github.com/stafiprotocol/rtoken-relay/types"
 )
 
 type EvtLiquidityBond struct {
@@ -507,7 +506,7 @@ type Transaction struct {
 	CallModuleName string
 	CallName       string
 	Address        interface{}
-	Params         []chainTypes.ExtrinsicParam
+	Params         []scalecodec.ExtrinsicParam
 }
 
 type OriginalTx string
