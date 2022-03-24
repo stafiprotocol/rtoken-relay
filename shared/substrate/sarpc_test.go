@@ -13,8 +13,8 @@ var (
 )
 
 const (
-	stafiTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json"
-	polkaTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/polkadot.json"
+	stafiTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json"
+	polkaTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/polkadot.json"
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
@@ -55,13 +55,13 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 func TestSarpcClient_GetChainEvents1(t *testing.T) {
 	stop := make(chan int)
 	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
-	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
-	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+	// sc, err := NewSarpcClient(ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot,"wss://polkadot-test-rpc.stafi.io", polkaTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	evts, err := sc.GetEvents(4561481)
+	evts, err := sc.GetEvents(4561482)
 	if err != nil {
 		t.Fatal(err)
 	}
