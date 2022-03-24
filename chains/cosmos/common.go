@@ -207,7 +207,7 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 	if err != nil {
 		return nil, err
 	}
-	
+
 	totalDelegateAmount := types.NewInt(0)
 	valAddrs := make([]types.ValAddress, 0)
 	deleAmount := make(map[string]types.Int)
@@ -339,6 +339,11 @@ func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, hei
 	if err != nil {
 		return nil, 0, nil, err
 	}
+	// no delegation just return
+	if len(rewardRes.Rewards) == 0 {
+		return nil, 0, nil, rpc.ErrNoMsgs
+	}
+
 	rewardAmount := rewardRes.GetTotal().AmountOf(client.GetDenom()).TruncateInt()
 
 	bondCmpUnbond := bond.Cmp(unBond.Int)
