@@ -207,7 +207,7 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 	if err != nil {
 		return nil, err
 	}
-
+	
 	totalDelegateAmount := types.NewInt(0)
 	valAddrs := make([]types.ValAddress, 0)
 	deleAmount := make(map[string]types.Int)

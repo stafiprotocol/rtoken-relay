@@ -66,6 +66,25 @@ func (c *Client) QueryUnbondingDelegation(delegatorAddr types.AccAddress, valida
 }
 
 func (c *Client) QueryDelegations(delegatorAddr types.AccAddress, height int64) (*xStakeTypes.QueryDelegatorDelegationsResponse, error) {
+	retry := 0
+	var err error
+	var delegations *xStakeTypes.QueryDelegatorDelegationsResponse
+	for {
+		if retry > retryLimit {
+			return nil, fmt.Errorf("QueryDelegationsWithRetry reach retry: %s", err)
+		}
+		delegations, err = c.queryDelegations(delegatorAddr, height)
+		if err != nil || len(delegations.DelegationResponses) == 0 {
+			time.Sleep(waitTime)
+			retry++
+			continue
+		}
+		break
+	}
+	return delegations, nil
+}
+
+func (c *Client) queryDelegations(delegatorAddr types.AccAddress, height int64) (*xStakeTypes.QueryDelegatorDelegationsResponse, error) {
 	client := c.clientCtx.WithHeight(height)
 	queryClient := xStakeTypes.NewQueryClient(client)
 	params := &xStakeTypes.QueryDelegatorDelegationsRequest{
