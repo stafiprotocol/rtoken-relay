@@ -82,26 +82,15 @@ func (pc *PoolClient) GetHeightByEra(era uint32) (int64, error) {
 	}
 
 	tmpTargetBlock := blockNumber - seconds/7
+	if tmpTargetBlock <= 0 {
+		tmpTargetBlock = 1
+	}
 
 	block, err := pc.GetRpcClient().QueryBlock(tmpTargetBlock)
 	if err != nil {
 		return 0, err
 	}
 
-	findDuTime := block.Block.Header.Time.Unix() - targetTimestamp
-
-	if findDuTime == 0 {
-		return block.Block.Height, nil
-	}
-
-	if findDuTime > 7 || findDuTime < -7 {
-		tmpTargetBlock -= findDuTime / 7
-
-		block, err = pc.GetRpcClient().QueryBlock(tmpTargetBlock)
-		if err != nil {
-			return 0, err
-		}
-	}
 
 	var afterBlockNumber int64
 	var preBlockNumber int64
@@ -116,7 +105,6 @@ func (pc *PoolClient) GetHeightByEra(era uint32) (int64, error) {
 			if block.Block.Time.Unix() > targetTimestamp {
 				afterBlockNumber = block.Block.Height
 			} else {
-				preBlockNumber = block.Block.Height
 				break
 			}
 		}

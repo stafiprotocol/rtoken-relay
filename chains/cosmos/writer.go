@@ -157,7 +157,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("GetHeightByEra failed",
 			"pool address", poolAddr.String(),
-			"err", snap.Era,
+			"era", snap.Era,
 			"err", err)
 		return false
 	}
@@ -259,7 +259,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("GetHeightByEra failed",
 			"pool address", poolAddr.String(),
-			"err", flow.Snap.Era,
+			"era", flow.Snap.Era,
 			"err", err)
 		return false
 	}
@@ -489,7 +489,7 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 	if err != nil {
 		w.log.Error("GetHeightByEra failed",
 			"pool address", poolAddr.String(),
-			"err", flow.Era,
+			"era", flow.Era,
 			"err", err)
 		return false
 	}
