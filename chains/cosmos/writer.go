@@ -283,7 +283,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := GetClaimRewardProposalId(flow.ShotId, uint64(height))
+	proposalId := GetClaimRewardProposalId(flow.ShotId, uint64(height), 1)
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,

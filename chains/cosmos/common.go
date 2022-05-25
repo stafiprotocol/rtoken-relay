@@ -66,10 +66,11 @@ func ParseBondUnBondProposalId(content []byte) (shotId substrateTypes.Hash, bond
 	return
 }
 
-func GetClaimRewardProposalId(shotId substrateTypes.Hash, height uint64) []byte {
-	proposalId := make([]byte, 40)
+func GetClaimRewardProposalId(shotId substrateTypes.Hash, height uint64, factor uint32) []byte {
+	proposalId := make([]byte, 40+4)
 	copy(proposalId, shotId[:])
 	binary.BigEndian.PutUint64(proposalId[32:], height)
+	binary.BigEndian.PutUint32(proposalId[40:], factor)
 	return proposalId
 }
 
@@ -207,7 +208,7 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 	if err != nil {
 		return nil, err
 	}
-	
+
 	totalDelegateAmount := types.NewInt(0)
 	valAddrs := make([]types.ValAddress, 0)
 	deleAmount := make(map[string]types.Int)
