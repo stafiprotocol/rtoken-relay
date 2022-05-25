@@ -446,11 +446,11 @@ func TestClient_GetSequence(t *testing.T) {
 	// t.Log(txRes.String())
 
 	res, err := client.QueryUnbondingDelegation(addrReleaseAddress, addrReleaseValWetez, 0)
-	if err!=nil{
-		if strings.Contains(err.Error(),"NotFound") {
+	if err != nil {
+		if strings.Contains(err.Error(), "NotFound") {
 			t.Log(err)
 		}
-		
+
 		t.Fatal(err)
 	}
 	t.Log(res.String())

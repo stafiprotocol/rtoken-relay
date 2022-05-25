@@ -88,8 +88,24 @@ func (c *Client) Connect() error {
 	}
 	c.conn = ethclient.NewClient(rpcClient)
 
+	var chainId *big.Int
+	retry := 0
+	for {
+		if retry > 50 {
+			return fmt.Errorf("get chainId err: %s", err)
+		}
+		chainId, err = c.conn.ChainID(context.Background())
+		if err != nil {
+			c.log.Warn("get chainId err", "err", err)
+			retry++
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		break
+	}
+
 	// Construct tx opts, call opts, and nonce mechanism
-	opts, _, err := c.newTransactOpts(big.NewInt(0), c.gasLimit, c.maxGasPrice)
+	opts, _, err := c.newTransactOpts(big.NewInt(0), c.gasLimit, c.maxGasPrice, chainId)
 	if err != nil {
 		return err
 	}
@@ -100,7 +116,7 @@ func (c *Client) Connect() error {
 }
 
 // newTransactOpts builds the TransactOpts for the connection's keypair.
-func (c *Client) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.TransactOpts, uint64, error) {
+func (c *Client) newTransactOpts(value, gasLimit, gasPrice *big.Int, chainId *big.Int) (*bind.TransactOpts, uint64, error) {
 	privateKey := c.kp.PrivateKey()
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 
@@ -108,8 +124,11 @@ func (c *Client) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.Tran
 	if err != nil {
 		return nil, 0, err
 	}
-
-	auth := bind.NewKeyedTransactor(privateKey)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainId)
+	if err != nil {
+		return nil, 0, err
+	}
+	// auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = value
 	auth.GasLimit = uint64(gasLimit.Int64())
