@@ -510,8 +510,6 @@ github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mq
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
 github.com/itering/scale.go v1.0.3/go.mod h1:ufrA/8oz/qi4mtK8TXz4LFZzfJ4ZUQ+4z+cUNpY9jts=
 github.com/itering/scale.go v1.0.47/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
-github.com/itering/scale.go v1.1.24 h1:ulegaI5Sc1etEAWZJf8TKrEmYe+ZexOO6iRfVBJKGOE=
-github.com/itering/scale.go v1.1.24/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/scale.go v1.1.35 h1:wfryfywTQOe8KIEQBQcrrZkPjcFZDiNDv81TRcdZNcI=
 github.com/itering/scale.go v1.1.35/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/substrate-api-rpc v0.3.5 h1:Vd23NddQSNNAEj/laKBzniAoggWeQjFP8HMtTCIWdgI=
@@ -674,10 +672,8 @@ github.com/openzipkin/zipkin-go v0.2.2/go.mod h1:NaW6tEwdmWMaCDZzg8sh+IBNOxHMPnh
 github.com/otiai10/copy v1.4.2 h1:RTiz2sol3eoXPLF4o+YWqEybwfUa/Q2Nkc4ZIUs3fwI=
 github.com/otiai10/copy v1.4.2/go.mod h1:XWfuS3CrI0R6IE0FbgHsEazaXO8G0LpMp9o8tos0x4E=
 github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95/go.mod h1:9qAhocn7zKJG+0mI8eUu6xqkFDYS2kb2saOteoSB3cE=
-github.com/otiai10/curr v1.0.0 h1:TJIWdbX0B+kpNagQrjgq8bCMrbhiuX73M2XwgtDMoOI=
 github.com/otiai10/curr v1.0.0/go.mod h1:LskTG5wDwr8Rs+nNQ+1LlxRjAtTZZjtJW4rMXl6j4vs=
 github.com/otiai10/mint v1.3.0/go.mod h1:F5AjcsTsWUqX+Na9fpHb52P8pcRX2CI6A3ctIT91xUo=
-github.com/otiai10/mint v1.3.2 h1:VYWnrP5fXmz1MXvjuUvcBrXSjGE6xjON+axB/UrpO3E=
 github.com/otiai10/mint v1.3.2/go.mod h1:/yxELlJQ0ufhjUwhshSj+wFjZ78CnZ48/1wtmBH1OTc=
 github.com/pact-foundation/pact-go v1.0.4/go.mod h1:uExwJY4kCzNPcHRj+hCR/HBbOOIwwtUjcrb0b5/5kLM=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
@@ -839,8 +835,9 @@ github.com/stafiprotocol/go-sdk v1.3.1/go.mod h1:0cSLieEImXu7mV7n7RkDvG3plekjdxf
 github.com/stafiprotocol/go-substrate-rpc-client v1.0.9/go.mod h1:P3xucNyw6UjKvCvGg0eiQJhcRyZsUv5a9akxDTLMHFk=
 github.com/stafiprotocol/go-substrate-rpc-client v1.1.3 h1:wtRc1AKjdgvAuy6Uxl/yXxd4bhoEfZonpttligceYyY=
 github.com/stafiprotocol/go-substrate-rpc-client v1.1.3/go.mod h1:P3xucNyw6UjKvCvGg0eiQJhcRyZsUv5a9akxDTLMHFk=
-github.com/stafiprotocol/solana-go-sdk v1.0.0 h1:2Q1TeMKu4++rGaTz54XMWjha/p4ZViWlat0RftvfNIg=
 github.com/stafiprotocol/solana-go-sdk v1.0.0/go.mod h1:l17jYuPW1VS1hL5qjlayYsMTrla9wEJHLyGtzFGhmHE=
+github.com/stafiprotocol/solana-go-sdk v1.2.0 h1:p04P2/Y+ElY1RzGtQgUtOU91r4RA4t27oUEQt5D+6Zc=
+github.com/stafiprotocol/solana-go-sdk v1.2.0/go.mod h1:l17jYuPW1VS1hL5qjlayYsMTrla9wEJHLyGtzFGhmHE=
 github.com/stafiprotocol/tendermint v0.4.0 h1:d9RzVqQZtrW9T0CmXtT+oRPk+z4qodJqp0es0amCCqY=
 github.com/stafiprotocol/tendermint v0.4.0/go.mod h1:N143eVlQH4wm3hnT1oMl5NhBlYE7vniyUjd/8IgANG0=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 h1:Gb2Tyox57NRNuZ2d3rmvB3pcmbu7O1RS3m8WRx7ilrg=
