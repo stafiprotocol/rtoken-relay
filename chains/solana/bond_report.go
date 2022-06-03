@@ -31,13 +31,6 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	// currentEra, err := w.conn.GetCurrentEra()
-	// if err != nil {
-	// 	w.log.Error("processBondReportEvent GetCurrentEra failed",
-	// 		"pool  address", poolAddrBase58Str,
-	// 		"error", err)
-	// 	return false
-	// }
 	currentEra := flow.Snap.Era
 	rpcClient := poolClient.GetRpcClient()
 

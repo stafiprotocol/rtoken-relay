@@ -3,7 +3,6 @@ package solana
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -89,8 +88,6 @@ func (l *listener) updateEra() error {
 		return err
 	}
 	currentEra := uint32(epochInfo.Epoch)
-	//update era
-	atomic.StoreUint32(&l.conn.currentEra, currentEra)
 
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: currentEra}
 	l.submitMessage(msg, nil)
