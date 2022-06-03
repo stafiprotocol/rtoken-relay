@@ -31,7 +31,14 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	currentEra := w.conn.GetCurrentEra()
+	// currentEra, err := w.conn.GetCurrentEra()
+	// if err != nil {
+	// 	w.log.Error("processBondReportEvent GetCurrentEra failed",
+	// 		"pool  address", poolAddrBase58Str,
+	// 		"error", err)
+	// 	return false
+	// }
+	currentEra := flow.Snap.Era
 	rpcClient := poolClient.GetRpcClient()
 
 	ok = w.MergeAndWithdraw(poolClient, poolAddrBase58Str, flow.Snap.Era, flow.ShotId, flow.Snap.Pool)
@@ -63,6 +70,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 			accountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 			if err != nil {
 				if err == solClient.ErrAccountNotFound {
+					w.log.Info("fetchSubStakeAccount not found", "account", stakeAccountPubkey.ToBase58(), "currentEra", currentEra, "index", i)
 					continue
 				} else {
 					w.log.Error("processBondReportEvent GetStakeAccountInfo failed",
@@ -72,6 +80,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 					return false
 				}
 			}
+			w.log.Info("fetchSubStakeAccount found", "account", stakeAccountPubkey.ToBase58(), "currentEra", currentEra, "index", i)
 
 			//filter account used to stake
 			if accountInfo.StakeAccount.IsStakeAndNoDeactive() {

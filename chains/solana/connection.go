@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/mr-tron/base58"
@@ -202,8 +203,27 @@ func (c *Connection) GetPoolClient(poolAddrHexStr string) (*solana.PoolClient, e
 	return nil, errors.New("subClient of this pool not exist")
 }
 
-func (c *Connection) GetCurrentEra() uint32 {
-	return c.currentEra
+func (c *Connection) GetCurrentEra() (uint32, error) {
+	client := c.GetQueryClient()
+	currentEra := uint32(0)
+
+	retry := retryLimit
+	var retErr error
+	for {
+		if retry <= 0 {
+			return 0, fmt.Errorf("GetCurrentEra reach retry limit: %s", retErr)
+		}
+		epochInfo, err := client.GetEpochInfo(context.Background(), solClient.CommitmentFinalized)
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			retry--
+			retErr = err
+			continue
+		}
+		currentEra = uint32(epochInfo.Epoch)
+		break
+	}
+	return currentEra, nil
 }
 
 func (c *Connection) GetQueryClient() *solClient.Client {
