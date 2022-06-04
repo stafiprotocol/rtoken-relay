@@ -838,6 +838,8 @@ github.com/stafiprotocol/go-substrate-rpc-client v1.1.3/go.mod h1:P3xucNyw6UjKvC
 github.com/stafiprotocol/solana-go-sdk v1.0.0/go.mod h1:l17jYuPW1VS1hL5qjlayYsMTrla9wEJHLyGtzFGhmHE=
 github.com/stafiprotocol/solana-go-sdk v1.2.0 h1:p04P2/Y+ElY1RzGtQgUtOU91r4RA4t27oUEQt5D+6Zc=
 github.com/stafiprotocol/solana-go-sdk v1.2.0/go.mod h1:l17jYuPW1VS1hL5qjlayYsMTrla9wEJHLyGtzFGhmHE=
+github.com/stafiprotocol/solana-go-sdk v1.2.1 h1:5AvUrxAzYL1pj4FaFqhWoWyHjwU9m2pC+9iTOHC/HWU=
+github.com/stafiprotocol/solana-go-sdk v1.2.1/go.mod h1:l17jYuPW1VS1hL5qjlayYsMTrla9wEJHLyGtzFGhmHE=
 github.com/stafiprotocol/tendermint v0.4.0 h1:d9RzVqQZtrW9T0CmXtT+oRPk+z4qodJqp0es0amCCqY=
 github.com/stafiprotocol/tendermint v0.4.0/go.mod h1:N143eVlQH4wm3hnT1oMl5NhBlYE7vniyUjd/8IgANG0=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 h1:Gb2Tyox57NRNuZ2d3rmvB3pcmbu7O1RS3m8WRx7ilrg=

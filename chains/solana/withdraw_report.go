@@ -92,20 +92,20 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			}
 
 			_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-			if err != nil && err == solClient.ErrAccountNotFound {
-				sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
-					multisigTxAccountPubkey, multisigTxAccountSeed, "processWithdrawReportedEvent")
-				if !sendOk {
+			if err != nil {
+				if err == solClient.ErrAccountNotFound {
+					sendOk := w.createMultisigTxAccountWithOnchainCheck(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
+						multisigTxAccountPubkey, multisigTxAccountSeed, "processWithdrawReportedEvent")
+					if !sendOk {
+						return false
+					}
+				} else {
+					w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo err",
+						"pool  address", poolAddrBase58Str,
+						"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+						"err", err)
 					return false
 				}
-			}
-
-			if err != nil && err != solClient.ErrAccountNotFound {
-				w.log.Error("processWithdrawReportedEvent GetMultisigTxAccountInfo err",
-					"pool  address", poolAddrBase58Str,
-					"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-					"err", err)
-				return false
 			}
 		}
 		//check multisig tx account is created
@@ -128,7 +128,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 			continue
 		}
 		//approve tx
-		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "processWithdrawReportedEvent")
+		send := w.approveMultisigTxWithOnchainCheck(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "processWithdrawReportedEvent")
 		if !send {
 			return false
 		}

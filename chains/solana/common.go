@@ -216,19 +216,20 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 			}
 
 			_, err = rpcClient.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
-			if err != nil && err == solClient.ErrAccountNotFound {
-				sendOk := w.createMultisigTxAccount(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
-					multisigTxAccountPubkey, multisigTxAccountSeed, "MergeAndWithdraw")
-				if !sendOk {
+			if err != nil {
+				if err == solClient.ErrAccountNotFound {
+					sendOk := w.createMultisigTxAccountWithOnchainCheck(rpcClient, poolClient, poolAddrBase58Str, programIds, accountMetas, txDatas,
+						multisigTxAccountPubkey, multisigTxAccountSeed, "MergeAndWithdraw")
+					if !sendOk {
+						return false
+					}
+				} else {
+					w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo err",
+						"pool  address", poolAddrBase58Str,
+						"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
+						"err", err)
 					return false
 				}
-			}
-			if err != nil && err != solClient.ErrAccountNotFound {
-				w.log.Error("MergeAndWithdraw GetMultisigTxAccountInfo err",
-					"pool  address", poolAddrBase58Str,
-					"multisig tx account address", multisigTxAccountPubkey.ToBase58(),
-					"err", err)
-				return false
 			}
 		}
 		//check multisig tx account is created
@@ -252,7 +253,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		}
 
 		//approve multisig tx
-		send := w.approveMultisigTx(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
+		send := w.approveMultisigTxWithOnchainCheck(rpcClient, poolClient, poolAddrBase58Str, multisigTxAccountPubkey, remainingAccounts, "MergeAndWithdraw")
 		if !send {
 			return false
 		}
@@ -359,20 +360,20 @@ func (w *writer) createMultisigTxAccount(
 	multisigTxAccountPubkey solCommon.PublicKey,
 	multisigTxAccountSeed string,
 	processName string,
-) bool {
+) (string, bool) {
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
 	if err != nil {
 		w.log.Error(fmt.Sprintf("[%s] GetRecentBlockhash failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 	miniMumBalanceForTx, err := rpcClient.GetMinimumBalanceForRentExemption(context.Background(), solClient.MultisigTxAccountLengthDefault)
 	if err != nil {
 		w.log.Error(fmt.Sprintf("[%s] GetMinimumBalanceForRentExemption failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 	miniMumBalanceForTx += initStakeAmount
 	//send from one relayers
@@ -407,7 +408,7 @@ func (w *writer) createMultisigTxAccount(
 		w.log.Error(fmt.Sprintf("[%s] CreateTransaction CreateRawTransaction failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 
 	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
@@ -415,12 +416,46 @@ func (w *writer) createMultisigTxAccount(
 		w.log.Error(fmt.Sprintf("[%s] createTransaction SendRawTransaction failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 	w.log.Info(fmt.Sprintf("[%s] create multisig tx account  has send", processName),
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
-	return true
+	return txHash, true
+}
+
+func (w *writer) createMultisigTxAccountWithOnchainCheck(
+	rpcClient *solClient.Client,
+	poolClient *solana.PoolClient,
+	poolAddress string,
+	programsIds []solCommon.PublicKey,
+	accountMetas [][]solTypes.AccountMeta,
+	datas [][]byte,
+	multisigTxAccountPubkey solCommon.PublicKey,
+	multisigTxAccountSeed string,
+	processName string,
+) bool {
+	retry := 10
+	for {
+		if retry <= 0 {
+			return false
+		}
+		txHash, ok := w.createMultisigTxAccount(rpcClient, poolClient, poolAddress, programsIds, accountMetas, datas, multisigTxAccountPubkey, multisigTxAccountSeed, processName)
+		if !ok {
+			return false
+		}
+
+		for i := 0; i < 20; i++ {
+			_, err := rpcClient.GetTransactionV2(context.Background(), txHash)
+			if err != nil {
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+			return true
+		}
+
+		retry--
+	}
 }
 
 func (w *writer) approveMultisigTx(
@@ -429,13 +464,13 @@ func (w *writer) approveMultisigTx(
 	poolAddress string,
 	multisigTxAccountPubkey solCommon.PublicKey,
 	remainingAccounts []solTypes.AccountMeta,
-	processName string) bool {
+	processName string) (string, bool) {
 	res, err := rpcClient.GetRecentBlockhash(context.Background())
 	if err != nil {
 		w.log.Error(fmt.Sprintf("[%s] GetRecentBlockhash failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 		Instructions: []solTypes.Instruction{
@@ -457,7 +492,7 @@ func (w *writer) approveMultisigTx(
 		w.log.Error(fmt.Sprintf("[%s] approve CreateRawTransaction failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 
 	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
@@ -465,14 +500,44 @@ func (w *writer) approveMultisigTx(
 		w.log.Error(fmt.Sprintf("[%s] approve SendRawTransaction failed", processName),
 			"pool address", poolAddress,
 			"err", err)
-		return false
+		return "", false
 	}
 
 	w.log.Info(fmt.Sprintf("[%s] approve multisig tx account has send", processName),
 		"tx hash", txHash,
 		"multisig tx account", multisigTxAccountPubkey.ToBase58())
 
-	return true
+	return txHash, true
+}
+
+func (w *writer) approveMultisigTxWithOnchainCheck(
+	rpcClient *solClient.Client,
+	poolClient *solana.PoolClient,
+	poolAddress string,
+	multisigTxAccountPubkey solCommon.PublicKey,
+	remainingAccounts []solTypes.AccountMeta,
+	processName string) bool {
+	retry := 10
+	for {
+		if retry <= 0 {
+			return false
+		}
+		txHash, ok := w.approveMultisigTx(rpcClient, poolClient, poolAddress, multisigTxAccountPubkey, remainingAccounts, processName)
+		if !ok {
+			return false
+		}
+
+		for i := 0; i < 20; i++ {
+			_, err := rpcClient.GetTransactionV2(context.Background(), txHash)
+			if err != nil {
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+			return true
+		}
+
+		retry--
+	}
 }
 
 func (w *writer) IsMultisigTxExe(
