@@ -150,7 +150,7 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 		selectedAmount = selectedAmount + nowValMaxUnDeleAmount
 	}
 
-	// must deal every selected takeBaseAccounts
+	// must deal every selected stakeBaseAccounts
 	for stakeBaseAccountIndex, useStakeBaseAccountPubKey := range choosedStakeBaseAccount {
 		w.log.Info("processEraPoolUpdatedEvt is dealing stakeBaseAccounts", "index", stakeBaseAccountIndex,
 			"stakeBaseAccount", useStakeBaseAccountPubKey.ToBase58())
@@ -184,8 +184,8 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 			if err != nil {
 				if err == solClient.ErrAccountNotFound {
 					//send from  relayers no need multisig
-					//create new stake acount of this era
-					sendOk := w.createStakeAccountWithOnchainCheck(rpcClient, poolClient, poolAddrBase58Str, stakeAccountSeed, stakeAccountPubkey, useStakeBaseAccountPubKey, useStakeBaseAccount, miniMumBalanceForStake)
+					//create new unStake acount of this era
+					sendOk := w.createUnStakeAccountWithOnchainCheck(rpcClient, poolClient, poolAddrBase58Str, stakeAccountSeed, stakeAccountPubkey, useStakeBaseAccountPubKey, useStakeBaseAccount, miniMumBalanceForStake)
 					if !sendOk {
 						return false
 					}
@@ -519,6 +519,77 @@ func (w *writer) createStakeAccountWithOnchainCheck(rpcClient *solClient.Client,
 			return false
 		}
 		txHash, ok := w.createStakeAccount(rpcClient, poolClient, poolAddrBase58Str, stakeAccountSeed, stakeAccountPubkey, useStakeBaseAccountPubKey, useStakeBaseAccount, miniMumBalanceForStake)
+		if !ok {
+			return false
+		}
+
+		for i := 0; i < 20; i++ {
+			_, err := rpcClient.GetTransactionV2(context.Background(), txHash)
+			if err != nil {
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+			return true
+		}
+
+		retry--
+	}
+}
+
+func (w *writer) createUnStakeAccount(rpcClient *solClient.Client, poolClient *solana.PoolClient, poolAddrBase58Str, stakeAccountSeed string,
+	stakeAccountPubkey, useStakeBaseAccountPubKey solCommon.PublicKey, useStakeBaseAccount solTypes.Account, miniMumBalanceForStake uint64) (string, bool) {
+	res, err := rpcClient.GetRecentBlockhash(context.Background())
+	if err != nil {
+		w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
+			"pool address", poolAddrBase58Str,
+			"err", err)
+		return "", false
+	}
+	rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
+		Instructions: []solTypes.Instruction{
+			sysprog.CreateAccountWithSeed(
+				poolClient.FeeAccount.PublicKey,
+				stakeAccountPubkey,
+				useStakeBaseAccountPubKey,
+				solCommon.StakeProgramID,
+				stakeAccountSeed,
+				miniMumBalanceForStake,
+				solClient.StakeAccountInfoLengthDefault,
+			),
+		},
+		Signers:         []solTypes.Account{poolClient.FeeAccount, useStakeBaseAccount},
+		FeePayer:        poolClient.FeeAccount.PublicKey,
+		RecentBlockHash: res.Blockhash,
+	})
+
+	if err != nil {
+		w.log.Error("processEraPoolUpdatedEvt CreateRawTransaction failed",
+			"pool address", poolAddrBase58Str,
+			"err", err)
+		return "", false
+	}
+	txHash, err := rpcClient.SendRawTransaction(context.Background(), rawTx)
+	if err != nil {
+		w.log.Error("processEraPoolUpdatedEvt SendRawTransaction failed",
+			"pool address", poolAddrBase58Str,
+			"err", err)
+		return "", false
+	}
+	w.log.Info("processEraPoolUpdatedEvt create unstake account",
+		"tx hash", txHash,
+		"un stake account", stakeAccountPubkey.ToBase58())
+	return txHash, true
+}
+
+func (w *writer) createUnStakeAccountWithOnchainCheck(rpcClient *solClient.Client, poolClient *solana.PoolClient, poolAddrBase58Str, stakeAccountSeed string,
+	stakeAccountPubkey, useStakeBaseAccountPubKey solCommon.PublicKey, useStakeBaseAccount solTypes.Account, miniMumBalanceForStake uint64) bool {
+
+	retry := 10
+	for {
+		if retry <= 0 {
+			return false
+		}
+		txHash, ok := w.createUnStakeAccount(rpcClient, poolClient, poolAddrBase58Str, stakeAccountSeed, stakeAccountPubkey, useStakeBaseAccountPubKey, useStakeBaseAccount, miniMumBalanceForStake)
 		if !ok {
 			return false
 		}
