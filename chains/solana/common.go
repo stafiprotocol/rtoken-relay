@@ -96,19 +96,17 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 		if err != nil {
 			w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
 				"pool  address", poolAddrBase58Str,
-				"stake account", useStakeBaseAccountPubKey.ToBase58(),
+				"stake base account", useStakeBaseAccountPubKey.ToBase58(),
 				"error", err)
 			return false
 		}
 		creditsStakeBaseAccount := stakeBaseAccountInfo.StakeAccount.Info.Stake.CreditsObserved
 		for i := uint32(0); i < uint32(backCheckLen); i++ {
 			stakeAccountPubkey, _ := GetStakeAccountPubkey(useStakeBaseAccountPubKey, currentEra-i)
-			accountInfo, err := rpcClient.GetStakeActivation(
-				context.Background(),
-				stakeAccountPubkey.ToBase58(),
-				solClient.GetStakeActivationConfig{})
+
+			stakeAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
 			if err != nil {
-				if strings.Contains(err.Error(), "account not found") {
+				if err == solClient.ErrAccountNotFound {
 					continue
 				} else {
 					w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
@@ -117,17 +115,23 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 						"error", err)
 					return false
 				}
+
 			}
-			//filter credite observed not equal to stakeBaseAccount
-			stakeAccountInfo, err := rpcClient.GetStakeAccountInfo(context.Background(), stakeAccountPubkey.ToBase58())
+
+			accountInfo, err := rpcClient.GetStakeActivation(
+				context.Background(),
+				stakeAccountPubkey.ToBase58(),
+				solClient.GetStakeActivationConfig{})
 			if err != nil {
-				w.log.Error("MergeAndWithdraw GetStakeAccountInfo failed",
+				w.log.Error("MergeAndWithdraw GetStakeActivation failed",
 					"pool  address", poolAddrBase58Str,
 					"stake account", stakeAccountPubkey.ToBase58(),
 					"error", err)
 				return false
+
 			}
 
+			//filter credite observed not equal to stakeBaseAccount
 			if stakeAccountInfo.StakeAccount.Info.Stake.CreditsObserved != creditsStakeBaseAccount {
 				continue
 			}
