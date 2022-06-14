@@ -125,14 +125,6 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	//check bond/unbond is needed
 	//bond report if no need
 	bondCmpUnbondResult := snap.Bond.Int.Cmp(snap.Unbond.Int)
-	if bondCmpUnbondResult == 0 {
-		w.log.Info("EvtEraPoolUpdated bond equal to unbond, no need to bond/unbond")
-		callHash := utils.BlakeTwo256([]byte{})
-		mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
-			&submodel.MultiOpaqueCall{
-				CallHash: hexutil.Encode(callHash[:])}}
-		return w.informChain(m.Destination, m.Source, mFlow)
-	}
 
 	//get poolClient of this pool address
 	poolAddrHexStr := hex.EncodeToString(snap.Pool)
@@ -154,13 +146,25 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	client := poolClient.GetRpcClient()
 	height := poolClient.GetHeightByEra(snap.Era)
-	unSignedTx, err := GetBondUnbondUnsignedTxWithTargets(client, snap.Bond, snap.Unbond, poolAddr, height, w.conn.validatorTargets)
+
+	memo := fmt.Sprintf("%d:%s", snap.Era, rpc.TxTypeHandleEraPoolUpdatedEvent)
+	unSignedTx, _, err := GetBondUnbondWithdrawUnsignedTxWithTargets(client, snap.Bond.Int,
+		snap.Unbond.Int, poolAddr, height, w.conn.validatorTargets, memo)
 	if err != nil {
-		w.log.Error("GetBondUnbondUnsignedTx failed",
-			"pool address", poolAddr.String(),
-			"height", height,
-			"err", err)
-		return false
+		if err == rpc.ErrNoMsgs {
+			w.log.Info("no delegation, just inform stafi chain")
+			callHash := utils.BlakeTwo256([]byte{})
+			mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
+				&submodel.MultiOpaqueCall{
+					CallHash: hexutil.Encode(callHash[:])}}
+			return w.informChain(m.Destination, m.Source, mFlow)
+		} else {
+			w.log.Error("GetBondUnbondUnsignedTx failed",
+				"pool address", poolAddr,
+				"height", height,
+				"err", err)
+			return false
+		}
 	}
 
 	//use current seq
@@ -204,12 +208,18 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	if bondCmpUnbondResult > 0 {
+	switch bondCmpUnbondResult {
+	case 0:
+		w.log.Info("processEraPoolUpdatedEvt gen withdarw Tx",
+			"pool address", poolAddr.String(),
+			"bond amount", new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int).String(),
+			"proposalId", proposalIdHexStr)
+	case 1:
 		w.log.Info("processEraPoolUpdatedEvt gen unsigned bond Tx",
 			"pool address", poolAddr.String(),
 			"bond amount", new(big.Int).Sub(snap.Bond.Int, snap.Unbond.Int).String(),
 			"proposalId", proposalIdHexStr)
-	} else {
+	case -1:
 		w.log.Info("processEraPoolUpdatedEvt gen unsigned unbond Tx",
 			"pool address", poolAddr.String(),
 			"unbond amount", new(big.Int).Sub(snap.Unbond.Int, snap.Bond.Int).String(),
@@ -248,20 +258,64 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		return false
 	}
 
-	height := poolClient.GetHeightByEra(flow.Snap.Era)
 	client := poolClient.GetRpcClient()
-	unSignedTx, genTxType, totalDeleAmount, err := GetClaimRewardUnsignedTx(client, poolAddr, height, flow.Snap.Bond, flow.Snap.Unbond)
-	if err != nil && err != rpc.ErrNoMsgs {
-		w.log.Error("GetClaimRewardUnsignedTx failed",
-			"pool address", poolAddr.String(),
-			"height", height,
-			"err", err)
-		return false
+
+	rewardCoins, height, err := client.GetRewardToBeDelegated(poolAddr.String(), flow.Snap.Era)
+	if err != nil {
+		if err == rpc.ErrNoRewardNeedDelegate {
+			//will return ErrNoMsgs if no reward or reward of that height is less than now , we just activeReport
+			total := types.NewInt(0)
+			delegationsRes, err := client.QueryDelegations(poolAddr, 0)
+			if err != nil {
+				if !strings.Contains(err.Error(), "unable to find delegations for address") {
+					w.log.Error("QueryDelegations failed",
+						"pool", poolAddr.String(),
+						"err", err)
+					return false
+				}
+			} else {
+				for _, dele := range delegationsRes.GetDelegationResponses() {
+					total = total.Add(dele.Balance.Amount)
+				}
+			}
+			w.log.Info("no reward need to be delegated", "pool", poolAddr.String(), "era", flow.Snap.Era)
+			return w.ActiveReport(client, poolAddr, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era)
+		} else {
+			w.log.Error("GetRewardToBeDelegated failed",
+				"pool address", poolAddr.String(),
+				"err", err)
+			return false
+		}
 	}
-	//will return ErrNoMsgs if no reward or reward of that height is less than now , we just activeReport
-	if err == rpc.ErrNoMsgs {
-		w.log.Info("no need claim reward", "pool", poolAddr, "era", flow.Snap.Era, "height", height)
-		return w.ActiveReport(client, poolAddr, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era)
+
+	memo := fmt.Sprintf("%d:%s", flow.Snap.Era, rpc.TxTypeHandleActiveReportedEvent)
+	unSignedTx, totalDeleAmount, err := GetDelegateRewardUnsignedTxWithReward(client, poolAddr, height, rewardCoins, memo)
+	if err != nil {
+		if err == rpc.ErrNoMsgs {
+			//will return ErrNoMsgs if no reward or reward of that height is less than now , we just activeReport
+			total := types.NewInt(0)
+			delegationsRes, err := client.QueryDelegations(poolAddr, 0)
+			if err != nil {
+				if !strings.Contains(err.Error(), "unable to find delegations for address") {
+					w.log.Error("QueryDelegations failed",
+						"pool", poolAddr.String(),
+						"err", err)
+					return false
+				}
+			} else {
+				for _, dele := range delegationsRes.GetDelegationResponses() {
+					total = total.Add(dele.Balance.Amount)
+				}
+			}
+			w.log.Info("no reward need to be delegated", "pool", poolAddr.String(), "era", flow.Snap.Era, "height", height)
+			return w.ActiveReport(client, poolAddr, flow.Symbol, flow.Snap.Pool, flow.ShotId, flow.Snap.Era)
+		} else {
+			w.log.Error("GetDelegateRewardUnsignedTxWithReward failed",
+				"pool address", poolAddr.String(),
+				"height", height,
+				"err", err)
+			return false
+		}
 	}
 
 	//use current seq
@@ -305,26 +359,10 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		Signature:  substrateTypes.NewBytes(sigBts),
 	}
 
-	switch genTxType {
-	case 1:
-		w.log.Info("processBondReportEvent gen unsigned claim reward Tx",
-			"pool address", poolAddr.String(),
-			"total delegate amount", totalDeleAmount.String(),
-			"proposalId", proposalIdHexStr)
-
-	case 2:
-		w.log.Info("processBondReportEvent gen unsigned delegate reward Tx",
-			"pool address", poolAddr.String(),
-			"total delegate amount", totalDeleAmount.String(),
-			"proposalId", proposalIdHexStr)
-
-	case 3:
-		w.log.Info("processBondReportEvent gen unsigned claim and delegate reward Tx",
-			"pool address", poolAddr.String(),
-			"total delegate amount", totalDeleAmount.String(),
-			"proposalId", proposalIdHexStr)
-
-	}
+	w.log.Info("processBondReportEvent gen unsigned delegate reward Tx",
+		"pool address", poolAddr.String(),
+		"total delegate amount", totalDeleAmount.String(),
+		"proposalId", proposalIdHexStr)
 
 	//send signature to stafi
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
@@ -366,7 +404,8 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 	client := poolClient.GetRpcClient()
 
-	unSignedTx, outPuts, err := GetTransferUnsignedTx(client, poolAddr, flow.Receives, w.log)
+	memo := fmt.Sprintf("%d:%s", flow.Snap.Era, rpc.TxTypeHandleActiveReportedEvent)
+	unSignedTx, outPuts, err := GetTransferUnsignedTxWithMemo(client, poolAddr, flow.Receives, memo, w.log)
 	if err != nil && err != ErrNoOutPuts {
 		w.log.Error("GetTransferUnsignedTx failed", "pool hex address", poolAddrHexStr, "err", err)
 		return false

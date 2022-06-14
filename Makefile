@@ -19,7 +19,7 @@ help: Makefile
 
 get:
 	@echo "  >  \033[32mDownloading & Installing all the modules...\033[0m "
-	go mod tidy && go mod download
+	go mod tidy -compat=1.17&& go mod download
 
 get-lint:
 	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s latest

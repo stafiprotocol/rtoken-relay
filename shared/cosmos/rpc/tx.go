@@ -35,7 +35,7 @@ func (c *Client) SingleReDelegate(srcValAddr, desValAddr types.ValAddress, amoun
 		WithSimulateAndExecute(true)
 
 	//auto cal gas
-	_, adjusted, err := clientTx.CalculateGas(c.clientCtx.QueryWithData, txf, msg)
+	_, adjusted, err := clientTx.CalculateGas(c.clientCtx, txf, msg)
 	if err != nil {
 		return "", err
 	}

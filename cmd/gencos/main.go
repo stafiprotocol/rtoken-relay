@@ -18,7 +18,7 @@ func main() {
 	encodingConfig := rpc.MakeEncodingConfig()
 
 	initClientCtx := client.Context{}.
-		WithJSONMarshaler(encodingConfig.Marshaler).
+		WithCodec(encodingConfig.Marshaler).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
 		WithTxConfig(encodingConfig.TxConfig).
 		WithLegacyAmino(encodingConfig.Amino).
@@ -36,7 +36,7 @@ func main() {
 				return err
 			}
 
-			return server.InterceptConfigsPreRunHandler(cmd)
+			return server.InterceptConfigsPreRunHandler(cmd, "", nil)
 		},
 	}
 	rootCmd.AddCommand(keys.Commands(DefaultHomeDir))

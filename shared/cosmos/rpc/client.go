@@ -37,7 +37,7 @@ func NewClient(k keyring.Keyring, chainId, fromName, gasPrice, denom, endPoint s
 		}
 
 		initClientCtx := client.Context{}.
-			WithJSONMarshaler(encodingConfig.Marshaler).
+			WithCodec(encodingConfig.Marshaler).
 			WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
 			WithTxConfig(encodingConfig.TxConfig).
 			WithLegacyAmino(encodingConfig.Amino).
@@ -74,7 +74,7 @@ func NewClient(k keyring.Keyring, chainId, fromName, gasPrice, denom, endPoint s
 		}
 
 		initClientCtx := client.Context{}.
-			WithJSONMarshaler(encodingConfig.Marshaler).
+			WithCodec(encodingConfig.Marshaler).
 			WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
 			WithTxConfig(encodingConfig.TxConfig).
 			WithLegacyAmino(encodingConfig.Amino).

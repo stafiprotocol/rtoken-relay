@@ -6,7 +6,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	xAuthClient "github.com/cosmos/cosmos-sdk/x/auth/client"
+	xAuthTx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	xAuthTypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	xBankTypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	xDistriTypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	xStakeTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -20,10 +21,13 @@ import (
 const retryLimit = 60
 const waitTime = time.Millisecond * 500
 
+var ErrNoTxIncludeWithdraw = fmt.Errorf("no tx include withdraw")
+var ErrNoRewardNeedDelegate = fmt.Errorf("no tx reward need delegate")
+
 //no 0x prefix
 func (c *Client) QueryTxByHash(hashHexStr string) (*types.TxResponse, error) {
 	cc, err := retry(func() (interface{}, error) {
-		return xAuthClient.QueryTx(c.clientCtx, hashHexStr)
+		return xAuthTx.QueryTx(c.clientCtx, hashHexStr)
 	})
 	if err != nil {
 		return nil, err
@@ -203,6 +207,86 @@ func (c *Client) getAccount(height int64, addr types.AccAddress) (client.Account
 		return nil, err
 	}
 	return cc.(client.Account), nil
+}
+
+func (c *Client) GetTxs(events []string, page, limit int, orderBy string) (*types.SearchTxsResult, error) {
+	cc, err := retry(func() (interface{}, error) {
+		return xAuthTx.QueryTxsByEvents(c.clientCtx, events, page, limit, orderBy)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cc.(*types.SearchTxsResult), nil
+}
+
+func (c *Client) GetRewardToBeDelegated(delegatorAddr string, era uint32) (map[string]types.Coin, int64, error) {
+	moduleAddressStr := xAuthTypes.NewModuleAddress(xDistriTypes.ModuleName).String()
+	delAddress, err := types.AccAddressFromBech32(delegatorAddr)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	txs, err := c.GetTxs(
+		[]string{
+			fmt.Sprintf("transfer.recipient='%s'", delegatorAddr),
+			fmt.Sprintf("transfer.sender='%s'", moduleAddressStr),
+		}, 1, 3, "desc")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(txs.Txs) == 0 {
+		return nil, 0, ErrNoRewardNeedDelegate
+	}
+
+	valRewards := make(map[string]types.Coin)
+	retHeight := int64(0)
+	for _, tx := range txs.Txs {
+		txValue := tx.Tx.Value
+
+		decodeTx, err := c.GetTxConfig().TxDecoder()(txValue)
+		if err != nil {
+			return nil, 0, err
+		}
+		memoTx, ok := decodeTx.(types.TxWithMemo)
+		if !ok {
+			return nil, 0, fmt.Errorf("tx is not type TxWithMemo, txhash: %s", txs.Txs[0].TxHash)
+		}
+		memoInTx := memoTx.GetMemo()
+
+		switch memoInTx {
+		case fmt.Sprintf("%d:%s", era, TxTypeHandleEraPoolUpdatedEvent):
+			//return tx handleEraPoolUpdatedEvent height
+			retHeight = tx.Height - 1
+			fallthrough
+		case fmt.Sprintf("%d:%s", era-1, TxTypeHandleActiveReportedEvent):
+			height := tx.Height - 1
+			totalReward, err := c.QueryDelegationTotalRewards(delAddress, height)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			for _, r := range totalReward.Rewards {
+				rewardCoin := types.NewCoin(c.GetDenom(), r.Reward.AmountOf(c.GetDenom()).TruncateInt())
+				if rewardCoin.IsZero() {
+					continue
+				}
+				if _, exist := valRewards[r.ValidatorAddress]; !exist {
+					valRewards[r.ValidatorAddress] = rewardCoin
+				} else {
+					valRewards[r.ValidatorAddress] = valRewards[r.ValidatorAddress].Add(rewardCoin)
+				}
+
+			}
+		default:
+		}
+	}
+
+	if len(valRewards) == 0 {
+		return nil, 0, ErrNoRewardNeedDelegate
+	}
+
+	return valRewards, retHeight, nil
 }
 
 //only retry func when return connection err here

@@ -13,16 +13,19 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
-	"github.com/cosmos/cosmos-sdk/x/ibc/applications/transfer"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+
+	interChain "github.com/cosmos/ibc-go/v3/modules/apps/27-interchain-accounts"
+	ibcTransfer "github.com/cosmos/ibc-go/v3/modules/apps/transfer"
+	ibcCore "github.com/cosmos/ibc-go/v3/modules/core"
 )
 
 // EncodingConfig specifies the concrete encoding types to use for a given app.
 // This is provided for compatibility between protobuf and amino implementations.
 type EncodingConfig struct {
 	InterfaceRegistry types.InterfaceRegistry
-	Marshaler         codec.Marshaler
+	Marshaler         codec.Codec
 	TxConfig          client.TxConfig
 	Amino             *codec.LegacyAmino
 }
@@ -39,10 +42,12 @@ func MakeEncodingConfig() EncodingConfig {
 		capability.AppModuleBasic{},
 		staking.AppModuleBasic{},
 		distribution.AppModuleBasic{},
-
 		params.AppModuleBasic{},
 		crisis.AppModuleBasic{},
-		transfer.AppModuleBasic{},
+
+		ibcTransfer.AppModuleBasic{},
+		ibcCore.AppModuleBasic{},
+		interChain.AppModuleBasic{},
 	)
 	moduleBasics.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	moduleBasics.RegisterInterfaces(encodingConfig.InterfaceRegistry)

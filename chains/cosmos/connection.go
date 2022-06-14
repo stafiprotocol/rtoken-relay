@@ -192,20 +192,17 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 
 	msgs := txRes.GetTx().GetMsgs()
 	for i, _ := range msgs {
-		if msgs[i].Type() == xBankTypes.TypeMsgSend {
-			if sendMsg, ok := msgs[i].(*xBankTypes.MsgSend); ok {
-				toAddr, err := types.AccAddressFromBech32(sendMsg.ToAddress)
-				if err == nil {
-					//amount and pool address must in one message
-					if bytes.Equal(toAddr.Bytes(), r.Pool) &&
-						sendMsg.Amount.AmountOf(poolClient.GetRpcClient().GetDenom()).
-							Equal(types.NewIntFromBigInt(r.Amount.Int)) {
-						poolIsMatch = true
-						amountIsMatch = true
-						fromAddressStr = sendMsg.FromAddress
-					}
+		if sendMsg, ok := msgs[i].(*xBankTypes.MsgSend); ok {
+			toAddr, err := types.AccAddressFromBech32(sendMsg.ToAddress)
+			if err == nil {
+				//amount and pool address must in one message
+				if bytes.Equal(toAddr.Bytes(), r.Pool) &&
+					sendMsg.Amount.AmountOf(poolClient.GetRpcClient().GetDenom()).
+						Equal(types.NewIntFromBigInt(r.Amount.Int)) {
+					poolIsMatch = true
+					amountIsMatch = true
+					fromAddressStr = sendMsg.FromAddress
 				}
-
 			}
 
 		}
