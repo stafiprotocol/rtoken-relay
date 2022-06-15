@@ -3,8 +3,10 @@ package cosmos
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
 	"time"
@@ -23,13 +25,19 @@ import (
 )
 
 type Connection struct {
-	url              string
-	symbol           core.RSymbol
-	validatorTargets []types.ValAddress
-	currentHeight    int64
-	poolClients      map[string]*cosmos.PoolClient //map[addressHexStr]subClient
-	log              log15.Logger
-	stop             <-chan int
+	url                string
+	symbol             core.RSymbol
+	validatorTargets   []types.ValAddress
+	currentHeight      int64
+	increaseRewardInfo IncreaseRewardInfo
+	poolClients        map[string]*cosmos.PoolClient //map[addressHexStr]subClient
+	log                log15.Logger
+	stop               <-chan int
+}
+
+type IncreaseRewardInfo struct {
+	Era    uint32   `json:"era"`
+	Amount *big.Int `json:"amount"`
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -64,6 +72,24 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 	if len(targets) == 0 {
 		panic("validatorTargets empty")
+	}
+
+	optIncreaseRewardInfo := cfg.Opts["increaseRewardInfo"]
+	log.Info("NewConnection", "targets", optIncreaseRewardInfo)
+	bts, err := json.Marshal(optIncreaseRewardInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	increaseRewardInfo := IncreaseRewardInfo{}
+	err = json.Unmarshal(bts, &increaseRewardInfo)
+	if err != nil {
+		return nil, err
+	}
+	if increaseRewardInfo.Era == 0 ||
+		increaseRewardInfo.Amount == nil ||
+		increaseRewardInfo.Amount.Cmp(big.NewInt(0)) <= 0 {
+		panic("increaseRewardInfo not right")
 	}
 
 	chainId, ok := cfg.Opts[config.ChainId].(string)
@@ -119,12 +145,13 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	return &Connection{
-		url:              cfg.Endpoint,
-		symbol:           cfg.Symbol,
-		log:              log,
-		stop:             stop,
-		poolClients:      subClients,
-		validatorTargets: targets,
+		url:                cfg.Endpoint,
+		symbol:             cfg.Symbol,
+		log:                log,
+		stop:               stop,
+		poolClients:        subClients,
+		validatorTargets:   targets,
+		increaseRewardInfo: increaseRewardInfo,
 	}, nil
 }
 

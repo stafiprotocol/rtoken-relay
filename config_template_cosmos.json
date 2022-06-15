@@ -38,7 +38,11 @@
         "eraBlockNumber": "100",
         "validatorTargets": [
           "cosmosvaloper1u22lut8qgqg8znxam72pwgqp8c09rnvmummr4w"
-        ]
+        ],
+        "increaseRewardInfo": {
+          "era": 23,
+          "amount": "200000000"
+        }
       }
     }
   ]

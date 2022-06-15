@@ -103,7 +103,7 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 }
 
 //process eraPoolUpdate event
-//1 gen bond/unbond multiSig unsigned tx and cache it
+//1 gen bond/unbond/withdraw multiSig unsigned tx and cache it
 //2 sign it with subKey
 //3 send signature to stafi
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
@@ -121,6 +121,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 		"era", flow.Era, "shotId", flow.ShotId.Hex(), "symbol", flow.Symbol)
 
 	snap := flow.Snap
+
+	//deal increaseRewardInfo
+	if w.conn.increaseRewardInfo.Era == flow.Snap.Era {
+		snap.Bond = substrateTypes.NewU128(*(new(big.Int).Add(snap.Bond.Int, w.conn.increaseRewardInfo.Amount)))
+	}
 
 	//check bond/unbond is needed
 	//bond report if no need
@@ -231,8 +236,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 }
 
 //process bondReportEvent from stafi
-//1 query reward on era height
-//2 gen (claim reward && delegate) or (claim reward) unsigned tx and cache it
+//1 query reward of pre two txs(eraupdatedevent, delegate reward)
+//2 gen delegate unsigned tx and cache it
 //3 sign it with subKey
 //4 send signature to stafi
 func (w *writer) processBondReportEvent(m *core.Message) bool {
@@ -370,7 +375,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 }
 
 //process TransferBackEvent
-//1 gen transfer  unsigned tx and cache it
+//1 gen transfer unsigned tx and cache it
 //2 sign it with subKey
 //3 send signature to stafi
 func (w *writer) processActiveReportedEvent(m *core.Message) bool {

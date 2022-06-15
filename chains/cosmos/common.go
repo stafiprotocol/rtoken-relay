@@ -649,12 +649,42 @@ func GetBondUnbondWithdrawUnsignedTxWithTargets(client *rpc.Client, bond, unbond
 			return nil, 0, fmt.Errorf("no target valAddrs, pool: %s", poolAddrStr)
 		}
 
+		//collect withdraw validators
+		targetMap := make(map[string]bool)
+		for _, target := range targets {
+			targetMap[target.String()] = true
+		}
+
+		var deleRes *xStakingTypes.QueryDelegatorDelegationsResponse
+		deleRes, err = client.QueryDelegations(poolAddr, height)
+		if err != nil {
+			return nil, 0, fmt.Errorf("QueryDelegations failed: %s", err)
+		}
+
+		withdrawValAddrs := make([]types.ValAddress, 0)
+		//get validators amount>=3
+		for _, dele := range deleRes.GetDelegationResponses() {
+			//filter old validator,we say validator is old if amount < 3 uatom
+			if dele.GetBalance().Amount.LT(types.NewInt(3)) {
+				continue
+			}
+
+			valAddr, err := types.ValAddressFromBech32(dele.GetDelegation().ValidatorAddress)
+			if err != nil {
+				return nil, 0, err
+			}
+			if !targetMap[valAddr.String()] {
+				withdrawValAddrs = append(withdrawValAddrs, valAddr)
+			}
+		}
+
 		val := bond.Sub(bond, unbond)
 		val = val.Div(val, big.NewInt(int64(valAddrsLen)))
-		unSignedTx, err = client.GenMultiSigRawDelegateTxWithMemo(
+		unSignedTx, err = client.GenMultiSigRawDelegateWithdrawTxWithMemo(
 			poolAddr,
 			valAddrs,
 			types.NewCoin(client.GetDenom(), types.NewIntFromBigInt(val)),
+			withdrawValAddrs,
 			memo)
 		unSignedType = 1
 		return

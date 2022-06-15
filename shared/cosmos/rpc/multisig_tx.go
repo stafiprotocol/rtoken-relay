@@ -491,6 +491,34 @@ func (c *Client) GenMultiSigRawDelegateTxWithMemo(delAddr types.AccAddress, valA
 	return c.GenMultiSigRawTxWithMemo(memo, msgs...)
 }
 
+func (c *Client) GenMultiSigRawDelegateWithdrawTxWithMemo(delAddr types.AccAddress, valAddrs []types.ValAddress, amount types.Coin,
+	withdrawValAddress []types.ValAddress, memo string) ([]byte, error) {
+
+	if len(valAddrs) == 0 {
+		return nil, errors.New("no valAddrs")
+	}
+	if amount.IsZero() {
+		return nil, errors.New("amount is zero")
+	}
+
+	msgs := make([]types.Msg, 0)
+	for _, valAddr := range valAddrs {
+		msg := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
+		msgs = append(msgs, msg)
+	}
+
+	//gen withdraw
+	for _, valAddr := range withdrawValAddress {
+		msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
+		if err := msg.ValidateBasic(); err != nil {
+			return nil, err
+		}
+		msgs = append(msgs, msg)
+	}
+
+	return c.GenMultiSigRawTxWithMemo(memo, msgs...)
+}
+
 //generate unsigned unDelegate+withdraw tx
 func (c *Client) GenMultiSigRawUnDelegateWithdrawTxWithMemo(delAddr types.AccAddress, valAddrs []types.ValAddress,
 	amounts map[string]types.Int, withdrawValAddress []types.ValAddress, memo string) ([]byte, error) {
