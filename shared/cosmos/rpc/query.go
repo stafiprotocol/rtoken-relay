@@ -24,6 +24,10 @@ const waitTime = time.Millisecond * 500
 var ErrNoTxIncludeWithdraw = fmt.Errorf("no tx include withdraw")
 var ErrNoRewardNeedDelegate = fmt.Errorf("no tx reward need delegate")
 
+func GetMemo(era uint32, txType string) string {
+	return fmt.Sprintf("%d:%s", era, txType)
+}
+
 //no 0x prefix
 func (c *Client) QueryTxByHash(hashHexStr string) (*types.TxResponse, error) {
 	cc, err := retry(func() (interface{}, error) {
@@ -230,7 +234,7 @@ func (c *Client) GetRewardToBeDelegated(delegatorAddr string, era uint32) (map[s
 		[]string{
 			fmt.Sprintf("transfer.recipient='%s'", delegatorAddr),
 			fmt.Sprintf("transfer.sender='%s'", moduleAddressStr),
-		}, 1, 3, "desc")
+		}, 1, 4, "desc")
 	if err != nil {
 		return nil, 0, err
 	}
@@ -255,11 +259,11 @@ func (c *Client) GetRewardToBeDelegated(delegatorAddr string, era uint32) (map[s
 		memoInTx := memoTx.GetMemo()
 
 		switch memoInTx {
-		case fmt.Sprintf("%d:%s", era, TxTypeHandleEraPoolUpdatedEvent):
+		case GetMemo(era, TxTypeHandleEraPoolUpdatedEvent):
 			//return tx handleEraPoolUpdatedEvent height
 			retHeight = tx.Height - 1
 			fallthrough
-		case fmt.Sprintf("%d:%s", era-1, TxTypeHandleActiveReportedEvent):
+		case GetMemo(era-1, TxTypeHandleBondReportedEvent):
 			height := tx.Height - 1
 			totalReward, err := c.QueryDelegationTotalRewards(delAddress, height)
 			if err != nil {

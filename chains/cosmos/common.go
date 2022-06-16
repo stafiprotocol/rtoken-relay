@@ -28,6 +28,7 @@ import (
 
 var ErrNoOutPuts = errors.New("outputs length is zero")
 
+
 func GetBondUnBondProposalId(shotId substrateTypes.Hash, bond, unbond substrateTypes.U128, seq uint64) []byte {
 	proposalId := make([]byte, 72)
 	copy(proposalId, shotId[:])

@@ -71,7 +71,8 @@ func initClient() {
 	// client, err = rpc.NewClient(key, "stargate-final", "recipient", "0.04umuon", "umuon", "http://127.0.0.1:26657")
 	// client, _ = rpc.NewClient(key, "cosmoshub-4", "self", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
 	var err error
-	client, err = rpc.NewClient(nil, "cosmoshub-4", "", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
+	// client, err = rpc.NewClient(nil, "cosmoshub-4", "", "0.00001uatom", "uatom", "https://cosmos-rpc1.stafi.io:443")
+	client, err = rpc.NewClient(nil, "local-cosmos", "", "0.00001stake", "stake", "http://127.0.0.1:26657")
 	if err != nil {
 		panic(err)
 	}
@@ -361,8 +362,15 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 
 func TestGetPubKey(t *testing.T) {
 	initClient()
-	test, _ := types.AccAddressFromBech32("cosmos1u22lut8qgqg8znxam72pwgqp8c09rnvme00kea")
-	account, _ := client.QueryAccount(test)
+	test, err := types.AccAddressFromBech32("cosmos1k4mrzs67tnd7fl6ax3l440wpa3amat7teurg9a")
+	if err!=nil{
+		t.Fatal(err)
+	}
+	account, err := client.QueryAccount(test)
+	if err!=nil{
+		t.Fatal(err)
+	}
+	t.Log(account)
 	t.Log(hex.EncodeToString(account.GetPubKey().Bytes()))
 
 	// res, err := client.QueryTxByHash("327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1")
@@ -392,19 +400,26 @@ func TestClient_Sign(t *testing.T) {
 }
 
 func TestAddress(t *testing.T) {
-	addrKey1, _ := types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
-	addrKey2, _ := types.AccAddressFromBech32("cosmos1ztquzhpkve7szl99jkugq4l8jtpnhln76aetam")
-	addrKey3, _ := types.AccAddressFromBech32("cosmos12zz2hm02sxe9f4pwt7y5q9wjhcu98vnuwmjz4x")
-	addrKey4, _ := types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
-	addrKey5, _ := types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
-	t.Log(hex.EncodeToString(addrKey1.Bytes()))
-	t.Log(hex.EncodeToString(addrKey2.Bytes()))
-	t.Log(hex.EncodeToString(addrKey3.Bytes()))
-	t.Log(hex.EncodeToString(addrKey4.Bytes()))
-	t.Log(hex.EncodeToString(addrKey5.Bytes()))
-	//client_test.go:347: e9f6828e559dbf7dbac9a319d3b58b41abcc34a4
-	//client_test.go:348: 12c1c15c36667d017ca595b88057e792c33bfe7e
-	//client_test.go:349: 5084abedea81b254d42e5f894015d2be3853b27c
+	// addrKey1, _ := types.AccAddressFromBech32("cosmos1a8mg9rj4nklhmwkf5vva8dvtgx4ucd9yjasret")
+	// addrKey2, _ := types.AccAddressFromBech32("cosmos1ztquzhpkve7szl99jkugq4l8jtpnhln76aetam")
+	// addrKey3, _ := types.AccAddressFromBech32("cosmos12zz2hm02sxe9f4pwt7y5q9wjhcu98vnuwmjz4x")
+	// addrKey4, _ := types.AccAddressFromBech32("cosmos12yprrdprzat35zhqxe2fcnn3u26gwlt6xcq0pj")
+	// addrKey5, _ := types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
+	// t.Log(hex.EncodeToString(addrKey1.Bytes()))
+	// t.Log(hex.EncodeToString(addrKey2.Bytes()))
+	// t.Log(hex.EncodeToString(addrKey3.Bytes()))
+	// t.Log(hex.EncodeToString(addrKey4.Bytes()))
+	// t.Log(hex.EncodeToString(addrKey5.Bytes()))
+
+	addrKey6, _ := types.AccAddressFromBech32("cosmos13jd2vn5wt8h6slj0gcv05lasgpkwpm26n04y75")
+	t.Log(hex.EncodeToString(addrKey6.Bytes()))
+	addrKey7, _ := types.AccAddressFromBech32("cosmos1cad0efr25faywnjp8qp36l8zlqa2sgz0jwn0hl")
+	t.Log(hex.EncodeToString(addrKey7.Bytes()))
+	addrKey8, _ := types.AccAddressFromBech32("cosmos13mwxtgrljf9d5r72sc28496ua4lsga0jvmqz8x")
+	t.Log(hex.EncodeToString(addrKey8.Bytes()))
+	// client_test.go:410: 8c9aa64e8e59efa87e4f4618fa7fb0406ce0ed5a
+    // client_test.go:412: c75afca46aa27a474e4138031d7ce2f83aa8204f
+    // client_test.go:414: 8edc65a07f924ada0fca86147a975ced7f0475f2
 }
 
 func TestClient_QueryDelegations(t *testing.T) {

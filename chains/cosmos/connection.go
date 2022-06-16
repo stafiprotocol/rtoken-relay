@@ -29,15 +29,43 @@ type Connection struct {
 	symbol             core.RSymbol
 	validatorTargets   []types.ValAddress
 	currentHeight      int64
-	increaseRewardInfo IncreaseRewardInfo
+	increaseRewardInfo *IncreaseRewardInfo
 	poolClients        map[string]*cosmos.PoolClient //map[addressHexStr]subClient
 	log                log15.Logger
 	stop               <-chan int
 }
 
 type IncreaseRewardInfo struct {
-	Era    uint32   `json:"era"`
-	Amount *big.Int `json:"amount"`
+	Era    uint32 `json:"era"`
+	Amount BigInt `json:"amount"`
+}
+
+type BigInt struct {
+	big.Int
+}
+
+func (b BigInt) MarshalJSON() ([]byte, error) {
+	return []byte(b.String()), nil
+}
+
+func (b *BigInt) UnmarshalJSON(p []byte) error {
+	if string(p) == "null" {
+		return nil
+	}
+
+	var val string
+	err := json.Unmarshal(p, &val)
+	if err != nil {
+		return err
+	}
+
+	var z big.Int
+	_, ok := z.SetString(val, 10)
+	if !ok {
+		return fmt.Errorf("not a valid big integer: %s", p)
+	}
+	b.Int = z
+	return nil
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -75,21 +103,20 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 	}
 
 	optIncreaseRewardInfo := cfg.Opts["increaseRewardInfo"]
-	log.Info("NewConnection", "targets", optIncreaseRewardInfo)
-	bts, err := json.Marshal(optIncreaseRewardInfo)
-	if err != nil {
-		return nil, err
-	}
+	log.Info("NewConnection", "increaseRewardInfo", optIncreaseRewardInfo)
 
-	increaseRewardInfo := IncreaseRewardInfo{}
-	err = json.Unmarshal(bts, &increaseRewardInfo)
-	if err != nil {
-		return nil, err
-	}
-	if increaseRewardInfo.Era == 0 ||
-		increaseRewardInfo.Amount == nil ||
-		increaseRewardInfo.Amount.Cmp(big.NewInt(0)) <= 0 {
-		panic("increaseRewardInfo not right")
+	var increaseRewardInfo *IncreaseRewardInfo
+	if optIncreaseRewardInfo != nil {
+		bts, err := json.Marshal(optIncreaseRewardInfo)
+		if err != nil {
+			return nil, err
+		}
+
+		increaseRewardInfo = &IncreaseRewardInfo{}
+		err = json.Unmarshal(bts, increaseRewardInfo)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	chainId, ok := cfg.Opts[config.ChainId].(string)

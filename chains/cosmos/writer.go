@@ -123,8 +123,8 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	snap := flow.Snap
 
 	//deal increaseRewardInfo
-	if w.conn.increaseRewardInfo.Era == flow.Snap.Era {
-		snap.Bond = substrateTypes.NewU128(*(new(big.Int).Add(snap.Bond.Int, w.conn.increaseRewardInfo.Amount)))
+	if w.conn.increaseRewardInfo != nil && w.conn.increaseRewardInfo.Era == flow.Snap.Era {
+		snap.Bond = substrateTypes.NewU128(*(new(big.Int).Add(snap.Bond.Int, &w.conn.increaseRewardInfo.Amount.Int)))
 	}
 
 	//check bond/unbond is needed
@@ -152,7 +152,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	client := poolClient.GetRpcClient()
 	height := poolClient.GetHeightByEra(snap.Era)
 
-	memo := fmt.Sprintf("%d:%s", snap.Era, rpc.TxTypeHandleEraPoolUpdatedEvent)
+	memo := rpc.GetMemo(flow.Era, rpc.TxTypeHandleEraPoolUpdatedEvent)
 	unSignedTx, _, err := GetBondUnbondWithdrawUnsignedTxWithTargets(client, snap.Bond.Int,
 		snap.Unbond.Int, poolAddr, height, w.conn.validatorTargets, memo)
 	if err != nil {
@@ -191,7 +191,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := GetBondUnBondProposalId(flow.ShotId, snap.Bond, snap.Unbond, seq)
+	proposalId := GetBondUnBondProposalId(flow.ShotId, snap.Bond, snap.Unbond, 1)
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
@@ -293,7 +293,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 		}
 	}
 
-	memo := fmt.Sprintf("%d:%s", flow.Snap.Era, rpc.TxTypeHandleActiveReportedEvent)
+	memo := rpc.GetMemo(flow.Snap.Era, rpc.TxTypeHandleBondReportedEvent)
 	unSignedTx, totalDeleAmount, err := GetDelegateRewardUnsignedTxWithReward(client, poolAddr, height, rewardCoins, memo)
 	if err != nil {
 		if err == rpc.ErrNoMsgs {
@@ -409,7 +409,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 	client := poolClient.GetRpcClient()
 
-	memo := fmt.Sprintf("%d:%s", flow.Snap.Era, rpc.TxTypeHandleActiveReportedEvent)
+	memo := rpc.GetMemo(flow.Snap.Era, rpc.TxTypeHandleActiveReportedEvent)
 	unSignedTx, outPuts, err := GetTransferUnsignedTxWithMemo(client, poolAddr, flow.Receives, memo, w.log)
 	if err != nil && err != ErrNoOutPuts {
 		w.log.Error("GetTransferUnsignedTx failed", "pool hex address", poolAddrHexStr, "err", err)
@@ -450,7 +450,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx), seq)
+	proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx), 1)
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,

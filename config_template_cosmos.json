@@ -7,7 +7,7 @@
       "endpoint": "ws://127.0.0.1:9944",
       "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "35arN8keEJhSeSnpyH9Cu6CBsmGchGgJi577CxHyPUuobUhg"
+        "33xzQzUk75cAxt7i3hHb2XWwJNFqzcSULfoCRsAkiCG4jh5d"
       ],
       "latestBlockFlag": false,
       "opts": {
@@ -27,21 +27,21 @@
       "endpoint": "http://127.0.0.1:26657",
       "rsymbol": "RATOM",
       "accounts": [
-        "key0key1key2"
+        "multisig1"
       ],
       "keystorePath": "/Users/tpkeeper/.gaia",
       "opts": {
-        "key0key1key2": "key0",
-        "chainId": "chain-AALfXF",
+        "multisig1": "key1",
+        "chainId": "local-cosmos",
         "denom": "stake",
         "gasPrice": "0.00001stake",
         "eraBlockNumber": "100",
         "validatorTargets": [
-          "cosmosvaloper1u22lut8qgqg8znxam72pwgqp8c09rnvmummr4w"
+          "cosmosvaloper129kf5egy80e8me93lg3h5lk54kp0tle7w9npre"
         ],
         "increaseRewardInfo": {
-          "era": 23,
-          "amount": "200000000"
+          "era": 19,
+          "amount": "555555"
         }
       }
     }

@@ -18,8 +18,8 @@ import (
 
 var client *rpc.Client
 var keyDir = "/Users/tpkeeper/.gaia"
-var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
-var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper1u7m4j26ukn293latjtnv2pjrtadzu9s805g6pg")
+var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos13jd2vn5wt8h6slj0gcv05lasgpkwpm26n04y75")
+var adrValidatorEverStake, _ = types.ValAddressFromBech32("cosmosvaloper129kf5egy80e8me93lg3h5lk54kp0tle7w9npre")
 
 func init() {
 	fmt.Printf("Will open cosmos wallet from <%s>. \nPlease ", keyDir)
@@ -28,7 +28,7 @@ func init() {
 		panic(err)
 	}
 
-	client, _ = rpc.NewClient(key, "chain-AALfXF", "key0key1key2", "0.00001stake", "stake", "http://127.0.0.1:26657")
+	client, _ = rpc.NewClient(key, "local-cosmos", "multisig1", "0.00001stake", "stake", "http://127.0.0.1:26657")
 }
 
 func main() {
@@ -39,7 +39,7 @@ func main() {
 }
 
 func GenMultiSigRawDelegateTx() error {
-	err := client.SetFromName("key0key1key2")
+	err := client.SetFromName("multisig1")
 	if err != nil {
 		return err
 	}
@@ -50,15 +50,15 @@ func GenMultiSigRawDelegateTx() error {
 		return err
 	}
 
-	signature1, err := client.SignMultiSigRawTx(rawTx, "key0")
+	signature1, err := client.SignMultiSigRawTx(rawTx, "key1")
 	if err != nil {
 		return err
 	}
-	signature2, err := client.SignMultiSigRawTx(rawTx, "key1")
+	signature2, err := client.SignMultiSigRawTx(rawTx, "key2")
 	if err != nil {
 		return err
 	}
-	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2}, 2)
+	_, tx, err := client.AssembleMultiSigTx(rawTx, [][]byte{signature1, signature2}, 1)
 	if err != nil {
 		return err
 	}
