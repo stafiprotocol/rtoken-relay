@@ -123,7 +123,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	snap := flow.Snap
 
 	//deal increaseRewardInfo
-	if w.conn.increaseRewardInfo != nil && w.conn.increaseRewardInfo.Era <= flow.Snap.Era {
+	if w.conn.increaseRewardInfo != nil && w.conn.increaseRewardInfo.Era >= flow.Snap.Era {
 		snap.Bond = substrateTypes.NewU128(*(new(big.Int).Add(snap.Bond.Int, &w.conn.increaseRewardInfo.Amount.Int)))
 	}
 
