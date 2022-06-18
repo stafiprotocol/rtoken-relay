@@ -659,6 +659,83 @@ func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 		return false
 	}
 
+	txHashHexStr := hex.EncodeToString(txHash)
+	res, err := client.QueryTxByHash(txHashHexStr)
+	if wrappedUnSignedTx.Type == submodel.OriginalTransfer &&
+		err == nil &&
+		!res.Empty() &&
+		res.Code != 0 {
+		currentHeight, err := client.GetCurrentBLockHeight()
+		if err != nil {
+			w.log.Error("client.GetCurrentBLockHeight failed",
+				"pool hex address", poolAddrHexStr,
+				"err", err)
+			return false
+		}
+
+		if res.Height+300 > currentHeight {
+			w.log.Error("transfer tx failed",
+				"pool hex address", poolAddrHexStr,
+				"err", res.RawLog)
+			return false
+		}
+
+		poolAddr, err := types.AccAddressFromHex(poolAddrHexStr)
+		if err != nil {
+			w.log.Error("hexPoolAddr cast to cosmos AccAddress failed",
+				"pool hex address", poolAddrHexStr,
+				"err", err)
+			return false
+		}
+		//use current seq
+		seq, err := client.GetSequence(0, poolAddr)
+		if err != nil {
+			w.log.Error("GetSequence failed",
+				"pool address", poolAddr.String(),
+				"err", err)
+			return false
+		}
+		unSignedTx := wrappedUnSignedTx.UnsignedTx
+		sigBts, err := client.SignMultiSigRawTxWithSeq(seq, unSignedTx, poolClient.GetSubKeyName())
+		if err != nil {
+			w.log.Error("processActiveReportedEvent SignMultiSigRawTx failed",
+				"pool address", poolAddr.String(),
+				"unsignedTx", string(unSignedTx),
+				"err", err)
+			return false
+		}
+
+		//cache unSignedTx
+		proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx), 2)
+		proposalIdHexStr := hex.EncodeToString(proposalId)
+		wrapUnsignedTx := cosmos.WrapUnsignedTx{
+			UnsignedTx: unSignedTx,
+			Key:        proposalIdHexStr,
+			SnapshotId: wrappedUnSignedTx.SnapshotId,
+			Era:        wrappedUnSignedTx.Era,
+			Type:       submodel.OriginalTransfer}
+
+		poolClient.CacheUnsignedTx(proposalIdHexStr, &wrapUnsignedTx)
+
+		param := submodel.SubmitSignatureParams{
+			Symbol:     w.conn.symbol,
+			Era:        substrateTypes.NewU32(wrappedUnSignedTx.Era),
+			Pool:       substrateTypes.NewBytes(sigs.Pool),
+			TxType:     submodel.OriginalTransfer,
+			ProposalId: substrateTypes.NewBytes(proposalId),
+			Signature:  substrateTypes.NewBytes(sigBts),
+		}
+
+		w.log.Info("processActiveReportedEvent re gen unsigned transfer Tx",
+			"pool address", poolAddr.String(),
+			"proposalId", proposalIdHexStr,
+			"unsignedTx", hex.EncodeToString(unSignedTx),
+			"signature", hex.EncodeToString(sigBts))
+
+		result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
+		return w.submitMessage(result)
+	}
+
 	return w.checkAndSend(poolClient, wrappedUnSignedTx, sigs, m, txHash, txBts)
 }
 
