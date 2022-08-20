@@ -450,7 +450,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 
 	//cache unSignedTx
-	proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx), 2)
+	proposalId := GetTransferProposalId(utils.BlakeTwo256(unSignedTx), 3)
 	proposalIdHexStr := hex.EncodeToString(proposalId)
 	wrapUnsignedTx := cosmos.WrapUnsignedTx{
 		UnsignedTx: unSignedTx,
