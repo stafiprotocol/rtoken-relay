@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	goerliHttpEndPoint      = "https://goerli.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
+	goerliHttpEndPoint      = "https://mainnet.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
 	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
 
@@ -401,6 +401,15 @@ func NewGoerliClient() *Client {
 	}
 
 	return client
+}
+
+func TestGasPrice(t *testing.T) {
+	client := NewGoerliClient()
+	gasPrice, err := client.SafeEstimateGas(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("gas price", gasPrice.String())
 }
 
 func TestWithdrawable(t *testing.T) {

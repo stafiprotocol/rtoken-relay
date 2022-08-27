@@ -30,7 +30,7 @@ var (
 	proxyOwners                 = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
 	txhash                      = common.HexToHash("0x8bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1d")
 
-	goerliEndPoint             = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
+	goerliEndPoint             = "https://mainnet.infura.io/v3/4cb873af07a84e42a952189eff3a6954"
 	testLogger                 = newTestLogger("test")
 	goerliStakeManagerContract = common.HexToAddress("0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3")
 	goerliMaticToken           = common.HexToAddress("0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae")
