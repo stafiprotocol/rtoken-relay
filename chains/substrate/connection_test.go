@@ -1,7 +1,14 @@
 package substrate
 
 import (
+	"bytes"
+	"encoding/hex"
+	"math/big"
+	"sort"
+	"testing"
+
 	"github.com/ChainSafe/log15"
+	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -9,8 +16,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 var (
@@ -218,5 +223,41 @@ func TestProposalVoters(t *testing.T) {
 	voter, err := conn.GetSelectedVoters(core.RDOT, 889)
 	assert.NoError(t, err)
 	t.Log(voter)
+
+}
+
+func TestSortAddr(t *testing.T) {
+	ss58AddressList := []string{
+		"36BwqjgT8MkuwMwJBNLBohLci7mTqKLoC7YKMLeP7kzRASwC",
+		"351cAhFpbcjBboEsAjeFzDv4nLzPgSggVyT2Pf56Z9nmNb6F",
+		"35VeijRPg5zVt4kKZsMUkornNMZn7DrJrmJawKLxgkpRFprs",
+		"32G1VrGGoJStYgVFv6n8qXaoAhRVHbmM4UHPvkQSsBkSQtom",
+		"33v9bvusE56vhPuc7PT9GbAfhwkVS2e2N1ThhvRVxfw2U6XE",
+		"33Cae8pSE2DLeVwL2Ugb3PtdXGuwMsoHC8mHDmtntNTh4cit",
+		"34un2Kxb5UPq4DzBEu4N4FG7evfaSDUzcVgtXRdQWjeDsGGt",
+		"32FjxDWcLGehAW4QZueWHVUHDfZe6L1ZvJFewMgCkKMZuBKC",
+	}
+
+	addressBtsList := make([][]byte, 0)
+	for _, s58Addr := range ss58AddressList {
+		bts, err := ss58.DecodeToPub(s58Addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		addressBtsList = append(addressBtsList, bts)
+	}
+
+	sort.SliceStable(addressBtsList, func(i, j int) bool {
+		return bytes.Compare(addressBtsList[i][:], addressBtsList[j][:]) < 0
+	})
+
+	for _, addrBts := range addressBtsList {
+		addrHexStr := hex.EncodeToString(addrBts)
+		addrSs58Str, err := ss58.EncodeByPubHex(addrHexStr, ss58.StafiPrefix)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(addrHexStr, addrSs58Str)
+	}
 
 }
