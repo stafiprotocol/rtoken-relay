@@ -28,7 +28,6 @@ import (
 
 var ErrNoOutPuts = errors.New("outputs length is zero")
 
-
 func GetBondUnBondProposalId(shotId substrateTypes.Hash, bond, unbond substrateTypes.U128, seq uint64) []byte {
 	proposalId := make([]byte, 72)
 	copy(proposalId, shotId[:])
@@ -97,9 +96,9 @@ func GetValidatorUpdateProposalId(content []byte) []byte {
 	return hash[:]
 }
 
-//if bond == unbond return err
-//if bond > unbond gen delegate tx
-//if bond < unbond gen undelegate tx
+// if bond == unbond return err
+// if bond > unbond gen delegate tx
+// if bond < unbond gen undelegate tx
 func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U128,
 	poolAddr types.AccAddress, height int64) (unSignedTx []byte, err error) {
 	//check bond unbond
@@ -195,9 +194,9 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 	return
 }
 
-//if bond == unbond return err
-//if bond > unbond gen delegate tx
-//if bond < unbond gen undelegate tx
+// if bond == unbond return err
+// if bond > unbond gen delegate tx
+// if bond < unbond gen undelegate tx
 func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substrateTypes.U128,
 	poolAddr types.AccAddress, height int64, targets []types.ValAddress) (unSignedTx []byte, err error) {
 	//check bond unbond
@@ -330,8 +329,9 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 	return
 }
 
-//if bond > unbond only gen delegate tx  (txType: 2)
-//if bond <= unbond
+// if bond > unbond only gen delegate tx  (txType: 2)
+// if bond <= unbond
+//
 //	(1)if balanceAmount > rewardAmount of era height ,gen withdraw and delegate tx  (txType: 3)
 //	(2)if balanceAmount < rewardAmount of era height, gen withdraw tx  (txTpye: 1)
 func GetClaimRewardUnsignedTx(client *rpc.Client, poolAddr types.AccAddress, height int64,
@@ -578,7 +578,7 @@ func (w *writer) checkAndSend(poolClient *cosmos.PoolClient, wrappedUnSignedTx *
 	return false
 }
 
-//get total delegation of now and report
+// get total delegation of now and report
 func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress,
 	symbol core.RSymbol, poolBts []byte, shotId substrateTypes.Hash, era uint32) bool {
 
@@ -609,10 +609,10 @@ func (w *writer) ActiveReport(client *rpc.Client, poolAddr types.AccAddress,
 	return w.activeReport(symbol, core.RFIS, &f)
 }
 
-//ensue every validator claim reward
-//if bond == unbond: if no delegation before, return errNoMsgs, else gen withdraw tx
-//if bond > unbond: gen delegate tx
-//if bond < unbond: gen undelegate+withdraw tx
+// ensue every validator claim reward
+// if bond == unbond: if no delegation before, return errNoMsgs, else gen withdraw tx
+// if bond > unbond: gen delegate tx
+// if bond < unbond: gen undelegate+withdraw tx
 func GetBondUnbondWithdrawUnsignedTxWithTargets(client *rpc.Client, bond, unbond *big.Int,
 	poolAddr types.AccAddress, height int64, targets []types.ValAddress, memo string) (unSignedTx []byte, unSignedType int, err error) {
 
@@ -817,10 +817,10 @@ func GetBondUnbondWithdrawUnsignedTxWithTargets(client *rpc.Client, bond, unbond
 	}
 }
 
-//Notice: delegate/undelegate/withdraw operates will withdraw all reward
-//all delegations had withdraw all reward in eraUpdatedEvent handler
-//(0)if rewardAmount of  height == 0, hubClient.ErrNoMsgs
-//(1)else gen delegate tx
+// Notice: delegate/undelegate/withdraw operates will withdraw all reward
+// all delegations had withdraw all reward in eraUpdatedEvent handler
+// (0)if rewardAmount of  height == 0, hubClient.ErrNoMsgs
+// (1)else gen delegate tx
 func GetDelegateRewardUnsignedTxWithReward(client *rpc.Client, poolAddr types.AccAddress, height int64,
 	rewards map[string]types.Coin, memo string) ([]byte, *types.Int, error) {
 

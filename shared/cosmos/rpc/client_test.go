@@ -24,7 +24,7 @@ import (
 
 var client *rpc.Client
 
-//eda331e37bf66b2393c4c271e384dfaa2bfcdd35
+// eda331e37bf66b2393c4c271e384dfaa2bfcdd35
 var addrMultiSig1, _ = types.AccAddressFromBech32("cosmos1em384d8ek3y8nlugapz7p5k5skg58j66je3las")
 var addrMultiSig2, _ = types.AccAddressFromBech32("cosmos1wmk9ys49zxgmx77pqs7cjnpamnnxuspqu2r87y")
 var addrReceive, _ = types.AccAddressFromBech32("cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf")
@@ -78,9 +78,9 @@ func initClient() {
 	}
 }
 
-//{"height":"901192","txhash":"327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"100umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"100umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51169","tx":null,"timestamp":""}
-//{"height":"903451","txhash":"0E4F8F8FF7A3B67121711DA17FBE5AE8CB25DB272DDBF7DC0E02122947266604","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"10umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"10umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51159","tx":null,"timestamp":""}
-//block hash 0x16E8297663210ABF6937FE4C1C139D4BACD0D27A22EFD9E3FE06B1DA8E3F7BB3
+// {"height":"901192","txhash":"327DA2048B6D66BCB27C0F1A6D1E407D88FE719B95A30D108B5906FD6934F7B1","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"100umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"100umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51169","tx":null,"timestamp":""}
+// {"height":"903451","txhash":"0E4F8F8FF7A3B67121711DA17FBE5AE8CB25DB272DDBF7DC0E02122947266604","codespace":"","code":0,"data":"0A060A0473656E64","raw_log":"[{\"events\":[{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"send\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"module\",\"value\":\"bank\"}]},{\"type\":\"transfer\",\"attributes\":[{\"key\":\"recipient\",\"value\":\"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu\"},{\"key\":\"sender\",\"value\":\"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf\"},{\"key\":\"amount\",\"value\":\"10umuon\"}]}]}]","logs":[{"msg_index":0,"log":"","events":[{"type":"message","attributes":[{"key":"action","value":"send"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"module","value":"bank"}]},{"type":"transfer","attributes":[{"key":"recipient","value":"cosmos1ak3nrcmm7e4j8y7ycfc78pxl4g4lehf43vw6wu"},{"key":"sender","value":"cosmos1cgs647rewxyzh5wu4e606kk7qyuj5f8hk20rgf"},{"key":"amount","value":"10umuon"}]}]}],"info":"","gas_wanted":"200000","gas_used":"51159","tx":null,"timestamp":""}
+// block hash 0x16E8297663210ABF6937FE4C1C139D4BACD0D27A22EFD9E3FE06B1DA8E3F7BB3
 func TestClient_SendTo(t *testing.T) {
 	initClient()
 	err := client.SingleTransferTo(addrMultiSig1, types.NewCoins(types.NewInt64Coin(client.GetDenom(), 50000)))
@@ -308,7 +308,7 @@ func TestClient_GenMultiSigRawWithdrawAllRewardTx(t *testing.T) {
 	t.Log(hash)
 }
 
-//0xf954ad81a546df9de6c79051ca67f7d0d08e9d861604c76fb8767dce2ce8d4f8
+// 0xf954ad81a546df9de6c79051ca67f7d0d08e9d861604c76fb8767dce2ce8d4f8
 func TestClient_GenMultiSigRawUnDelegateTx(t *testing.T) {
 	initClient()
 	err := client.SetFromName("multiSign1")
@@ -363,11 +363,11 @@ func TestClient_GenMultiSigRawBatchTransferTx(t *testing.T) {
 func TestGetPubKey(t *testing.T) {
 	initClient()
 	test, err := types.AccAddressFromBech32("cosmos1k4mrzs67tnd7fl6ax3l440wpa3amat7teurg9a")
-	if err!=nil{
+	if err != nil {
 		t.Fatal(err)
 	}
 	account, err := client.QueryAccount(test)
-	if err!=nil{
+	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(account)
@@ -418,8 +418,8 @@ func TestAddress(t *testing.T) {
 	addrKey8, _ := types.AccAddressFromBech32("cosmos13mwxtgrljf9d5r72sc28496ua4lsga0jvmqz8x")
 	t.Log(hex.EncodeToString(addrKey8.Bytes()))
 	// client_test.go:410: 8c9aa64e8e59efa87e4f4618fa7fb0406ce0ed5a
-    // client_test.go:412: c75afca46aa27a474e4138031d7ce2f83aa8204f
-    // client_test.go:414: 8edc65a07f924ada0fca86147a975ced7f0475f2
+	// client_test.go:412: c75afca46aa27a474e4138031d7ce2f83aa8204f
+	// client_test.go:414: 8edc65a07f924ada0fca86147a975ced7f0475f2
 }
 
 func TestClient_QueryDelegations(t *testing.T) {

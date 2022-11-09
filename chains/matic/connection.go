@@ -563,7 +563,7 @@ func (c *Connection) StakedAndReward(txHash common.Hash, share, pool common.Addr
 	return staked, reward, nil
 }
 
-/// txhash is not transaction hash but a param of multi.execTransaction
+// / txhash is not transaction hash but a param of multi.execTransaction
 func (c *Connection) RewardByTxHash(txHash common.Hash, pool common.Address) (*big.Int, error) {
 	for i := 0; i <= TxHashLogRetryLimit; i++ {
 		multisig, err := Multisig.NewMultisig(pool, c.conn.Client())

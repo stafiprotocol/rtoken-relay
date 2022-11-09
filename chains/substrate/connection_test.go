@@ -39,7 +39,8 @@ var sc *substrate.SarpcClient
 func init() {
 	var err error
 	stop := make(chan int)
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
 	}
@@ -207,4 +208,15 @@ func TestConnection_TransferVerify1(t *testing.T) {
 	assert.NoError(t, err)
 	t.Log(result)
 	assert.Equal(t, result, submodel.Pass)
+}
+
+func TestProposalVoters(t *testing.T) {
+	conn := Connection{sc: sc, log: tlog, symbol: core.RFIS, stop: make(chan int)}
+	accounts, err := conn.GetNewChainEraProposalVoters(core.RDOT, 889)
+	assert.NoError(t, err)
+	t.Log(accounts)
+	voter, err := conn.GetSelectedVoters(core.RDOT, 889)
+	assert.NoError(t, err)
+	t.Log(voter)
+
 }

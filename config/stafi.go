@@ -15,9 +15,11 @@ const (
 	MethodRacknowledgeProposal = "RTokenVotes.acknowledge_proposal"
 
 	RTokenLedgerModuleId       = "RTokenLedger"
+	RTokenRelayersModuleId     = "Relayers"
 	EraPoolUpdatedEventId      = "EraPoolUpdated"
 	StorageChainEras           = "ChainEras"
 	StorageCurrentEraSnapShots = "CurrentEraSnapShots"
+	StorageRelayerThreshold    = "RelayerThreshold"
 	StorageEraSnapShots        = "EraSnapShots"
 	StorageLeastBond           = "LeastBond"
 	MethodSetChainEra          = "RTokenLedger.set_chain_era"

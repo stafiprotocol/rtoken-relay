@@ -28,7 +28,7 @@ func GetMemo(era uint32, txType string) string {
 	return fmt.Sprintf("%d:%s", era, txType)
 }
 
-//no 0x prefix
+// no 0x prefix
 func (c *Client) QueryTxByHash(hashHexStr string) (*types.TxResponse, error) {
 	cc, err := retry(func() (interface{}, error) {
 		return xAuthTx.QueryTx(c.clientCtx, hashHexStr)
@@ -293,7 +293,7 @@ func (c *Client) GetRewardToBeDelegated(delegatorAddr string, era uint32) (map[s
 	return valRewards, retHeight, nil
 }
 
-//only retry func when return connection err here
+// only retry func when return connection err here
 func retry(f func() (interface{}, error)) (interface{}, error) {
 	var err error
 	var result interface{}

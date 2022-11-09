@@ -2,12 +2,13 @@ package cosmos
 
 import (
 	"fmt"
+	"sync/atomic"
+	"time"
+
 	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	"sync/atomic"
-	"time"
 )
 
 // Frequency of polling for a new block
@@ -18,7 +19,7 @@ var (
 	EraInterval        = time.Minute * 2
 )
 
-//listen event from cosmos
+// listen event from cosmos
 type listener struct {
 	name       string
 	symbol     core.RSymbol
@@ -68,7 +69,7 @@ func (l *listener) pollBlocks() error {
 	for {
 		select {
 		case <-l.stop:
-			return TerminatedError
+			return ErrorTerminated
 		case <-ticker.C:
 			if retry <= 0 {
 				return fmt.Errorf("pollBlocks reach retry limit ,symbol: %s", l.symbol)

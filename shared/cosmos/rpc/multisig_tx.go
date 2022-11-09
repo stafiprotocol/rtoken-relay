@@ -25,13 +25,13 @@ var (
 	TxTypeHandleActiveReportedEvent = "handleActiveReportedEvent"
 )
 
-//c.clientCtx.FromAddress must be multi sig address
+// c.clientCtx.FromAddress must be multi sig address
 func (c *Client) GenMultiSigRawTransferTx(toAddr types.AccAddress, amount types.Coins) ([]byte, error) {
 	msg := xBankTypes.NewMsgSend(c.clientCtx.GetFromAddress(), toAddr, amount)
 	return c.GenMultiSigRawTx(msg)
 }
 
-//only support one type coin
+// only support one type coin
 func (c *Client) GenMultiSigRawBatchTransferTx(poolAddr types.AccAddress, outs []xBankTypes.Output) ([]byte, error) {
 	totalAmount := types.NewInt(0)
 	for _, out := range outs {
@@ -47,7 +47,7 @@ func (c *Client) GenMultiSigRawBatchTransferTx(poolAddr types.AccAddress, outs [
 	return c.GenMultiSigRawTx(msg)
 }
 
-//generate unsigned delegate tx
+// generate unsigned delegate tx
 func (c *Client) GenMultiSigRawDelegateTx(delAddr types.AccAddress, valAddrs []types.ValAddress, amount types.Coin) ([]byte, error) {
 	if len(valAddrs) == 0 {
 		return nil, errors.New("no valAddrs")
@@ -65,7 +65,7 @@ func (c *Client) GenMultiSigRawDelegateTx(delAddr types.AccAddress, valAddrs []t
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//generate unsigned unDelegate tx
+// generate unsigned unDelegate tx
 func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddrs []types.ValAddress, amount types.Coin) ([]byte, error) {
 	if len(valAddrs) == 0 {
 		return nil, errors.New("no valAddrs")
@@ -81,7 +81,7 @@ func (c *Client) GenMultiSigRawUnDelegateTx(delAddr types.AccAddress, valAddrs [
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//generate unsigned unDelegate tx
+// generate unsigned unDelegate tx
 func (c *Client) GenMultiSigRawUnDelegateTxV2(delAddr types.AccAddress, valAddrs []types.ValAddress,
 	amounts map[string]types.Int) ([]byte, error) {
 
@@ -100,13 +100,13 @@ func (c *Client) GenMultiSigRawUnDelegateTxV2(delAddr types.AccAddress, valAddrs
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//generate unsigned reDelegate tx
+// generate unsigned reDelegate tx
 func (c *Client) GenMultiSigRawReDelegateTx(delAddr types.AccAddress, valSrcAddr, valDstAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xStakingTypes.NewMsgBeginRedelegate(delAddr, valSrcAddr, valDstAddr, amount)
 	return c.GenMultiSigRawTx(msg)
 }
 
-//generate unsigned reDelegate tx
+// generate unsigned reDelegate tx
 func (c *Client) GenMultiSigRawReDelegateTxWithTarget(delAddr types.AccAddress, valSrcAddrs map[string]types.Coin, valDstAddr types.ValAddress) ([]byte, error) {
 	msgs := make([]types.Msg, 0)
 	for addrStr, amount := range valSrcAddrs {
@@ -120,20 +120,20 @@ func (c *Client) GenMultiSigRawReDelegateTxWithTarget(delAddr types.AccAddress, 
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//generate unsigned withdraw delegate reward tx
+// generate unsigned withdraw delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawDeleRewardTx(delAddr types.AccAddress, valAddr types.ValAddress) ([]byte, error) {
 	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
 	return c.GenMultiSigRawTx(msg)
 }
 
-//generate unsigned withdraw reward then delegate reward tx
+// generate unsigned withdraw reward then delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawRewardThenDeleTx(delAddr types.AccAddress, valAddr types.ValAddress, amount types.Coin) ([]byte, error) {
 	msg := xDistriTypes.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
 	msg2 := xStakingTypes.NewMsgDelegate(delAddr, valAddr, amount)
 	return c.GenMultiSigRawTx(msg, msg2)
 }
 
-//generate unsigned withdraw all reward then delegate reward tx
+// generate unsigned withdraw all reward then delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawAllRewardTx(delAddr types.AccAddress, height int64) ([]byte, error) {
 	delValsRes, err := c.QueryDelegations(delAddr, height)
 	if err != nil {
@@ -164,7 +164,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardTx(delAddr types.AccAddress, hei
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//generate unsigned withdraw all reward then delegate reward tx
+// generate unsigned withdraw all reward then delegate reward tx
 func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddress, height int64) ([]byte, error) {
 	delValsRes, err := c.QueryDelegations(delAddr, height)
 	if err != nil {
@@ -220,7 +220,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardThenDeleTx(delAddr types.AccAddr
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//generate unsigned delegate reward tx
+// generate unsigned delegate reward tx
 func (c *Client) GenMultiSigRawDeleRewardTx(delAddr types.AccAddress, height int64) ([]byte, error) {
 	delValsRes, err := c.QueryDelegations(delAddr, height)
 	if err != nil {
@@ -270,7 +270,7 @@ func (c *Client) GenMultiSigRawDeleRewardTx(delAddr types.AccAddress, height int
 	return c.GenMultiSigRawTx(msgs...)
 }
 
-//c.clientCtx.FromAddress must be multi sig address,no need sequence
+// c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
@@ -288,7 +288,7 @@ func (c *Client) GenMultiSigRawTx(msgs ...types.Msg) ([]byte, error) {
 	return c.clientCtx.TxConfig.TxJSONEncoder()(txBuilderRaw.GetTx())
 }
 
-//c.clientCtx.FromAddress  must be multi sig address
+// c.clientCtx.FromAddress  must be multi sig address
 func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature []byte, err error) {
 	account, err := c.GetAccount()
 	if err != nil {
@@ -316,7 +316,7 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature [
 	return marshalSignatureJSON(c.clientCtx.TxConfig, txBuilder, true)
 }
 
-//c.clientCtx.FromAddress  must be multi sig address
+// c.clientCtx.FromAddress  must be multi sig address
 func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromSubKey string) (signature []byte, err error) {
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
@@ -339,7 +339,7 @@ func (c *Client) SignMultiSigRawTxWithSeq(sequence uint64, rawTx []byte, fromSub
 	return marshalSignatureJSON(c.clientCtx.TxConfig, txBuilder, true)
 }
 
-//assemble multiSig tx bytes for broadcast
+// assemble multiSig tx bytes for broadcast
 func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte, threshold uint32) (txHash, txBts []byte, err error) {
 
 	multisigInfo, err := c.clientCtx.Keyring.Key(c.clientCtx.FromName)
@@ -423,7 +423,7 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte, threshold
 	return tendermintTx.Hash(), tendermintTx, nil
 }
 
-//generate unsigned withdraw all reward tx
+// generate unsigned withdraw all reward tx
 func (c *Client) GenMultiSigRawWithdrawAllRewardTxWithMemo(delAddr types.AccAddress, height int64, memo string) ([]byte, error) {
 	delValsRes, err := c.QueryDelegations(delAddr, height)
 	if err != nil {
@@ -454,7 +454,7 @@ func (c *Client) GenMultiSigRawWithdrawAllRewardTxWithMemo(delAddr types.AccAddr
 	return c.GenMultiSigRawTxWithMemo(memo, msgs...)
 }
 
-//c.clientCtx.FromAddress must be multi sig address,no need sequence
+// c.clientCtx.FromAddress must be multi sig address,no need sequence
 func (c *Client) GenMultiSigRawTxWithMemo(memo string, msgs ...types.Msg) ([]byte, error) {
 	cmd := cobra.Command{}
 	txf := clientTx.NewFactoryCLI(c.clientCtx, cmd.Flags())
@@ -473,7 +473,7 @@ func (c *Client) GenMultiSigRawTxWithMemo(memo string, msgs ...types.Msg) ([]byt
 	return c.clientCtx.TxConfig.TxJSONEncoder()(txBuilderRaw.GetTx())
 }
 
-//generate unsigned delegate tx
+// generate unsigned delegate tx
 func (c *Client) GenMultiSigRawDelegateTxWithMemo(delAddr types.AccAddress, valAddrs []types.ValAddress, amount types.Coin, memo string) ([]byte, error) {
 	if len(valAddrs) == 0 {
 		return nil, errors.New("no valAddrs")
@@ -519,7 +519,7 @@ func (c *Client) GenMultiSigRawDelegateWithdrawTxWithMemo(delAddr types.AccAddre
 	return c.GenMultiSigRawTxWithMemo(memo, msgs...)
 }
 
-//generate unsigned unDelegate+withdraw tx
+// generate unsigned unDelegate+withdraw tx
 func (c *Client) GenMultiSigRawUnDelegateWithdrawTxWithMemo(delAddr types.AccAddress, valAddrs []types.ValAddress,
 	amounts map[string]types.Int, withdrawValAddress []types.ValAddress, memo string) ([]byte, error) {
 
@@ -550,7 +550,7 @@ func (c *Client) GenMultiSigRawUnDelegateWithdrawTxWithMemo(delAddr types.AccAdd
 	return c.GenMultiSigRawTxWithMemo(memo, msgs...)
 }
 
-//generate unsigned delegate reward tx
+// generate unsigned delegate reward tx
 func (c *Client) GenMultiSigRawDeleRewardTxWithRewardsWithMemo(delAddr types.AccAddress, height int64, rewards map[string]types.Coin, memo string) ([]byte, error) {
 	delValsRes, err := c.QueryDelegations(delAddr, height)
 	if err != nil {
@@ -592,7 +592,7 @@ func (c *Client) GenMultiSigRawDeleRewardTxWithRewardsWithMemo(delAddr types.Acc
 	return c.GenMultiSigRawTxWithMemo(memo, msgs...)
 }
 
-//only support one type coin
+// only support one type coin
 func (c *Client) GenMultiSigRawBatchTransferTxWithMemo(poolAddr types.AccAddress, outs []xBankTypes.Output, memo string) ([]byte, error) {
 	totalAmount := types.NewInt(0)
 	for _, out := range outs {

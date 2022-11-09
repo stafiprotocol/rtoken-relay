@@ -21,20 +21,27 @@ import (
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
-//process eraPoolUpdate event
-//0 check bond/unbond
-//  (1)if no need just report bond to stafi
-//  (2)if need go next
-//1 query stake acount is created
-//  (1)if no then created and go next
-//  (2)if created go next
-//2 query multisig tx acount is created
-//  (1)if no then created and go next
-//  (2)if created go next
-//3 approve mutisig tx
-//4 query multisig tx executed result
-//  (1)if executed then report bond result to stafi
-//  (2)if reach retry limit return false
+// process eraPoolUpdate event
+// 0 check bond/unbond
+//
+//	(1)if no need just report bond to stafi
+//	(2)if need go next
+//
+// 1 query stake acount is created
+//
+//	(1)if no then created and go next
+//	(2)if created go next
+//
+// 2 query multisig tx acount is created
+//
+//	(1)if no then created and go next
+//	(2)if created go next
+//
+// 3 approve mutisig tx
+// 4 query multisig tx executed result
+//
+//	(1)if executed then report bond result to stafi
+//	(2)if reach retry limit return false
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	mFlow, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {

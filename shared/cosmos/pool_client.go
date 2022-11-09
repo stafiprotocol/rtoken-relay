@@ -10,7 +10,7 @@ import (
 	"github.com/ChainSafe/log15"
 )
 
-//one pool address with one poolClient
+// one pool address with one poolClient
 type PoolClient struct {
 	eraBlockNumber   int64
 	log              log15.Logger

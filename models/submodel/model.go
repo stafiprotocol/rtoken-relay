@@ -644,7 +644,7 @@ type SignaturesKey struct {
 	ProposalId []byte
 }
 
-//SignaturesEnough(RSymbol, u32, Vec<u8>, OriginalTxType, Vec<u8>),
+// SignaturesEnough(RSymbol, u32, Vec<u8>, OriginalTxType, Vec<u8>),
 type EvtSignatureEnough struct {
 	RSymbol    core.RSymbol
 	Era        uint32

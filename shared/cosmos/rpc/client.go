@@ -14,7 +14,7 @@ import (
 	"os"
 )
 
-//cosmos client
+// cosmos client
 type Client struct {
 	clientCtx     client.Context
 	rpcClient     rpcClient.Client
@@ -93,7 +93,7 @@ func NewClient(k keyring.Keyring, chainId, fromName, gasPrice, denom, endPoint s
 	return retClient, nil
 }
 
-//update clientCtx.FromName and clientCtx.FromAddress
+// update clientCtx.FromName and clientCtx.FromAddress
 func (c *Client) SetFromName(fromName string) error {
 	info, err := c.clientCtx.Keyring.Key(fromName)
 	if err != nil {

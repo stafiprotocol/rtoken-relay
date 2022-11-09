@@ -19,7 +19,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
-//write to cosmos
+// write to cosmos
 type writer struct {
 	conn   *Connection
 	router chains.Router
@@ -43,7 +43,7 @@ func (w *writer) setRouter(r chains.Router) {
 	w.router = r
 }
 
-//resolve msg from other chains
+// resolve msg from other chains
 func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	defer func() {
 		if !processOk {
@@ -72,9 +72,9 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	}
 }
 
-//process LiquidityBond event from stafi
-//1 check liquidityBond data  on cosmos chain
-//2 return check result to stafi
+// process LiquidityBond event from stafi
+// 1 check liquidityBond data  on cosmos chain
+// 2 return check result to stafi
 func (w *writer) processLiquidityBond(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondFlow)
 	if !ok {
@@ -102,10 +102,10 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
-//process eraPoolUpdate event
-//1 gen bond/unbond/withdraw multiSig unsigned tx and cache it
-//2 sign it with subKey
-//3 send signature to stafi
+// process eraPoolUpdate event
+// 1 gen bond/unbond/withdraw multiSig unsigned tx and cache it
+// 2 sign it with subKey
+// 3 send signature to stafi
 func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	mFlow, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -235,11 +235,11 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
-//process bondReportEvent from stafi
-//1 query reward of pre two txs(eraupdatedevent, delegate reward)
-//2 gen delegate unsigned tx and cache it
-//3 sign it with subKey
-//4 send signature to stafi
+// process bondReportEvent from stafi
+// 1 query reward of pre two txs(eraupdatedevent, delegate reward)
+// 2 gen delegate unsigned tx and cache it
+// 3 sign it with subKey
+// 4 send signature to stafi
 func (w *writer) processBondReportEvent(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
@@ -374,10 +374,10 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
-//process TransferBackEvent
-//1 gen transfer unsigned tx and cache it
-//2 sign it with subKey
-//3 send signature to stafi
+// process TransferBackEvent
+// 1 gen transfer unsigned tx and cache it
+// 2 sign it with subKey
+// 3 send signature to stafi
 func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -481,10 +481,10 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
-//process validatorUpdated
-//1 gen redelegate  unsigned tx and cache it
-//2 sign it with subKey
-//3 send signature to stafi
+// process validatorUpdated
+// 1 gen redelegate  unsigned tx and cache it
+// 2 sign it with subKey
+// 3 send signature to stafi
 func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -597,13 +597,14 @@ func (w *writer) processValidatorUpdatedEvent(m *core.Message) bool {
 	return w.submitMessage(result)
 }
 
-//process SignatureEnough event
-//1 assemble unsigned tx and signatures
-//2 send tx to cosmos until it is confirmed or reach the retry limit
-//3 (1)bondUnbond type: report bond result to stafi
-//	(2)claimThenDelegate type: report active to stafi
-//	(3)transfer type: report transfer to stafi
-//  (4)redegate type:rm cached unsigned tx
+// process SignatureEnough event
+// 1 assemble unsigned tx and signatures
+// 2 send tx to cosmos until it is confirmed or reach the retry limit
+// 3 (1)bondUnbond type: report bond result to stafi
+//
+//		(2)claimThenDelegate type: report active to stafi
+//		(3)transfer type: report transfer to stafi
+//	 (4)redegate type:rm cached unsigned tx
 func (w *writer) processSignatureEnoughEvt(m *core.Message) bool {
 	sigs, ok := m.Content.(*submodel.SubmitSignatures)
 	if !ok {

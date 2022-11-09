@@ -21,6 +21,9 @@ get:
 	@echo "  >  \033[32mDownloading & Installing all the modules...\033[0m "
 	go mod tidy && go mod download
 
+fmt:
+	go fmt ./...
+
 get-lint:
 	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s latest
 

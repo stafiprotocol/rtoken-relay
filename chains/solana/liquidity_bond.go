@@ -8,9 +8,9 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
-//process LiquidityBond event from stafi
-//1 check liquidityBond data  on solana chain
-//2 return check result to stafi
+// process LiquidityBond event from stafi
+// 1 check liquidityBond data  on solana chain
+// 2 return check result to stafi
 func (w *writer) processLiquidityBond(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondFlow)
 	if !ok {

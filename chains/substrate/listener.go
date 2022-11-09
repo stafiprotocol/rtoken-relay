@@ -132,7 +132,7 @@ func (l *listener) pollBlocks() error {
 	for {
 		select {
 		case <-l.stop:
-			return TerminatedError
+			return ErrorTerminated
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
@@ -238,8 +238,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling EraPoolUpdatedEvent", "block", blockNum)
 				flow, err := l.processEraPoolUpdatedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotEraUpdatedError.Error() ||
-						err.Error() == EventEraIsOldError.Error() ||
+					if err.Error() == ErrorBondStateNotEraUpdated.Error() ||
+						err.Error() == ErrorEventEraIsOld.Error() ||
 						err.Error() == ErrNotCared.Error() {
 						continue
 					}
@@ -253,8 +253,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling BondReportedEvent", "block", blockNum)
 				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotBondReportedError.Error() ||
-						err.Error() == EventEraIsOldError.Error() ||
+					if err.Error() == ErrorBondStateNotBondReported.Error() ||
+						err.Error() == ErrorEventEraIsOld.Error() ||
 						err.Error() == ErrNotCared.Error() {
 						continue
 					}
@@ -267,8 +267,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling ActiveReportEvent", "block", blockNum)
 				flow, err := l.processActiveReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotActiveReportedError.Error() ||
-						err.Error() == EventEraIsOldError.Error() ||
+					if err.Error() == ErrorBondStateNotActiveReported.Error() ||
+						err.Error() == ErrorEventEraIsOld.Error() ||
 						err.Error() == ErrNotCared.Error() {
 						continue
 					}
@@ -281,8 +281,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling WithdrawReportedEvent", "block", blockNum)
 				flow, err := l.processWithdrawReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotWithdrawReportedError.Error() ||
-						err.Error() == EventEraIsOldError.Error() ||
+					if err.Error() == ErrorBondStateNotWithdrawReported.Error() ||
+						err.Error() == ErrorEventEraIsOld.Error() ||
 						err.Error() == ErrNotCared.Error() {
 						continue
 					}
@@ -295,7 +295,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling TransferReportedEvent", "block", blockNum)
 				flow, err := l.processTransferReportedEvt(evt)
 				if err != nil {
-					if err.Error() == BondStateNotTransferReportedError.Error() ||
+					if err.Error() == ErrorBondStateNotTransferReported.Error() ||
 						err.Error() == ErrNotCared.Error() {
 						continue
 					}
@@ -346,7 +346,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 				l.log.Trace("Handling NewMultisigEvent", "block", blockNum)
 				flow, err := l.processNewMultisigEvt(evt)
 				if err != nil {
-					if err.Error() == multiEndError.Error() {
+					if err.Error() == ErrormultiEnd.Error() {
 						l.log.Info("listener received an ended NewMultisig event, ignored")
 						continue
 					}

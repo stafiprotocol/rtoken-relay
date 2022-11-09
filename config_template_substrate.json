@@ -15,7 +15,9 @@
         "startBlock": "1",
         "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
         "chainType": "stafi",
-        "cares": ["RDOT"],
+        "cares": [
+          "RDOT"
+        ],
         "addressType": "AccountId"
       }
     },

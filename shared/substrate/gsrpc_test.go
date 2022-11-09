@@ -202,82 +202,81 @@ var (
 	assert.NoError(t, err)
 }*/
 
-//func TestStorages(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	addr, err := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
-//	assert.NoError(t, err)
-//
-//	targets := make([]types.AccountID, 0)
-//	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageNominators, addr.AsAccountID[:], nil, &targets)
-//	assert.NoError(t, err)
-//	fmt.Println(exist)
-//	//fmt.Println(targets)
-//	for _, t := range targets {
-//		fmt.Println(hexutil.Encode(t[:]))
-//	}
-//
-//	era := uint32(5)
-//	bz, err := types.EncodeToBytes(era)
-//	assert.NoError(t, err)
-//
-//	re := new(submodel.EraRewardPoints)
-//	exist1, err := gc.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, re)
-//	assert.NoError(t, err)
-//	fmt.Println(exist1)
-//	fmt.Println(re)
-//
-//	ledger := new(submodel.StakingLedger)
-//	exist, err = gc.QueryStorage(config.StakingModuleId, config.StorageLedger, addr.AsAccountID[:], nil, ledger)
-//	assert.NoError(t, err)
-//	fmt.Println(exist)
-//	fmt.Println(ledger)
-//}
-//
-//func TestBatch(t *testing.T) {
-//	password := "123456"
-//	os.Setenv(keystore.EnvPassword, password)
-//
-//	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	krp := kp.(*sr25519.Keypair).AsKeyringPair()
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	addr, err := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
-//	assert.NoError(t, err)
-//
-//	amount, _ := utils.StringToBigint("1000000000000")
-//	value := types.NewUCompact(amount)
-//
-//	calls := make([]types.Call, 0)
-//	meta, err := gc.GetLatestMetadata()
-//	assert.NoError(t, err)
-//
-//	for i := 0; i <= 4000; i++ {
-//		call, err := types.NewCall(
-//			meta,
-//			config.MethodTransferKeepAlive,
-//			addr,
-//			value,
-//		)
+//	func TestStorages(t *testing.T) {
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
 //		assert.NoError(t, err)
-//		calls = append(calls, call)
+//
+//		addr, err := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+//		assert.NoError(t, err)
+//
+//		targets := make([]types.AccountID, 0)
+//		exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageNominators, addr.AsAccountID[:], nil, &targets)
+//		assert.NoError(t, err)
+//		fmt.Println(exist)
+//		//fmt.Println(targets)
+//		for _, t := range targets {
+//			fmt.Println(hexutil.Encode(t[:]))
+//		}
+//
+//		era := uint32(5)
+//		bz, err := types.EncodeToBytes(era)
+//		assert.NoError(t, err)
+//
+//		re := new(submodel.EraRewardPoints)
+//		exist1, err := gc.QueryStorage(config.StakingModuleId, config.StorageErasRewardPoints, bz, nil, re)
+//		assert.NoError(t, err)
+//		fmt.Println(exist1)
+//		fmt.Println(re)
+//
+//		ledger := new(submodel.StakingLedger)
+//		exist, err = gc.QueryStorage(config.StakingModuleId, config.StorageLedger, addr.AsAccountID[:], nil, ledger)
+//		assert.NoError(t, err)
+//		fmt.Println(exist)
+//		fmt.Println(ledger)
 //	}
 //
-//	ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
-//	assert.NoError(t, err)
+//	func TestBatch(t *testing.T) {
+//		password := "123456"
+//		os.Setenv(keystore.EnvPassword, password)
 //
-//	err = gc.SignAndSubmitTx(ext)
-//	assert.NoError(t, err)
-//}
+//		kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+//		if err != nil {
+//			t.Fatal(err)
+//		}
 //
+//		krp := kp.(*sr25519.Keypair).AsKeyringPair()
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
+//		assert.NoError(t, err)
+//
+//		addr, err := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
+//		assert.NoError(t, err)
+//
+//		amount, _ := utils.StringToBigint("1000000000000")
+//		value := types.NewUCompact(amount)
+//
+//		calls := make([]types.Call, 0)
+//		meta, err := gc.GetLatestMetadata()
+//		assert.NoError(t, err)
+//
+//		for i := 0; i <= 4000; i++ {
+//			call, err := types.NewCall(
+//				meta,
+//				config.MethodTransferKeepAlive,
+//				addr,
+//				value,
+//			)
+//			assert.NoError(t, err)
+//			calls = append(calls, call)
+//		}
+//
+//		ext, err := gc.NewUnsignedExtrinsic(config.MethodBatch, calls)
+//		assert.NoError(t, err)
+//
+//		err = gc.SignAndSubmitTx(ext)
+//		assert.NoError(t, err)
+//	}
 func TestBatchTransfer(t *testing.T) {
 	stop := make(chan int)
 	sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
@@ -407,20 +406,19 @@ func TestBatchTransfer(t *testing.T) {
 //	assert.NoError(t, err)
 //}
 
-//func TestBalance(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
+//	func TestBalance(t *testing.T) {
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
+//		assert.NoError(t, err)
 //
-//	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
-//	ac := new(types.AccountInfo)
-//	exist, err := gc.QueryStorage(config.SystemModuleId, config.StorageAccount, less.AsAccountID[:], nil, ac)
-//	assert.NoError(t, err)
+//		less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+//		ac := new(types.AccountInfo)
+//		exist, err := gc.QueryStorage(config.SystemModuleId, config.StorageAccount, less.AsAccountID[:], nil, ac)
+//		assert.NoError(t, err)
 //
-//	fmt.Println(exist)
-//	fmt.Println(ac.Data.Free)
-//}
-//
+//		fmt.Println(exist)
+//		fmt.Println(ac.Data.Free)
+//	}
 func TestGetConst(t *testing.T) {
 	stop := make(chan int)
 	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
@@ -471,90 +469,88 @@ func TestStafiLocalQueryActiveEra(t *testing.T) {
 	t.Log("activeEra", index)
 }
 
+//	func TestBondExtra(t *testing.T) {
+//		password := "123456"
+//		os.Setenv(keystore.EnvPassword, password)
 //
-//func TestBondExtra(t *testing.T) {
-//	password := "123456"
-//	os.Setenv(keystore.EnvPassword, password)
+//		kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
+//		if err != nil {
+//			t.Fatal(err)
+//		}
 //
-//	kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
-//	if err != nil {
-//		t.Fatal(err)
+//		krp := kp.(*sr25519.Keypair).AsKeyringPair()
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
+//		assert.NoError(t, err)
+//
+//		amount, _ := utils.StringToBigint("10000000000000")
+//		value := types.NewUCompact(amount)
+//		ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
+//		assert.NoError(t, err)
+//
+//		err = gc.SignAndSubmitTx(ext)
+//		assert.NoError(t, err)
 //	}
 //
-//	krp := kp.(*sr25519.Keypair).AsKeyringPair()
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
-//	assert.NoError(t, err)
+//	func TestPolkaBondExtra(t *testing.T) {
+//		password := "123456"
+//		os.Setenv(keystore.EnvPassword, password)
 //
-//	amount, _ := utils.StringToBigint("10000000000000")
-//	value := types.NewUCompact(amount)
-//	ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
-//	assert.NoError(t, err)
+//		kp, err := keystore.KeypairFromAddress(LessPolka, keystore.SubChain, KeystorePath, false)
+//		if err != nil {
+//			t.Fatal(err)
+//		}
 //
-//	err = gc.SignAndSubmitTx(ext)
-//	assert.NoError(t, err)
-//}
+//		krp := kp.(*sr25519.Keypair).AsKeyringPair()
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
+//		assert.NoError(t, err)
 //
-//func TestPolkaBondExtra(t *testing.T) {
-//	password := "123456"
-//	os.Setenv(keystore.EnvPassword, password)
+//		amount, _ := utils.StringToBigint("10000000000000")
+//		value := types.NewUCompact(amount)
+//		ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
+//		assert.NoError(t, err)
 //
-//	kp, err := keystore.KeypairFromAddress(LessPolka, keystore.SubChain, KeystorePath, false)
-//	if err != nil {
-//		t.Fatal(err)
+//		err = gc.SignAndSubmitTx(ext)
+//		assert.NoError(t, err)
 //	}
 //
-//	krp := kp.(*sr25519.Keypair).AsKeyringPair()
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
-//	assert.NoError(t, err)
+//	func TestFreeBalance(t *testing.T) {
+//		less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
 //
-//	amount, _ := utils.StringToBigint("10000000000000")
-//	value := types.NewUCompact(amount)
-//	ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
-//	assert.NoError(t, err)
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
+//		assert.NoError(t, err)
+//		free, err := gc.FreeBalance(less.AsAccountID[:])
+//		assert.NoError(t, err)
+//		fmt.Println(free)
 //
-//	err = gc.SignAndSubmitTx(ext)
-//	assert.NoError(t, err)
-//}
+//		lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
+//		gc1, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+//		assert.NoError(t, err)
 //
-//func TestFreeBalance(t *testing.T) {
-//	less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+//		free1, err := gc1.FreeBalance(lessPolka.AsID[:])
+//		assert.NoError(t, err)
+//		fmt.Println(free1)
+//	}
 //
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//	free, err := gc.FreeBalance(less.AsAccountID[:])
-//	assert.NoError(t, err)
-//	fmt.Println(free)
+//	func TestBonded(t *testing.T) {
+//		//lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
+//		stop := make(chan int)
+//		gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
+//		assert.NoError(t, err)
 //
-//	lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
-//	gc1, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
+//		a := "0xbe5ddb1579b72e84524fc29e78609e3caf42e85aa118ebfe0b0ad404b5bdd25f"
+//		mac, err := types.NewMultiAddressFromHexAccountID(a)
+//		assert.NoError(t, err)
+//		b := hexutil.Encode(mac.AsID[:])
+//		fmt.Println(b)
 //
-//	free1, err := gc1.FreeBalance(lessPolka.AsID[:])
-//	assert.NoError(t, err)
-//	fmt.Println(free1)
-//}
-//
-//func TestBonded(t *testing.T) {
-//	//lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	a := "0xbe5ddb1579b72e84524fc29e78609e3caf42e85aa118ebfe0b0ad404b5bdd25f"
-//	mac, err := types.NewMultiAddressFromHexAccountID(a)
-//	assert.NoError(t, err)
-//	b := hexutil.Encode(mac.AsID[:])
-//	fmt.Println(b)
-//
-//	var controller types.AccountID
-//	exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageBonded, mac.AsID[:], nil, &controller)
-//	assert.NoError(t, err)
-//	fmt.Println(exist)
-//}
-//
+//		var controller types.AccountID
+//		exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageBonded, mac.AsID[:], nil, &controller)
+//		assert.NoError(t, err)
+//		fmt.Println(exist)
+//	}
 func TestActive(t *testing.T) {
 	stop := make(chan int)
 	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)

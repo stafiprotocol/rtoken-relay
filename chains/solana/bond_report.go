@@ -13,9 +13,9 @@ import (
 	solClient "github.com/stafiprotocol/solana-go-sdk/client"
 )
 
-//1 get derived accounts used to stake
-//2 merge and withdraw
-//3 active report total stake value
+// 1 get derived accounts used to stake
+// 2 merge and withdraw
+// 3 active report total stake value
 func (w *writer) processBondReportEvent(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {

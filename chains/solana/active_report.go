@@ -10,8 +10,8 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
-//1 merge and withdraw
-//3 withdraw report to stafi
+// 1 merge and withdraw
+// 3 withdraw report to stafi
 func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {

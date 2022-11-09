@@ -18,9 +18,9 @@ import (
 var retryLimit = 200
 var initStakeAmount = uint64(10000)
 
-//1 create stakeBaseAccount if not exist on chain
-//2 create multisigInfo account if not exist on chain
-//3 init stake for stakeBaseAccount if stakeBaseAccount`s stake amount is zero
+// 1 create stakeBaseAccount if not exist on chain
+// 2 create multisigInfo account if not exist on chain
+// 3 init stake for stakeBaseAccount if stakeBaseAccount`s stake amount is zero
 func initAction(ctx *cli.Context) error {
 	path := ctx.String(configFlag.Name)
 	pc := PoolAccounts{}

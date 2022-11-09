@@ -37,8 +37,8 @@ type Connection struct {
 }
 
 var (
-	TargetNotExistError = errors.New("TargetNotExistError")
-	NotExistError       = errors.New("not exist")
+	ErrorTargetNotExist = errors.New("ErrorTargetNotExist")
+	ErrorNotExist       = errors.New("not exist")
 	BlockInterval       = 6 * time.Second
 	WaitUntilFinalized  = 10 * BlockInterval
 
@@ -321,6 +321,23 @@ func (c *Connection) CurrentEraSnapshots(symbol core.RSymbol) ([]types.Hash, err
 	return ids, nil
 }
 
+func (c *Connection) RelayerThreshold(symbol core.RSymbol) (uint32, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return 0, err
+	}
+
+	var th types.U32
+	exists, err := c.QueryStorage(config.RTokenRelayersModuleId, config.StorageRelayerThreshold, symBz, nil, &th)
+	if err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, errors.New("RelayerThreshold not exist")
+	}
+	return uint32(th), nil
+}
+
 func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint32) ([]types.AccountID, error) {
 	symBz, err := types.EncodeToBytes(symbol)
 	if err != nil {
@@ -339,7 +356,7 @@ func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint3
 		return nil, err
 	}
 	if !exist {
-		return nil, NotExistError
+		return nil, ErrorNotExist
 	}
 	return validators, nil
 }
@@ -495,7 +512,7 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validat
 			return err
 		}
 		if !exist || len(fullTargets) == 0 {
-			return TargetNotExistError
+			return ErrorTargetNotExist
 		}
 	}
 
@@ -709,8 +726,8 @@ func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool
 		}
 		err = c.sc.SignAndSubmitTx(ext)
 		if err != nil {
-			if err.Error() == TerminatedError.Error() {
-				c.log.Error("submitSignature  met TerminatedError")
+			if err.Error() == ErrorTerminated.Error() {
+				c.log.Error("submitSignature  met ErrorTerminated")
 				return false
 			}
 			c.log.Warn("submitSignature error will retry", "err", err)

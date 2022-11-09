@@ -10,7 +10,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 )
 
-/// ValidatorShare
+// / ValidatorShare
 var (
 	ValidatorShareAbi, _ = abi.JSON(strings.NewReader(ValidatorShare.ValidatorShareABI))
 	MultiSendAbi, _      = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
@@ -35,7 +35,7 @@ const (
 	MultiSendMethodName = "multiSend"
 )
 
-/// MaticToken
+// / MaticToken
 var (
 	MaticTokenAbi, _ = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
 )

@@ -79,8 +79,8 @@ func GetStakeAccountPubkey(baseAccount solCommon.PublicKey, era uint32) (solComm
 	return solCommon.CreateWithSeed(baseAccount, seed, solCommon.StakeProgramID), seed
 }
 
-//1 get stake derived accounts which state is active and merge to base account
-//2 get stake derived accounts which state is inactive and withdraw to pool address
+// 1 get stake derived accounts which state is active and merge to base account
+// 2 get stake derived accounts which state is inactive and withdraw to pool address
 func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 	poolAddrBase58Str string, currentEra uint32, shotId subTypes.Hash, pool []byte) bool {
 	rpcClient := poolClient.GetRpcClient()

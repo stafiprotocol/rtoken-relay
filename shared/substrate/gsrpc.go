@@ -224,7 +224,7 @@ func (sc *SarpcClient) watchSubmission(sub *author.ExtrinsicStatusSubscription) 
 	for {
 		select {
 		case <-sc.stop:
-			return TerminatedError
+			return ErrorTerminated
 		case status := <-sub.Chan():
 			switch {
 			case status.IsInBlock:

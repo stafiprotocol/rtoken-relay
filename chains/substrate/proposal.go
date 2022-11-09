@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/stafiprotocol/rtoken-relay/utils"
@@ -178,8 +179,8 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 		}
 		err = c.sc.SignAndSubmitTx(ext)
 		if err != nil {
-			if err.Error() == TerminatedError.Error() {
-				c.log.Error("Acknowledging proposal met TerminatedError")
+			if err.Error() == ErrorTerminated.Error() {
+				c.log.Error("Acknowledging proposal met ErrorTerminated")
 				return false
 			}
 			c.log.Error("Acknowledging proposal error", "err", err)
@@ -250,6 +251,68 @@ func (c *Connection) SetChainEraProposal(symbol core.RSymbol, bondId types.Hash,
 	}
 
 	return &submodel.Proposal{Call: call, Symbol: symbol, BondId: bondId, MethodName: method}, nil
+}
+
+// used by stafi chain
+func (c *Connection) GetSelectedVoters(symbol core.RSymbol, newEra uint32) (types.AccountID, error) {
+	th, err := c.RelayerThreshold(symbol)
+	if err != nil {
+		return types.AccountID{}, err
+	}
+	// select voters
+	voters, err := c.GetNewChainEraProposalVoters(symbol, newEra)
+	if err != nil {
+		return types.AccountID{}, err
+	}
+	if len(voters) < int(th) {
+		return types.AccountID{}, fmt.Errorf("newChainEra voters not enough")
+	}
+
+	usedVoters := voters[:th]
+	sort.SliceStable(usedVoters, func(i, j int) bool {
+		return bytes.Compare(usedVoters[i][:], usedVoters[j][:]) < 0
+	})
+
+	return usedVoters[0], nil
+}
+
+// used by stafi chain
+func (c *Connection) GetNewChainEraProposalVoters(symbol core.RSymbol, newEra uint32) ([]types.AccountID, error) {
+	eraBz, err := types.EncodeToBytes(newEra)
+	if err != nil {
+		c.log.Error("processNewEra EncodeToBytes error", "error", err, "newEra", newEra)
+		return nil, err
+	}
+	bondId := types.Hash(utils.BlakeTwo256(eraBz))
+	prop, err := c.SetChainEraProposal(symbol, bondId, newEra)
+	if err != nil {
+		return nil, err
+	}
+
+	var state submodel.VoteState
+
+	symBz, err := types.EncodeToBytes(prop.Symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	propBz, err := prop.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := c.QueryStorage(config.RtokenVoteModuleId, config.StorageVotes, symBz, propBz, &state)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("not exists")
+	}
+
+	if len(state.VotesAgainst) != 0 {
+		state.VotesFor = append(state.VotesFor, state.VotesAgainst...)
+	}
+	return state.VotesFor, nil
 }
 
 func containsVote(votes []types.AccountID, voter types.AccountID) bool {

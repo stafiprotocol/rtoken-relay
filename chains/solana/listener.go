@@ -17,7 +17,7 @@ var (
 	EraInterval        = time.Minute * 1
 )
 
-//listen event or block update from solana
+// listen event or block update from solana
 type listener struct {
 	name   string
 	symbol core.RSymbol

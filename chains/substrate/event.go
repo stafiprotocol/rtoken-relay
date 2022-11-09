@@ -17,15 +17,15 @@ import (
 )
 
 var (
-	multiEndError             = errors.New("multiEnd")
-	eraSnapShotsNotExistError = errors.New("eraSnapShots not exist")
+	ErrormultiEnd             = errors.New("multiEnd")
+	ErrorEraSnapShotsNotExist = errors.New("eraSnapShots not exist")
 
-	EventEraIsOldError                = errors.New("EventEraIsOldError")
-	BondStateNotEraUpdatedError       = errors.New("BondStateNotEraUpdatedError")
-	BondStateNotBondReportedError     = errors.New("BondStateNotBondReportedError")
-	BondStateNotActiveReportedError   = errors.New("BondStateNotActiveReportedError")
-	BondStateNotWithdrawReportedError = errors.New("BondStateNotWithdrawReportedError")
-	BondStateNotTransferReportedError = errors.New("BondStateNotTransferReportedError")
+	ErrorEventEraIsOld                = errors.New("ErrorEventEraIsOld")
+	ErrorBondStateNotEraUpdated       = errors.New("ErrorBondStateNotEraUpdated")
+	ErrorBondStateNotBondReported     = errors.New("ErrorBondStateNotBondReported")
+	ErrorBondStateNotActiveReported   = errors.New("ErrorBondStateNotActiveReported")
+	ErrorBondStateNotWithdrawReported = errors.New("ErrorBondStateNotWithdrawReported")
+	ErrorBondStateNotTransferReported = errors.New("ErrorBondStateNotTransferReported")
 	ErrNotCared                       = errors.New("not care this symbol")
 )
 
@@ -115,7 +115,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		}
 	}
 	if curEra != snap.Era {
-		return nil, EventEraIsOldError
+		return nil, ErrorEventEraIsOld
 	}
 
 	if snap.BondState != submodel.EraUpdated {
@@ -123,7 +123,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 			l.log.Warn("processEraPoolUpdatedEvt: bondState not EraUpdated",
 				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
 		}
-		return nil, BondStateNotEraUpdatedError
+		return nil, ErrorBondStateNotEraUpdated
 	}
 
 	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
@@ -145,7 +145,12 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		}
 	}
 
-	data.LastVoterFlag = l.conn.IsLastVoter(data.LastVoter)
+	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	data.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	data.Snap = snap
 	data.LeastBond = leastBond
 
@@ -184,7 +189,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		}
 	}
 	if curEra != snap.Era {
-		return nil, EventEraIsOldError
+		return nil, ErrorEventEraIsOld
 	}
 
 	if snap.BondState != submodel.BondReported {
@@ -192,7 +197,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 			l.log.Warn("processBondReportedEvt: bondState not BondReported",
 				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
 		}
-		return nil, BondStateNotBondReportedError
+		return nil, ErrorBondStateNotBondReported
 	}
 
 	_, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
@@ -218,14 +223,19 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	if snap.Symbol == core.RBNB {
 		_, err = l.eraSnapShots(snap.Symbol, flow.LastEra)
 		if err != nil {
-			if err.Error() != eraSnapShotsNotExistError.Error() {
+			if err.Error() != ErrorEraSnapShotsNotExist.Error() {
 				return nil, err
 			}
 			flow.LastEra = 0
 		}
 	}
 
-	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	flow.Snap = snap
 	flow.SubAccounts = sub
 	flow.ValidatorId = validatorId
@@ -263,7 +273,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		}
 	}
 	if curEra != snap.Era {
-		return nil, EventEraIsOldError
+		return nil, ErrorEventEraIsOld
 	}
 
 	if snap.BondState != submodel.ActiveReported {
@@ -271,7 +281,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 			l.log.Warn("processActiveReportedEvt: bondState not ActiveReported",
 				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
 		}
-		return nil, BondStateNotActiveReportedError
+		return nil, ErrorBondStateNotActiveReported
 	}
 
 	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
@@ -287,7 +297,12 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		}
 	}
 
-	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	flow.Snap = snap
 
 	return &submodel.MultiEventFlow{
@@ -321,7 +336,7 @@ func (l *listener) processActiveReportedEvtAsWithdrawReported(evt *submodel.Chai
 		}
 	}
 	if curEra != snap.Era {
-		return nil, EventEraIsOldError
+		return nil, ErrorEventEraIsOld
 	}
 
 	if snap.BondState != submodel.ActiveReported {
@@ -329,7 +344,7 @@ func (l *listener) processActiveReportedEvtAsWithdrawReported(evt *submodel.Chai
 			l.log.Warn("processWithdrawReportedEvt: bondState not WithdrawReported",
 				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
 		}
-		return nil, BondStateNotActiveReportedError
+		return nil, ErrorBondStateNotActiveReported
 	}
 
 	receives, total, err := l.unbondings(snap.Symbol, snap.Pool, snap.Era)
@@ -342,7 +357,12 @@ func (l *listener) processActiveReportedEvtAsWithdrawReported(evt *submodel.Chai
 		return nil, err
 	}
 
-	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	flow.Snap = snap
 	flow.Receives = receives
 	flow.TotalAmount = total
@@ -379,7 +399,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		}
 	}
 	if curEra != snap.Era {
-		return nil, EventEraIsOldError
+		return nil, ErrorEventEraIsOld
 	}
 
 	if snap.BondState != submodel.WithdrawReported {
@@ -387,7 +407,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 			l.log.Warn("processWithdrawReportedEvt: bondState not WithdrawReported",
 				"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
 		}
-		return nil, BondStateNotWithdrawReportedError
+		return nil, ErrorBondStateNotWithdrawReported
 	}
 
 	receives, total, err := l.unbondings(snap.Symbol, snap.Pool, snap.Era)
@@ -408,7 +428,12 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		}
 	}
 
-	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	flow.Snap = snap
 	flow.Receives = receives
 	flow.TotalAmount = total
@@ -440,7 +465,7 @@ func (l *listener) processTransferReportedEvt(evt *submodel.ChainEvent) (*submod
 	if snap.BondState != submodel.TransferReported {
 		l.log.Warn("processTransferReportedEvt: bondState not TransferReported",
 			"symbol", snap.Symbol, "pool", hexutil.Encode(snap.Pool), "BondState", snap.BondState)
-		return nil, BondStateNotWithdrawReportedError
+		return nil, ErrorBondStateNotWithdrawReported
 	}
 
 	receives, total, err := l.unbondings(snap.Symbol, snap.Pool, snap.Era)
@@ -469,7 +494,12 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	flow.LastVoterFlag = l.conn.IsLastVoter(flow.LastVoter)
+	selectedVoter, err := l.conn.GetSelectedVoters(flow.Symbol, flow.Era)
+	if err != nil {
+		return nil, err
+	}
+
+	flow.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.NominationUpdatedEventId,
@@ -566,7 +596,7 @@ func (l *listener) processNewMultisigEvt(evt *submodel.ChainEvent) (*submodel.Ev
 	}
 
 	if !exist {
-		return nil, multiEndError
+		return nil, ErrormultiEnd
 	}
 
 	data.TimePoint = submodel.NewOptionTimePoint(mul.When)
@@ -769,7 +799,7 @@ func (l *listener) eraSnapShots(symbol core.RSymbol, lastEra uint32) ([]types.Ha
 	}
 
 	if !exist {
-		return nil, eraSnapShotsNotExistError
+		return nil, ErrorEraSnapShotsNotExist
 	}
 
 	return ids, nil

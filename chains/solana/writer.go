@@ -8,7 +8,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
-//write to solana
+// write to solana
 type writer struct {
 	conn   *Connection
 	router chains.Router
@@ -28,7 +28,7 @@ func (w *writer) setRouter(r chains.Router) {
 	w.router = r
 }
 
-//resolve msg from other chains
+// resolve msg from other chains
 func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	defer func() {
 		if !processOk {

@@ -276,7 +276,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	return submodel.Pass, nil
 }
 
-//fetch one for query
+// fetch one for query
 func (c *Connection) GetOnePoolClient() (*cosmos.PoolClient, error) {
 	for _, sub := range c.poolClients {
 		if sub != nil {
