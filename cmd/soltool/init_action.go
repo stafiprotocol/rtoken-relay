@@ -99,7 +99,9 @@ func initAction(ctx *cli.Context) error {
 
 	//1 create stakeBaseAccount if not exist on chain
 	for stakeAccoountStr, account := range stakeBaseStrToAccount {
-		res, err := c.GetRecentBlockhash(context.Background())
+		res, err := c.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+			Commitment: solClient.CommitmentConfirmed,
+		})
 		if err != nil {
 			return err
 		}
@@ -168,7 +170,9 @@ func initAction(ctx *cli.Context) error {
 		if err != solClient.ErrAccountNotFound {
 			return err
 		}
-		res, err := c.GetRecentBlockhash(context.Background())
+		res, err := c.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+			Commitment: solClient.CommitmentConfirmed,
+		})
 		if err != nil {
 			return fmt.Errorf("get recent block hash error, err: %v", err)
 		}
@@ -261,7 +265,9 @@ func initAction(ctx *cli.Context) error {
 				return err
 			}
 
-			res, err := c.GetRecentBlockhash(context.Background())
+			res, err := c.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+				Commitment: solClient.CommitmentConfirmed,
+			})
 			if err != nil {
 				return fmt.Errorf("get recent block hash error, err: %v", err)
 			}
@@ -309,7 +315,9 @@ func initAction(ctx *cli.Context) error {
 
 		//other fee account approve
 		for i := 0; i < len(otherFeeAccount); i++ {
-			res, err := c.GetRecentBlockhash(context.Background())
+			res, err := c.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+				Commitment: solClient.CommitmentConfirmed,
+			})
 			if err != nil {
 				return fmt.Errorf("get recent block hash error, err: %v", err)
 			}

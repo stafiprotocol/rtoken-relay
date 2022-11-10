@@ -136,12 +136,15 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	hashBase58Str := base58.Encode(r.Txhash)
 
 	//check tx hash
-	tx, err := c.queryClient.GetConfirmedTransaction(context.Background(), hashBase58Str)
+	tx, err := c.queryClient.GetTransactionV2(context.Background(), hashBase58Str)
 	if err != nil {
 		return submodel.BondReasonDefault, err
 	}
 	//check block hash
-	block, err := c.queryClient.GetConfirmedBlock(context.Background(), tx.Slot)
+	block, err := c.queryClient.GetBlock(context.Background(), tx.Slot, solClient.GetBlockConfig{
+		Commitment:                     solClient.CommitmentFinalized,
+		MaxSupportedTransactionVersion: &solClient.DefaultMaxSupportedTransactionVersion,
+	})
 	if err != nil {
 		return submodel.BondReasonDefault, err
 	}

@@ -466,7 +466,9 @@ func (w *writer) processStake(snap *submodel.PoolSnapshot) bool {
 
 func (w *writer) createStakeAccount(rpcClient *solClient.Client, poolClient *solana.PoolClient, poolAddrBase58Str, stakeAccountSeed string,
 	stakeAccountPubkey, useStakeBaseAccountPubKey solCommon.PublicKey, useStakeBaseAccount solTypes.Account, miniMumBalanceForStake uint64) (string, bool) {
-	res, err := rpcClient.GetRecentBlockhash(context.Background())
+	res, err := rpcClient.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+		Commitment: solClient.CommitmentConfirmed,
+	})
 	if err != nil {
 		w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
 			"pool address", poolAddrBase58Str,
@@ -545,7 +547,9 @@ func (w *writer) createStakeAccountWithOnchainCheck(rpcClient *solClient.Client,
 
 func (w *writer) createUnStakeAccount(rpcClient *solClient.Client, poolClient *solana.PoolClient, poolAddrBase58Str, stakeAccountSeed string,
 	stakeAccountPubkey, useStakeBaseAccountPubKey solCommon.PublicKey, useStakeBaseAccount solTypes.Account, miniMumBalanceForStake uint64) (string, bool) {
-	res, err := rpcClient.GetRecentBlockhash(context.Background())
+	res, err := rpcClient.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+		Commitment: solClient.CommitmentConfirmed,
+	})
 	if err != nil {
 		w.log.Error("processEraPoolUpdatedEvt GetRecentBlockhash failed",
 			"pool address", poolAddrBase58Str,

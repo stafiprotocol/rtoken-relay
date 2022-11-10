@@ -371,7 +371,9 @@ func (w *writer) createMultisigTxAccount(
 	multisigTxAccountSeed string,
 	processName string,
 ) (string, bool) {
-	res, err := rpcClient.GetRecentBlockhash(context.Background())
+	res, err := rpcClient.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+		Commitment: solClient.CommitmentConfirmed,
+	})
 	if err != nil {
 		w.log.Error(fmt.Sprintf("[%s] GetRecentBlockhash failed", processName),
 			"pool address", poolAddress,
@@ -475,7 +477,9 @@ func (w *writer) approveMultisigTx(
 	multisigTxAccountPubkey solCommon.PublicKey,
 	remainingAccounts []solTypes.AccountMeta,
 	processName string) (string, bool) {
-	res, err := rpcClient.GetRecentBlockhash(context.Background())
+	res, err := rpcClient.GetLatestBlockhash(context.Background(), solClient.GetLatestBlockhashConfig{
+		Commitment: solClient.CommitmentConfirmed,
+	})
 	if err != nil {
 		w.log.Error(fmt.Sprintf("[%s] GetRecentBlockhash failed", processName),
 			"pool address", poolAddress,
