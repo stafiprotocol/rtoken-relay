@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
 
@@ -67,6 +69,21 @@ func TestSarpcClient_GetChainEventNominationUpdated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	symbz, err := types.EncodeToBytes(core.RKSM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bondedPools := make([]types.Bytes, 0)
+	exist, err := sc.QueryStorage(config.RTokenLedgerModuleId, config.StorageBondedPools, symbz, nil, &bondedPools)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exist {
+		t.Fatal("bonded pools not extis")
+	}
+
+	t.Log(bondedPools)
 
 	evts, err := sc.GetEvents(11561482)
 	if err != nil {

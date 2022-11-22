@@ -97,10 +97,18 @@ func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *sig
 
 	sc.regCustomTypes()
 
-	// err = sc.UpdateMeta(latestHash.Hex())
-	// if err != nil {
-	// 	return nil, err
-	// }
+	switch chainType {
+	case ChainTypeStafi:
+		_, err := sc.getStafiMetaDecoder(genesisHash.Hex())
+		if err != nil {
+			return nil, err
+		}
+	case ChainTypePolkadot:
+		_, err := sc.getPolkaMetaDecoder(genesisHash.Hex())
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return sc, nil
 }
@@ -140,6 +148,11 @@ func (s *SarpcClient) getStafiMetaDecoder(blockHash string) (*stafi.MetadataDeco
 	s.Lock()
 	s.stafiMetaDecoderMap[r.SpecVersion] = md
 	s.Unlock()
+
+	if r.SpecVersion > s.currentSpecVersion {
+		s.currentSpecVersion = r.SpecVersion
+		s.metaDataVersion = md.Metadata.MetadataVersion
+	}
 	return md, nil
 
 }
@@ -179,6 +192,12 @@ func (s *SarpcClient) getPolkaMetaDecoder(blockHash string) (*scale.MetadataDeco
 	s.Lock()
 	s.polkaMetaDecoderMap[r.SpecVersion] = &md
 	s.Unlock()
+
+	if r.SpecVersion > s.currentSpecVersion {
+		s.currentSpecVersion = r.SpecVersion
+		s.metaDataVersion = md.Metadata.MetadataVersion
+	}
+
 	return &md, nil
 
 }
@@ -246,64 +265,6 @@ func (sc *SarpcClient) sendWsRequest(p wbskt.WsConn, v interface{}, action []byt
 	return nil
 }
 
-// func (sc *SarpcClient) UpdateMeta(blockHash string) error {
-// 	v := &rpc.JsonRpcResult{}
-// 	// runtime version
-// 	if err := sc.sendWsRequest(nil, v, rpc.ChainGetRuntimeVersion(rand.Intn(10), blockHash)); err != nil {
-// 		return err
-// 	}
-
-// 	runtimeVersion := v.ToRuntimeVersion()
-// 	if runtimeVersion == nil {
-// 		return fmt.Errorf("runtime version nil")
-// 	}
-// 	sc.log.Debug(fmt.Sprintf("runtimeversion: %+v blockhash: %s", runtimeVersion, blockHash))
-
-// 	// update metadata
-// 	if runtimeVersion.SpecVersion != sc.currentSpecVersion {
-// 		v := &rpc.JsonRpcResult{}
-// 		if err := sc.sendWsRequest(nil, v, rpc.StateGetMetadata(rand.Intn(10), blockHash)); err != nil {
-// 			return err
-// 		}
-// 		metaRaw, err := v.ToString()
-// 		if err != nil {
-// 			return err
-// 		}
-// 		// fmt.Println("metaRaw", metaRaw)
-// 		sc.log.Info(fmt.Sprintf("change metadata: oldSpec %d newSpec: %d", sc.currentSpecVersion, runtimeVersion.SpecVersion))
-// 		sc.currentSpecVersion = runtimeVersion.SpecVersion
-
-// 		switch sc.chainType {
-// 		case ChainTypeStafi:
-// 			md := stafi.MetadataDecoder{}
-
-// 			md.Init(utiles.HexToBytes(metaRaw))
-// 			if err := md.Process(); err != nil {
-// 				return err
-// 			}
-
-// 			sc.stafiMetaDecoder = md
-// 			sc.metaDataVersion = md.Metadata.MetadataVersion
-
-// 		case ChainTypePolkadot:
-// 			md := scale.MetadataDecoder{}
-// 			md.Init(utiles.HexToBytes(metaRaw))
-// 			if err := md.Process(); err != nil {
-// 				return err
-// 			}
-
-// 			sc.polkaMetaDecoder = md
-// 			sc.metaDataVersion = md.Metadata.MetadataVersion
-// 			sc.log.Debug("change polkadot metadata", "version", md.VersionNumber, "extrinsicVersion", md.Metadata.Extrinsic.Version)
-
-// 		default:
-// 			return errors.New("chainType not supported")
-// 		}
-// 	}
-
-// 	return nil
-// }
-
 func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 	v := &rpc.JsonRpcResult{}
 	if err := sc.sendWsRequest(nil, v, rpc.ChainGetBlock(wsId, blockHash)); err != nil {
@@ -314,11 +275,6 @@ func (sc *SarpcClient) GetBlock(blockHash string) (*rpc.Block, error) {
 }
 
 func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*submodel.Transaction, error) {
-	// err := sc.UpdateMeta(blockHash)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	blk, err := sc.GetBlock(blockHash)
 	if err != nil {
 		return nil, err
@@ -442,7 +398,6 @@ func (sc *SarpcClient) GetChainEvents(blockHash string) ([]*submodel.ChainEvent,
 		}
 		option := scaleTypes.ScaleDecoderOption{Metadata: &md.Metadata}
 
-		sc.log.Debug("deal chain event", "spec", md.Spec)
 		e := scale.EventsDecoder{}
 		e.Init(scaleBytes.ScaleBytes{Data: utiles.HexToBytes(eventRaw)}, &option)
 
