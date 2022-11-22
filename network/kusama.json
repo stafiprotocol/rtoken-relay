@@ -1,8 +1,4 @@
 {
-  "Address": "AccountId",
-  "BlockNumber": "U32",
-  "LeasePeriod": "BlockNumber",
-  "Weight": "u64",
   "Keys": "SessionKeysPolkadot",
   "ValidatorPrefs": {
     "type": "struct",
@@ -210,12 +206,13 @@
       "Governance",
       "Staking",
       "IdentityJudgement",
-      "CancelProxy"
+      "CancelProxy",
+      "Auction"
     ]
   },
   "Address#1050-2027": "AccountId",
   "Box<Proposal>": "BoxProposal",
-  "CompactAssignments#2023-?": "CompactAssignmentsLatest",
+  "CompactAssignments#2023-9000": "CompactAssignmentsLatest",
   "RefCount": "u32",
   "Box<<T as Config>::Call>": "Call",
   "Box<<T as Config<I>>::Proposal>": "Proposal",
@@ -252,5 +249,16 @@
     ]
   },
   "ValidatorPrefs#2028-?": "ValidatorPrefsWithBlocked",
-  "Keys#2030-?": "SessionKeys7B"
+  "Keys#2030-?": "SessionKeys6",
+  "CompactAssignments#9010-?": "CompactAssignmentsWith24",
+  "AssetInstance#9010-9090": "AssetInstanceV0",
+  "MultiAsset#9010-9090": "MultiAssetV0",
+  "Xcm#9010-9090": "XcmV0",
+  "XcmOrder#9010-9090": "XcmOrderV0",
+  "MultiLocation#9010-9090": "MultiLocationV0",
+  "AssetInstance#9100-9100": "AssetInstanceV1",
+  "MultiAsset#9100-9100": "MultiAssetV1",
+  "Xcm#9100-9100": "XcmV1",
+  "XcmOrder#9100-9100": "XcmOrderV1",
+  "MultiLocation#9100-9100": "MultiLocationV1"
 }

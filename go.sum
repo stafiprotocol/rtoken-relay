@@ -672,8 +672,8 @@ github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:
 github.com/itering/scale.go v1.0.3/go.mod h1:ufrA/8oz/qi4mtK8TXz4LFZzfJ4ZUQ+4z+cUNpY9jts=
 github.com/itering/scale.go v1.0.47/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/scale.go v1.4.2/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
-github.com/itering/scale.go v1.4.9 h1:Ypp6d2P8h/U5M8VpEOFtPWK2EcaGyD0DfkisbmBqkYw=
-github.com/itering/scale.go v1.4.9/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
+github.com/itering/scale.go v1.5.0 h1:HMuZ2IDctw4E4U7VeFMFeuzwuaobG0FGfyzNdL+t7uc=
+github.com/itering/scale.go v1.5.0/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
 github.com/itering/substrate-api-rpc v0.3.5/go.mod h1:fnFYfNtIjUhIsjOWTW+E/fJ93iSBxuFMuCPPU9ATI+I=
 github.com/itering/substrate-api-rpc v0.4.15 h1:6W3kQ6/Dvv452WLkvN6O/mgX9ednF5hoy/ByY1s/n2o=
 github.com/itering/substrate-api-rpc v0.4.15/go.mod h1:k8MLqMkQqKo663M8S3m32oJNrWrsoNFAuc8O1bCPUXw=

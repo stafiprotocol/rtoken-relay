@@ -13,7 +13,6 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stafiprotocol/rtoken-relay/types/polkadot"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -479,11 +478,19 @@ func (sc *SarpcClient) ExistentialDeposit() (types.U128, error) {
 }
 
 func (sc *SarpcClient) GetConst(prefix, name string, res interface{}) error {
+
 	switch sc.chainType {
 	case ChainTypeStafi:
 		return sc.api.RPC.State.GetConst(prefix, name, &res)
 	case ChainTypePolkadot:
-		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		blockHash, err := sc.GetFinalizedHead()
+		if err != nil {
+			return err
+		}
+		md, err := sc.getPolkaMetaDecoder(blockHash.Hex())
+		if err != nil {
+			return err
+		}
 
 		for _, mod := range md.Metadata.Metadata.Modules {
 			if string(mod.Prefix) == prefix {
@@ -539,7 +546,15 @@ func (sc *SarpcClient) FindStorageEntryMetadata(module string, fn string) (types
 
 		return meta.FindStorageEntryMetadata(module, fn)
 	case ChainTypePolkadot:
-		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		blockHash, err := sc.GetFinalizedHead()
+		if err != nil {
+			return nil, err
+		}
+		md, err := sc.getPolkaMetaDecoder(blockHash.Hex())
+		if err != nil {
+			return nil, err
+		}
+
 		for _, mod := range md.Metadata.Metadata.Modules {
 			if string(mod.Prefix) != module {
 				continue
@@ -632,7 +647,15 @@ func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
 
 		return meta.FindCallIndex(call)
 	case ChainTypePolkadot:
-		md, _ := sc.metaDecoder.(*polkadot.MetadataDecoder)
+		blockHash, err := sc.GetFinalizedHead()
+		if err != nil {
+			return types.CallIndex{}, err
+		}
+
+		md, err := sc.getPolkaMetaDecoder(blockHash.Hex())
+		if err != nil {
+			return types.CallIndex{}, err
+		}
 		s := strings.Split(call, ".")
 
 		for _, mod := range md.Metadata.Metadata.Modules {
