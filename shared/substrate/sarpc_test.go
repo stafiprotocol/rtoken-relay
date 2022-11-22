@@ -27,7 +27,8 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", kusamaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,8 +37,7 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//for _, e := range evt {
 	//	t.Log(e.EventId)
 	//}
-
-	for i := 15426015; i <= 15428050; i++ {
+	for i := 15426016; i <= 15428050; i++ {
 		if i == 15426015 {
 			continue
 		}

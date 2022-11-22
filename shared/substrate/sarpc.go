@@ -99,12 +99,12 @@ func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *sig
 
 	switch chainType {
 	case ChainTypeStafi:
-		_, err := sc.getStafiMetaDecoder(genesisHash.Hex())
+		_, err := sc.getStafiMetaDecoder(latestHash.Hex())
 		if err != nil {
 			return nil, err
 		}
 	case ChainTypePolkadot:
-		_, err := sc.getPolkaMetaDecoder(genesisHash.Hex())
+		_, err := sc.getPolkaMetaDecoder(latestHash.Hex())
 		if err != nil {
 			return nil, err
 		}
