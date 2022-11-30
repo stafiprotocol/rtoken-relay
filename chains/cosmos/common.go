@@ -34,11 +34,17 @@ func GetBondUnBondProposalId(shotId substrateTypes.Hash, bond, unbond substrateT
 
 	var buffer = bytes.Buffer{}
 	encoder := scale.NewEncoder(&buffer)
-	encoder.Encode(bond)
+	err := encoder.Encode(bond)
+	if err != nil {
+		panic(err)
+	}
 	copy(proposalId[32:], buffer.Bytes())
 
 	buffer.Reset()
-	encoder.Encode(unbond)
+	err = encoder.Encode(unbond)
+	if err != nil {
+		panic(err)
+	}
 	copy(proposalId[48:], buffer.Bytes())
 
 	binary.BigEndian.PutUint64(proposalId[64:], seq)
@@ -176,7 +182,6 @@ func GetBondUnbondUnsignedTx(client *rpc.Client, bond, unbond substrateTypes.U12
 
 				choosedVals = append(choosedVals, validator)
 				choosedAmount[validator.String()] = willUseChoosedAmount
-				selectedAmount = selectedAmount.Add(willUseChoosedAmount)
 				break
 			}
 
@@ -305,7 +310,6 @@ func GetBondUnbondUnsignedTxWithTargets(client *rpc.Client, bond, unbond substra
 
 				choosedVals = append(choosedVals, validator)
 				choosedAmount[validator.String()] = willUseChoosedAmount
-				selectedAmount = selectedAmount.Add(willUseChoosedAmount)
 
 				enough = true
 				break
@@ -777,7 +781,6 @@ func GetBondUnbondWithdrawUnsignedTxWithTargets(client *rpc.Client, bond, unbond
 
 				choosedVals = append(choosedVals, validator)
 				choosedAmount[validator.String()] = willUseChoosedAmount
-				selectedAmount = selectedAmount.Add(willUseChoosedAmount)
 
 				enough = true
 				break

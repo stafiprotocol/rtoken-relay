@@ -414,7 +414,10 @@ func (c *Client) AssembleMultiSigTx(rawTx []byte, signatures [][]byte, threshold
 		Sequence: useSequence,
 	}
 
-	txBuilder.SetSignatures(sigV2)
+	err = txBuilder.SetSignatures(sigV2)
+	if err != nil {
+		return nil, nil, err
+	}
 	txBytes, err := c.clientCtx.TxConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {
 		return nil, nil, err

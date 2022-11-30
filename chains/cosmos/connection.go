@@ -218,7 +218,7 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason
 	var fromAddressStr string
 
 	msgs := txRes.GetTx().GetMsgs()
-	for i, _ := range msgs {
+	for i := range msgs {
 		if sendMsg, ok := msgs[i].(*xBankTypes.MsgSend); ok {
 			toAddr, err := types.AccAddressFromBech32(sendMsg.ToAddress)
 			if err == nil {

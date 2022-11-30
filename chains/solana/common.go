@@ -175,7 +175,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 
 		//sort account
 		canWithdrawKeys := make([]solCommon.PublicKey, 0)
-		for key, _ := range canWithdrawAccounts {
+		for key := range canWithdrawAccounts {
 			canWithdrawKeys = append(canWithdrawKeys, key)
 		}
 		sort.SliceStable(canWithdrawKeys, func(i, j int) bool {
@@ -197,7 +197,7 @@ func (w *writer) MergeAndWithdraw(poolClient *solana.PoolClient,
 
 		//sort account
 		canMergeKeys := make([]solCommon.PublicKey, 0)
-		for key, _ := range canMergeAccounts {
+		for key := range canMergeAccounts {
 			canMergeKeys = append(canMergeKeys, key)
 		}
 		sort.SliceStable(canMergeKeys, func(i, j int) bool {

@@ -662,13 +662,6 @@ func (w *writer) informChain(source, dest core.RSymbol, flow *submodel.MultiEven
 	return w.submitMessage(msg)
 }
 
-func (w *writer) getBondedPools(key common.Address) (bool, bool) {
-	w.bondedPoolsMtx.RLock()
-	defer w.bondedPoolsMtx.RUnlock()
-	value, exist := w.bondedPools[key]
-	return value, exist
-}
-
 func (w *writer) setBondedPools(key common.Address, value bool) {
 	w.bondedPoolsMtx.Lock()
 	defer w.bondedPoolsMtx.Unlock()

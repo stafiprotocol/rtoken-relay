@@ -40,5 +40,8 @@ func main() {
 		},
 	}
 	rootCmd.AddCommand(keys.Commands(DefaultHomeDir))
-	svrcmd.Execute(rootCmd, DefaultHomeDir)
+	err := svrcmd.Execute(rootCmd, DefaultHomeDir)
+	if err != nil {
+		panic(err)
+	}
 }

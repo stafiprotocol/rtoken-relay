@@ -21,15 +21,15 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const defaultRPCURL = "http://api.mainnet-beta.solana.com/rpc"
 
 func GetPassword(input string) (string, error) {
 	fd := os.Stdin.Fd()
-	fmt.Printf(input)
-	pass, err := terminal.ReadPassword(int(fd))
+	fmt.Print(input)
+	pass, err := term.ReadPassword(int(fd))
 	fmt.Println("")
 	return string(pass), err
 }
@@ -93,7 +93,7 @@ func GetEncryptPassphrase() (string, error) {
 
 	if passphrase != passphraseConfirm {
 		fmt.Println()
-		return "", errors.New("passphrase mismatch!")
+		return "", errors.New("passphrase mismatch")
 	}
 	return passphrase, nil
 

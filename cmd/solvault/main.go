@@ -54,11 +54,17 @@ func recurseViperCommands(root *cobra.Command, segments []string) {
 
 	root.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		newVar := segmentPrefix + "global-" + f.Name
-		viper.BindPFlag(newVar, f)
+		err := viper.BindPFlag(newVar, f)
+		if err != nil {
+			panic(err)
+		}
 	})
 	root.Flags().VisitAll(func(f *pflag.Flag) {
 		newVar := segmentPrefix + "cmd-" + f.Name
-		viper.BindPFlag(newVar, f)
+		err := viper.BindPFlag(newVar, f)
+		if err != nil {
+			panic(err)
+		}
 	})
 
 	for _, cmd := range root.Commands() {

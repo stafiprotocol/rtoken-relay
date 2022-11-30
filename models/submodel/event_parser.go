@@ -11,7 +11,6 @@ import (
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var (
@@ -429,20 +428,6 @@ func parseVecBytes(value interface{}) ([]types.Bytes, error) {
 	}
 
 	return result, nil
-}
-
-func parseBigint(value interface{}) (*big.Int, error) {
-	val, ok := value.(string)
-	if !ok {
-		return nil, ValueNotStringError
-	}
-
-	i, ok := utils.StringToBigint(val)
-	if !ok {
-		return nil, fmt.Errorf("string to bigint error: %s", val)
-	}
-
-	return i, nil
 }
 
 func parseAccountId(value interface{}) (types.AccountID, error) {

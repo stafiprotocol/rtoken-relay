@@ -5,7 +5,7 @@ import (
 	crypto_rand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/mr-tron/base58"
 )
@@ -29,7 +29,7 @@ func PrivateKeyFromBase58(privkey string) (PrivateKey, error) {
 }
 
 func PrivateKeyFromSolanaKeygenFile(file string) (PrivateKey, error) {
-	content, err := ioutil.ReadFile(file)
+	content, err := os.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("read keygen file: %w", err)
 	}

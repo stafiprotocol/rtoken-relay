@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	clientTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -45,7 +44,10 @@ func (c *Client) SingleReDelegate(srcValAddr, desValAddr types.ValAddress, amoun
 	if err != nil {
 		return "", err
 	}
-	xAuthClient.SignTx(txf, c.clientCtx, c.clientCtx.GetFromName(), txBuilderRaw, true, true)
+	err = xAuthClient.SignTx(txf, c.clientCtx, c.clientCtx.GetFromName(), txBuilderRaw, true, true)
+	if err != nil {
+		return "", err
+	}
 
 	txBytes, err := c.clientCtx.TxConfig.TxEncoder()(txBuilderRaw.GetTx())
 	if err != nil {
@@ -60,7 +62,7 @@ func (c *Client) BroadcastTx(tx []byte) (string, error) {
 		return "", err
 	}
 	if res.Code != 0 {
-		return "", errors.New(fmt.Sprintf("Boradcast err with res.code: %d", res.Code))
+		return "", fmt.Errorf("Boradcast err with res.code: %d", res.Code)
 	}
 	return res.TxHash, nil
 }

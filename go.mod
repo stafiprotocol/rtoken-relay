@@ -10,7 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.23
 	github.com/gorilla/websocket v1.5.0
 	github.com/huandu/xstrings v1.3.2
-	github.com/itering/scale.go v1.5.0
+	github.com/itering/scale.go v1.5.6
 	github.com/itering/substrate-api-rpc v0.4.15
 	github.com/mr-tron/base58 v1.2.0
 	github.com/shopspring/decimal v1.3.1
@@ -25,6 +25,7 @@ require (
 	github.com/tendermint/tendermint v0.34.19
 	github.com/urfave/cli/v2 v2.10.2
 	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2
+	golang.org/x/term v0.2.0
 	gotest.tools v2.2.0+incompatible
 )
 
@@ -156,8 +157,7 @@ require (
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
-	golang.org/x/sys v0.0.0-20221010170243-090e33056c14 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20211223182754-3ac035c7e7cb // indirect
 	google.golang.org/grpc v1.45.0 // indirect

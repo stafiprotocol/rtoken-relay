@@ -1,21 +1,8 @@
 PROJECTNAME=$(shell basename "$(PWD)")
-SOL_DIR=./solidity
 
-CENT_EMITTER_ADDR?=0x1
-CENT_CHAIN_ID?=0x1
-CENT_TO?=0x1234567890
-CENT_TOKEN_ID?=0x5
-CENT_METADATA?=0x0
 
-.PHONY: help run build install license
-all: help
 
-help: Makefile
-	@echo
-	@echo "Choose a make command to run in "$(PROJECTNAME)":"
-	@echo
-	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'
-	@echo
+all: build
 
 get:
 	@echo "  >  \033[32mDownloading & Installing all the modules...\033[0m "
@@ -24,21 +11,13 @@ get:
 fmt:
 	go fmt ./...
 
+
 get-lint:
 	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s latest
 
-.PHONY: lint
 lint:
-	if [ ! -f ./bin/golangci-lint ]; then \
-		$(MAKE) get-lint; \
-	fi;
-	./bin/golangci-lint run ./... --timeout 5m0s
+	golangci-lint run ./... --skip-files "[*_test].go"
 
-lint-fix:
-	if [ ! -f ./bin/golangci-lint ]; then \
-		$(MAKE) get-lint; \
-	fi;
-	./bin/golangci-lint run ./... --timeout 5m0s --fix
 
 build:
 	@echo "  >  \033[32mBuilding binary...\033[0m "
@@ -69,7 +48,11 @@ install-subkey:
 test:
 	@echo "  >  \033[32mRunning tests...\033[0m "
 	go test `go list ./... | grep -v bindings | grep -v e2e`
-
+fmt:
+	go fmt ./...
 
 clean:
 	rm -rf build/
+
+
+.PHONY: help run build install license lint lint-fix get-lint

@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"strings"
@@ -82,12 +82,9 @@ type Connection struct {
 	rpcEndpoint       string
 	tokenHubContract  common.Address
 	multisendContract common.Address
-	bcBlockHeight     int64
 	eraBlock          uint64
 	log               log15.Logger
 	stop              <-chan int
-
-	tokenHub *TokenHub.TokenHub
 }
 
 func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
@@ -828,7 +825,7 @@ func (c *Connection) txHashResult(txHash string) error {
 		return err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
