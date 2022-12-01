@@ -43,3 +43,4 @@ relay_log*.json
 datas/
 config_template_cosmos2.json
 /log_file
+/blockstore
