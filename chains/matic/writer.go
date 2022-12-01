@@ -77,6 +77,7 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processLiquidityBond(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
+
 	case core.EraPoolUpdated:
 		return w.processEraPoolUpdated(m)
 	case core.BondReportEvent:
@@ -87,8 +88,6 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processWithdrawReported(m)
 	case core.SignatureEnough:
 		return w.processSignatureEnough(m)
-	//case core.ValidatorUpdatedEvent:
-	//	return w.processValidatorUpdatedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true
@@ -731,7 +730,7 @@ func (w *writer) start() error {
 			select {
 			case <-w.stop:
 				close(w.liquidityBonds)
-				w.log.Info("writer stopped")
+				w.log.Info("get stop signal, stop liquidityBonds handler")
 				return
 			case msg := <-w.liquidityBonds:
 				time.Sleep(5 * time.Second)

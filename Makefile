@@ -1,7 +1,5 @@
 PROJECTNAME=$(shell basename "$(PWD)")
 
-
-
 all: build
 
 get:
@@ -22,14 +20,12 @@ lint:
 build:
 	@echo "  >  \033[32mBuilding binary...\033[0m "
 	cd cmd/relay && go build -o ../../build/relay
-	cd cmd/gencos && go build -o ../../build/gencos
 	cd cmd/solvault && go build -o ../../build/solvault
 	cd cmd/soltool && go build -o ../../build/soltool
 
 install:
 	@echo "  >  \033[32mInstalling rtoken-relay...\033[0m "
 	cd cmd/relay && go install
-	cd cmd/gencos && go install
 	cd cmd/solvault && go install
 	cd cmd/soltool && go install
 
@@ -48,8 +44,7 @@ install-subkey:
 test:
 	@echo "  >  \033[32mRunning tests...\033[0m "
 	go test `go list ./... | grep -v bindings | grep -v e2e`
-fmt:
-	go fmt ./...
+
 
 clean:
 	rm -rf build/

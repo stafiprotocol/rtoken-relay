@@ -9,7 +9,6 @@ import (
 
 	log "github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains/bnb"
-	"github.com/stafiprotocol/rtoken-relay/chains/cosmos"
 	"github.com/stafiprotocol/rtoken-relay/chains/matic"
 	"github.com/stafiprotocol/rtoken-relay/chains/substrate"
 	"github.com/stafiprotocol/rtoken-relay/config"
@@ -144,11 +143,6 @@ func run(ctx *cli.Context) error {
 		switch chain.Type {
 		case "substrate":
 			newChain, err = substrate.InitializeChain(chainConfig, logger, sysErr)
-			if err != nil {
-				return err
-			}
-		case "cosmos":
-			newChain, err = cosmos.InitializeChain(chainConfig, logger, sysErr)
 			if err != nil {
 				return err
 			}

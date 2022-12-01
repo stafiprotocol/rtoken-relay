@@ -5,6 +5,8 @@ package matic
 
 import (
 	"errors"
+	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
@@ -44,6 +46,9 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 	if !ok {
 		panic("eraBlockCfg not digital string")
 	}
+	if eraBlock.Cmp(big.NewInt(0)) <= 0 {
+		panic(fmt.Sprintf("wrong erablock: %s", eraBlock))
+	}
 
 	return &listener{
 		name:     name,
@@ -69,6 +74,7 @@ func (l *listener) start() error {
 		err := l.pollBlocks()
 		if err != nil {
 			l.log.Error("Polling blocks failed", "err", err)
+			l.sysErr <- err
 		}
 	}()
 
@@ -84,13 +90,13 @@ func (l *listener) pollBlocks() error {
 	for {
 		select {
 		case <-l.stop:
-			return errors.New("polling terminated")
+			l.log.Info("get stop signal, stop pool blocks")
+			return nil
 		default:
 			// No more retries, goto next block
-			if retry == 0 {
+			if retry <= 0 {
 				l.log.Error("Polling failed, retries exceeded")
-				l.sysErr <- ErrFatalPolling
-				return nil
+				return ErrFatalPolling
 			}
 
 			latestBlock, err := l.conn.LatestBlock()
@@ -98,7 +104,7 @@ func (l *listener) pollBlocks() error {
 				if err.Error() == "client is closed" {
 					err = l.conn.ReConnect()
 					if err != nil {
-						panic(err)
+						return err
 					}
 				}
 
@@ -113,27 +119,27 @@ func (l *listener) pollBlocks() error {
 			}
 
 			era := uint32(latestBlock / l.eraBlock)
-			l.processEra(era)
+
+			err = l.processEra(era)
+			if err != nil {
+				l.log.Error("processEra failed", "err", err)
+				retry--
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
 			time.Sleep(EraInterval)
 			retry = BlockRetryLimit
 		}
 	}
 }
 
-func (l *listener) processEra(era uint32) {
+func (l *listener) processEra(era uint32) error {
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
-	l.submitMessage(msg, nil)
+	return l.submitMessage(msg)
 }
 
 // submitMessage inserts the chainId into the msg and sends it to the router
-func (l *listener) submitMessage(m *core.Message, err error) {
-	if err != nil {
-		l.log.Error("Critical error before sending message", "err", err)
-		return
-	}
+func (l *listener) submitMessage(m *core.Message) error {
 	m.Source = l.symbol
-	err = l.router.Send(m)
-	if err != nil {
-		l.log.Error("failed to send message", "err", err, "msg", m)
-	}
+	return l.router.Send(m)
 }

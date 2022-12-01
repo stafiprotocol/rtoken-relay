@@ -35,12 +35,11 @@ const (
 	MultiSendMethodName = "multiSend"
 )
 
-// / MaticToken
+// MaticToken
 var (
 	MaticTokenAbi, _ = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
 )
 
 const (
 	TransferMethodName = "transfer" // 0xa9059cbb
-	//TransferMethodId = "0xa9059cbb"
 )
