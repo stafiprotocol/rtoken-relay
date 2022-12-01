@@ -40,6 +40,10 @@ install-subkey:
 	curl https://getsubstrate.io -sSf | bash -s -- --fast
 	cargo install --force --git https://github.com/paritytech/substrate subkey
 
+abi:
+	@echo " > \033[32mGenabi...\033[0m "
+	abigen --abi ./bindings/StakePortal/stakeportal_abi.json --pkg stake_portal --type StakePortal --out ./bindings/StakePortal/StakePortal.go
+
 ## Runs go test for all packages except the solidity bindings
 test:
 	@echo "  >  \033[32mRunning tests...\033[0m "
@@ -50,4 +54,4 @@ clean:
 	rm -rf build/
 
 
-.PHONY: help run build install license lint lint-fix get-lint
+.PHONY: help run build install license lint lint-fix get-lint abi

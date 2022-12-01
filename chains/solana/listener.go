@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	solClient "github.com/stafiprotocol/solana-go-sdk/client"
@@ -23,12 +22,12 @@ type listener struct {
 	symbol core.RSymbol
 	conn   *Connection
 	router chains.Router
-	log    log15.Logger
+	log    core.Logger
 	stop   <-chan int
 	sysErr chan<- error
 }
 
-func NewListener(name string, symbol core.RSymbol, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, conn *Connection, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	return &listener{
 		name:   name,
 		symbol: symbol,

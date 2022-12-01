@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,6 +19,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
+	"github.com/stafiprotocol/rtoken-relay/bindings/StakePortal"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
@@ -49,7 +49,7 @@ type Connection struct {
 	conn   *ethereum.Client
 	keys   []*secp256k1.Keypair
 	addrs  [][]byte
-	log    log15.Logger
+	log    core.Logger
 	stop   <-chan int
 
 	stakeManager         *StakeManager.StakeManager
@@ -57,9 +57,11 @@ type Connection struct {
 	maticTokenContract   common.Address
 	maticToken           *MaticToken.MaticToken
 	multiSendContract    common.Address
+
+	stakePortalContract *stake_portal.StakePortal
 }
 
-func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
+func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewClient", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint)
 
 	var key *secp256k1.Keypair
@@ -71,7 +73,10 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		if err != nil {
 			return nil, err
 		}
-		kp, _ := kpI.(*secp256k1.Keypair)
+		kp, ok := kpI.(*secp256k1.Keypair)
+		if !ok {
+			return nil, fmt.Errorf("keypair cast failed")
+		}
 
 		keys = append(keys, kp)
 		addrs = append(addrs, kp.CommonAddress().Bytes())
@@ -105,6 +110,11 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		return nil, err
 	}
 
+	stakePortal, err := initStakePortal(cfg.Opts["StakePortalContract"], conn.Client())
+	if err != nil {
+		return nil, err
+	}
+
 	return &Connection{
 		url:                  cfg.Endpoint,
 		symbol:               cfg.Symbol,
@@ -118,6 +128,7 @@ func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*C
 		maticTokenContract:   maticAddr,
 		maticToken:           matic,
 		multiSendContract:    multiSendAddr,
+		stakePortalContract:  stakePortal,
 	}, nil
 }
 
@@ -135,6 +146,11 @@ func (c *Connection) LatestBlock() (uint64, error) {
 }
 
 func (c *Connection) Address() string {
+	return c.conn.Keypair().Address()
+}
+
+// use conn address as blockstore use address
+func (c *Connection) BlockStoreUseAddress() string {
 	return c.conn.Keypair().Address()
 }
 

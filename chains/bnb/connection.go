@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	goeth "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -83,11 +82,11 @@ type Connection struct {
 	tokenHubContract  common.Address
 	multisendContract common.Address
 	eraBlock          uint64
-	log               log15.Logger
+	log               core.Logger
 	stop              <-chan int
 }
 
-func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
+func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewClient", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint)
 
 	rpcEndpointCfg := cfg.Opts["rpcEndpoint"]

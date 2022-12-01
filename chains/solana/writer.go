@@ -3,7 +3,6 @@ package solana
 import (
 	"fmt"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
@@ -12,11 +11,11 @@ import (
 type writer struct {
 	conn   *Connection
 	router chains.Router
-	log    log15.Logger
+	log    core.Logger
 	sysErr chan<- error
 }
 
-func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error) *writer {
+func NewWriter(conn *Connection, log core.Logger, sysErr chan<- error) *writer {
 	return &writer{
 		conn:   conn,
 		log:    log,
@@ -37,13 +36,13 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	}()
 
 	switch m.Reason {
-	case core.LiquidityBond:
+	case core.LiquidityBondEvent:
 		return w.processLiquidityBond(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
-	case core.EraPoolUpdated:
+	case core.EraPoolUpdatedEvent:
 		return w.processEraPoolUpdatedEvt(m)
-	case core.BondReportEvent:
+	case core.BondReportedEvent:
 		return w.processBondReportEvent(m)
 	case core.ActiveReportedEvent:
 		return w.processActiveReportedEvent(m)

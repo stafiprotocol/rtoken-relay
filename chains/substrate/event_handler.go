@@ -54,7 +54,7 @@ func liquidityBondHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("failed to cast bondflow")
 	}
 
-	return &core.Message{Destination: d.Symbol, Reason: core.LiquidityBond, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.LiquidityBondEvent, Content: d}, nil
 }
 
 func eraPoolUpdatedHandler(data interface{}) (*core.Message, error) {
@@ -67,7 +67,7 @@ func eraPoolUpdatedHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("eventId not matched, expected: %s, got: %s", config.EraPoolUpdatedEventId, d.EventId)
 	}
 
-	return &core.Message{Destination: d.Symbol, Reason: core.EraPoolUpdated, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.EraPoolUpdatedEvent, Content: d}, nil
 }
 
 func bondReportedHandler(data interface{}) (*core.Message, error) {
@@ -76,7 +76,7 @@ func bondReportedHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("failed to cast bond informChain")
 	}
 
-	return &core.Message{Destination: d.Snap.Symbol, Reason: core.BondReportEvent, Content: d}, nil
+	return &core.Message{Destination: d.Snap.Symbol, Reason: core.BondReportedEvent, Content: d}, nil
 }
 
 func activeReportedHandler(data interface{}) (*core.Message, error) {
@@ -146,7 +146,7 @@ func signatureEnoughHandler(data interface{}) (*core.Message, error) {
 		return nil, fmt.Errorf("failed to cast submitSignatures")
 	}
 
-	return &core.Message{Destination: d.Symbol, Reason: core.SignatureEnough, Content: d}, nil
+	return &core.Message{Destination: d.Symbol, Reason: core.SignatureEnoughEvent, Content: d}, nil
 }
 
 func newMultisigHandler(data interface{}) (*core.Message, error) {

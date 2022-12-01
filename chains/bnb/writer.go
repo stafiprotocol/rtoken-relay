@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
@@ -26,7 +25,7 @@ type writer struct {
 	symbol          core.RSymbol
 	conn            *Connection
 	router          chains.Router
-	log             log15.Logger
+	log             core.Logger
 	sysErr          chan<- error
 	liquidityBonds  chan *core.Message
 	currentChainEra uint32
@@ -42,7 +41,7 @@ const (
 	bondFlowLimit = 2048
 )
 
-func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log core.Logger, sysErr chan<- error, stop <-chan int) *writer {
 	record, ok := opts["SwapRecord"].(string)
 	if !ok {
 		panic("no filepath to save SwapRecord")
@@ -106,13 +105,13 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	}()
 
 	switch m.Reason {
-	case core.LiquidityBond:
+	case core.LiquidityBondEvent:
 		return w.processLiquidityBond(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
-	case core.EraPoolUpdated:
+	case core.EraPoolUpdatedEvent:
 		return w.processEraPoolUpdated(m)
-	case core.BondReportEvent:
+	case core.BondReportedEvent:
 		return w.processBondReported(m)
 	case core.ActiveReportedEvent:
 		return w.processActiveReported(m)

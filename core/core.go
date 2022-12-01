@@ -8,22 +8,20 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/ChainSafe/log15"
 )
 
 type Core struct {
 	Registry []Chain
 	route    *Router
-	log      log15.Logger
+	log      Logger
 	sysErr   <-chan error
 }
 
 func NewCore(sysErr <-chan error) *Core {
 	return &Core{
 		Registry: make([]Chain, 0),
-		route:    NewRouter(log15.New("system", "router")),
-		log:      log15.New("system", "core"),
+		route:    NewRouter(NewLog("system", "router")),
+		log:      NewLog("system", "core"),
 		sysErr:   sysErr,
 	}
 }

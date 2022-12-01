@@ -3,15 +3,16 @@ module github.com/stafiprotocol/rtoken-relay
 go 1.19
 
 require (
-	github.com/ChainSafe/log15 v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
 	github.com/ethereum/go-ethereum v1.10.23
 	github.com/gorilla/websocket v1.5.0
 	github.com/huandu/xstrings v1.3.2
 	github.com/itering/scale.go v1.5.6
 	github.com/itering/substrate-api-rpc v0.4.15
+	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/mr-tron/base58 v1.2.0
 	github.com/shopspring/decimal v1.3.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
@@ -23,7 +24,6 @@ require (
 	github.com/urfave/cli/v2 v2.10.2
 	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2
 	golang.org/x/term v0.2.0
-	gotest.tools v2.2.0+incompatible
 )
 
 require (
@@ -60,16 +60,15 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.0.0 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
+	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
+	github.com/lestrrat-go/strftime v1.0.6 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect

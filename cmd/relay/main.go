@@ -2,18 +2,15 @@ package main
 
 import (
 	"errors"
-	"os"
-	"strconv"
-
-	"github.com/stafiprotocol/rtoken-relay/chains/solana"
-
-	log "github.com/ChainSafe/log15"
+	"github.com/sirupsen/logrus"
 	"github.com/stafiprotocol/rtoken-relay/chains/bnb"
 	"github.com/stafiprotocol/rtoken-relay/chains/matic"
+	"github.com/stafiprotocol/rtoken-relay/chains/solana"
 	"github.com/stafiprotocol/rtoken-relay/chains/substrate"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/urfave/cli/v2"
+	"os"
 )
 
 var app = cli.NewApp()
@@ -91,22 +88,17 @@ func main() {
 }
 
 func startLogger(ctx *cli.Context) error {
-	logger := log.Root()
-	var lvl log.Lvl
-	if lvlToInt, err := strconv.Atoi(ctx.String(config.VerbosityFlag.Name)); err == nil {
-		lvl = log.Lvl(lvlToInt)
-	} else if lvl, err = log.LvlFromString(ctx.String(config.VerbosityFlag.Name)); err != nil {
+	lvl := ctx.String(config.VerbosityFlag.Name)
+
+	level, err := logrus.ParseLevel(lvl)
+	if err != nil {
 		return err
 	}
-
-	logger.SetHandler(log.MultiHandler(
-		log.LvlFilterHandler(
-			lvl,
-			log.StreamHandler(os.Stdout, log.LogfmtFormat())),
-		log.Must.FileHandler("relay_log.json", log.JsonFormat()),
-		log.LvlFilterHandler(
-			log.LvlError,
-			log.Must.FileHandler("relay_log_errors.json", log.JsonFormat()))))
+	logrus.SetLevel(level)
+	err = core.InitLogFile("./log_file")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -138,7 +130,7 @@ func run(ctx *cli.Context) error {
 			Opts:            chain.Opts,
 		}
 		var newChain core.Chain
-		logger := log.Root().New("chain", chainConfig.Name)
+		logger := core.NewLog("chain", chainConfig.Name)
 
 		switch chain.Type {
 		case "substrate":

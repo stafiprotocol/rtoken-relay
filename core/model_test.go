@@ -1,7 +1,6 @@
 package core
 
 import (
-	"gotest.tools/assert"
 	"testing"
 
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -20,5 +19,4 @@ func TestRSymbol_Encode(t *testing.T) {
 		panic(err)
 	}
 
-	assert.Equal(t, a, r)
 }

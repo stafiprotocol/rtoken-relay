@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/gorilla/websocket"
 	scale "github.com/itering/scale.go"
 	"github.com/itering/scale.go/source"
@@ -22,6 +21,7 @@ import (
 	gsrpcConfig "github.com/stafiprotocol/go-substrate-rpc-client/config"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	wbskt "github.com/stafiprotocol/rtoken-relay/shared/substrate/websocket"
 	chainTypes "github.com/stafiprotocol/rtoken-relay/types"
@@ -42,7 +42,7 @@ type SarpcClient struct {
 	stop        <-chan int
 
 	wsPool    wbskt.Pool
-	log       log15.Logger
+	log       core.Logger
 	chainType string
 	typesPath string
 
@@ -55,7 +55,7 @@ type SarpcClient struct {
 	metaDataVersion int
 }
 
-func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *signature.KeyringPair, log log15.Logger, stop <-chan int) (*SarpcClient, error) {
+func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *signature.KeyringPair, log core.Logger, stop <-chan int) (*SarpcClient, error) {
 	log.Info("Connecting to substrate chain with sarpc", "endpoint", endpoint)
 
 	if addressType != AddressTypeAccountId && addressType != AddressTypeMultiAddress {

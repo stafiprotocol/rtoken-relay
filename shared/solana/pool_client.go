@@ -1,7 +1,7 @@
 package solana
 
 import (
-	"github.com/ChainSafe/log15"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	solClient "github.com/stafiprotocol/solana-go-sdk/client"
 	solCommon "github.com/stafiprotocol/solana-go-sdk/common"
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
@@ -9,7 +9,7 @@ import (
 
 // one pool address with one poolClient
 type PoolClient struct {
-	log       log15.Logger
+	log       core.Logger
 	rpcClient *solClient.Client
 	PoolAccounts
 }
@@ -26,7 +26,7 @@ type PoolAccounts struct {
 	HasBaseAccountAuth          bool
 }
 
-func NewPoolClient(log log15.Logger, rpcClient *solClient.Client, poolAccount PoolAccounts) *PoolClient {
+func NewPoolClient(log core.Logger, rpcClient *solClient.Client, poolAccount PoolAccounts) *PoolClient {
 	return &PoolClient{
 		log:          log,
 		rpcClient:    rpcClient,

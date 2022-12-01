@@ -31,13 +31,14 @@
         "0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6",
         "0xBd39f5936969828eD9315220659cD11129071814"
       ],
-      "latestBlockFlag": true,
       "opts": {
         "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
         "eraBlockCfg": "100",
+        "startBlock": "1",
         "StakeManagerContract": "0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3",
         "MaticTokenContract": "0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae",
-        "MultiSendContract": "0x747e29a783a9EE438bD25ac32bB341f12c827217"
+        "MultiSendContract": "0x747e29a783a9EE438bD25ac32bB341f12c827217",
+        "StakePortalContract": "0x747e29a783a9EE438bD25ac32bB341f12c827217"
       }
     }
   ]

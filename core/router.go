@@ -6,8 +6,6 @@ package core
 import (
 	"fmt"
 	"sync"
-
-	log "github.com/ChainSafe/log15"
 )
 
 const msgLimit = 4096
@@ -21,12 +19,12 @@ type Writer interface {
 type Router struct {
 	registry map[RSymbol]Writer
 	lock     *sync.RWMutex
-	log      log.Logger
+	log      Logger
 	msgChan  chan *Message
 	stop     chan int
 }
 
-func NewRouter(log log.Logger) *Router {
+func NewRouter(log Logger) *Router {
 	return &Router{
 		registry: make(map[RSymbol]Writer),
 		lock:     &sync.RWMutex{},

@@ -1,7 +1,6 @@
 package bnb
 
 import (
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
@@ -13,7 +12,7 @@ type Chain struct {
 	stop     chan<- int
 }
 
-func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error) (*Chain, error) {
+func InitializeChain(cfg *core.ChainConfig, logger core.Logger, sysErr chan<- error) (*Chain, error) {
 	logger.Info("InitializeChain", "type", "bnb", "symbol", cfg.Symbol)
 
 	stop := make(chan int)

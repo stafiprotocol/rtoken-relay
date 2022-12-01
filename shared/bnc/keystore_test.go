@@ -4,12 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/stafiprotocol/go-sdk/keys"
-	subtypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
-	"github.com/stafiprotocol/rtoken-relay/models/bnc"
-	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -17,7 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChainSafe/log15"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stafiprotocol/go-sdk/keys"
+	subtypes "github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/bnc"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
@@ -255,9 +256,8 @@ func TestAmountAndExpireTime(t *testing.T) {
 	t.Log(d) //
 }
 
-func newTestLogger(name string) log15.Logger {
-	tLog := log15.New("chain", name)
-	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlError, tLog.GetHandler()))
+func newTestLogger(name string) core.Logger {
+	tLog := core.NewLog("chain", name)
 	return tLog
 }
 

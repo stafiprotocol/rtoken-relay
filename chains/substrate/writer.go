@@ -9,7 +9,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
@@ -27,7 +26,7 @@ type writer struct {
 	symbol                core.RSymbol
 	conn                  *Connection
 	router                chains.Router
-	log                   log15.Logger
+	log                   core.Logger
 	sysErr                chan<- error
 	eventMtx              sync.RWMutex
 	newMulTicsMtx         sync.RWMutex
@@ -42,7 +41,7 @@ type writer struct {
 	transferRecordHistory string
 }
 
-func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, sysErr chan<- error, stop <-chan int) *writer {
+func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log core.Logger, sysErr chan<- error, stop <-chan int) *writer {
 	transferRecord := ""
 	transferRecordHistory := ""
 	if symbol != core.RFIS {
@@ -95,13 +94,13 @@ func (w *writer) setRouter(r chains.Router) {
 func (w *writer) ResolveMessage(m *core.Message) bool {
 	switch m.Reason {
 	// handle by substrate
-	case core.LiquidityBond:
+	case core.LiquidityBondEvent:
 		return w.processLiquidityBond(m)
 	case core.BondedPools:
 		return w.processBondedPools(m)
-	case core.EraPoolUpdated:
+	case core.EraPoolUpdatedEvent:
 		return w.processEraPoolUpdatedEvent(m)
-	case core.BondReportEvent:
+	case core.BondReportedEvent:
 		return w.processBondReportEvent(m)
 	case core.ActiveReportedEvent:
 		return w.processActiveReportedEvent(m)

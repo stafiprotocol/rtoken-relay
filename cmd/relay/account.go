@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/crypto"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/sr25519"
@@ -17,8 +16,11 @@ import (
 	bnctypes "github.com/stafiprotocol/go-sdk/common/types"
 	bnckeys "github.com/stafiprotocol/go-sdk/keys"
 	"github.com/stafiprotocol/rtoken-relay/config"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/urfave/cli/v2"
 )
+
+var log = core.NewLog()
 
 func handleGenerateSubCmd(ctx *cli.Context) error {
 	log.Info("Generating substrate keyfile by rawseed...")

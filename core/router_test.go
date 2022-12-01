@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/ChainSafe/log15"
 )
 
 type mockWriter struct {
@@ -24,8 +22,7 @@ func (w *mockWriter) ResolveMessage(msg *Message) bool {
 }
 
 func TestRouter(t *testing.T) {
-	tLog := log15.New()
-	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlTrace, tLog.GetHandler()))
+	tLog := NewLog()
 	router := NewRouter(tLog)
 
 	chain0 := &mockWriter{msgs: *new([]*Message)}

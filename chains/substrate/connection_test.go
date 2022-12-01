@@ -7,7 +7,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/ChainSafe/log15"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
@@ -30,7 +29,7 @@ var (
 )
 
 var (
-	tlog = log15.Root()
+	tlog = core.NewLog()
 )
 
 const (

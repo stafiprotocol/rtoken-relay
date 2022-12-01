@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -21,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 )
@@ -47,12 +47,12 @@ type Client struct {
 	callOpts    *bind.CallOpts
 	nonce       uint64
 	optsLock    sync.Mutex
-	log         log15.Logger
+	log         core.Logger
 	stop        chan int // All routines should exit when this channel is closed
 }
 
 // NewClient returns an uninitialized connection, must call Client.Connect() before using.
-func NewClient(endpoint string, kp *secp256k1.Keypair, log log15.Logger, gasLimit, gasPrice *big.Int) *Client {
+func NewClient(endpoint string, kp *secp256k1.Keypair, log core.Logger, gasLimit, gasPrice *big.Int) *Client {
 	client := &Client{
 		endpoint:    endpoint,
 		kp:          kp,

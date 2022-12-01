@@ -4,7 +4,7 @@
 package config
 
 import (
-	log "github.com/ChainSafe/log15"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
@@ -17,8 +17,8 @@ var (
 
 	VerbosityFlag = &cli.StringFlag{
 		Name:  "verbosity",
-		Usage: "supports levels crit (silent) to trce (trace)",
-		Value: log.LvlInfo.String(),
+		Usage: "supports levels: info debug trace error",
+		Value: logrus.InfoLevel.String(),
 	}
 
 	KeystorePathFlag = &cli.StringFlag{

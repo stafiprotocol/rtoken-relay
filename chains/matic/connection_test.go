@@ -10,7 +10,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/config"
@@ -147,8 +146,7 @@ func createCliContext(description string, flags []string, values []interface{}) 
 	return context, nil
 }
 
-func newTestLogger(name string) log15.Logger {
-	tLog := log15.New("chain", name)
-	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlError, tLog.GetHandler()))
+func newTestLogger(name string) core.Logger {
+	tLog := core.NewLog("chain", name)
 	return tLog
 }

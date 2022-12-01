@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -12,7 +11,7 @@ import (
 )
 
 var (
-	tlog = log15.Root()
+	tlog = core.NewLog()
 )
 
 const (

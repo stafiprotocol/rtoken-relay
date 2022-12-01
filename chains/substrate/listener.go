@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/config"
@@ -25,7 +24,7 @@ type listener struct {
 	conn          *Connection
 	subscriptions map[eventName]eventHandler // Handlers for specific events
 	router        chains.Router
-	log           log15.Logger
+	log           core.Logger
 	stop          <-chan int
 	sysErr        chan<- error
 	lastEraBlock  uint64
@@ -41,7 +40,7 @@ var (
 	EventRetryInterval        = 100 * time.Millisecond
 )
 
-func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, startBlock uint64, bs blockstore.Blockstorer, conn *Connection, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	cares := make([]core.RSymbol, 0)
 	optCares := opts["cares"]
 	log.Info("NewListener", "optCares", optCares)

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/utils"
@@ -28,13 +27,13 @@ type listener struct {
 	eraBlock uint64
 	conn     *Connection
 	router   chains.Router
-	log      log15.Logger
+	log      core.Logger
 	stop     <-chan int
 	sysErr   chan<- error // Reports fatal error to core
 }
 
 // NewListener creates and returns a listener
-func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log log15.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
 	eraBlockCfg := opts["eraBlockCfg"]
 	eraBlockStr, ok := eraBlockCfg.(string)
 	if !ok {

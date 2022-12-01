@@ -6,8 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/ChainSafe/log15"
-
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/urfave/cli/v2"
 )
 
@@ -39,7 +38,6 @@ func init() {
 
 func main() {
 	if err := app.Run(os.Args); err != nil {
-		log.Error(err.Error())
 		os.Exit(1)
 	}
 }
@@ -75,7 +73,7 @@ func loadConfig(file string, config *PoolAccounts) (err error) {
 		return err
 	}
 
-	log.Debug("Loading configuration", "path", filepath.Clean(fp))
+	core.NewLog().Debug("Loading configuration", "path", filepath.Clean(fp))
 
 	f, err := os.Open(filepath.Clean(fp))
 	if err != nil {

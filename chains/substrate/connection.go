@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
 	"github.com/itering/substrate-api-rpc/rpc"
@@ -30,7 +29,7 @@ type Connection struct {
 	sc                   *substrate.SarpcClient
 	keys                 []*signature.KeyringPair
 	scs                  map[*signature.KeyringPair]*substrate.SarpcClient
-	log                  log15.Logger
+	log                  core.Logger
 	stop                 <-chan int
 	lastKey              *signature.KeyringPair
 	blockstoreUseAddress string
@@ -46,7 +45,7 @@ var (
 	WsRetryInterval = 500 * time.Millisecond
 )
 
-func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
+func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewConnection", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint, "typesPath", cfg.Opts["typesPath"])
 
 	typesPath := cfg.Opts["typesPath"]

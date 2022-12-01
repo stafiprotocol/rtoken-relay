@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -17,6 +16,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
+	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
@@ -129,8 +129,7 @@ func TestMultisigProxyInitial(t *testing.T) {
 	t.Log("initializeData", hexutil.Encode(cd))
 }
 
-func newTestLogger(name string) log15.Logger {
-	tLog := log15.New("chain", name)
-	tLog.SetHandler(log15.LvlFilterHandler(log15.LvlError, tLog.GetHandler()))
+func newTestLogger(name string) core.Logger {
+	tLog := core.NewLog("chain", name)
 	return tLog
 }

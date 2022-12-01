@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ChainSafe/log15"
 	"github.com/mr-tron/base58"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -24,7 +23,7 @@ type Connection struct {
 	queryClient *solClient.Client
 	symbol      core.RSymbol
 	poolClients map[string]*solana.PoolClient //map[poolAddressHexStr]poolClient
-	log         log15.Logger
+	log         core.Logger
 	stop        <-chan int
 }
 
@@ -36,7 +35,7 @@ type PoolAccounts struct {
 	MultisigProgramId     string   `json:"multisigProgramId"`
 }
 
-func NewConnection(cfg *core.ChainConfig, log log15.Logger, stop <-chan int) (*Connection, error) {
+func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
 	poolAccounts := make(map[string]PoolAccounts)
 	for _, account := range cfg.Accounts {
 		paBts, err := json.Marshal(cfg.Opts[account])

@@ -3,7 +3,6 @@ package solana
 import (
 	"errors"
 
-	"github.com/ChainSafe/log15"
 	"github.com/stafiprotocol/rtoken-relay/core"
 )
 
@@ -17,7 +16,7 @@ type Chain struct {
 	stop     chan<- int
 }
 
-func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error) (*Chain, error) {
+func InitializeChain(cfg *core.ChainConfig, logger core.Logger, sysErr chan<- error) (*Chain, error) {
 	stop := make(chan int)
 	conn, err := NewConnection(cfg, logger, stop)
 	if err != nil {
