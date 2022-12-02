@@ -88,7 +88,7 @@ func (l *listener) start() error {
 	}
 
 	if l.symbol == core.RFIS {
-		for _, sub := range MainSubscriptions {
+		for _, sub := range StafiSubscriptions {
 			err := l.registerEventHandler(sub.name, sub.handler)
 			if err != nil {
 				return err
@@ -191,8 +191,7 @@ func (l *listener) processEra() error {
 	}
 
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
-	l.submitMessage(msg, nil)
-	return nil
+	return l.submitMessage(msg, nil)
 }
 
 // processEvents fetches a block and parses out the events, calling Listener.handleEvents()
@@ -217,7 +216,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 	for _, evt := range evts {
 		switch l.symbol {
 		case core.RFIS:
-			if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.LiquidityBondEventId {
+			switch {
+			case evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.LiquidityBondEventId:
 				l.log.Trace("Handling LiquidityBondEvent", "block", blockNum)
 				flow, err := l.processLiquidityBondEvent(evt)
 				if err != nil {
@@ -231,9 +231,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 					continue
 				}
 				if l.cared(flow.Record.Symbol) && l.subscriptions[LiquidityBond] != nil {
-					l.submitMessage(l.subscriptions[LiquidityBond](flow))
+					err := l.submitMessage(l.subscriptions[LiquidityBond](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId {
+			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId:
 				l.log.Trace("Handling EraPoolUpdatedEvent", "block", blockNum)
 				flow, err := l.processEraPoolUpdatedEvt(evt)
 				if err != nil {
@@ -246,9 +249,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 				}
 
 				if l.cared(flow.Symbol) && l.subscriptions[EraPoolUpdated] != nil {
-					l.submitMessage(l.subscriptions[EraPoolUpdated](flow))
+					err = l.submitMessage(l.subscriptions[EraPoolUpdated](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId {
+			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId:
 				l.log.Trace("Handling BondReportedEvent", "block", blockNum)
 				flow, err := l.processBondReportedEvt(evt)
 				if err != nil {
@@ -260,9 +266,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Snap.Symbol) && l.subscriptions[BondReported] != nil {
-					l.submitMessage(l.subscriptions[BondReported](flow))
+					err = l.submitMessage(l.subscriptions[BondReported](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId {
+			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId:
 				l.log.Trace("Handling ActiveReportEvent", "block", blockNum)
 				flow, err := l.processActiveReportedEvt(evt)
 				if err != nil {
@@ -274,9 +283,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[ActiveReported] != nil {
-					l.submitMessage(l.subscriptions[ActiveReported](flow))
+					err = l.submitMessage(l.subscriptions[ActiveReported](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawReportedEventId {
+			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawReportedEventId:
 				l.log.Trace("Handling WithdrawReportedEvent", "block", blockNum)
 				flow, err := l.processWithdrawReportedEvt(evt)
 				if err != nil {
@@ -288,9 +300,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[WithdrawReported] != nil {
-					l.submitMessage(l.subscriptions[WithdrawReported](flow))
+					err = l.submitMessage(l.subscriptions[WithdrawReported](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.TransferReportedEventId {
+			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.TransferReportedEventId:
 				l.log.Trace("Handling TransferReportedEvent", "block", blockNum)
 				flow, err := l.processTransferReportedEvt(evt)
 				if err != nil {
@@ -301,9 +316,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[TransferReported] != nil {
-					l.submitMessage(l.subscriptions[TransferReported](flow))
+					err = l.submitMessage(l.subscriptions[TransferReported](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.NominationUpdatedEventId {
+			case evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.NominationUpdatedEventId:
 				l.log.Trace("Handling NominationUpdatedEvent", "block", blockNum)
 				flow, err := l.processNominationUpdated(evt)
 				if err != nil {
@@ -313,21 +331,12 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[NominationUpdated] != nil {
-					l.submitMessage(l.subscriptions[NominationUpdated](flow))
-				}
-			} else if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.SignaturesEnoughEventId {
-				l.log.Trace("Handling SignaturesEnoughEventId event", "block", blockNum)
-				sigs, err := l.processSignatureEnoughEvt(evt)
-				if err != nil {
-					if err.Error() == ErrNotCared.Error() {
-						continue
+					err = l.submitMessage(l.subscriptions[NominationUpdated](flow))
+					if err != nil {
+						return err
 					}
-					return err
 				}
-				if l.cared(sigs.Symbol) && l.subscriptions[SignatureEnough] != nil {
-					l.submitMessage(l.subscriptions[SignatureEnough](sigs))
-				}
-			} else if evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.ValidatorUpdatedEventId {
+			case evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.ValidatorUpdatedEventId:
 				l.log.Trace("Handling ValidatorUpdatedEvent", "block", blockNum)
 				flow, err := l.processValidatorUpdated(evt)
 				if err != nil {
@@ -337,11 +346,30 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.cared(flow.Symbol) && l.subscriptions[ValidaterUpdated] != nil {
-					l.submitMessage(l.subscriptions[ValidaterUpdated](flow))
+					err = l.submitMessage(l.subscriptions[ValidaterUpdated](flow))
+					if err != nil {
+						return err
+					}
+				}
+			case evt.ModuleId == config.RTokenSeriesModuleId && evt.EventId == config.SignaturesEnoughEventId:
+				l.log.Trace("Handling SignaturesEnoughEventId event", "block", blockNum)
+				sigs, err := l.processSignatureEnoughEvt(evt)
+				if err != nil {
+					if err.Error() == ErrNotCared.Error() {
+						continue
+					}
+					return err
+				}
+				if l.cared(sigs.Symbol) && l.subscriptions[SignatureEnough] != nil {
+					err = l.submitMessage(l.subscriptions[SignatureEnough](sigs))
+					if err != nil {
+						return err
+					}
 				}
 			}
 		case core.RDOT, core.RKSM:
-			if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId {
+			switch {
+			case evt.ModuleId == config.MultisigModuleId && evt.EventId == config.NewMultisigEventId:
 				l.log.Trace("Handling NewMultisigEvent", "block", blockNum)
 				flow, err := l.processNewMultisigEvt(evt)
 				if err != nil {
@@ -352,16 +380,22 @@ func (l *listener) processEvents(blockNum uint64) error {
 					return err
 				}
 				if l.subscriptions[NewMultisig] != nil {
-					l.submitMessage(l.subscriptions[NewMultisig](flow))
+					err = l.submitMessage(l.subscriptions[NewMultisig](flow))
+					if err != nil {
+						return err
+					}
 				}
-			} else if evt.ModuleId == config.MultisigModuleId && evt.EventId == config.MultisigExecutedEventId {
+			case evt.ModuleId == config.MultisigModuleId && evt.EventId == config.MultisigExecutedEventId:
 				l.log.Trace("Handling MultisigExecutedEvent", "block", blockNum)
 				flow, err := l.processMultisigExecutedEvt(evt)
 				if err != nil {
 					return err
 				}
 				if l.subscriptions[MultisigExecuted] != nil {
-					l.submitMessage(l.subscriptions[MultisigExecuted](flow))
+					err = l.submitMessage(l.subscriptions[MultisigExecuted](flow))
+					if err != nil {
+						return err
+					}
 				}
 			}
 		default:
@@ -373,19 +407,16 @@ func (l *listener) processEvents(blockNum uint64) error {
 }
 
 // submitMessage inserts the chainId into the msg and sends it to the router
-func (l *listener) submitMessage(m *core.Message, err error) {
+func (l *listener) submitMessage(m *core.Message, err error) error {
 	if err != nil {
 		l.log.Error("Critical error before sending message", "err", err)
-		return
+		return err
 	}
 	m.Source = l.symbol
 	if m.Destination == "" {
 		m.Destination = m.Source
 	}
-	err = l.router.Send(m)
-	if err != nil {
-		l.log.Error("failed to send message", "err", err)
-	}
+	return l.router.Send(m)
 }
 
 func (l *listener) blockDelay() uint64 {

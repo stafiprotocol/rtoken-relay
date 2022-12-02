@@ -186,7 +186,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, ErrorBondStateNotBondReported
 	}
 
-	_, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	th, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -224,6 +224,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	flow.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	flow.Snap = snap
 	flow.SubAccounts = sub
+	flow.Threshold = uint32(th)
 	flow.ValidatorId = validatorId
 	flow.LeastBond = leastBond
 
@@ -518,6 +519,12 @@ func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submode
 		return nil, err
 	}
 	if !l.cared(data.RSymbol) {
+		return nil, ErrNotCared
+	}
+
+	// we will poll sigs until enough, so no need sigenouthEvent here
+	switch data.RSymbol {
+	case core.RMATIC:
 		return nil, ErrNotCared
 	}
 

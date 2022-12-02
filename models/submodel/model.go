@@ -335,6 +335,7 @@ type BondReportedFlow struct {
 	EraBlock            uint64
 	Unstaked            types.U128
 	SubAccounts         []types.Bytes
+	Threshold           uint32
 	Stashes             []types.AccountID
 	ValidatorId         interface{}
 	MultiTransaction    *ethmodel.MultiTransaction

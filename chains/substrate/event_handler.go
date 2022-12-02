@@ -31,7 +31,7 @@ const (
 	ValidaterUpdated = eventName(config.ValidatorUpdatedEventId)
 )
 
-var MainSubscriptions = []eventHandlerSubscriptions{
+var StafiSubscriptions = []eventHandlerSubscriptions{
 	{LiquidityBond, liquidityBondHandler},
 	{EraPoolUpdated, eraPoolUpdatedHandler},
 	{BondReported, bondReportedHandler},
