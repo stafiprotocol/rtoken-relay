@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"os"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stafiprotocol/rtoken-relay/chains/bnb"
 	"github.com/stafiprotocol/rtoken-relay/chains/matic"
@@ -10,7 +13,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/urfave/cli/v2"
-	"os"
 )
 
 var app = cli.NewApp()
@@ -119,6 +121,13 @@ func run(ctx *cli.Context) error {
 	c := core.NewCore(sysErr)
 
 	for _, chain := range cfg.Chains {
+		//check symbol
+		switch chain.Rsymbol {
+		case string(core.RBNB), string(core.RDOT), string(core.RFIS), string(core.RKSM), string(core.RMATIC), string(core.RSOL):
+		default:
+			return fmt.Errorf("rsymbol not match: %s", chain.Rsymbol)
+		}
+
 		chainConfig := &core.ChainConfig{
 			Name:            chain.Name,
 			Endpoint:        chain.Endpoint,

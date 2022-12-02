@@ -33,6 +33,49 @@ func (w *writer) processGetEraNominated(m *core.Message) bool {
 	return true
 }
 
+func (w *writer) processGetBondState(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.GetBondStateFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	bondState, err := w.conn.bondState(flow.Symbol, flow.BlockHash, flow.TxHash)
+	if err != nil {
+		w.log.Warn("bondState failed", "err", err)
+		if err.Error() == ErrorNotExist.Error() {
+			flow.BondState <- submodel.Default
+			return true
+		}
+		flow.BondState <- submodel.Default
+		return false
+	}
+
+	flow.BondState <- bondState
+	return true
+}
+
+func (w *writer) processWaitAndGetSubmitSignatures(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.GetSubmitSignaturesFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	submitSigs, err := w.conn.getSubmitSignatures(flow.Symbol, uint32(flow.Era), flow.Pool, flow.TxType, flow.ProposalId)
+	if err != nil {
+		if err.Error() == ErrorNotExist.Error() {
+			flow.Signatures <- []types.Bytes{}
+			return true
+		}
+		flow.Signatures <- []types.Bytes{}
+		return false
+	}
+
+	flow.Signatures <- submitSigs.Signature
+	return true
+}
+
 func (w *writer) processSubmitSignature(m *core.Message) bool {
 	param, ok := m.Content.(submodel.SubmitSignatureParams)
 	if !ok {
@@ -279,6 +322,30 @@ func (w *writer) processActiveReport(m *core.Message) bool {
 
 	result := w.conn.resolveProposal(prop, true)
 	w.log.Info("ActiveReportProposal resolveProposal", "result", result)
+
+	return result
+}
+
+func (w *writer) processExeLiquidityBondAndSwap(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.ExeLiquidityBondAndSwapFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+	if flow.Reason == submodel.BondReasonDefault {
+		w.log.Error("processExeLiquidityBondAndSwap receive a message of which reason is default", "txHash", flow.Txhash, "reason", flow.Reason)
+		return false
+	}
+
+	prop, err := w.conn.ExeLiquidityBondAndSwapProposal(flow)
+	if err != nil {
+		w.log.Error("processExeLiquidityBondAndSwap proposal", "error", err)
+		w.sysErr <- err
+		return false
+	}
+
+	result := w.conn.resolveProposal(prop, flow.Reason == submodel.Pass)
+	w.log.Info("processExeLiquidityBondAndSwap resolveProposal", "result", result)
 
 	return result
 }

@@ -126,11 +126,21 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		return w.processInformChain(m)
 	case core.ActiveReport:
 		return w.processActiveReport(m)
-	case core.GetEraNominated:
-		return w.processGetEraNominated(m)
 	case core.SubmitSignature:
 		return w.processSubmitSignature(m)
+	case core.ExeLiquidityBondAndSwap:
+		return w.processExeLiquidityBondAndSwap(m)
 
+	// get state handle by stafi chain
+	case core.GetEraNominated:
+		go w.processGetEraNominated(m)
+		return true
+	case core.GetBondState:
+		go w.processGetBondState(m)
+		return true
+	case core.WaitAndGetSubmitSignatures:
+		go w.processWaitAndGetSubmitSignatures(m)
+		return true
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false

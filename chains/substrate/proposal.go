@@ -39,6 +39,36 @@ func (c *Connection) LiquidityBondProposal(flow *submodel.BondFlow) (*submodel.P
 	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.BondId, MethodName: method}, nil
 }
 
+// execute_bond_and_swap(origin, pool: Vec<u8>, blockhash: Vec<u8>, txhash: Vec<u8>, amount: u128, symbol: RSymbol, stafi_recipient: T::AccountId, dest_recipient: Vec<u8>, dest_id: ChainId, reason: BondReason)
+func (c *Connection) ExeLiquidityBondAndSwapProposal(flow *submodel.ExeLiquidityBondAndSwapFlow) (*submodel.Proposal, error) {
+	method := config.MethodExecuteBondAndSwap
+	ci, err := c.sc.FindCallIndex(method)
+	if err != nil {
+		return nil, err
+	}
+
+	call, err := types.NewCallWithCallIndex(
+		ci,
+		method,
+		flow.Pool,
+		flow.Blockhash,
+		flow.Txhash,
+		flow.Amount,
+		flow.Symbol,
+		flow.StafiRecipient,
+		flow.DestRecipient,
+		flow.DestId,
+		flow.Reason,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	bondId := types.NewHash(flow.Txhash)
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: bondId, MethodName: method}, nil
+}
+
 func (c *Connection) CommonReportProposal(method string, symbol core.RSymbol, bondId, shotId types.Hash) (*submodel.Proposal, error) {
 	ci, err := c.sc.FindCallIndex(method)
 	if err != nil {

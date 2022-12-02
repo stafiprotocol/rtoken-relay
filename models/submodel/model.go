@@ -52,6 +52,7 @@ const (
 	Dealing = BondState("Dealing")
 	Fail    = BondState("Fail")
 	Success = BondState("Success")
+	Default = BondState("Default")
 )
 
 func (bs BondState) Encode(encoder scale.Encoder) error {
@@ -62,6 +63,8 @@ func (bs BondState) Encode(encoder scale.Encoder) error {
 		return encoder.PushByte(1)
 	case Success:
 		return encoder.PushByte(2)
+	case Default:
+		return encoder.PushByte(100)
 	default:
 		return fmt.Errorf("BondState %s not supported", bs)
 	}
@@ -80,6 +83,8 @@ func (bs *BondState) Decode(decoder scale.Decoder) error {
 		*bs = Fail
 	case 2:
 		*bs = Success
+	case 100:
+		*bs = Default
 	default:
 		return fmt.Errorf("BondState decode error: %d", b)
 	}
@@ -388,6 +393,13 @@ type GetEraNominatedFlow struct {
 	NewValidators chan []types.AccountID
 }
 
+type GetBondStateFlow struct {
+	Symbol    core.RSymbol
+	BlockHash types.Bytes
+	TxHash    types.Bytes
+	BondState chan BondState
+}
+
 type MultiEventFlow struct {
 	EventId          string
 	Symbol           core.RSymbol
@@ -602,6 +614,16 @@ type GetReceiversParams struct {
 	Pool   types.Bytes
 }
 
+type GetSubmitSignaturesFlow struct {
+	Symbol     core.RSymbol
+	Era        types.U32
+	Pool       types.Bytes
+	TxType     OriginalTx
+	ProposalId types.Bytes
+	Signatures chan []types.Bytes
+	Threshold  uint32
+}
+
 type SubmitSignatures struct {
 	Symbol     core.RSymbol
 	Era        types.U32
@@ -651,4 +673,17 @@ type EvtSignatureEnough struct {
 	Pool       []byte
 	TxType     OriginalTx
 	ProposalId []byte
+}
+
+// execute_bond_and_swap(origin, pool: Vec<u8>, blockhash: Vec<u8>, txhash: Vec<u8>, amount: u128, symbol: RSymbol, stafi_recipient: T::AccountId, dest_recipient: Vec<u8>, dest_id: ChainId, reason: BondReason)
+type ExeLiquidityBondAndSwapFlow struct {
+	Pool           types.Bytes
+	Blockhash      types.Bytes
+	Txhash         types.Bytes
+	Amount         types.U128
+	Symbol         core.RSymbol
+	StafiRecipient types.AccountID
+	DestRecipient  types.Bytes
+	DestId         types.U8
+	Reason         BondReason
 }

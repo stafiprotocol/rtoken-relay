@@ -5,6 +5,7 @@ package substrate
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -755,7 +756,73 @@ func (c *Connection) threshold(symbol core.RSymbol, pool []byte) (uint16, error)
 		return 0, err
 	}
 	if !exist {
-		return 0, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+		return 0, ErrorNotExist
 	}
 	return threshold, nil
+}
+
+func (c *Connection) bondState(symbol core.RSymbol, blockHash, txHash []byte) (submodel.BondState, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return submodel.Default, err
+	}
+
+	bsk := submodel.BondStateKey{BlockHash: blockHash, TxHash: txHash}
+	bskBz, err := types.EncodeToBytes(bsk)
+	if err != nil {
+		return submodel.Default, err
+	}
+
+	var bs submodel.BondState
+	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondStates, symBz, bskBz, &bs)
+	if err != nil {
+		return submodel.Default, err
+	}
+
+	if !exist {
+		return submodel.Default, ErrorNotExist
+	}
+	return bs, nil
+}
+
+func (c *Connection) getSubmitSignatures(symbol core.RSymbol, era uint32, pool []byte, txType submodel.OriginalTx, proposalId []byte) (*submodel.SubmitSignatures, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+	th, err := c.threshold(symbol, pool)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get threshold: pool %s ", hex.EncodeToString(pool))
+	}
+	sk := submodel.SignaturesKey{
+		Era:        era,
+		Pool:       pool,
+		TxType:     txType,
+		ProposalId: proposalId,
+	}
+
+	skBz, err := types.EncodeToBytes(sk)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigs []types.Bytes
+	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, ErrorNotExist
+	}
+
+	return &submodel.SubmitSignatures{
+		Symbol:     symbol,
+		Era:        types.U32(era),
+		Pool:       pool,
+		TxType:     txType,
+		ProposalId: proposalId,
+		Signature:  sigs[:],
+		Threshold:  uint32(th),
+	}, nil
 }

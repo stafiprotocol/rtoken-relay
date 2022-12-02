@@ -12,9 +12,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -24,6 +26,7 @@ var (
 	BlockRetryInterval = time.Second * 10
 	EraInterval        = time.Minute * 2
 	BlockRetryLimit    = 30
+	GetRetryLimit      = 50
 	ErrFatalPolling    = errors.New("listener block polling failed")
 )
 
@@ -155,12 +158,154 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 		End:     &currentBlock,
 		Context: context.Background(),
 	})
-
 	if err != nil {
 		return err
 	}
-	for stakeIterator.Next() {
 
+	for stakeIterator.Next() {
+		// check stafi recipient ?
+		flow := submodel.ExeLiquidityBondAndSwapFlow{
+			Pool:           types.NewBytes(stakeIterator.Event.StakePool.Bytes()),
+			Blockhash:      types.NewBytes(stakeIterator.Event.Raw.BlockHash.Bytes()),
+			Txhash:         types.NewBytes(stakeIterator.Event.Raw.TxHash.Bytes()),
+			Amount:         types.NewU128(*stakeIterator.Event.Amount),
+			Symbol:         core.RMATIC,
+			StafiRecipient: types.NewAccountID(stakeIterator.Event.StafiRecipient[:]),
+			DestRecipient:  types.NewBytes(stakeIterator.Event.DestRecipient[:]),
+			DestId:         types.U8(stakeIterator.Event.ChainId),
+			Reason:         submodel.Pass,
+		}
+
+		err := l.processExeLiquidityBondAndSwap(&flow)
+		if err != nil {
+			return err
+		}
+
+		// wait until it is dealed
+		retry := 0
+		for {
+			if retry > GetRetryLimit {
+				return fmt.Errorf("GetBondStateFlow reach retry limit")
+			}
+
+			getFlow := submodel.GetBondStateFlow{
+				Symbol:    core.RMATIC,
+				BlockHash: flow.Blockhash,
+				TxHash:    flow.Txhash,
+				BondState: make(chan submodel.BondState, 1),
+			}
+			msg := &core.Message{
+				Source: core.RMATIC, Destination: core.RFIS,
+				Reason: core.GetBondState, Content: getFlow}
+			err := l.submitMessage(msg)
+			if err != nil {
+				return err
+			}
+
+			timer := time.NewTimer(10 * time.Second)
+			defer timer.Stop()
+
+			bondState := submodel.Default
+			select {
+			case <-timer.C:
+			case bs := <-getFlow.BondState:
+				bondState = bs
+			}
+			if bondState == submodel.Default {
+				retry++
+				time.Sleep(WaitInterval)
+				continue
+			}
+			break
+		}
+	}
+
+	recoverStakeIterator, err := l.conn.stakePortalContract.FilterRecoverStake(&bind.FilterOpts{
+		Start:   currentBlock,
+		End:     &currentBlock,
+		Context: context.Background(),
+	})
+	if err != nil {
+		return err
+	}
+
+	for recoverStakeIterator.Next() {
+		tx, err := l.conn.conn.TransactionReceipt(recoverStakeIterator.Event.TxHash)
+		if err != nil {
+			return err
+		}
+		blockNumber := tx.BlockNumber.Uint64()
+
+		oldStakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
+			Start:   blockNumber,
+			End:     &blockNumber,
+			Context: context.Background(),
+		})
+		if err != nil {
+			return err
+		}
+
+		for oldStakeIterator.Next() {
+			if oldStakeIterator.Event.Raw.TxHash != recoverStakeIterator.Event.TxHash {
+				continue
+			}
+
+			// check stafi recipient ?
+			flow := submodel.ExeLiquidityBondAndSwapFlow{
+				Pool:           types.NewBytes(oldStakeIterator.Event.StakePool.Bytes()),
+				Blockhash:      types.NewBytes(oldStakeIterator.Event.Raw.BlockHash.Bytes()),
+				Txhash:         types.NewBytes(oldStakeIterator.Event.Raw.TxHash.Bytes()),
+				Amount:         types.NewU128(*oldStakeIterator.Event.Amount),
+				Symbol:         core.RMATIC,
+				StafiRecipient: types.NewAccountID(recoverStakeIterator.Event.StafiRecipient[:]),
+				DestRecipient:  types.NewBytes(oldStakeIterator.Event.DestRecipient[:]),
+				DestId:         types.U8(oldStakeIterator.Event.ChainId),
+				Reason:         submodel.Pass,
+			}
+
+			err := l.processExeLiquidityBondAndSwap(&flow)
+			if err != nil {
+				return err
+			}
+
+			// wait until it is dealed
+			retry := 0
+			for {
+				if retry > GetRetryLimit {
+					return fmt.Errorf("GetBondStateFlow reach retry limit")
+				}
+
+				getFlow := submodel.GetBondStateFlow{
+					Symbol:    core.RMATIC,
+					BlockHash: flow.Blockhash,
+					TxHash:    flow.Txhash,
+					BondState: make(chan submodel.BondState, 1),
+				}
+				msg := &core.Message{
+					Source: core.RMATIC, Destination: core.RFIS,
+					Reason: core.GetBondState, Content: getFlow}
+				err := l.submitMessage(msg)
+				if err != nil {
+					return err
+				}
+
+				timer := time.NewTimer(10 * time.Second)
+				defer timer.Stop()
+
+				bondState := submodel.Default
+				select {
+				case <-timer.C:
+				case bs := <-getFlow.BondState:
+					bondState = bs
+				}
+				if bondState == submodel.Default {
+					retry++
+					time.Sleep(WaitInterval)
+					continue
+				}
+				break
+			}
+		}
 	}
 
 	return nil
@@ -209,6 +354,11 @@ func (l *listener) pollEras() error {
 
 func (l *listener) processEra(era uint32) error {
 	msg := &core.Message{Destination: core.RFIS, Reason: core.NewEra, Content: era}
+	return l.submitMessage(msg)
+}
+
+func (l *listener) processExeLiquidityBondAndSwap(flow *submodel.ExeLiquidityBondAndSwapFlow) error {
+	msg := &core.Message{Destination: core.RFIS, Reason: core.ExeLiquidityBondAndSwap, Content: flow}
 	return l.submitMessage(msg)
 }
 
