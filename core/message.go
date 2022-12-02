@@ -12,14 +12,15 @@ type Reason string
 const (
 
 	// send by other chain
-	LiquidityBondResult        = Reason("LiquidityBondResult")
-	ExeLiquidityBondAndSwap    = Reason("ExeLiquidityBondAndSwap")
-	NewEra                     = Reason("NewEra")
-	InformChain                = Reason("InformChain")
-	ActiveReport               = Reason("ActiveReport")
-	GetEraNominated            = Reason("GetEraNominated")
-	GetBondState               = Reason("GetBondState")
-	WaitAndGetSubmitSignatures = Reason("WaitAndGetSubmitSignatures")
+	LiquidityBondResult     = Reason("LiquidityBondResult")
+	ExeLiquidityBondAndSwap = Reason("ExeLiquidityBondAndSwap")
+	NewEra                  = Reason("NewEra")
+	InformChain             = Reason("InformChain")
+	ActiveReport            = Reason("ActiveReport")
+	GetEraNominated         = Reason("GetEraNominated")
+	GetBondState            = Reason("GetBondState")
+	GetSubmitSignatures     = Reason("GetSubmitSignatures")
+	GetPoolThreshold        = Reason("GetPoolThreshold")
 
 	// send by stafi
 	BondedPools = Reason("BondedPools")

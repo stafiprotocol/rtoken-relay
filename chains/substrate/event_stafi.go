@@ -2,7 +2,6 @@ package substrate
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -14,19 +13,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
-)
-
-var (
-	ErrormultiEnd             = errors.New("multiEnd")
-	ErrorEraSnapShotsNotExist = errors.New("eraSnapShots not exist")
-
-	ErrorEventEraIsOld                = errors.New("ErrorEventEraIsOld")
-	ErrorBondStateNotEraUpdated       = errors.New("ErrorBondStateNotEraUpdated")
-	ErrorBondStateNotBondReported     = errors.New("ErrorBondStateNotBondReported")
-	ErrorBondStateNotActiveReported   = errors.New("ErrorBondStateNotActiveReported")
-	ErrorBondStateNotWithdrawReported = errors.New("ErrorBondStateNotWithdrawReported")
-	ErrorBondStateNotTransferReported = errors.New("ErrorBondStateNotTransferReported")
-	ErrNotCared                       = errors.New("not care this symbol")
 )
 
 func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submodel.BondFlow, error) {
@@ -126,7 +112,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, ErrorBondStateNotEraUpdated
 	}
 
-	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	th, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +186,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, ErrorBondStateNotBondReported
 	}
 
-	_, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	_, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +270,7 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, ErrorBondStateNotActiveReported
 	}
 
-	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	th, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +338,7 @@ func (l *listener) processActiveReportedEvtAsWithdrawReported(evt *submodel.Chai
 		return nil, err
 	}
 
-	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	th, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +401,7 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
-	th, sub, err := l.thresholdAndSubAccounts(snap.Symbol, snap.Pool)
+	th, sub, err := l.poolThresholdAndSubAccounts(snap.Symbol, snap.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +475,7 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 		return nil, ErrNotCared
 	}
 
-	th, sub, err := l.thresholdAndSubAccounts(flow.Symbol, flow.Pool)
+	th, sub, err := l.poolThresholdAndSubAccounts(flow.Symbol, flow.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +548,7 @@ func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submode
 		return nil, fmt.Errorf("unable to get signatures: signature key %+v ", sk)
 	}
 
-	th, err := l.threshold(data.RSymbol, data.Pool)
+	th, err := l.conn.poolThreshold(data.RSymbol, data.Pool)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get threshold: pool %s ", hex.EncodeToString(data.Pool))
 	}
@@ -581,37 +567,6 @@ func (l *listener) processSignatureEnoughEvt(evt *submodel.ChainEvent) (*submode
 		Signature:  sigs[:],
 		Threshold:  uint32(th),
 	}, nil
-}
-
-func (l *listener) processNewMultisigEvt(evt *submodel.ChainEvent) (*submodel.EventNewMultisig, error) {
-	data, err := submodel.EventNewMultisigData(evt)
-	if err != nil {
-		return nil, err
-	}
-
-	mul := new(submodel.Multisig)
-	exist, err := l.conn.QueryStorage(config.MultisigModuleId, config.StorageMultisigs, data.ID[:], data.CallHash[:], mul)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exist {
-		return nil, ErrormultiEnd
-	}
-
-	data.TimePoint = submodel.NewOptionTimePoint(mul.When)
-	data.Approvals = mul.Approvals
-	data.CallHashStr = hexutil.Encode(data.CallHash[:])
-	return data, nil
-}
-
-func (l *listener) processMultisigExecutedEvt(evt *submodel.ChainEvent) (*submodel.EventMultisigExecuted, error) {
-	data, err := submodel.EventMultisigExecutedData(evt)
-	if err != nil {
-		return nil, err
-	}
-	data.CallHashStr = hexutil.Encode(data.CallHash[:])
-	return data, nil
 }
 
 func (l *listener) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.PoolSnapshot, error) {
@@ -636,7 +591,7 @@ func (l *listener) snapshot(symbol core.RSymbol, shotId types.Hash) (*submodel.P
 	return snap, nil
 }
 
-func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
+func (l *listener) poolThresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (uint16, []types.Bytes, error) {
 	if symbol == core.RBNB {
 		return 0, nil, nil
 	}
@@ -669,10 +624,6 @@ func (l *listener) thresholdAndSubAccounts(symbol core.RSymbol, pool []byte) (ui
 	}
 
 	return threshold, subs, nil
-}
-
-func (l *listener) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
-	return l.conn.threshold(symbol, pool)
 }
 
 func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*submodel.Receive, types.U128, error) {

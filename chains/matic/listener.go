@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 
+	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakePortal"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -149,20 +151,19 @@ func (l *listener) pollBlocks() error {
 	}
 }
 
-func (l *listener) processBlockEvents(currentBlock uint64) error {
-	if currentBlock%100 == 0 {
-		l.log.Debug("processBlockEvents", "blockNum", currentBlock)
-	}
-	stakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
-		Start:   currentBlock,
-		End:     &currentBlock,
-		Context: context.Background(),
-	})
-	if err != nil {
-		return err
+func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, txHash common.Hash) error {
+	willUseStafiRecipient := stakeIterator.Event.StafiRecipient
+	if isRecover {
+		willUseStafiRecipient = stafiRecipient
 	}
 
 	for stakeIterator.Next() {
+		if isRecover {
+			if stakeIterator.Event.Raw.TxHash != txHash {
+				continue
+			}
+		}
+
 		// check stafi recipient ?
 		flow := submodel.ExeLiquidityBondAndSwapFlow{
 			Pool:           types.NewBytes(stakeIterator.Event.StakePool.Bytes()),
@@ -170,7 +171,7 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 			Txhash:         types.NewBytes(stakeIterator.Event.Raw.TxHash.Bytes()),
 			Amount:         types.NewU128(*stakeIterator.Event.Amount),
 			Symbol:         core.RMATIC,
-			StafiRecipient: types.NewAccountID(stakeIterator.Event.StafiRecipient[:]),
+			StafiRecipient: types.NewAccountID(willUseStafiRecipient[:]),
 			DestRecipient:  types.NewBytes(stakeIterator.Event.DestRecipient[:]),
 			DestId:         types.U8(stakeIterator.Event.ChainId),
 			Reason:         submodel.Pass,
@@ -219,7 +220,29 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 			break
 		}
 	}
+	return nil
+}
 
+func (l *listener) processBlockEvents(currentBlock uint64) error {
+	if currentBlock%100 == 0 {
+		l.log.Debug("processBlockEvents", "blockNum", currentBlock)
+	}
+	// stake event
+	stakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
+		Start:   currentBlock,
+		End:     &currentBlock,
+		Context: context.Background(),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = l.processStakeEvent(stakeIterator, false, [32]byte{}, common.Hash{})
+	if err != nil {
+		return err
+	}
+
+	// recover event
 	recoverStakeIterator, err := l.conn.stakePortalContract.FilterRecoverStake(&bind.FilterOpts{
 		Start:   currentBlock,
 		End:     &currentBlock,
@@ -245,66 +268,9 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 			return err
 		}
 
-		for oldStakeIterator.Next() {
-			if oldStakeIterator.Event.Raw.TxHash != recoverStakeIterator.Event.TxHash {
-				continue
-			}
-
-			// check stafi recipient ?
-			flow := submodel.ExeLiquidityBondAndSwapFlow{
-				Pool:           types.NewBytes(oldStakeIterator.Event.StakePool.Bytes()),
-				Blockhash:      types.NewBytes(oldStakeIterator.Event.Raw.BlockHash.Bytes()),
-				Txhash:         types.NewBytes(oldStakeIterator.Event.Raw.TxHash.Bytes()),
-				Amount:         types.NewU128(*oldStakeIterator.Event.Amount),
-				Symbol:         core.RMATIC,
-				StafiRecipient: types.NewAccountID(recoverStakeIterator.Event.StafiRecipient[:]),
-				DestRecipient:  types.NewBytes(oldStakeIterator.Event.DestRecipient[:]),
-				DestId:         types.U8(oldStakeIterator.Event.ChainId),
-				Reason:         submodel.Pass,
-			}
-
-			err := l.processExeLiquidityBondAndSwap(&flow)
-			if err != nil {
-				return err
-			}
-
-			// wait until it is dealed
-			retry := 0
-			for {
-				if retry > GetRetryLimit {
-					return fmt.Errorf("GetBondStateFlow reach retry limit")
-				}
-
-				getFlow := submodel.GetBondStateFlow{
-					Symbol:    core.RMATIC,
-					BlockHash: flow.Blockhash,
-					TxHash:    flow.Txhash,
-					BondState: make(chan submodel.BondState, 1),
-				}
-				msg := &core.Message{
-					Source: core.RMATIC, Destination: core.RFIS,
-					Reason: core.GetBondState, Content: getFlow}
-				err := l.submitMessage(msg)
-				if err != nil {
-					return err
-				}
-
-				timer := time.NewTimer(10 * time.Second)
-				defer timer.Stop()
-
-				bondState := submodel.Default
-				select {
-				case <-timer.C:
-				case bs := <-getFlow.BondState:
-					bondState = bs
-				}
-				if bondState == submodel.Default {
-					retry++
-					time.Sleep(WaitInterval)
-					continue
-				}
-				break
-			}
+		err = l.processStakeEvent(oldStakeIterator, true, recoverStakeIterator.Event.StafiRecipient, recoverStakeIterator.Event.TxHash)
+		if err != nil {
+			return err
 		}
 	}
 

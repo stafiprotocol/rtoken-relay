@@ -138,8 +138,11 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 	case core.GetBondState:
 		go w.processGetBondState(m)
 		return true
-	case core.WaitAndGetSubmitSignatures:
-		go w.processWaitAndGetSubmitSignatures(m)
+	case core.GetSubmitSignatures:
+		go w.processGetSubmitSignatures(m)
+		return true
+	case core.GetPoolThreshold:
+		go w.processGetPoolThreshold(m)
 		return true
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)

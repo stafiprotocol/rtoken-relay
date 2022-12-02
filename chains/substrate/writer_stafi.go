@@ -55,7 +55,7 @@ func (w *writer) processGetBondState(m *core.Message) bool {
 	return true
 }
 
-func (w *writer) processWaitAndGetSubmitSignatures(m *core.Message) bool {
+func (w *writer) processGetSubmitSignatures(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.GetSubmitSignaturesFlow)
 	if !ok {
 		w.printContentError(m)
@@ -72,7 +72,28 @@ func (w *writer) processWaitAndGetSubmitSignatures(m *core.Message) bool {
 		return false
 	}
 
-	flow.Signatures <- submitSigs.Signature
+	flow.Signatures <- submitSigs
+	return true
+}
+
+func (w *writer) processGetPoolThreshold(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.GetPoolThresholdFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	threshold, err := w.conn.poolThreshold(flow.Symbol, flow.Pool)
+	if err != nil {
+		if err.Error() == ErrorNotExist.Error() {
+			flow.Threshold <- 0
+			return true
+		}
+		flow.Threshold <- 0
+		return false
+	}
+
+	flow.Threshold <- uint32(threshold)
 	return true
 }
 

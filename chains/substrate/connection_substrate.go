@@ -5,7 +5,6 @@ package substrate
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -283,105 +282,6 @@ func (c *Connection) CurrentEra() (uint32, error) {
 	}
 
 	return index, nil
-}
-
-func (c *Connection) EraContinuable(sym core.RSymbol) (bool, error) {
-	symBz, err := types.EncodeToBytes(sym)
-	if err != nil {
-		return false, err
-	}
-
-	ids := make([]types.Hash, 0)
-	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageCurrentEraSnapShots, symBz, nil, &ids)
-	if err != nil {
-		return false, err
-	}
-
-	if !exists {
-		return true, nil
-	}
-
-	return len(ids) == 0, nil
-}
-
-func (c *Connection) CurrentEraSnapshots(symbol core.RSymbol) ([]types.Hash, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make([]types.Hash, 0)
-	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageCurrentEraSnapShots, symBz, nil, &ids)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.New("currentEraSnapshots not exist")
-	}
-	return ids, nil
-}
-
-func (c *Connection) RelayerThreshold(symbol core.RSymbol) (uint32, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return 0, err
-	}
-
-	var th types.U32
-	exists, err := c.QueryStorage(config.RTokenRelayersModuleId, config.StorageRelayerThreshold, symBz, nil, &th)
-	if err != nil {
-		return 0, err
-	}
-	if !exists {
-		return 0, errors.New("RelayerThreshold not exist")
-	}
-	return uint32(th), nil
-}
-
-func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint32) ([]types.AccountID, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, err
-	}
-
-	puk := &submodel.PoolUnbondKey{Pool: pool, Era: era}
-	pkbz, err := types.EncodeToBytes(puk)
-	if err != nil {
-		return nil, err
-	}
-
-	validators := make([]types.AccountID, 0)
-	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageEraNominated, symBz, pkbz, &validators)
-	if err != nil {
-		return nil, err
-	}
-	if !exist {
-		return nil, ErrorNotExist
-	}
-	return validators, nil
-}
-
-func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
-	symBz, err := types.EncodeToBytes(sym)
-	if err != nil {
-		return 0, err
-	}
-
-	var era uint32
-	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageChainEras, symBz, nil, &era)
-	if err != nil {
-		return 0, err
-	}
-
-	if !exists {
-		return 0, fmt.Errorf("era of symbol %s not exist", sym)
-	}
-
-	return era, nil
-}
-
-func (c *Connection) IsLastVoter(voter types.AccountID) bool {
-	return hexutil.Encode(c.sc.PublicKey()) == hexutil.Encode(voter[:])
 }
 
 func (c *Connection) FoundFirstSubAccount(accounts []types.Bytes) (*signature.KeyringPair, []types.AccountID) {
@@ -706,123 +606,10 @@ func (c *Connection) NeedMoreSignature(params *submodel.SubmitSignatureParams) (
 		return true, nil
 	}
 
-	th, err := c.threshold(params.Symbol, params.Pool)
+	th, err := c.poolThreshold(params.Symbol, params.Pool)
 	if err != nil {
 		return false, err
 	}
 
 	return len(sigs) < int(th), nil
-}
-
-func (c *Connection) submitSignature(param *submodel.SubmitSignatureParams) bool {
-	for i := 0; i < BlockRetryLimit; i++ {
-		c.log.Info("submitSignature on chain...")
-		ext, err := c.sc.NewUnsignedExtrinsic(config.SubmitSignatures, param.Symbol, param.Era, param.Pool,
-			param.TxType, param.ProposalId, param.Signature)
-		if err != nil {
-			c.log.Warn("submitSignature error will retry", "err", err)
-			time.Sleep(BlockRetryInterval)
-			continue
-		}
-		err = c.sc.SignAndSubmitTx(ext)
-		if err != nil {
-			if err.Error() == ErrorTerminated.Error() {
-				c.log.Error("submitSignature  met ErrorTerminated")
-				return false
-			}
-			c.log.Warn("submitSignature error will retry", "err", err)
-			time.Sleep(BlockRetryInterval)
-			continue
-		}
-		return true
-	}
-	return false
-}
-
-func (c *Connection) threshold(symbol core.RSymbol, pool []byte) (uint16, error) {
-	poolBz, err := types.EncodeToBytes(pool)
-	if err != nil {
-		return 0, err
-	}
-
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return 0, err
-	}
-
-	var threshold uint16
-	exist, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, poolBz, &threshold)
-	if err != nil {
-		return 0, err
-	}
-	if !exist {
-		return 0, ErrorNotExist
-	}
-	return threshold, nil
-}
-
-func (c *Connection) bondState(symbol core.RSymbol, blockHash, txHash []byte) (submodel.BondState, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return submodel.Default, err
-	}
-
-	bsk := submodel.BondStateKey{BlockHash: blockHash, TxHash: txHash}
-	bskBz, err := types.EncodeToBytes(bsk)
-	if err != nil {
-		return submodel.Default, err
-	}
-
-	var bs submodel.BondState
-	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondStates, symBz, bskBz, &bs)
-	if err != nil {
-		return submodel.Default, err
-	}
-
-	if !exist {
-		return submodel.Default, ErrorNotExist
-	}
-	return bs, nil
-}
-
-func (c *Connection) getSubmitSignatures(symbol core.RSymbol, era uint32, pool []byte, txType submodel.OriginalTx, proposalId []byte) (*submodel.SubmitSignatures, error) {
-	symBz, err := types.EncodeToBytes(symbol)
-	if err != nil {
-		return nil, err
-	}
-	th, err := c.threshold(symbol, pool)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get threshold: pool %s ", hex.EncodeToString(pool))
-	}
-	sk := submodel.SignaturesKey{
-		Era:        era,
-		Pool:       pool,
-		TxType:     txType,
-		ProposalId: proposalId,
-	}
-
-	skBz, err := types.EncodeToBytes(sk)
-	if err != nil {
-		return nil, err
-	}
-
-	var sigs []types.Bytes
-	exist, err := c.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exist {
-		return nil, ErrorNotExist
-	}
-
-	return &submodel.SubmitSignatures{
-		Symbol:     symbol,
-		Era:        types.U32(era),
-		Pool:       pool,
-		TxType:     txType,
-		ProposalId: proposalId,
-		Signature:  sigs[:],
-		Threshold:  uint32(th),
-	}, nil
 }

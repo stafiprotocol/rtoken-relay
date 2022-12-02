@@ -621,7 +621,11 @@ type GetSubmitSignaturesFlow struct {
 	TxType     OriginalTx
 	ProposalId types.Bytes
 	Signatures chan []types.Bytes
-	Threshold  uint32
+}
+type GetPoolThresholdFlow struct {
+	Symbol    core.RSymbol
+	Pool      types.Bytes
+	Threshold chan uint32
 }
 
 type SubmitSignatures struct {
