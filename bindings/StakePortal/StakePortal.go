@@ -30,7 +30,7 @@ var (
 
 // StakePortalMetaData contains all meta data concerning the StakePortal contract.
 var StakePortalMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stafiRecipient\",\"type\":\"bytes32\"}],\"name\":\"RecoverStake\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"stakePool\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"chainId\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stafiRecipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"destRecipient\",\"type\":\"address\"}],\"name\":\"Stake\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint8[]\",\"name\":\"_chaindIdList\",\"type\":\"uint8[]\"}],\"name\":\"addChainId\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_stakePoolAddressList\",\"type\":\"address[]\"}],\"name\":\"addStakePool\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"chainIdExist\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"erc20TokenAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_stakePoolAddressList\",\"type\":\"address[]\"},{\"internalType\":\"uint8[]\",\"name\":\"_chainIdList\",\"type\":\"uint8[]\"},{\"internalType\":\"address\",\"name\":\"_erc20TokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_minAmount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_relayFee\",\"type\":\"uint256\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initialized\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minAmount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_txHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"_stafiRecipient\",\"type\":\"bytes32\"}],\"name\":\"recoverStake\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"relayFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"_chaindId\",\"type\":\"uint8\"}],\"name\":\"rmChainId\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_stakePoolAddress\",\"type\":\"address\"}],\"name\":\"rmStakePool\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_minAmount\",\"type\":\"uint256\"}],\"name\":\"setMinAmount\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_relayFee\",\"type\":\"uint256\"}],\"name\":\"setRelayFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_stakePoolAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"_destChainId\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"_stafiRecipient\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"_destRecipient\",\"type\":\"address\"}],\"name\":\"stake\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakePoolAddressExist\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stakeSwitch\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"toggleSwitch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"withdrawFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_stakePoolAddressList\",\"type\":\"address[]\"},{\"internalType\":\"uint8[]\",\"name\":\"_chainIdList\",\"type\":\"uint8[]\"},{\"internalType\":\"address\",\"name\":\"_erc20TokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_minAmount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_relayFee\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"txHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stafiRecipient\",\"type\":\"bytes32\"}],\"name\":\"RecoverStake\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"stakePool\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"chainId\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stafiRecipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"destRecipient\",\"type\":\"address\"}],\"name\":\"Stake\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint8[]\",\"name\":\"_chaindIdList\",\"type\":\"uint8[]\"}],\"name\":\"addChainId\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_stakePoolAddressList\",\"type\":\"address[]\"}],\"name\":\"addStakePool\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"chainIdExist\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"erc20TokenAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minAmount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_txHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"_stafiRecipient\",\"type\":\"bytes32\"}],\"name\":\"recoverStake\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"relayFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"_chaindId\",\"type\":\"uint8\"}],\"name\":\"rmChainId\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_stakePoolAddress\",\"type\":\"address\"}],\"name\":\"rmStakePool\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_minAmount\",\"type\":\"uint256\"}],\"name\":\"setMinAmount\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_relayFee\",\"type\":\"uint256\"}],\"name\":\"setRelayFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_stakePoolAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"_destChainId\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"_stafiRecipient\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"_destRecipient\",\"type\":\"address\"}],\"name\":\"stake\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakePoolAddressExist\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stakeSwitch\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"toggleSwitch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"withdrawFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // StakePortalABI is the input ABI used to generate the binding from.
@@ -241,37 +241,6 @@ func (_StakePortal *StakePortalCallerSession) Erc20TokenAddress() (common.Addres
 	return _StakePortal.Contract.Erc20TokenAddress(&_StakePortal.CallOpts)
 }
 
-// Initialized is a free data retrieval call binding the contract method 0x158ef93e.
-//
-// Solidity: function initialized() view returns(bool)
-func (_StakePortal *StakePortalCaller) Initialized(opts *bind.CallOpts) (bool, error) {
-	var out []interface{}
-	err := _StakePortal.contract.Call(opts, &out, "initialized")
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// Initialized is a free data retrieval call binding the contract method 0x158ef93e.
-//
-// Solidity: function initialized() view returns(bool)
-func (_StakePortal *StakePortalSession) Initialized() (bool, error) {
-	return _StakePortal.Contract.Initialized(&_StakePortal.CallOpts)
-}
-
-// Initialized is a free data retrieval call binding the contract method 0x158ef93e.
-//
-// Solidity: function initialized() view returns(bool)
-func (_StakePortal *StakePortalCallerSession) Initialized() (bool, error) {
-	return _StakePortal.Contract.Initialized(&_StakePortal.CallOpts)
-}
-
 // MinAmount is a free data retrieval call binding the contract method 0x9b2cb5d8.
 //
 // Solidity: function minAmount() view returns(uint256)
@@ -467,27 +436,6 @@ func (_StakePortal *StakePortalSession) AddStakePool(_stakePoolAddressList []com
 // Solidity: function addStakePool(address[] _stakePoolAddressList) returns()
 func (_StakePortal *StakePortalTransactorSession) AddStakePool(_stakePoolAddressList []common.Address) (*types.Transaction, error) {
 	return _StakePortal.Contract.AddStakePool(&_StakePortal.TransactOpts, _stakePoolAddressList)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0xb06d8b98.
-//
-// Solidity: function initialize(address[] _stakePoolAddressList, uint8[] _chainIdList, address _erc20TokenAddress, uint256 _minAmount, uint256 _relayFee) returns()
-func (_StakePortal *StakePortalTransactor) Initialize(opts *bind.TransactOpts, _stakePoolAddressList []common.Address, _chainIdList []uint8, _erc20TokenAddress common.Address, _minAmount *big.Int, _relayFee *big.Int) (*types.Transaction, error) {
-	return _StakePortal.contract.Transact(opts, "initialize", _stakePoolAddressList, _chainIdList, _erc20TokenAddress, _minAmount, _relayFee)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0xb06d8b98.
-//
-// Solidity: function initialize(address[] _stakePoolAddressList, uint8[] _chainIdList, address _erc20TokenAddress, uint256 _minAmount, uint256 _relayFee) returns()
-func (_StakePortal *StakePortalSession) Initialize(_stakePoolAddressList []common.Address, _chainIdList []uint8, _erc20TokenAddress common.Address, _minAmount *big.Int, _relayFee *big.Int) (*types.Transaction, error) {
-	return _StakePortal.Contract.Initialize(&_StakePortal.TransactOpts, _stakePoolAddressList, _chainIdList, _erc20TokenAddress, _minAmount, _relayFee)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0xb06d8b98.
-//
-// Solidity: function initialize(address[] _stakePoolAddressList, uint8[] _chainIdList, address _erc20TokenAddress, uint256 _minAmount, uint256 _relayFee) returns()
-func (_StakePortal *StakePortalTransactorSession) Initialize(_stakePoolAddressList []common.Address, _chainIdList []uint8, _erc20TokenAddress common.Address, _minAmount *big.Int, _relayFee *big.Int) (*types.Transaction, error) {
-	return _StakePortal.Contract.Initialize(&_StakePortal.TransactOpts, _stakePoolAddressList, _chainIdList, _erc20TokenAddress, _minAmount, _relayFee)
 }
 
 // RecoverStake is a paid mutator transaction binding the contract method 0x919a2f83.
