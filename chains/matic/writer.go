@@ -31,10 +31,6 @@ type writer struct {
 	currentChainEra uint32
 	bondedPoolsMtx  sync.RWMutex
 	bondedPools     map[common.Address]bool
-	eventMtx        sync.RWMutex
-	events          map[common.Hash]*submodel.MultiEventFlow
-	bondReportedMtx sync.RWMutex
-	bondReporteds   map[common.Hash]*submodel.BondReportedFlow
 	stop            <-chan int
 }
 
@@ -51,8 +47,6 @@ func NewWriter(symbol core.RSymbol, conn *Connection, log core.Logger, sysErr ch
 		liquidityBonds:  make(chan *core.Message, bondFlowLimit),
 		currentChainEra: 0,
 		bondedPools:     make(map[common.Address]bool),
-		events:          make(map[common.Hash]*submodel.MultiEventFlow),
-		bondReporteds:   make(map[common.Hash]*submodel.BondReportedFlow),
 		stop:            stop,
 	}
 }
@@ -167,7 +161,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	poolAddr := common.BytesToAddress(snap.Pool)
-	method, tx, err := w.conn.BondOrUnbondCall(shareAddr, snap.Bond.Int, snap.Unbond.Int, flow.LeastBond)
+	txType, tx, err := w.conn.BondOrUnbondCall(shareAddr, snap.Bond.Int, snap.Unbond.Int, flow.LeastBond)
 	if err != nil {
 		if err.Error() == substrate.BondEqualToUnbondError.Error() {
 			w.log.Info("BondOrUnbondCall BondEqualToUnbondError", "symbol", snap.Symbol, "era", snap.Era)
@@ -196,7 +190,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		Symbol: flow.Symbol,
 		Era:    types.NewU32(snap.Era),
 		Pool:   snap.Pool,
-		TxType: method,
+		TxType: txType,
 	}
 
 	txHash, err := param.EncodeToHash()
@@ -215,7 +209,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	param.Signature = append(msg[:], signature...)
 
 	mef.MultiTransaction = tx
-	w.setEvents(txHash, mef)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 
 	err = w.submitMessage(result)
@@ -237,7 +230,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		Signature:  signatures,
 		Threshold:  uint32(mef.Threshold),
 	}
-	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData)
+	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData, mef, nil)
 }
 
 func (w *writer) processBondReported(m *core.Message) error {
@@ -292,7 +285,7 @@ func (w *writer) processBondReported(m *core.Message) error {
 	param.Signature = append(msg[:], signature...)
 
 	flow.MultiTransaction = tx
-	w.setBondReported(txHash, flow)
+
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	err = w.submitMessage(result)
 	if err != nil {
@@ -313,7 +306,7 @@ func (w *writer) processBondReported(m *core.Message) error {
 		Signature:  signatures,
 		Threshold:  flow.Threshold,
 	}
-	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData)
+	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData, nil, flow)
 
 }
 
@@ -384,7 +377,6 @@ func (w *writer) processActiveReported(m *core.Message) error {
 	param.Signature = append(msg[:], signature...)
 
 	mef.MultiTransaction = tx
-	w.setEvents(txHash, mef)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	err = w.submitMessage(result)
 	if err != nil {
@@ -405,7 +397,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 		Signature:  signatures,
 		Threshold:  uint32(mef.Threshold),
 	}
-	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData)
+	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData, mef, nil)
 }
 
 func (w *writer) processWithdrawReported(m *core.Message) error {
@@ -449,8 +441,16 @@ func (w *writer) processWithdrawReported(m *core.Message) error {
 		return fmt.Errorf("BalanceOf  error %s address %s", err, poolAddr)
 	}
 
+	// check it is already dealed or not
 	if balance.Cmp(flow.TotalAmount.Int) < 0 {
-		return fmt.Errorf("free balance not enough for transfer back symbol %s pool %s balance %s, totalAmount %s", flow.Symbol, poolAddr, balance, flow.TotalAmount)
+		state, err := w.conn.TxHashState(txHash, poolAddr)
+		if err != nil {
+			return fmt.Errorf("TxHashState error %s, txHash %s poolAddr %s", err, txHash, poolAddr)
+		}
+
+		if state != ethmodel.HashStateSuccess {
+			return fmt.Errorf("free balance not enough for transfer back symbol %s pool %s balance %s, totalAmount %s", flow.Symbol, poolAddr, balance, flow.TotalAmount)
+		}
 	}
 
 	tx, err := w.conn.TransferCall(flow.Receives)
@@ -469,7 +469,6 @@ func (w *writer) processWithdrawReported(m *core.Message) error {
 	param.ProposalId = crypto.Keccak256Hash(shareAddrAndCallData).Bytes()
 
 	mef.MultiTransaction = tx
-	w.setEvents(txHash, mef)
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.SubmitSignature, Content: param}
 	err = w.submitMessage(result)
 	if err != nil {
@@ -490,13 +489,13 @@ func (w *writer) processWithdrawReported(m *core.Message) error {
 		Signature:  signatures,
 		Threshold:  uint32(mef.Threshold),
 	}
-	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData)
+	return w.processSignatureEnough(&submitSignatures, shareAddrAndCallData, mef, nil)
 }
 
-func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAddrAndCallData []byte) error {
+func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAddrAndCallData []byte, mef *submodel.MultiEventFlow, bondFlow *submodel.BondReportedFlow) error {
 	w.log.Info("processSignatureEnough", "pool", hexutil.Encode(sigs.Pool), "txType", sigs.TxType)
 	if len(shareAddrAndCallData) <= common.AddressLength {
-		return fmt.Errorf("processSignatureEnough shareAddrAndCallData too short symbol %s", sigs.Symbol)
+		return fmt.Errorf("processSignatureEnough shareAddrAndCallData too short, symbol %s", sigs.Symbol)
 	}
 
 	signatures := make([][]byte, 0)
@@ -507,6 +506,7 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 		}
 		signatures = append(signatures, sig[32:])
 	}
+
 	vs, rs, ss := utils.DecomposeSignature(signatures)
 	to := common.BytesToAddress(shareAddrAndCallData[:20])
 	calldata := shareAddrAndCallData[20:]
@@ -517,19 +517,27 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 		return fmt.Errorf("processSignatureEnough sigs EncodeToHash error %s", err)
 	}
 
-	var mef *submodel.MultiEventFlow
-	var bondFlow *submodel.BondReportedFlow
 	var operation ethmodel.CallEnum
 	var value, safeGas, totalGas *big.Int
 	var subAccounts []types.Bytes
 	var era uint32
 
-	ok := false
 	txTypeErr := fmt.Errorf("processSignatureEnough TxType %s not supported", sigs.TxType)
-	if sigs.TxType != submodel.OriginalClaimRewards {
-		mef, ok = w.getEvents(txHash)
-		if !ok {
-			return fmt.Errorf("processSignatureEnough: no event for txHash %s", txHash)
+	switch sigs.TxType {
+	case submodel.OriginalClaimRewards:
+		if bondFlow == nil {
+			return fmt.Errorf("bondFlow shouldn't be nil")
+		}
+		operation = bondFlow.MultiTransaction.Operation
+		safeGas = bondFlow.MultiTransaction.SafeTxGas
+		value = bondFlow.MultiTransaction.Value
+		totalGas = bondFlow.MultiTransaction.TotalGas
+		subAccounts = bondFlow.SubAccounts
+		era = bondFlow.Snap.Era
+
+	case submodel.OriginalBond, submodel.OriginalUnbond, submodel.OriginalWithdrawUnbond, submodel.OriginalTransfer:
+		if mef == nil {
+			return fmt.Errorf("mef shouldn't be nil")
 		}
 		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 		operation = mef.MultiTransaction.Operation
@@ -537,31 +545,26 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 		safeGas = mef.MultiTransaction.SafeTxGas
 		totalGas = mef.MultiTransaction.TotalGas
 		subAccounts = mef.SubAccounts
+
 		switch sigs.TxType {
 		case submodel.OriginalBond, submodel.OriginalUnbond:
 			flow, _ := mef.EventData.(*submodel.EraPoolUpdatedFlow)
 			era = flow.Era
+
 		case submodel.OriginalWithdrawUnbond:
 			flow, _ := mef.EventData.(*submodel.ActiveReportedFlow)
 			era = flow.Snap.Era
+
 		case submodel.OriginalTransfer:
 			flow, _ := mef.EventData.(*submodel.WithdrawReportedFlow)
 			era = flow.Snap.Era
+
 		default:
 			return fmt.Errorf(txTypeErr.Error())
 		}
-	} else {
-		bondFlow, ok = w.getBondReported(txHash)
-		if !ok {
-			return fmt.Errorf("processSignatureEnough: no bond bondReport for txHash %s", txHash)
-		}
 
-		operation = bondFlow.MultiTransaction.Operation
-		safeGas = bondFlow.MultiTransaction.SafeTxGas
-		value = bondFlow.MultiTransaction.Value
-		totalGas = bondFlow.MultiTransaction.TotalGas
-		subAccounts = bondFlow.SubAccounts
-		era = bondFlow.Snap.Era
+	default:
+		return fmt.Errorf(txTypeErr.Error())
 	}
 
 	report := func() error {
@@ -632,20 +635,12 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 }
 
 func (w *writer) reportMultiEventResult(txHash common.Hash, mef *submodel.MultiEventFlow) error {
-	err := w.informChain(core.RMATIC, core.RFIS, mef)
-	if err == nil {
-		w.deleteEvents(txHash)
-	}
-	return err
+	return w.informChain(core.RMATIC, core.RFIS, mef)
 }
 
 func (w *writer) reportBondReportedResult(txHash common.Hash, flow *submodel.BondReportedFlow) error {
 	msg := &core.Message{Source: core.RMATIC, Destination: core.RFIS, Reason: core.ActiveReport, Content: flow}
-	err := w.submitMessage(msg)
-	if err == nil {
-		w.deleteBondReported(txHash)
-	}
-	return err
+	return w.submitMessage(msg)
 }
 
 func (w *writer) printContentError(m *core.Message) {
@@ -669,44 +664,6 @@ func (w *writer) setBondedPools(key common.Address, value bool) {
 	w.bondedPoolsMtx.Lock()
 	defer w.bondedPoolsMtx.Unlock()
 	w.bondedPools[key] = value
-}
-
-func (w *writer) getEvents(key common.Hash) (*submodel.MultiEventFlow, bool) {
-	w.eventMtx.RLock()
-	defer w.eventMtx.RUnlock()
-	value, exist := w.events[key]
-	return value, exist
-}
-
-func (w *writer) setEvents(key common.Hash, value *submodel.MultiEventFlow) {
-	w.eventMtx.Lock()
-	defer w.eventMtx.Unlock()
-	w.events[key] = value
-}
-
-func (w *writer) deleteEvents(key common.Hash) {
-	w.eventMtx.Lock()
-	defer w.eventMtx.Unlock()
-	delete(w.events, key)
-}
-
-func (w *writer) getBondReported(key common.Hash) (*submodel.BondReportedFlow, bool) {
-	w.bondReportedMtx.RLock()
-	defer w.bondReportedMtx.RUnlock()
-	value, exist := w.bondReporteds[key]
-	return value, exist
-}
-
-func (w *writer) setBondReported(key common.Hash, value *submodel.BondReportedFlow) {
-	w.bondReportedMtx.Lock()
-	defer w.bondReportedMtx.Unlock()
-	w.bondReporteds[key] = value
-}
-
-func (w *writer) deleteBondReported(key common.Hash) {
-	w.bondReportedMtx.Lock()
-	defer w.bondReportedMtx.Unlock()
-	delete(w.bondReporteds, key)
 }
 
 func (w *writer) start() error {

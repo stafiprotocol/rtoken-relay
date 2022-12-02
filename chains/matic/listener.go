@@ -189,29 +189,14 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStak
 				return fmt.Errorf("GetBondStateFlow reach retry limit")
 			}
 
-			getFlow := submodel.GetBondStateFlow{
-				Symbol:    core.RMATIC,
-				BlockHash: flow.Blockhash,
-				TxHash:    flow.Txhash,
-				BondState: make(chan submodel.BondState, 1),
-			}
-			msg := &core.Message{
-				Source: core.RMATIC, Destination: core.RFIS,
-				Reason: core.GetBondState, Content: getFlow}
-			err := l.submitMessage(msg)
+			bondState, err := l.getbondStateFromStafi(core.RMATIC, flow.Blockhash, flow.Txhash)
 			if err != nil {
-				return err
+				l.log.Warn("getbondStateFromStafi", "err", err)
+				retry++
+				time.Sleep(WaitInterval)
+				continue
 			}
 
-			timer := time.NewTimer(10 * time.Second)
-			defer timer.Stop()
-
-			bondState := submodel.Default
-			select {
-			case <-timer.C:
-			case bs := <-getFlow.BondState:
-				bondState = bs
-			}
 			if bondState == submodel.Default {
 				retry++
 				time.Sleep(WaitInterval)
@@ -221,6 +206,32 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStak
 		}
 	}
 	return nil
+}
+
+func (l *listener) getbondStateFromStafi(symbol core.RSymbol, blockHash, txHash types.Bytes) (submodel.BondState, error) {
+	getBondStateFlow := submodel.GetBondStateFlow{
+		Symbol:    core.RMATIC,
+		BlockHash: blockHash,
+		TxHash:    txHash,
+		BondState: make(chan submodel.BondState, 1),
+	}
+	msg := &core.Message{
+		Source: core.RMATIC, Destination: core.RFIS,
+		Reason: core.GetBondState, Content: &getBondStateFlow}
+	err := l.submitMessage(msg)
+	if err != nil {
+		return submodel.Default, err
+	}
+
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return submodel.Default, fmt.Errorf("get bond state from stafi timeout")
+	case bs := <-getBondStateFlow.BondState:
+		return bs, nil
+	}
 }
 
 func (l *listener) processBlockEvents(currentBlock uint64) error {

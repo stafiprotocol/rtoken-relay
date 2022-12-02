@@ -253,6 +253,30 @@ func (l *listener) processEvents(blockNum uint64) error {
 					if err != nil {
 						return err
 					}
+
+					if flow.Symbol == core.RMATIC {
+						eraPoolUpdatedFlow, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow)
+						if !ok {
+							return fmt.Errorf("cast err")
+						}
+						// here we wait until snapshot's bondstate change to another
+						// so we can continuely process this event when restart
+						for {
+							snap, err := l.snapshot(eraPoolUpdatedFlow.Symbol, eraPoolUpdatedFlow.ShotId)
+							if err != nil {
+								l.log.Warn("l.snapshot", err, err)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							if snap.BondState == eraPoolUpdatedFlow.Snap.BondState {
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							break
+						}
+
+					}
+
 				}
 			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.BondReportedEventId:
 				l.log.Trace("Handling BondReportedEvent", "block", blockNum)
@@ -269,6 +293,25 @@ func (l *listener) processEvents(blockNum uint64) error {
 					err = l.submitMessage(l.subscriptions[BondReported](flow))
 					if err != nil {
 						return err
+					}
+
+					if flow.Symbol == core.RMATIC {
+						// here we wait until snapshot's bondstate change to another
+						// so we can continuely process this event when restart
+						for {
+							snap, err := l.snapshot(flow.Symbol, flow.ShotId)
+							if err != nil {
+								l.log.Warn("l.snapshot", err, err)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							if snap.BondState == flow.Snap.BondState {
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							break
+						}
+
 					}
 				}
 			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.ActiveReportedEventId:
@@ -287,6 +330,29 @@ func (l *listener) processEvents(blockNum uint64) error {
 					if err != nil {
 						return err
 					}
+
+					if flow.Symbol == core.RMATIC {
+						activeReportedFlow, ok := flow.EventData.(*submodel.ActiveReportedFlow)
+						if !ok {
+							return fmt.Errorf("cast err")
+						}
+						// here we wait until snapshot's bondstate change to another
+						// so we can continuely process this event when restart
+						for {
+							snap, err := l.snapshot(activeReportedFlow.Symbol, activeReportedFlow.ShotId)
+							if err != nil {
+								l.log.Warn("l.snapshot", err, err)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							if snap.BondState == activeReportedFlow.Snap.BondState {
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							break
+						}
+
+					}
 				}
 			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawReportedEventId:
 				l.log.Trace("Handling WithdrawReportedEvent", "block", blockNum)
@@ -303,6 +369,29 @@ func (l *listener) processEvents(blockNum uint64) error {
 					err = l.submitMessage(l.subscriptions[WithdrawReported](flow))
 					if err != nil {
 						return err
+					}
+
+					if flow.Symbol == core.RMATIC {
+						withdrawReportedFlow, ok := flow.EventData.(*submodel.WithdrawReportedFlow)
+						if !ok {
+							return fmt.Errorf("cast err")
+						}
+						// here we wait until snapshot's bondstate change to another
+						// so we can continuely process this event when restart
+						for {
+							snap, err := l.snapshot(withdrawReportedFlow.Symbol, withdrawReportedFlow.ShotId)
+							if err != nil {
+								l.log.Warn("l.snapshot", err, err)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							if snap.BondState == withdrawReportedFlow.Snap.BondState {
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							break
+						}
+
 					}
 				}
 			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.TransferReportedEventId:
