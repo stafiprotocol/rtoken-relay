@@ -260,8 +260,8 @@ func TestSortAddr(t *testing.T) {
 		t.Log(addrHexStr, addrSs58Str)
 	}
 
-	pbk,err:=sr25519.NewPublicKey([32]byte{})
-	if err!=nil{
+	pbk, err := sr25519.NewPublicKey([32]byte{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(pbk)

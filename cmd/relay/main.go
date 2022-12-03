@@ -73,7 +73,7 @@ func init() {
 	app.Name = "reley"
 	app.Usage = "relay"
 	app.Authors = []*cli.Author{{Name: "Stafi Protocol 2020"}}
-	app.Version = "0.0.1"
+	app.Version = "0.1.0"
 	app.EnableBashCompletion = true
 	app.Commands = []*cli.Command{
 		&accountCommand,

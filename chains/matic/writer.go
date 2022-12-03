@@ -133,6 +133,7 @@ func (w *writer) processBondedPools(m *core.Message) error {
 }
 
 func (w *writer) processEraPoolUpdated(m *core.Message) error {
+	w.log.Info("processEraPoolUpdated")
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		w.printContentError(m)
@@ -234,6 +235,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 }
 
 func (w *writer) processBondReported(m *core.Message) error {
+	w.log.Info("processBondReported")
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
 		w.printContentError(m)
@@ -311,6 +313,7 @@ func (w *writer) processBondReported(m *core.Message) error {
 }
 
 func (w *writer) processActiveReported(m *core.Message) error {
+	w.log.Info("processActiveReported")
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		w.printContentError(m)
@@ -401,6 +404,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 }
 
 func (w *writer) processWithdrawReported(m *core.Message) error {
+	w.log.Info("processWithdrawReported")
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		w.printContentError(m)
@@ -575,7 +579,7 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 			if err != nil {
 				return fmt.Errorf("processSignatureEnough: RewardByTxHash error %s txHash %s pool %s", err, txHash, poolAddr)
 			}
-			w.log.Info("processSignatureEnough RewardByTxHash", "reward", flow.Active, "txHash", txHash, "pool", poolAddr)
+			w.log.Info("processSignatureEnough ok", "active", flow.Active, "txHash", txHash, "pool", poolAddr)
 			return w.reportMultiEventResult(txHash, mef)
 		case submodel.OriginalClaimRewards:
 			active, err := w.conn.TotalStaked(to, poolAddr)
@@ -592,9 +596,10 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 				}
 			}
 			bondFlow.Snap.Active = types.NewU128(*active)
-			w.log.Info("processSignatureEnough total active", "pool", poolAddr, "active", active)
+			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "active", active, "txHash", txHash)
 			return w.reportBondReportedResult(txHash, bondFlow)
 		case submodel.OriginalWithdrawUnbond, submodel.OriginalTransfer:
+			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "txHash", txHash)
 			return w.reportMultiEventResult(txHash, mef)
 		default:
 			return fmt.Errorf(txTypeErr.Error())

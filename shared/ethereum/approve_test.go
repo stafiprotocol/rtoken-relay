@@ -13,7 +13,6 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
-	"github.com/stafiprotocol/rtoken-relay/bindings/MultiSend"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -22,20 +21,21 @@ import (
 )
 
 var (
-	owners = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"), common.HexToAddress("0xBd39f5936969828eD9315220659cD11129071814")}
+	// update these vars before running TestMultisigApprove
+	sender                      = common.HexToAddress("0x76397f6e8899793D48EC316d2492De6919a4a32E")
+	goerliMultisigProxyContract = common.HexToAddress("0xe74340EAfD516e8DD2e0B528dA7D73089e156c1E")
+	keystorePath                = "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys"
+	proxyOwners                 = []common.Address{
+		common.HexToAddress("0xA96577dA157b173618bd7420005a14F73cb0e294"),
+		common.HexToAddress("0x4D50094712505B484e5115F0987281b82969b9F5"),
+	}
+	txhash = common.HexToHash("0x8bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1d")
 
-	/// update these vars before running TestMultisigApprove
-	goerliMultisigProxyContract = common.HexToAddress("")
-	keystorePath                = "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum/"
-	proxyOwners                 = []common.Address{common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")}
-	txhash                      = common.HexToHash("0x8bd668ca5c97508167f046131a37b4ef10ccbd621dabf920eefddaa62fe77e1d")
-
-	goerliEndPoint             = "https://mainnet.infura.io/v3/4cb873af07a84e42a952189eff3a6954"
+	goerliEndPoint             = "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4"
 	testLogger                 = newTestLogger("test")
 	goerliStakeManagerContract = common.HexToAddress("0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3")
 	goerliMaticToken           = common.HexToAddress("0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae")
 	maticTokenAbi, _           = abi.JSON(strings.NewReader(MaticToken.MaticTokenABI))
-	sendAbi, _                 = abi.JSON(strings.NewReader(MultiSend.MultiSendABI))
 	multisigAbi, _             = abi.JSON(strings.NewReader(Multisig.MultisigABI))
 	ValidatorShareAbi, _       = abi.JSON(strings.NewReader(ValidatorShare.ValidatorShareABI))
 	AliceKp                    = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
@@ -43,26 +43,33 @@ var (
 )
 
 func TestMultisigApprove(t *testing.T) {
-	password := "123456"
+	password := "tpkeeper"
 	os.Setenv(keystore.EnvPassword, password)
 	keys := make([]*secp256k1.Keypair, 0)
 
 	for _, own := range proxyOwners {
 		kpI, err := keystore.KeypairFromAddress(own.Hex(), keystore.EthChain, keystorePath, false)
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		kp, _ := kpI.(*secp256k1.Keypair)
 
 		keys = append(keys, kp)
 	}
+	kpI, err := keystore.KeypairFromAddress(sender.Hex(), keystore.EthChain, keystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kp, _ := kpI.(*secp256k1.Keypair)
+	sender := kp
 
-	client := NewClient(goerliEndPoint, keys[0], testLogger, big.NewInt(0), big.NewInt(0))
-	err := client.Connect()
+	client := NewClient(goerliEndPoint, sender, testLogger, big.NewInt(0), big.NewInt(0))
+	err = client.Connect()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// approve
 	cd, _ := maticTokenAbi.Pack("approve", goerliStakeManagerContract, big.NewInt(0).Mul(AmountBase, big.NewInt(1e17)))
 	mt := &ethmodel.MultiTransaction{
 		To:        goerliMaticToken,
@@ -73,6 +80,7 @@ func TestMultisigApprove(t *testing.T) {
 		TotalGas:  big.NewInt(100000),
 	}
 
+	// sigs
 	msg := mt.MessageToSign(txhash, goerliMultisigProxyContract)
 	t.Log("msg", hexutil.Encode(msg[:]))
 
@@ -80,7 +88,6 @@ func TestMultisigApprove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = multi
 
 	sigs := make([][]byte, 0)
 	for _, key := range keys {
@@ -97,7 +104,7 @@ func TestMultisigApprove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	// send
 	tx, err := multi.ExecTransaction(
 		client.Opts(),
 		mt.To,

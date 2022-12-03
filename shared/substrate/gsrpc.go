@@ -265,13 +265,13 @@ func (sc *SarpcClient) signExtrinsic(xt interface{}) error {
 	}
 
 	if ext, ok := xt.(*types.Extrinsic); ok {
-		sc.log.Info("signExtrinsic", "addressType", sc.addressType)
+		sc.log.Debug("signExtrinsic", "addressType", sc.addressType)
 		err = ext.Sign(*sc.key, o)
 		if err != nil {
 			return err
 		}
 	} else if ext, ok := xt.(*types.ExtrinsicMulti); ok {
-		sc.log.Info("signExtrinsic", "addressType1", sc.addressType)
+		sc.log.Debug("signExtrinsic", "addressType", sc.addressType)
 		err = ext.Sign(*sc.key, o)
 		if err != nil {
 			return err

@@ -193,13 +193,13 @@ func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) boo
 				continue
 			}
 		}
-		c.log.Info("ResolveProposal proposalValid", "valid", valid, "reason", reason, "method", prop.MethodName)
+		c.log.Info("ResolveProposal", "valid", valid, "reason", reason, "method", prop.MethodName)
 		if !valid {
 			c.log.Debug("Ignoring proposal", "reason", reason)
 			return true
 		}
 
-		c.log.Info("Acknowledging proposal on chain...")
+		c.log.Debug("Acknowledging proposal on chain...")
 		//symbol: RSymbol, prop_id: T::Hash, in_favour: bool
 		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodRacknowledgeProposal, prop.Symbol, prop.BondId, inFavour, prop.Call)
 		if err != nil {

@@ -5,6 +5,7 @@ package matic
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -24,7 +25,7 @@ import (
 
 // Frequency of polling for a new block
 var (
-	BlockDelay         = uint64(10)
+	BlockDelay         = uint64(5)
 	BlockRetryInterval = time.Second * 10
 	EraInterval        = time.Minute * 2
 	BlockRetryLimit    = 30
@@ -102,6 +103,7 @@ func (l *listener) start() error {
 }
 
 func (l *listener) pollBlocks() error {
+	l.log.Info("start polling blocks...")
 	var willDealBlock = l.startBlock
 	var retry = BlockRetryLimit
 	for {
@@ -149,67 +151,6 @@ func (l *listener) pollBlocks() error {
 			retry = BlockRetryLimit
 		}
 	}
-}
-
-func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
-
-	for stakeIterator.Next() {
-		willUseStafiRecipient := stakeIterator.Event.StafiRecipient
-
-		if isRecover {
-			willUseStafiRecipient = stafiRecipient
-			if stakeIterator.Event.Raw.TxHash != oldTxHash {
-				continue
-			}
-
-			// check tx sender
-			if stakeIterator.Event.Staker != newTxSender {
-				continue
-			}
-		}
-
-		// check stafi recipient ?
-		flow := submodel.ExeLiquidityBondAndSwapFlow{
-			Pool:           types.NewBytes(stakeIterator.Event.StakePool.Bytes()),
-			Blockhash:      types.NewBytes(stakeIterator.Event.Raw.BlockHash.Bytes()),
-			Txhash:         types.NewBytes(stakeIterator.Event.Raw.TxHash.Bytes()),
-			Amount:         types.NewU128(*stakeIterator.Event.Amount),
-			Symbol:         core.RMATIC,
-			StafiRecipient: types.NewAccountID(willUseStafiRecipient[:]),
-			DestRecipient:  types.NewBytes(stakeIterator.Event.DestRecipient[:]),
-			DestId:         types.U8(stakeIterator.Event.ChainId),
-			Reason:         submodel.Pass,
-		}
-
-		err := l.processExeLiquidityBondAndSwap(&flow)
-		if err != nil {
-			return err
-		}
-
-		// wait until it is dealed
-		retry := 0
-		for {
-			if retry > GetRetryLimit {
-				return fmt.Errorf("GetBondStateFlow reach retry limit")
-			}
-
-			bondState, err := l.getbondStateFromStafi(core.RMATIC, flow.Blockhash, flow.Txhash)
-			if err != nil {
-				l.log.Warn("getbondStateFromStafi", "err", err)
-				retry++
-				time.Sleep(WaitInterval)
-				continue
-			}
-
-			if bondState == submodel.Default {
-				retry++
-				time.Sleep(WaitInterval)
-				continue
-			}
-			break
-		}
-	}
-	return nil
 }
 
 func (l *listener) processBlockEvents(currentBlock uint64) error {
@@ -279,6 +220,69 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 	return nil
 }
 
+func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
+
+	for stakeIterator.Next() {
+		willUseStafiRecipient := stakeIterator.Event.StafiRecipient
+
+		if isRecover {
+			willUseStafiRecipient = stafiRecipient
+			if stakeIterator.Event.Raw.TxHash != oldTxHash {
+				continue
+			}
+
+			// check tx sender
+			if stakeIterator.Event.Staker != newTxSender {
+				continue
+			}
+		}
+
+		l.log.Info("find stake event", "stafiRecipient", hex.EncodeToString(willUseStafiRecipient[:]), "pool", stakeIterator.Event.StakePool.String(), "staker", stakeIterator.Event.Staker.String())
+
+		// check stafi recipient ?
+		flow := submodel.ExeLiquidityBondAndSwapFlow{
+			Pool:           types.NewBytes(stakeIterator.Event.StakePool.Bytes()),
+			Blockhash:      types.NewBytes(stakeIterator.Event.Raw.BlockHash.Bytes()),
+			Txhash:         types.NewBytes(stakeIterator.Event.Raw.TxHash.Bytes()),
+			Amount:         types.NewU128(*stakeIterator.Event.Amount),
+			Symbol:         core.RMATIC,
+			StafiRecipient: types.NewAccountID(willUseStafiRecipient[:]),
+			DestRecipient:  types.NewBytes(stakeIterator.Event.DestRecipient[:]),
+			DestId:         types.U8(stakeIterator.Event.ChainId),
+			Reason:         submodel.Pass,
+		}
+
+		err := l.processExeLiquidityBondAndSwap(&flow)
+		if err != nil {
+			return err
+		}
+
+		// wait until it is dealed
+		retry := 0
+		for {
+			if retry > GetRetryLimit {
+				return fmt.Errorf("GetBondStateFlow reach retry limit")
+			}
+
+			bondState, err := l.getbondStateFromStafi(core.RMATIC, flow.Blockhash, flow.Txhash)
+			if err != nil {
+				l.log.Warn("getbondStateFromStafi", "err", err)
+				retry++
+				time.Sleep(WaitInterval)
+				continue
+			}
+
+			if bondState == submodel.Default {
+				retry++
+				time.Sleep(WaitInterval)
+				continue
+			}
+			break
+		}
+	}
+	return nil
+}
+
 func (l *listener) getbondStateFromStafi(symbol core.RSymbol, blockHash, txHash types.Bytes) (submodel.BondState, error) {
 	getBondStateFlow := submodel.GetBondStateFlow{
 		Symbol:    core.RMATIC,
@@ -309,7 +313,7 @@ func (l *listener) getbondStateFromStafi(symbol core.RSymbol, blockHash, txHash 
 // Polling begins at the block defined in `l.cfg.startBlock`. Failed attempts to fetch the latest block or parse
 // a block will be retried up to BlockRetryLimit times before continuing to the next block.
 func (l *listener) pollEras() error {
-	l.log.Info("Polling Eras...")
+	l.log.Info("start polling eras...")
 	var retry = BlockRetryLimit
 	for {
 		select {

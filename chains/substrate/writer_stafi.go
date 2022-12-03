@@ -189,7 +189,7 @@ func (w *writer) processNewEra(m *core.Message) bool {
 		w.log.Error("processNewEra error", "error", err)
 		return false
 	}
-	w.log.Info("", "len(bondedPools)", len(bondedPools), "symbol", m.Source)
+	w.log.Debug("processNewEra", "bondedPools len", len(bondedPools), "symbol", m.Source)
 	msg := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.BondedPools, Content: bondedPools}
 	if !w.submitMessage(msg) {
 		w.log.Warn("failed to update bondedPools")

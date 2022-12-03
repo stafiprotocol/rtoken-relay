@@ -299,7 +299,7 @@ func (c *Connection) RestakeCall(share common.Address) (*ethmodel.MultiTransacti
 }
 
 func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error) {
-	c.log.Info("WithdrawNonce", "share", share, "pool", pool)
+	c.log.Debug("WithdrawNonce", "share", share, "pool", pool)
 
 	latestNonce, err := c.UnbondNonce(share, pool)
 	if err != nil {
@@ -319,7 +319,7 @@ func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error)
 	if err != nil {
 		return nil, err
 	}
-	c.log.Info("WithdrawNonce", "currentEpoch", currentEpoch, "delay", delay)
+	c.log.Debug("WithdrawNonce", "currentEpoch", currentEpoch, "delay", delay)
 
 	ableIdx := uint64(0)
 	unableIdx := uint64(0)
@@ -611,7 +611,7 @@ func (c *Connection) RewardByTxHash(txHash common.Hash, pool common.Address) (*b
 }
 
 func (c *Connection) RewardByTransactionHash(hash common.Hash, pool common.Address) (*big.Int, error) {
-	c.log.Info("RewardByTransactionHash", "hash", hash, "pool", pool)
+	c.log.Debug("RewardByTransactionHash", "hash", hash, "pool", pool)
 	receipt, err := c.conn.TransactionReceipt(hash)
 	if err != nil {
 		return nil, err
