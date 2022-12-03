@@ -3,6 +3,7 @@ module github.com/stafiprotocol/rtoken-relay
 go 1.19
 
 require (
+	github.com/ChainSafe/go-schnorrkel v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
 	github.com/ethereum/go-ethereum v1.10.23
 	github.com/gorilla/websocket v1.5.0
@@ -28,7 +29,6 @@ require (
 
 require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.12.6 // indirect
-	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

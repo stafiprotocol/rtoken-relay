@@ -9,6 +9,7 @@ git clone https://github.com/stafiprotocol/rtoken-relay.git
 cd rtoken-relay
 make build
 ```
+
 ```
 ./build/relay -h
 
@@ -32,7 +33,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --config value     json configuration file (default: "./config.json")
    --help, -h         show help (default: false)
-   --verbosity value  supports levels crit (silent) to trce (trace) (default: "info")
+   --verbosity value  supports levels: info debug trace error (default: "info")
    --version, -v      print the version (default: false)
    
 
