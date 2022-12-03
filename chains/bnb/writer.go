@@ -115,8 +115,8 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processBondReported(m)
 	case core.ActiveReportedEvent:
 		return w.processActiveReported(m)
-	//case core.ValidatorUpdatedEvent:
-	//	return w.processValidatorUpdatedEvent(m)
+	// case core.ValidatorUpdatedEvent:
+	// 	return w.processValidatorUpdatedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true

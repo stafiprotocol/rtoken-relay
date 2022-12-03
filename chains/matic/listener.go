@@ -151,7 +151,7 @@ func (l *listener) pollBlocks() error {
 	}
 }
 
-func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, txHash common.Hash) error {
+func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
 	willUseStafiRecipient := stakeIterator.Event.StafiRecipient
 	if isRecover {
 		willUseStafiRecipient = stafiRecipient
@@ -159,7 +159,12 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStak
 
 	for stakeIterator.Next() {
 		if isRecover {
-			if stakeIterator.Event.Raw.TxHash != txHash {
+			if stakeIterator.Event.Raw.TxHash != oldTxHash {
+				continue
+			}
+
+			// check tx sender
+			if stakeIterator.Event.Staker != newTxSender {
 				continue
 			}
 		}
@@ -208,6 +213,73 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStak
 	return nil
 }
 
+func (l *listener) processBlockEvents(currentBlock uint64) error {
+	if currentBlock%100 == 0 {
+		l.log.Debug("processBlockEvents", "blockNum", currentBlock)
+	}
+	// stake event
+	stakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
+		Start:   currentBlock,
+		End:     &currentBlock,
+		Context: context.Background(),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = l.processStakeEvent(stakeIterator, false, [32]byte{}, common.Hash{}, common.Address{})
+	if err != nil {
+		return err
+	}
+
+	// recover event
+	recoverStakeIterator, err := l.conn.stakePortalContract.FilterRecoverStake(&bind.FilterOpts{
+		Start:   currentBlock,
+		End:     &currentBlock,
+		Context: context.Background(),
+	})
+	if err != nil {
+		return err
+	}
+
+	for recoverStakeIterator.Next() {
+		oldTx, err := l.conn.conn.TransactionReceipt(recoverStakeIterator.Event.TxHash)
+		if err != nil {
+			return err
+		}
+		blockNumber := oldTx.BlockNumber.Uint64()
+
+		oldStakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
+			Start:   blockNumber,
+			End:     &blockNumber,
+			Context: context.Background(),
+		})
+		if err != nil {
+			return err
+		}
+
+		recoverBlockHash := recoverStakeIterator.Event.Raw.BlockHash
+		recoverTxhash := recoverStakeIterator.Event.Raw.TxHash
+		recoverTxIndex := recoverStakeIterator.Event.Raw.TxIndex
+		recoverTx, _, err := l.conn.conn.TransactionByHash(context.Background(), recoverTxhash)
+		if err != nil {
+			return err
+		}
+
+		recoverTxSender, err := l.conn.conn.TransactionSender(context.Background(), recoverTx, recoverBlockHash, recoverTxIndex)
+		if err != nil {
+			return err
+		}
+
+		err = l.processStakeEvent(oldStakeIterator, true, recoverStakeIterator.Event.StafiRecipient, recoverStakeIterator.Event.TxHash, recoverTxSender)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (l *listener) getbondStateFromStafi(symbol core.RSymbol, blockHash, txHash types.Bytes) (submodel.BondState, error) {
 	getBondStateFlow := submodel.GetBondStateFlow{
 		Symbol:    core.RMATIC,
@@ -232,60 +304,6 @@ func (l *listener) getbondStateFromStafi(symbol core.RSymbol, blockHash, txHash 
 	case bs := <-getBondStateFlow.BondState:
 		return bs, nil
 	}
-}
-
-func (l *listener) processBlockEvents(currentBlock uint64) error {
-	if currentBlock%100 == 0 {
-		l.log.Debug("processBlockEvents", "blockNum", currentBlock)
-	}
-	// stake event
-	stakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
-		Start:   currentBlock,
-		End:     &currentBlock,
-		Context: context.Background(),
-	})
-	if err != nil {
-		return err
-	}
-
-	err = l.processStakeEvent(stakeIterator, false, [32]byte{}, common.Hash{})
-	if err != nil {
-		return err
-	}
-
-	// recover event
-	recoverStakeIterator, err := l.conn.stakePortalContract.FilterRecoverStake(&bind.FilterOpts{
-		Start:   currentBlock,
-		End:     &currentBlock,
-		Context: context.Background(),
-	})
-	if err != nil {
-		return err
-	}
-
-	for recoverStakeIterator.Next() {
-		tx, err := l.conn.conn.TransactionReceipt(recoverStakeIterator.Event.TxHash)
-		if err != nil {
-			return err
-		}
-		blockNumber := tx.BlockNumber.Uint64()
-
-		oldStakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
-			Start:   blockNumber,
-			End:     &blockNumber,
-			Context: context.Background(),
-		})
-		if err != nil {
-			return err
-		}
-
-		err = l.processStakeEvent(oldStakeIterator, true, recoverStakeIterator.Event.StafiRecipient, recoverStakeIterator.Event.TxHash)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // pollBlocks will poll for the latest block and proceed to parse the associated events as it sees new blocks.

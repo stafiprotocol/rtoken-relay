@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	sr25519 "github.com/ChainSafe/go-schnorrkel"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
@@ -258,5 +259,11 @@ func TestSortAddr(t *testing.T) {
 		}
 		t.Log(addrHexStr, addrSs58Str)
 	}
+
+	pbk,err:=sr25519.NewPublicKey([32]byte{})
+	if err!=nil{
+		t.Fatal(err)
+	}
+	t.Log(pbk)
 
 }

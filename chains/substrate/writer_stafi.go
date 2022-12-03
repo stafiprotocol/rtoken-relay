@@ -357,6 +357,18 @@ func (w *writer) processExeLiquidityBondAndSwap(m *core.Message) bool {
 		w.log.Error("processExeLiquidityBondAndSwap receive a message of which reason is default", "txHash", flow.Txhash, "reason", flow.Reason)
 		return false
 	}
+	// should exe when state not exist or failed
+	bondState, err := w.conn.bondState(flow.Symbol, flow.Blockhash, flow.Txhash)
+	if err != nil {
+		if err != ErrorNotExist {
+			w.log.Error("processExeLiquidityBondAndSwap get bond state failed", "txHash", flow.Txhash, "reason", flow.Reason, "err", err)
+			return false
+		}
+	} else {
+		if bondState == submodel.Success {
+			return true
+		}
+	}
 
 	prop, err := w.conn.ExeLiquidityBondAndSwapProposal(flow)
 	if err != nil {

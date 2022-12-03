@@ -384,6 +384,14 @@ func (c *Client) TransactionReceipt(hash common.Hash) (*types.Receipt, error) {
 	return c.conn.TransactionReceipt(context.Background(), hash)
 }
 
+func (c *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+	return c.conn.TransactionByHash(ctx, hash)
+}
+
+func (c *Client) TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error) {
+	return c.conn.TransactionSender(ctx, tx, block, index)
+}
+
 // Close terminates the client connection and stops any running routines
 func (c *Client) Close() {
 	if c.conn != nil {
