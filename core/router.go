@@ -48,7 +48,7 @@ func (r *Router) Send(msg *Message) error {
 		return fmt.Errorf("unknown destination symbol: %s", msg.Destination)
 	}
 
-	if msg.Destination == RFIS || msg.Destination == RMATIC {
+	if msg.Destination == RFIS {
 		r.QueueMsg(msg)
 	} else {
 		go w.ResolveMessage(msg)

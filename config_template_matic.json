@@ -5,19 +5,18 @@
       "type": "substrate",
       "rsymbol": "RFIS",
       "endpoint": "ws://127.0.0.1:9944",
-      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys/stafi",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+        "33xzQzUk75cAxt7i3hHb2XWwJNFqzcSULfoCRsAkiCG4jh5d"
       ],
-      "latestBlockFlag": false,
       "opts": {
-        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
         "startBlock": "1",
-        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "addressType": "AccountId",
         "chainType": "stafi",
         "cares": [
-          "RDOT"
+          "RMATIC"
         ]
       }
     },
@@ -26,19 +25,20 @@
       "type": "ethereum",
       "rsymbol": "RMATIC",
       "endpoint": "wss://goerli.infura.io/ws/v3/86f8d5ba0d524274bce7780a83dbc0a4",
-      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys/ethereum",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6",
-        "0xBd39f5936969828eD9315220659cD11129071814"
+        "0xA96577dA157b173618bd7420005a14F73cb0e294",
+        "0x4D50094712505B484e5115F0987281b82969b9F5",
+        "0x76397f6e8899793D48EC316d2492De6919a4a32E"
       ],
       "opts": {
-        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "eraBlockCfg": "100",
-        "startBlock": "1",
+        "startBlock": "8065258",
         "StakeManagerContract": "0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3",
         "MaticTokenContract": "0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae",
-        "MultiSendContract": "0x747e29a783a9EE438bD25ac32bB341f12c827217",
-        "StakePortalContract": "0x747e29a783a9EE438bD25ac32bB341f12c827217"
+        "MultiSendContract": "0x23132c141f206D4219D3f76EE415a29D6577c69b",
+        "StakePortalContract": "0x2Bbe76F0336D9dEB420ce01dB9b20E64f74f7553"
       }
     }
   ]

@@ -476,6 +476,10 @@ func (l *listener) processNominationUpdated(evt *submodel.ChainEvent) (*submodel
 		return nil, ErrNotCared
 	}
 
+	switch flow.Symbol {
+	case core.RMATIC, core.RBNB:
+		return nil, ErrNotCared
+	}
 	th, sub, err := l.poolThresholdAndSubAccounts(flow.Symbol, flow.Pool)
 	if err != nil {
 		return nil, err
@@ -618,7 +622,7 @@ func (l *listener) poolThresholdAndSubAccounts(symbol core.RSymbol, pool []byte)
 		return 0, nil, err
 	}
 	if !exist {
-		return 0, nil, fmt.Errorf("threshold of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+		return 0, nil, fmt.Errorf("threshold of symbol: %s, pool: %s not exist", symbol, hexutil.Encode(pool))
 	}
 
 	subs := make([]types.Bytes, 0)
@@ -627,7 +631,7 @@ func (l *listener) poolThresholdAndSubAccounts(symbol core.RSymbol, pool []byte)
 		return 0, nil, err
 	}
 	if !exist {
-		return 0, nil, fmt.Errorf("subAccounts of pool: %s, symbol: %s not exist", symbol, hexutil.Encode(pool))
+		return 0, nil, fmt.Errorf("subAccounts of symbol: %s, pool: %s not exist", symbol, hexutil.Encode(pool))
 	}
 
 	return threshold, subs, nil

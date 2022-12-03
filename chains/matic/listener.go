@@ -152,13 +152,12 @@ func (l *listener) pollBlocks() error {
 }
 
 func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
-	willUseStafiRecipient := stakeIterator.Event.StafiRecipient
-	if isRecover {
-		willUseStafiRecipient = stafiRecipient
-	}
 
 	for stakeIterator.Next() {
+		willUseStafiRecipient := stakeIterator.Event.StafiRecipient
+
 		if isRecover {
+			willUseStafiRecipient = stafiRecipient
 			if stakeIterator.Event.Raw.TxHash != oldTxHash {
 				continue
 			}
