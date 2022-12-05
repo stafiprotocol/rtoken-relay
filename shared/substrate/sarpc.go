@@ -254,23 +254,21 @@ func (sc *SarpcClient) sendWsRequest(v interface{}, action []byte) error {
 			p := poolConn.Conn
 
 			if err = p.WriteMessage(websocket.TextMessage, action); err != nil {
-				if p != nil {
-					p.MarkUnusable()
-				}
+				poolConn.MarkUnusable()
 				poolConn.Close()
+
 				sc.log.Warn("websocket send error", "err", err)
-				time.Sleep(time.Second)
+				time.Sleep(time.Millisecond * 100)
 				retry++
 				continue
 			}
 
 			if err = p.ReadJSON(v); err != nil {
-				if p != nil {
-					p.MarkUnusable()
-				}
+				poolConn.MarkUnusable()
 				poolConn.Close()
+
 				sc.log.Warn("websocket read error", "err", err)
-				time.Sleep(time.Second)
+				time.Sleep(time.Millisecond * 100)
 				retry++
 				continue
 			}
