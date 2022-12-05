@@ -233,14 +233,14 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		return false
 	}
 
-	if data, ok := flow.EventData.(*submodel.NominationUpdatedFlow); ok {
-		w.log.Info("NominationUpdated", "symbol", data.Symbol, "era", data.Era)
-		return true
-	}
-
 	var prop *submodel.Proposal
 	var err error
-	if data, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow); ok {
+
+	switch data := flow.EventData.(type) {
+	case *submodel.NominationUpdatedFlow:
+		w.log.Info("NominationUpdated", "symbol", data.Symbol, "era", data.Era)
+		return true
+	case *submodel.EraPoolUpdatedFlow:
 		call := data.BondCall
 		switch data.Symbol {
 		case core.RMATIC:
@@ -284,16 +284,14 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		result := w.conn.resolveProposal(prop, true)
 		w.log.Info("MethodBondReportProposal resolveProposal", "result", result)
 		return result
-	}
+	case *submodel.ActiveReportedFlow:
+		callhash := flow.OpaqueCalls[0].CallHash
+		bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
+		if err != nil {
+			w.sysErr <- fmt.Errorf("processInformChain: callhash %s decode error: %s", bondId, err)
+			return false
+		}
 
-	callhash := flow.OpaqueCalls[0].CallHash
-	bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
-	if err != nil {
-		w.sysErr <- fmt.Errorf("processInformChain: callhash %s decode error: %s", bondId, err)
-		return false
-	}
-
-	if data, ok := flow.EventData.(*submodel.ActiveReportedFlow); ok {
 		prop, err = w.conn.CommonReportProposal(config.MethodWithdrawReport, m.Source, bondId, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodWithdrawReportProposal", "error", err)
@@ -302,9 +300,14 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		result := w.conn.resolveProposal(prop, true)
 		w.log.Info("MethodWithdrawReportProposal resolveProposal", "result", result)
 		return result
-	}
 
-	if data, ok := flow.EventData.(*submodel.WithdrawReportedFlow); ok {
+	case *submodel.WithdrawReportedFlow:
+		callhash := flow.OpaqueCalls[0].CallHash
+		bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
+		if err != nil {
+			w.sysErr <- fmt.Errorf("processInformChain: callhash %s decode error: %s", bondId, err)
+			return false
+		}
 		prop, err = w.conn.CommonReportProposal(config.MethodTransferReport, m.Source, bondId, data.ShotId)
 		if err != nil {
 			w.log.Error("MethodTransferReportProposal", "error", err)
@@ -313,9 +316,10 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		result := w.conn.resolveProposal(prop, true)
 		w.log.Info("MethodTransferReportProposal resolveProposal", "result", result)
 		return result
-	}
 
-	return false
+	default:
+		return false
+	}
 }
 
 func (w *writer) processActiveReport(m *core.Message) bool {

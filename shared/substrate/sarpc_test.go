@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -21,13 +22,13 @@ const (
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
-	//sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://mainnet-rpc.stafi.io", stafiTypesFile, tlog)
 	//sc, err := NewSarpcClient("wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
 	//sc, err := NewSarpcClient(ChainTypeStafi, "ws://127.0.0.1:9944", stafiTypesFile, tlog)
 	stop := make(chan int)
+	sc, err := NewSarpcClient(ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, AddressTypeAccountId, AliceKey, tlog, stop)
 	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,28 +37,22 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//for _, e := range evt {
 	//	t.Log(e.EventId)
 	//}
-	for i := 15426016; i <= 15428050; i++ {
-		if i == 15426015 {
-			continue
-		}
-		if i%10 == 0 {
-			t.Log("i", i)
-		}
+
+	wg := sync.WaitGroup{}
+	for i := 746800; i <= 746824; i++ {
 		t.Log("i", i)
-
-		_, err := sc.GetEvents(uint64(i))
-		if err != nil {
-			time.Sleep(time.Second)
-			t.Fatal(err)
-		}
-
-		//assert.NoError(t, err)
-		//for _, evt := range evts {
-		//	fmt.Println(evt.ModuleId)
-		//	fmt.Println(evt.EventId)
-		//	fmt.Println(evt.Params)
-		//}
+		go func() {
+			wg.Add(1)
+			_, err := sc.GetEvents(uint64(i))
+			if err != nil {
+				time.Sleep(time.Second)
+				t.Log(err)
+			}
+			wg.Done()
+		}()
 	}
+	wg.Wait()
+
 }
 
 func TestSarpcClient_GetChainEventNominationUpdated(t *testing.T) {

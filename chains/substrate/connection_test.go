@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"sort"
+	"sync"
 	"testing"
 
 	sr25519 "github.com/ChainSafe/go-schnorrkel"
@@ -34,9 +35,9 @@ var (
 )
 
 const (
-	stafiTypesFile  = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json"
-	polkaTypesFile  = "/Users/fwj/Go/stafi/rtoken-relay/network/polkadot.json"
-	kusamaTypesFile = "/Users/fwj/Go/stafi/rtoken-relay/network/kusama.json"
+	stafiTypesFile  = "../../network/stafi.json"
+	polkaTypesFile  = "../../network/polkadot.json"
+	kusamaTypesFile = "../../network/kusama.json"
 )
 
 var sc *substrate.SarpcClient
@@ -45,7 +46,8 @@ func init() {
 	var err error
 	stop := make(chan int)
 	// sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
 	}
@@ -266,4 +268,34 @@ func TestSortAddr(t *testing.T) {
 	}
 	t.Log(pbk)
 
+}
+
+func TestEraContinuable(t *testing.T) {
+	conn := Connection{sc: sc, log: tlog, symbol: core.RKSM, stop: make(chan int)}
+	wg := sync.WaitGroup{}
+	go func() {
+		wg.Add(1)
+		for {
+			continuable, err := conn.EraContinuable(core.RMATIC)
+			if err != nil {
+				t.Log(err)
+			}
+			t.Log(continuable)
+		}
+	}()
+
+	for {
+		wg.Add(1)
+		for i := 746800; i <= 746824; i++ {
+			t.Log(i)
+			_, err := conn.GetEvents(uint64(i))
+			if err != nil {
+				t.Log(err)
+			}
+
+		}
+		wg.Done()
+	}
+
+	wg.Wait()
 }
