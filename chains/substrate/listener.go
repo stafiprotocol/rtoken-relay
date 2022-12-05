@@ -268,7 +268,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
-							if snap.BondState == eraPoolUpdatedFlow.Snap.BondState {
+							if snap.BondState == submodel.EraUpdated {
+								l.log.Debug("bondstate not change will wait", "bondState", snap.BondState)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -305,7 +306,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
-							if snap.BondState == flow.Snap.BondState {
+							if snap.BondState == submodel.BondReported {
+								l.log.Debug("bondstate not change will wait", "bondState", snap.BondState)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -345,7 +347,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
-							if snap.BondState == activeReportedFlow.Snap.BondState {
+							if snap.BondState == submodel.ActiveReported {
+								l.log.Debug("bondstate not change will wait", "bondState", snap.BondState)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -385,7 +388,8 @@ func (l *listener) processEvents(blockNum uint64) error {
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
-							if snap.BondState == withdrawReportedFlow.Snap.BondState {
+							if snap.BondState == submodel.WithdrawReported {
+								l.log.Debug("bondstate not change will wait", "bondState", snap.BondState)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
