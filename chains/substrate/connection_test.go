@@ -11,6 +11,7 @@ import (
 	sr25519 "github.com/ChainSafe/go-schnorrkel"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/sirupsen/logrus"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -43,6 +44,7 @@ const (
 var sc *substrate.SarpcClient
 
 func init() {
+	logrus.SetLevel(logrus.TraceLevel)
 	var err error
 	stop := make(chan int)
 	// sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)

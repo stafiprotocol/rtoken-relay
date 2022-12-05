@@ -224,12 +224,13 @@ func (sc *SarpcClient) initial() (*wbskt.PoolConn, error) {
 	var err error
 	if sc.wsPool == nil {
 		factory := func() (*recws.RecConn, error) {
-			SubscribeConn := &recws.RecConn{KeepAliveTimeout: 10 * time.Second}
+			SubscribeConn := &recws.RecConn{KeepAliveTimeout: 2 * time.Minute}
 			SubscribeConn.Dial(sc.endpoint, nil)
+			sc.log.Debug("conn factory create new conn", "endpoint", sc.endpoint)
 			return SubscribeConn, err
 		}
 		if sc.wsPool, err = wbskt.NewChannelPool(1, 25, factory); err != nil {
-			fmt.Println("NewChannelPool", err)
+			sc.log.Error("wbskt.NewChannelPool", "err", err)
 		}
 	}
 	if err != nil {
@@ -256,7 +257,7 @@ func (sc *SarpcClient) sendWsRequest(v interface{}, action []byte) error {
 				if p != nil {
 					p.MarkUnusable()
 				}
-				p.Close()
+				poolConn.Close()
 				sc.log.Warn("websocket send error", "err", err)
 				time.Sleep(time.Second)
 				retry++
@@ -267,12 +268,13 @@ func (sc *SarpcClient) sendWsRequest(v interface{}, action []byte) error {
 				if p != nil {
 					p.MarkUnusable()
 				}
-				p.Close()
+				poolConn.Close()
 				sc.log.Warn("websocket read error", "err", err)
 				time.Sleep(time.Second)
 				retry++
 				continue
 			}
+			poolConn.Close()
 			return nil
 		}
 	}
