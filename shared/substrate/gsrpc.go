@@ -203,11 +203,13 @@ func (sc *SarpcClient) SignAndSubmitTx(ext interface{}) error {
 	if err != nil {
 		return err
 	}
+	sc.log.Trace("signExtrinsic ok")
 
 	api, err := sc.FlashApi()
 	if err != nil {
 		return err
 	}
+	sc.log.Trace("flashApi ok")
 	// Do the transfer and track the actual status
 	sub, err := api.RPC.Author.SubmitAndWatch(ext)
 	if err != nil {
@@ -274,7 +276,7 @@ func (sc *SarpcClient) signExtrinsic(xt interface{}) error {
 		sc.log.Debug("signExtrinsic", "addressType", sc.addressType)
 		err = ext.Sign(*sc.key, o)
 		if err != nil {
-			return err
+			return fmt.Errorf("sign err: %s", err)
 		}
 	} else {
 		return errors.New("extrinsic cast error")

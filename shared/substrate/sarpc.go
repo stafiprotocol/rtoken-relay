@@ -108,6 +108,8 @@ func NewSarpcClient(chainType, endpoint, typesPath, addressType string, key *sig
 		if err != nil {
 			return nil, err
 		}
+	default:
+		return nil, fmt.Errorf("chain type not support: %s", chainType)
 	}
 
 	return sc, nil

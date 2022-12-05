@@ -74,6 +74,8 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 		err = w.processWithdrawReported(m)
 	default:
 		err = fmt.Errorf("message reason unsupported, reason: %s", m.Reason)
+		w.log.Warn("resolve message", "err", err)
+		return true
 	}
 	if err != nil {
 		w.log.Error("resolve message", "err", err)
