@@ -92,7 +92,7 @@ func (w *writer) processEraPoolUpdatedEvent(m *core.Message) bool {
 
 	call, err := w.conn.BondOrUnbondCall(snap)
 	if err != nil {
-		if err.Error() == substrate.BondEqualToUnbondError.Error() {
+		if err.Error() == substrate.ErrorBondEqualToUnbond.Error() {
 			w.log.Info("No need to send any call", "symbol", snap.Symbol, "era", snap.Era)
 			return w.informChain(m.Destination, m.Source, mef)
 		}

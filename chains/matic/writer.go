@@ -166,15 +166,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	poolAddr := common.BytesToAddress(snap.Pool)
 	txType, tx, err := w.conn.BondOrUnbondCall(shareAddr, snap.Bond.Int, snap.Unbond.Int, flow.LeastBond)
 	if err != nil {
-		if err.Error() == substrate.BondEqualToUnbondError.Error() {
-			w.log.Info("BondOrUnbondCall BondEqualToUnbondError", "symbol", snap.Symbol, "era", snap.Era)
+		if err.Error() == substrate.ErrorBondEqualToUnbond.Error() {
+			w.log.Info("BondOrUnbondCall ErrorBondEqualToUnbond", "symbol", snap.Symbol, "era", snap.Era)
 			flow.BondCall = &submodel.BondCall{
 				ReportType: submodel.NewBondReport,
 				Action:     submodel.BothBondUnbond,
 			}
 			return w.informChain(m.Destination, m.Source, mef)
-		} else if err.Error() == substrate.DiffSmallerThanLeastError.Error() {
-			w.log.Info("BondOrUnbondCall DiffSmallerThanLeastError", "symbol", snap.Symbol, "era", snap.Era)
+		} else if err.Error() == substrate.ErrorDiffSmallerThanLeast.Error() {
+			w.log.Info("BondOrUnbondCall ErrorDiffSmallerThanLeast", "symbol", snap.Symbol, "era", snap.Era)
 			flow.BondCall = &submodel.BondCall{
 				ReportType: submodel.NewBondReport,
 				Action:     submodel.EitherBondUnbond,

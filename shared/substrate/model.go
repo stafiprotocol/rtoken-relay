@@ -38,6 +38,6 @@ type ChainExtrinsic struct {
 
 var (
 	ErrorTerminated           = errors.New("terminated")
-	BondEqualToUnbondError    = errors.New("BondEqualToUnbondError")
-	DiffSmallerThanLeastError = errors.New("DiffSmallerThanLeastError")
+	ErrorBondEqualToUnbond    = errors.New("ErrorBondEqualToUnbond")
+	ErrorDiffSmallerThanLeast = errors.New("ErrorDiffSmallerThanLeast")
 )

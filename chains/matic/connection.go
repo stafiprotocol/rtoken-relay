@@ -19,7 +19,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
-	"github.com/stafiprotocol/rtoken-relay/bindings/StakePortal"
+	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakePortal"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
@@ -246,7 +246,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 		diff := big.NewInt(0).Sub(bond, unbond)
 		if diff.Cmp(leastBond) <= 0 {
 			c.log.Info("diff is smaller than leastBond, NoCall", "bond", bond, "leastBond", leastBond)
-			return submodel.OriginalTxDefault, nil, substrate.DiffSmallerThanLeastError
+			return submodel.OriginalTxDefault, nil, substrate.ErrorDiffSmallerThanLeast
 		}
 
 		c.log.Info("bond larger than unbond, BondCall")
@@ -259,7 +259,7 @@ func (c *Connection) BondOrUnbondCall(share common.Address, bond, unbond, leastB
 		return submodel.OriginalBond, tx, nil
 	} else {
 		c.log.Info("bond is equal to unbond, NoCall")
-		return submodel.OriginalTxDefault, nil, substrate.BondEqualToUnbondError
+		return submodel.OriginalTxDefault, nil, substrate.ErrorBondEqualToUnbond
 	}
 }
 

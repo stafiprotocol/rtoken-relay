@@ -320,7 +320,7 @@ func (sc *SarpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*submodel.MultiO
 		val = types.NewUCompact(diff)
 	} else {
 		sc.log.Info("bond is equal to unbond, NoCall")
-		return nil, BondEqualToUnbondError
+		return nil, ErrorBondEqualToUnbond
 	}
 
 	ext, err := sc.NewUnsignedExtrinsic(method, val)
