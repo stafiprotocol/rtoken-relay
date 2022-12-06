@@ -809,10 +809,10 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	threshold := uint16(2)
 	//wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
 	// jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
-	relay1, _ := types.NewAddressFromHexAccountID("0x9c4189297ad2140c85861f64656d1d1318994599130d98b75ff094176d2ca31e")
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 
 	others := []types.AccountID{
-		relay1.AsAccountID,
+		relay2.AsID,
 	}
 
 	//for _, oth := range others {
@@ -846,6 +846,7 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	
 	err = sc.SignAndSubmitTx(ext)
 	if err != nil {
 		t.Fatal(err)
@@ -866,7 +867,7 @@ func Test_KSM_GsrpcClient_transfer(t *testing.T) {
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
 	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeAccountId, krp, tlog, stop)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeAccountId, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -877,7 +878,7 @@ func Test_KSM_GsrpcClient_transfer(t *testing.T) {
 	// threshold := uint16(2)
 	//wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
 	// jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
-	relay2, _ := types.NewAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 
 	// others := []types.AccountID{
 	// 	relay2.AsAccountID,
@@ -894,7 +895,7 @@ func Test_KSM_GsrpcClient_transfer(t *testing.T) {
 	// if err!=nil{
 	// 	t.Fatal(err)
 	// }
-	ext, err := sc.NewUnsignedExtrinsic(config.MethodTransferKeepAlive, relay2.AsAccountID, types.NewUCompact(big.NewInt(1000000)))
+	ext, err := sc.NewUnsignedExtrinsic(config.MethodTransfer, relay2, types.NewUCompact(big.NewInt(1e10)))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,7 @@ const (
 	TransferKeepAlive       = "transfer_keep_alive"
 	Transfer                = "transfer"
 	MethodTransferKeepAlive = "Balances.transfer_keep_alive"
+	MethodTransfer          = "Balances.transfer"
 	ConstExistentialDeposit = "ExistentialDeposit"
 
 	StakingModuleId           = "Staking"

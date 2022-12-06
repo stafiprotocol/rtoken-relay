@@ -25,7 +25,21 @@ var log = core.NewLog()
 func handleGenerateSubCmd(ctx *cli.Context) error {
 	log.Info("Generating substrate keyfile by rawseed...")
 	path := ctx.String(config.KeystorePathFlag.Name)
-	network := ctx.String(config.NetworkFlag.Name)
+	networkStr := ctx.String(config.NetworkFlag.Name)
+	network := uint16(42)
+	switch networkStr {
+	case "stafi":
+		network = uint16(20)
+	case "polkadot":
+		network = uint16(0)
+	case "substrate":
+		network = uint16(42)
+	case "kusama":
+		network = uint16(2)
+	default:
+		return fmt.Errorf("not suport network: %s", networkStr)
+	}
+
 	return generateKeyFileByRawseed(path, network)
 }
 
@@ -43,7 +57,7 @@ func handleGenerateBcCmd(ctx *cli.Context) error {
 }
 
 // keypath example: /Homepath/chainbridge/keys
-func generateKeyFileByRawseed(keypath, network string) error {
+func generateKeyFileByRawseed(keypath string, network uint16) error {
 	key := keystore.GetPassword("Enter mnemonic/rawseed:")
 	kp, err := sr25519.NewKeypairFromSeed(string(key), network)
 	if err != nil {
