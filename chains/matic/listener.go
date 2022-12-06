@@ -25,7 +25,7 @@ import (
 
 // Frequency of polling for a new block
 var (
-	BlockDelay         = uint64(5)
+	BlockDelay         = uint64(2)
 	BlockRetryInterval = time.Second * 10
 	EraInterval        = time.Minute * 2
 	BlockRetryLimit    = 30
