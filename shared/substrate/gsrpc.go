@@ -543,36 +543,6 @@ func (sc *SarpcClient) GetConst(prefix, name string, res interface{}) error {
 	}
 }
 
-// func OpaqueCall(ext interface{}) (*submodel.MultiOpaqueCall, error) {
-// 	var call types.Call
-
-// 	switch xt := ext.(type) {
-// 	case *types.Extrinsic:
-// 		call = xt.Method
-// 	case *types.ExtrinsicMulti:
-// 		call = xt.Method
-// 	default:
-// 		return nil, errors.New("not support extrinsic type")
-// 	}
-
-// 	opaque, err := types.EncodeToBytes(call)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	bz, err := types.EncodeToBytes(ext)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	callhash := utils.BlakeTwo256(opaque)
-// 	return &submodel.MultiOpaqueCall{
-// 		Extrinsic: hexutil.Encode(bz),
-// 		Opaque:    opaque,
-// 		CallHash:  hexutil.Encode(callhash[:]),
-// 	}, nil
-// }
-
 func CreateRunTimeCall(ext interface{}) (*submodel.RunTimeCall, error) {
 	var call types.Call
 

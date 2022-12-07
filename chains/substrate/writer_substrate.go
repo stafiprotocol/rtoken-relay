@@ -120,7 +120,7 @@ func (w *writer) processEraPoolUpdatedEvent(m *core.Message) bool {
 			w.log.Error("AsMulti error", "err", err, "callHash", callhash)
 			return false
 		}
-		w.log.Error("AsMulti success", "callHash", callhash)
+		w.log.Info("AsMulti success", "callHash", callhash)
 		return true
 	}
 
