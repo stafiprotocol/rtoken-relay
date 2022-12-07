@@ -40,7 +40,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 	}
 
 	callHash := utils.BlakeTwo256(flow.Snap.Pool)
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{
+	mef.RunTimeCalls = []*submodel.RunTimeCall{
 		{CallHash: hexutil.Encode(callHash[:])}}
 
 	return w.informChain(m.Destination, m.Source, mef)

@@ -1,8 +1,8 @@
 package substrate
 
 import (
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"math/big"
 	"strings"
 	"time"
@@ -176,46 +176,51 @@ func (sc *SarpcClient) GetAccountInfo() (*types.AccountInfo, error) {
 }
 
 func (sc *SarpcClient) NewUnsignedExtrinsic(callMethod string, args ...interface{}) (interface{}, error) {
-	sc.log.Debug("Submitting substrate call...", "callMethod", callMethod, "addressType", sc.addressType, "sender", sc.key.Address)
+	sc.log.Debug("NewUnsignedExtrinsic", "callMethod", callMethod, "addressType", sc.addressType, "sender", sc.key.Address)
 
 	ci, err := sc.FindCallIndex(callMethod)
 	if err != nil {
-		return nil, err
-	}
-	call, err := types.NewCallWithCallIndex(ci, callMethod, args...)
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "FindCallIndex")
 	}
 
-	if sc.addressType == AddressTypeAccountId {
+	call, err := types.NewCallWithCallIndex(ci, callMethod, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "NewCallWithCallIndex")
+	}
+
+	switch sc.addressType {
+	case AddressTypeAccountId:
 		unsignedExt := types.NewExtrinsic(call)
 		return &unsignedExt, nil
-	} else if sc.addressType == AddressTypeMultiAddress {
+	case AddressTypeMultiAddress:
 		unsignedExt := types.NewExtrinsicMulti(call)
 		return &unsignedExt, nil
-	} else {
-		return nil, errors.New("addressType not supported")
+	default:
+		return nil, fmt.Errorf("address type is not supported: %s", sc.addressType)
 	}
 }
 
 func (sc *SarpcClient) SignAndSubmitTx(ext interface{}) error {
 	err := sc.signExtrinsic(ext)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "signExtrinsic")
 	}
-	sc.log.Trace("signExtrinsic ok")
+
+	extHexStr, err := types.EncodeToHexString(ext)
+	if err != nil {
+		return errors.Wrap(err, "EncodeToHexString")
+	}
+	sc.log.Trace("SignAndSubmitTx", "extrinsic", extHexStr)
 
 	api, err := sc.FlashApi()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "FlashApi")
 	}
-	sc.log.Trace("flashApi ok")
 	// Do the transfer and track the actual status
 	sub, err := api.RPC.Author.SubmitAndWatch(ext)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "SubmitAndWatch")
 	}
-	sc.log.Trace("Extrinsic submission succeeded")
 	defer sub.Unsubscribe()
 
 	return sc.watchSubmission(sub)
@@ -246,6 +251,7 @@ func (sc *SarpcClient) watchSubmission(sub *author.ExtrinsicStatusSubscription) 
 }
 
 func (sc *SarpcClient) signExtrinsic(xt interface{}) error {
+	sc.log.Debug("signExtrinsic", "addressType", sc.addressType)
 	rv, err := sc.GetLatestRuntimeVersion()
 	if err != nil {
 		return err
@@ -266,23 +272,14 @@ func (sc *SarpcClient) signExtrinsic(xt interface{}) error {
 		TransactionVersion: rv.TransactionVersion,
 	}
 
-	if ext, ok := xt.(*types.Extrinsic); ok {
-		sc.log.Debug("signExtrinsic", "addressType", sc.addressType)
-		err = ext.Sign(*sc.key, o)
-		if err != nil {
-			return err
-		}
-	} else if ext, ok := xt.(*types.ExtrinsicMulti); ok {
-		sc.log.Debug("signExtrinsic", "addressType", sc.addressType)
-		err = ext.Sign(*sc.key, o)
-		if err != nil {
-			return fmt.Errorf("sign err: %s", err)
-		}
-	} else {
-		return errors.New("extrinsic cast error")
+	switch ext := xt.(type) {
+	case *types.Extrinsic:
+		return ext.Sign(*sc.key, o)
+	case *types.ExtrinsicMulti:
+		return ext.Sign(*sc.key, o)
+	default:
+		return errors.New("extrinsic unsupport")
 	}
-
-	return nil
 }
 
 func (sc *SarpcClient) PublicKey() []byte {
@@ -303,7 +300,7 @@ func (sc *SarpcClient) StakingLedger(ac types.AccountID) (*submodel.StakingLedge
 	return s, nil
 }
 
-func (sc *SarpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*submodel.MultiOpaqueCall, error) {
+func (sc *SarpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*submodel.RunTimeCall, error) {
 	sc.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
 	var method string
 	var val types.UCompact
@@ -328,19 +325,42 @@ func (sc *SarpcClient) BondOrUnbondCall(bond, unbond *big.Int) (*submodel.MultiO
 		return nil, err
 	}
 
-	return OpaqueCall(ext)
+	return CreateRunTimeCall(ext)
 }
 
-func (sc *SarpcClient) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
+func (sc *SarpcClient) BondOrUnbondExtrinsic(bond, unbond *big.Int) (interface{}, error) {
+	sc.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond)
+	var method string
+	var val types.UCompact
+
+	if bond.Cmp(unbond) < 0 {
+		sc.log.Info("unbond larger than bond, UnbondCall")
+		diff := big.NewInt(0).Sub(unbond, bond)
+		method = config.MethodUnbond
+		val = types.NewUCompact(diff)
+	} else if bond.Cmp(unbond) > 0 {
+		sc.log.Info("bond larger than unbond, BondCall")
+		diff := big.NewInt(0).Sub(bond, unbond)
+		method = config.MethodBondExtra
+		val = types.NewUCompact(diff)
+	} else {
+		sc.log.Info("bond is equal to unbond, NoCall")
+		return nil, ErrorBondEqualToUnbond
+	}
+
+	return sc.NewUnsignedExtrinsic(method, val)
+}
+
+func (sc *SarpcClient) WithdrawCall() (*submodel.RunTimeCall, error) {
 	ext, err := sc.NewUnsignedExtrinsic(config.MethodWithdrawUnbonded, uint32(0))
 	if err != nil {
 		return nil, err
 	}
 
-	return OpaqueCall(ext)
+	return CreateRunTimeCall(ext)
 }
 
-func (sc *SarpcClient) TransferCall(accountId []byte, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
+func (sc *SarpcClient) TransferCall(accountId []byte, value types.UCompact) (*submodel.RunTimeCall, error) {
 	var addr interface{}
 	switch sc.addressType {
 	case AddressTypeAccountId:
@@ -356,7 +376,20 @@ func (sc *SarpcClient) TransferCall(accountId []byte, value types.UCompact) (*su
 		return nil, err
 	}
 
-	return OpaqueCall(ext)
+	return CreateRunTimeCall(ext)
+}
+func (sc *SarpcClient) TransferExtrinsic(accountId []byte, value types.UCompact) (interface{}, error) {
+	var addr interface{}
+	switch sc.addressType {
+	case AddressTypeAccountId:
+		addr = types.NewAddressFromAccountID(accountId)
+	case AddressTypeMultiAddress:
+		addr = types.NewMultiAddressFromAccountID(accountId)
+	default:
+		return nil, fmt.Errorf("addressType not supported: %s", sc.addressType)
+	}
+
+	return sc.NewUnsignedExtrinsic(config.MethodTransferKeepAlive, addr, value)
 }
 
 func (sc *SarpcClient) BatchTransfer(receives []*submodel.Receive) error {
@@ -398,7 +431,7 @@ func (sc *SarpcClient) BatchTransfer(receives []*submodel.Receive) error {
 	return sc.SignAndSubmitTx(ext)
 }
 
-func (sc *SarpcClient) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
+func (sc *SarpcClient) NominateCall(validators []types.Bytes) (*submodel.RunTimeCall, error) {
 	targets := make([]interface{}, 0)
 	switch sc.addressType {
 	case AddressTypeAccountId:
@@ -418,7 +451,7 @@ func (sc *SarpcClient) NominateCall(validators []types.Bytes) (*submodel.MultiOp
 		return nil, err
 	}
 
-	return OpaqueCall(ext)
+	return CreateRunTimeCall(ext)
 }
 
 func (sc *SarpcClient) FreeBalance(who []byte) (types.U128, error) {
@@ -510,30 +543,62 @@ func (sc *SarpcClient) GetConst(prefix, name string, res interface{}) error {
 	}
 }
 
-func OpaqueCall(ext interface{}) (*submodel.MultiOpaqueCall, error) {
+// func OpaqueCall(ext interface{}) (*submodel.MultiOpaqueCall, error) {
+// 	var call types.Call
+
+// 	switch xt := ext.(type) {
+// 	case *types.Extrinsic:
+// 		call = xt.Method
+// 	case *types.ExtrinsicMulti:
+// 		call = xt.Method
+// 	default:
+// 		return nil, errors.New("not support extrinsic type")
+// 	}
+
+// 	opaque, err := types.EncodeToBytes(call)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	bz, err := types.EncodeToBytes(ext)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	callhash := utils.BlakeTwo256(opaque)
+// 	return &submodel.MultiOpaqueCall{
+// 		Extrinsic: hexutil.Encode(bz),
+// 		Opaque:    opaque,
+// 		CallHash:  hexutil.Encode(callhash[:]),
+// 	}, nil
+// }
+
+func CreateRunTimeCall(ext interface{}) (*submodel.RunTimeCall, error) {
 	var call types.Call
-	if xt, ok := ext.(*types.Extrinsic); ok {
+
+	switch xt := ext.(type) {
+	case *types.Extrinsic:
 		call = xt.Method
-	} else if xt, ok := ext.(*types.ExtrinsicMulti); ok {
+	case *types.ExtrinsicMulti:
 		call = xt.Method
-	} else {
-		return nil, errors.New("extrinsic cast error")
+	default:
+		return nil, errors.New("not support extrinsic type")
 	}
 
 	opaque, err := types.EncodeToBytes(call)
 	if err != nil {
 		return nil, err
 	}
+	callhash := utils.BlakeTwo256(opaque)
 
 	bz, err := types.EncodeToBytes(ext)
 	if err != nil {
 		return nil, err
 	}
 
-	callhash := utils.BlakeTwo256(opaque)
-	return &submodel.MultiOpaqueCall{
+	return &submodel.RunTimeCall{
 		Extrinsic: hexutil.Encode(bz),
-		Opaque:    opaque,
+		Call:      call,
 		CallHash:  hexutil.Encode(callhash[:]),
 	}, nil
 }

@@ -451,6 +451,7 @@ func (sc *SarpcClient) GetPaymentQueryInfo(encodedExtrinsic string) (paymentInfo
 	if err = sc.sendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
 		return
 	}
+	sc.log.Trace("GetPaymentQueryInfo", "json", fmt.Sprintf("%+v", v))
 
 	paymentInfo = v.ToPaymentQueryInfo()
 	if paymentInfo == nil {

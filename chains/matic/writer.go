@@ -362,7 +362,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 
 	if nonce.Uint64() == 0 {
 		w.log.Info("withdrawn", "shareAddr", shareAddr, "poolAddr", poolAddr)
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
+		mef.RunTimeCalls = []*submodel.RunTimeCall{{CallHash: txHash.Hex()}}
 		return w.informChain(m.Destination, m.Source, mef)
 	}
 
@@ -437,7 +437,7 @@ func (w *writer) processWithdrawReported(m *core.Message) error {
 	}
 
 	if flow.TotalAmount.Uint64() == 0 {
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
+		mef.RunTimeCalls = []*submodel.RunTimeCall{{CallHash: txHash.Hex()}}
 		w.log.Info("processWithdrawReported: no need to do transfer call")
 		return w.informChain(m.Destination, m.Source, mef)
 	}
@@ -545,7 +545,7 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 		if mef == nil {
 			return fmt.Errorf("mef shouldn't be nil")
 		}
-		mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
+		mef.RunTimeCalls = []*submodel.RunTimeCall{{CallHash: txHash.Hex()}}
 		operation = mef.MultiTransaction.Operation
 		value = mef.MultiTransaction.Value
 		safeGas = mef.MultiTransaction.SafeTxGas

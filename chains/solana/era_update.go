@@ -79,7 +79,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	//bond report
 	callHash := utils.BlakeTwo256([]byte{})
-	mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
+	mFlow.RunTimeCalls = []*submodel.RunTimeCall{
 		{CallHash: hexutil.Encode(callHash[:])}}
 	return w.informChain(m.Destination, m.Source, mFlow)
 }

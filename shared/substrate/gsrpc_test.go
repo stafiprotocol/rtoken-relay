@@ -473,88 +473,6 @@ func TestStafiLocalQueryActiveEra(t *testing.T) {
 	t.Log("activeEra", index)
 }
 
-//	func TestBondExtra(t *testing.T) {
-//		password := "123456"
-//		os.Setenv(keystore.EnvPassword, password)
-//
-//		kp, err := keystore.KeypairFromAddress(From, keystore.SubChain, KeystorePath, false)
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//
-//		krp := kp.(*sr25519.Keypair).AsKeyringPair()
-//		stop := make(chan int)
-//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, krp, tlog, stop)
-//		assert.NoError(t, err)
-//
-//		amount, _ := utils.StringToBigint("10000000000000")
-//		value := types.NewUCompact(amount)
-//		ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
-//		assert.NoError(t, err)
-//
-//		err = gc.SignAndSubmitTx(ext)
-//		assert.NoError(t, err)
-//	}
-//
-//	func TestPolkaBondExtra(t *testing.T) {
-//		password := "123456"
-//		os.Setenv(keystore.EnvPassword, password)
-//
-//		kp, err := keystore.KeypairFromAddress(LessPolka, keystore.SubChain, KeystorePath, false)
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//
-//		krp := kp.(*sr25519.Keypair).AsKeyringPair()
-//		stop := make(chan int)
-//		gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
-//		assert.NoError(t, err)
-//
-//		amount, _ := utils.StringToBigint("10000000000000")
-//		value := types.NewUCompact(amount)
-//		ext, err := gc.NewUnsignedExtrinsic(config.MethodBondExtra, value)
-//		assert.NoError(t, err)
-//
-//		err = gc.SignAndSubmitTx(ext)
-//		assert.NoError(t, err)
-//	}
-//
-//	func TestFreeBalance(t *testing.T) {
-//		less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
-//
-//		stop := make(chan int)
-//		gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
-//		assert.NoError(t, err)
-//		free, err := gc.FreeBalance(less.AsAccountID[:])
-//		assert.NoError(t, err)
-//		fmt.Println(free)
-//
-//		lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
-//		gc1, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
-//		assert.NoError(t, err)
-//
-//		free1, err := gc1.FreeBalance(lessPolka.AsID[:])
-//		assert.NoError(t, err)
-//		fmt.Println(free1)
-//	}
-//
-//	func TestBonded(t *testing.T) {
-//		//lessPolka, _ := types.NewMultiAddressFromHexAccountID("0x5a0c23479ba36898acb44e163fe58a9155d7b508041cc1b5d5ad6bbd3d5a6360")
-//		stop := make(chan int)
-//		gc, err := NewGsrpcClient("wss://polkadot-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
-//		assert.NoError(t, err)
-//
-//		a := "0xbe5ddb1579b72e84524fc29e78609e3caf42e85aa118ebfe0b0ad404b5bdd25f"
-//		mac, err := types.NewMultiAddressFromHexAccountID(a)
-//		assert.NoError(t, err)
-//		b := hexutil.Encode(mac.AsID[:])
-//		fmt.Println(b)
-//
-//		var controller types.AccountID
-//		exist, err := gc.QueryStorage(config.StakingModuleId, config.StorageBonded, mac.AsID[:], nil, &controller)
-//		assert.NoError(t, err)
-//		fmt.Println(exist)
-//	}
 func TestActive(t *testing.T) {
 	stop := make(chan int)
 	//sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
@@ -598,43 +516,6 @@ func TestActive1(t *testing.T) {
 	t.Log(exist)
 	t.Log(types.NewU128(big.Int(ledger.Active)))
 }
-
-//
-//func TestPoolUnbonds(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	symbz, _ := types.EncodeToBytes(core.RDOT)
-//	pool, _ := hexutil.Decode("0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7")
-//	uk := &submodel.PoolUnbondKey{Pool: pool, Era: uint32(1776)}
-//
-//	bz, err := types.EncodeToBytes(uk)
-//	assert.NoError(t, err)
-//
-//	unbonds := make([]submodel.Unbonding, 0)
-//	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StoragePoolUnbonds, symbz, bz, &unbonds)
-//	assert.NoError(t, err)
-//	fmt.Println(exist)
-//	fmt.Println(unbonds)
-//}
-//
-//func TestGsrpcClient_GetHeader(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	bh, err := types.NewHashFromHexString("0x8431e885f1e4b799cc2a86962e109bd8cc6d4070fc3ee1787562a9ba83ed5da4")
-//	assert.NoError(t, err)
-//
-//	head, err := gc.GetHeader(bh)
-//	assert.NoError(t, err)
-//	fmt.Println(head.Number)
-//
-//	final, err := gc.GetFinalizedBlockNumber()
-//	assert.NoError(t, err)
-//	fmt.Println(final)
-//}
 
 //func TestGsrpcClient_Multisig1(t *testing.T) {
 //	password := "123456"
@@ -733,58 +614,9 @@ func TestPool(t *testing.T) {
 	fmt.Println(pool)
 	fmt.Println(pbz)
 
-	//stop := make(chan int)
-	//gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-	//assert.NoError(t, err)
-	//
-	//
-	////poolBz, err := types.EncodeToBytes(pool)
-	//symBz, err := types.EncodeToBytes(core.RKSM)
-	//assert.NoError(t, err)
-	//
-	//var threshold uint16
-	//exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, pbz, &threshold)
-	//assert.NoError(t, err)
-	//fmt.Println(exist)
-	//fmt.Println()
-
 }
 
-//func TestGsrpcClient_Address(t *testing.T) {
-//	stop := make(chan int)
-//	//gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-//	gc, err := NewGsrpcClient("wss://kusama-test-rpc.stafi.io", AddressTypeMultiAddress, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	con, _ := types.NewMultiAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
-//	ledger := new(submodel.StakingLedger)
-//	_, err = gc.QueryStorage(config.StakingModuleId, config.StorageLedger, con.AsID[:], nil, ledger)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log(ledger)
-//}
-//
-//func TestGsrpcClient_QueryBondstate(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://mainnet-rpc.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	bh, _ := types.NewHashFromHexString("0x9373e80a7690ee88e9e78a867bafaa9d9bc9e8f0d445fbc93e27baf4083fdadc")
-//	th, _ := types.NewHashFromHexString("0xf5f1e2e19b56467f4edd425ac7cdef88dcd56b46b80f40844571e8063cc2439b")
-//
-//	bsk := submodel.BondStateKey{BlockHash: bh[:], TxHash: th[:]}
-//	symbz, _ := types.EncodeToBytes(core.RDOT)
-//	bz, _ := types.EncodeToBytes(bsk)
-//	var bs submodel.BondState
-//	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondStates, symbz, bz, &bs)
-//	assert.NoError(t, err)
-//	assert.True(t, exist)
-//	assert.Equal(t, submodel.Success, bs)
-//}
-//
-
-func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
+func Test_KSM_GsrpcClient_Multisig_bond(t *testing.T) {
 
 	logrus.SetLevel(logrus.TraceLevel)
 
@@ -798,7 +630,8 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -822,17 +655,37 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	bond, _ := utils.StringToBigint("1000000000000")
 	unbond := big.NewInt(0)
 
-	call, err := sc.BondOrUnbondCall(bond, unbond)
+	ext, err := sc.BondOrUnbondExtrinsic(bond, unbond)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	h := utils.BlakeTwo256(call.Opaque)
-	t.Log("Extrinsic", call.Extrinsic)
-	t.Log("Opaque", hexutil.Encode(call.Opaque))
-	t.Log("callHash", hexutil.Encode(h[:]))
+	var cal types.Call
+	switch ext := ext.(type) {
+	case *types.Extrinsic:
+		cal = ext.Method
+	case *types.ExtrinsicMulti:
+		cal = ext.Method
+	default:
+		t.Fatal("ext unsupported")
+	}
+	_ = cal
+	// h := utils.BlakeTwo256(call.Opaque)
 
-	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	// t.Log("Extrinsic", call.Extrinsic)
+	// t.Log("Opaque", hexutil.Encode(call.Opaque))
+	// t.Log("callHash", hexutil.Encode(h[:]))
+	// calBts,err:=types.EncodeToBytes(cal)
+	// if err!=nil{
+	// 	t.Fatal(err)
+	// }
+	// t.Log(hexutil.Encode(calBts))
+
+	extBz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -840,14 +693,175 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 
 	//optp := types.TimePoint{Height: 1964877, Index: 1}
 	//tp := submodel.NewOptionTimePoint(optp)
+	// opaque, err := types.EncodeToBytes(cal)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
 	tp := submodel.NewOptionTimePointEmpty()
-	ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, info.Weight)
 	if err != nil {
 		t.Fatal(err)
 	}
-	
-	err = sc.SignAndSubmitTx(ext)
+
+	err = sc.SignAndSubmitTx(multiExt)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_KSM_GsrpcClient_Multisig_transfer(t *testing.T) {
+
+	logrus.SetLevel(logrus.TraceLevel)
+
+	password := "tpkeeper"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(relay1, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	threshold := uint16(2)
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+
+	others := []types.AccountID{
+		relay2.AsID,
+	}
+
+	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var cal types.Call
+	switch ext := ext.(type) {
+	case *types.Extrinsic:
+		cal = ext.Method
+	case *types.ExtrinsicMulti:
+		cal = ext.Method
+	default:
+		t.Fatal("ext unsupported")
+	}
+	_ = cal
+	// h := utils.BlakeTwo256(call.Opaque)
+
+	// t.Log("Extrinsic", call.Extrinsic)
+	// t.Log("Opaque", hexutil.Encode(call.Opaque))
+	// t.Log("callHash", hexutil.Encode(h[:]))
+	// calBts,err:=types.EncodeToBytes(cal)
+	// if err!=nil{
+	// 	t.Fatal(err)
+	// }
+	// t.Log(hexutil.Encode(calBts))
+
+	extBz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("info", info.Class, info.PartialFee, info.Weight)
+	weight := submodel.WeightV2{
+		RefTime:   types.NewUCompact(big.NewInt(info.Weight)),
+		ProofSize: types.NewUCompact(big.NewInt(0)),
+	}
+	//optp := types.TimePoint{Height: 1964877, Index: 1}
+	//tp := submodel.NewOptionTimePoint(optp)
+	// opaque, err := types.EncodeToBytes(cal)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	tp := submodel.NewOptionTimePointEmpty()
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, weight)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sc.SignAndSubmitTx(multiExt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_AsMulti_transfer(t *testing.T) {
+
+	logrus.SetLevel(logrus.TraceLevel)
+
+	password := "tpkeeper"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(relay2, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	threshold := uint16(2)
+	relay1, _ := types.NewMultiAddressFromHexAccountID("0x8e7750f4276116f8f089a5a4b24ca6577a13c7a1bcfe15868291b563336a7729")
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+
+	others := []types.AccountID{
+		relay1.AsID,
+	}
+
+	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var cal types.Call
+	switch ext := ext.(type) {
+	case *types.Extrinsic:
+		cal = ext.Method
+	case *types.ExtrinsicMulti:
+		cal = ext.Method
+	default:
+		t.Fatal("ext unsupported")
+	}
+	_ = cal
+
+	extBz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("info", info.Class, info.PartialFee, info.Weight)
+	weight := submodel.WeightV2{
+		RefTime:   types.NewUCompact(big.NewInt(info.Weight)),
+		ProofSize: types.NewUCompact(big.NewInt(0)),
+	}
+	optp := types.TimePoint{Height: types.NewU32(1122), Index: 2}
+	tp := submodel.NewOptionTimePoint(optp)
+
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, weight)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sc.SignAndSubmitTx(multiExt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -866,211 +880,22 @@ func Test_KSM_GsrpcClient_transfer(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
+
 	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeAccountId, krp, tlog, stop)
 	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	//pool, err := hexutil.Decode("ac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c")
-	//assert.NoError(t, err)
-
-	// threshold := uint16(2)
-	//wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
-	// jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
 	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 
-	// others := []types.AccountID{
-	// 	relay2.AsAccountID,
-	// }
-
-	//for _, oth := range others {
-	//	fmt.Println(hexutil.Encode(oth[:]))
-	//}
-
-	// bond, _ := utils.StringToBigint("1000000000000")
-	// unbond := big.NewInt(0)
-
-	// call,err:=sc.TransferCall(relay2.AsAccountID[:],types.NewUCompact(big.NewInt(1000000)))
-	// if err!=nil{
-	// 	t.Fatal(err)
-	// }
-	ext, err := sc.NewUnsignedExtrinsic(config.MethodTransfer, relay2, types.NewUCompact(big.NewInt(1e10)))
+	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1e10)))
+	// ext, err := sc.NewUnsignedExtrinsic(config.MethodTransfer, relay2, types.NewUCompact(big.NewInt(1e10)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// call, err := sc.BondOrUnbondCall(bond, unbond)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// h := utils.BlakeTwo256(call.Opaque)
-	// t.Log("Extrinsic", call.Extrinsic)
-	// t.Log("Opaque", hexutil.Encode(call.Opaque))
-	// t.Log("callHash", hexutil.Encode(h[:]))
-
-	// info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// t.Log("info", info.Class, info.PartialFee, info.Weight)
-
-	//optp := types.TimePoint{Height: 1964877, Index: 1}
-	//tp := submodel.NewOptionTimePoint(optp)
-
-	// tp := submodel.NewOptionTimePointEmpty()
-	// ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 	err = sc.SignAndSubmitTx(ext)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
-
-//func TestValidatorId(t *testing.T) {
-//	pool, _ := hexutil.Decode("0x1cb8b55cb11152e74d34be1961e4ffe169f5b99a")
-//
-//	poolBz, err := types.EncodeToBytes(pool)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	symBz, err := types.EncodeToBytes(core.RMATIC)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("ws://127.0.0.1:9944", AddressTypeAccountId, AliceKey, tlog, stop)
-//
-//	validatorIds := make([]types.Bytes, 0)
-//	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageNominated, symBz, poolBz, &validatorIds)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	if !exist {
-//		t.Fatal(err)
-//	}
-//
-//	t.Log(len(validatorIds))
-//}
-
-//func TestSignatures(t *testing.T) {
-//	pool, _ := hexutil.Decode("0xfc42de640aa9759d460e1a11416eca95d25c5908")
-//	symBz, err := types.EncodeToBytes(core.RMATIC)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	prop, _ := hexutil.Decode("0x15ed57ca28cbebb58d9c6c62f570046bc089bc666ab15071000000000000000000000000000000000000000000000000016345785d8a00000000000000000000000000000000000000000000000000000000000000000000")
-//	//shareAddr := prop[:20]
-//	sk := submodel.SignaturesKey{
-//		Era:        50468,
-//		Pool:       pool,
-//		TxType:     submodel.OriginalBond,
-//		ProposalId: prop,
-//	}
-//
-//	skBz, err := types.EncodeToBytes(sk)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-//
-//	var sigs []types.Bytes
-//	exist, err := gc.QueryStorage(config.RTokenSeriesModuleId, config.StorageSignatures, symBz, skBz, &sigs)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	t.Log("exist", exist)
-//
-//	signatures := make([][]byte, 0)
-//	for _, sig := range sigs {
-//		// 32 + 65 = 97
-//		if len(sig) != 97 {
-//			panic("sig size not 97")
-//		}
-//		signatures = append(signatures, sig[32:])
-//	}
-//
-//	msg := sigs[0][:32]
-//	t.Log("msg", msg)
-//	//vs, rs, ss := utils.DecomposeSignature(signatures)
-//	to := common.BytesToAddress(prop[:20])
-//	calldata := prop[20:]
-//
-//	t.Log("msg", hexutil.Encode(msg))
-//	t.Log("to", to)
-//	t.Log("calldata", hexutil.Encode(calldata))
-//
-//	for i, sgt := range signatures {
-//		sigPublicKey, err := crypto.Ecrecover(msg, sgt)
-//		if err != nil {
-//			panic(err)
-//		}
-//
-//		t.Log("sigPublicKey", i, hexutil.Encode(sigPublicKey))
-//
-//		pk, err := crypto.UnmarshalPubkey(sigPublicKey)
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//
-//		addr := crypto.PubkeyToAddress(*pk)
-//		t.Log("Address", i, addr.Hex())
-//	}
-//
-//	param := &submodel.SubmitSignatureParams{
-//		Symbol: core.RMATIC,
-//		Era:    50468,
-//		Pool:   pool,
-//		TxType: submodel.OriginalBond,
-//	}
-//
-//	txhash, err := param.EncodeToHash()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	t.Log(txhash)
-//
-//	MultiSigAbi, _ := abi.JSON(strings.NewReader(Multisig.MultisigABI))
-//	vs, rs, ss := utils.DecomposeSignature(signatures)
-//	t.Log("vs", vs)
-//	t.Log("rs0", hexutil.Encode(rs[0][:]))
-//	t.Log("rs1", hexutil.Encode(rs[1][:]))
-//	t.Log("ss0", hexutil.Encode(ss[0][:]))
-//	t.Log("ss1", hexutil.Encode(ss[1][:]))
-//
-//	value := big.NewInt(0)
-//	operation := ethmodel.Call
-//	safeTxGas := big.NewInt(300000)
-//	txHash := common.HexToHash("0xca56fae341743f3c9c6e0832b76cb64a06a3f8c5d2b98d658baec971ca16f073")
-//
-//	packed, err := MultiSigAbi.Pack("execTransaction", to, value, calldata, operation, safeTxGas, txHash, vs, rs, ss)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log(hexutil.Encode(packed))
-//}
-//
-//func TestSnapShots(t *testing.T) {
-//	stop := make(chan int)
-//	gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-//	assert.NoError(t, err)
-//
-//	symbz, _ := types.EncodeToBytes(core.RMATIC)
-//	//pool, _ := hexutil.Decode("0x782a467d4ff23b660ca5f1ecf47f8537d4c35049541b6ebbf5381c00c4c158f7")
-//
-//	var snapshots []submodel.PoolSnapshot
-//	exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageSnapshots, symbz, nil, &snapshots)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	t.Log(exist)
-//}

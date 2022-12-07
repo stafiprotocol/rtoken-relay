@@ -453,7 +453,7 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 		return false
 	}
 
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
+	mef.RunTimeCalls = []*submodel.RunTimeCall{{CallHash: txHash.Hex()}}
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
 }

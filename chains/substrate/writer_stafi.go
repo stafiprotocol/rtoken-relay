@@ -285,7 +285,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		w.log.Info("MethodBondReportProposal resolveProposal", "result", result)
 		return result
 	case *submodel.ActiveReportedFlow:
-		callhash := flow.OpaqueCalls[0].CallHash
+		callhash := flow.RunTimeCalls[0].CallHash
 		bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
 		if err != nil {
 			w.sysErr <- fmt.Errorf("processInformChain: callhash %s decode error: %s", bondId, err)
@@ -302,7 +302,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		return result
 
 	case *submodel.WithdrawReportedFlow:
-		callhash := flow.OpaqueCalls[0].CallHash
+		callhash := flow.RunTimeCalls[0].CallHash
 		bondId, err := types.NewHashFromHexString(utiles.AddHex(callhash))
 		if err != nil {
 			w.sysErr <- fmt.Errorf("processInformChain: callhash %s decode error: %s", bondId, err)

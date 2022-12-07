@@ -16,9 +16,9 @@ var (
 )
 
 const (
-	stafiTypesFile  = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json"
-	polkaTypesFile  = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/polkadot.json"
-	kusamaTypesFile = "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/kusama.json"
+	stafiTypesFile  = "../../network/stafi.json"
+	polkaTypesFile  = "../../network/polkadot.json"
+	kusamaTypesFile = "../../network/kusama.json"
 )
 
 func TestSarpcClient_GetChainEvents(t *testing.T) {
@@ -124,24 +124,6 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 			t.Log("methodName", ext.CallName)
 			t.Log("address", ext.Address)
 			t.Log(ext.Params)
-			//for _, p := range ext.Params {
-			//	if p.Name == config.ParamDest && p.Type == config.ParamDestType {
-			//		//dest, ok := p.Value.(string)
-			//		//fmt.Println("ok", ok)
-			//		//fmt.Println(dest)
-			//
-			//		// polkadot-test
-			//		dest, ok := p.Value.(map[string]interface{})
-			//		t.Log("ok", ok)
-			//		v, ok := dest["Id"]
-			//		t.Log("ok1", ok)
-			//		val, ok := v.(string)
-			//		t.Log("ok2", ok)
-			//		t.Log(val)
-			//	}
-			//
-			//	t.Log("name", p.Name, "value", p.Value, "type", p.Type)
-			//}
 		}
 	}
 }
