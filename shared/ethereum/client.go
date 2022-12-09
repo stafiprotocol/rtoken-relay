@@ -213,7 +213,18 @@ func (c *Client) LatestBlock() (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return header.Number, nil
+}
+
+// LatestBlock returns the latest block from the current chain
+func (c *Client) LatestBlockTimestamp() (uint64, error) {
+	header, err := c.conn.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		return 0, err
+	}
+
+	return header.Time, nil
 }
 
 // EnsureHasBytecode asserts if contract code exists at the specified address

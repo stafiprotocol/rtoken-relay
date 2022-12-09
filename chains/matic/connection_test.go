@@ -150,3 +150,4 @@ func newTestLogger(name string) core.Logger {
 	tLog := core.NewLog("chain", name)
 	return tLog
 }
+

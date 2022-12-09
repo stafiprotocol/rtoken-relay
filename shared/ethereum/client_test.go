@@ -410,6 +410,12 @@ func TestGasPrice(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("gas price", gasPrice.String())
+	ts, err := client.LatestBlockTimestamp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(ts)
+
 }
 
 func TestWithdrawable(t *testing.T) {

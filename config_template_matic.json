@@ -33,7 +33,8 @@
       ],
       "opts": {
         "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
-        "eraBlockCfg": "100",
+        "eraSeconds": "100",
+        "eraOffset": "-100",
         "startBlock": "8065258",
         "StakeManagerContract": "0x00200eA4Ee292E253E6Ca07dBA5EdC07c8Aa37A3",
         "MaticTokenContract": "0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae",
