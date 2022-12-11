@@ -143,7 +143,17 @@ func (c *Connection) LatestBlock() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return blk.Uint64(), nil
+}
+
+func (c *Connection) LatestBlockTimestamp() (uint64, error) {
+	blkTime, err := c.conn.LatestBlockTimestamp()
+	if err != nil {
+		return 0, err
+	}
+
+	return blkTime, nil
 }
 
 func (c *Connection) Address() string {

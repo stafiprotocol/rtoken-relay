@@ -36,7 +36,8 @@ var (
 type listener struct {
 	name       string
 	symbol     core.RSymbol
-	eraBlock   uint64
+	eraSeconds uint64
+	eraOffset  int64
 	startBlock uint64
 	conn       *Connection
 	router     chains.Router
@@ -48,23 +49,34 @@ type listener struct {
 
 // NewListener creates and returns a listener
 func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, startBlock uint64, bs blockstore.Blockstorer, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
-	eraBlockCfg := opts["eraBlockCfg"]
-	eraBlockStr, ok := eraBlockCfg.(string)
+	eraSeconds := opts["eraSeconds"]
+	eraSecondsStr, ok := eraSeconds.(string)
 	if !ok {
-		panic("eraBlockCfg not string")
+		panic("eraSeconds not string")
 	}
-	eraBlock, ok := utils.StringToBigint(eraBlockStr)
+	eraSecondsBig, ok := utils.StringToBigint(eraSecondsStr)
 	if !ok {
-		panic("eraBlockCfg not digital string")
+		panic("eraSeconds is not digital string")
 	}
-	if eraBlock.Cmp(big.NewInt(0)) <= 0 {
-		panic(fmt.Sprintf("wrong erablock: %s", eraBlock))
+	if eraSecondsBig.Sign() <= 0 {
+		panic(fmt.Sprintf("wrong erablock: %s", eraSecondsBig))
+	}
+
+	eraOffset := opts["eraOffset"]
+	eraOffsetStr, ok := eraOffset.(string)
+	if !ok {
+		panic("eraOffset not string")
+	}
+	eraOffsetBig, ok := utils.StringToBigint(eraOffsetStr)
+	if !ok {
+		panic("eraOffset is not digital string")
 	}
 
 	return &listener{
 		name:       name,
 		symbol:     symbol,
-		eraBlock:   eraBlock.Uint64(),
+		eraSeconds: eraSecondsBig.Uint64(),
+		eraOffset:  eraOffsetBig.Int64(),
 		conn:       conn,
 		startBlock: startBlock,
 		blockstore: bs,
@@ -327,7 +339,7 @@ func (l *listener) pollEras() error {
 				return ErrFatalPolling
 			}
 
-			latestBlock, err := l.conn.LatestBlock()
+			latestBlockTimestamp, err := l.conn.LatestBlockTimestamp()
 			if err != nil {
 				l.log.Warn("Unable to get latest block", "err", err)
 				retry--
@@ -335,9 +347,12 @@ func (l *listener) pollEras() error {
 				continue
 			}
 
-			era := uint32(latestBlock / l.eraBlock)
+			era := int64(latestBlockTimestamp/l.eraSeconds) + l.eraOffset
+			if era <= 0 {
+				return fmt.Errorf("era must > 0: %d", era)
+			}
 
-			err = l.processEra(era)
+			err = l.processEra(uint32(era))
 			if err != nil {
 				l.log.Warn("processEra failed", "err", err)
 				retry--
