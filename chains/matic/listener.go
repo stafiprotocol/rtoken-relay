@@ -16,7 +16,7 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 
-	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakePortal"
+	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -232,7 +232,7 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 	return nil
 }
 
-func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakePortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
+func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakeERC20PortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
 
 	for stakeIterator.Next() {
 		willUseStafiRecipient := stakeIterator.Event.StafiRecipient

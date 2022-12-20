@@ -23,7 +23,6 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	bncClient "github.com/stafiprotocol/go-sdk/client"
 	bncRpc "github.com/stafiprotocol/go-sdk/client/rpc"
-	"github.com/stafiprotocol/go-sdk/client/websocket"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	bnckeys "github.com/stafiprotocol/go-sdk/keys"
 	bncTypes "github.com/stafiprotocol/go-sdk/types"
@@ -35,6 +34,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
+	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeNativePortal"
 )
 
 var (
@@ -84,6 +84,8 @@ type Connection struct {
 	eraBlock          uint64
 	log               core.Logger
 	stop              <-chan int
+
+	stakePortalContract *stake_portal.StakeNativePortal
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
@@ -178,40 +180,6 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 
 func (c *Connection) ReConnect() error {
 	return c.bscClient.Connect()
-}
-
-// LatestBlock returns the latest block from the current chain
-func (c *Connection) LatestBlock() (int64, error) {
-	bcClient, err := bncClient.NewDexClient(baseUrl, bncCmnTypes.Network, c.keyManager)
-	if err != nil {
-		return 0, err
-	}
-
-	quit := make(chan struct{})
-	ch, err := bcClient.WsGet("$all@blockheight", func(bz []byte) (interface{}, error) {
-		var event websocket.BlockHeightEvent
-		err := json.Unmarshal(bz, &event)
-		return event.BlockHeight, err
-	}, quit)
-
-	if err != nil {
-		c.log.Error("LatestBlock error", "error", err)
-		return 0, err
-	}
-
-	timer := time.NewTimer(time.Minute)
-	defer timer.Stop()
-
-	select {
-	case <-timer.C:
-		return 0, errors.New("LatestBlock timeout")
-	case h := <-ch:
-		blk, ok := h.(int64)
-		if !ok {
-			return 0, errors.New("LatestBlock height type not int64")
-		}
-		return blk, nil
-	}
 }
 
 // LatestBlock returns the latest block from the current chain
@@ -866,4 +834,23 @@ func initMultiSend(multiSendCfg interface{}) (common.Address, error) {
 	}
 
 	return common.HexToAddress(multiSendAddr), nil
+}
+
+func (c *Connection) LatestBlockTimestamp() (uint64, error) {
+	blkTime, err := c.bscClient.LatestBlockTimestamp()
+	if err != nil {
+		return 0, err
+	}
+
+	return blkTime, nil
+}
+
+
+func (c *Connection) LatestBlock() (uint64, error) {
+	blk, err := c.bscClient.LatestBlock()
+	if err != nil {
+		return 0, err
+	}
+
+	return blk.Uint64(), nil
 }

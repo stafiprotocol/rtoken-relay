@@ -126,6 +126,25 @@
                 "type": "uint8"
             }
         ],
+        "name": "bridgeFee",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint8",
+                "name": "",
+                "type": "uint8"
+            }
+        ],
         "name": "chainIdExist",
         "outputs": [
             {
@@ -229,6 +248,24 @@
             }
         ],
         "name": "rmStakePool",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint8",
+                "name": "_chainId",
+                "type": "uint8"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_bridgeFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "setBridgeFee",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

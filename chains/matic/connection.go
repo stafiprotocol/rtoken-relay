@@ -18,8 +18,8 @@ import (
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
+	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
-	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakePortal"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
@@ -59,7 +59,7 @@ type Connection struct {
 	maticToken           *MaticToken.MaticToken
 	multiSendContract    common.Address
 
-	stakePortalContract *stake_portal.StakePortal
+	stakePortalContract *stake_portal.StakeERC20Portal
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {

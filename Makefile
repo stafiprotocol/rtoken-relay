@@ -42,7 +42,8 @@ install-subkey:
 
 abi:
 	@echo " > \033[32mGenabi...\033[0m "
-	abigen --abi ./bindings/StakePortal/stakeportal_abi.json --pkg stake_portal --type StakePortal --out ./bindings/StakePortal/StakePortal.go
+	abigen --abi ./bindings/StakeERC20Portal/stakeportal_abi.json --pkg stake_erc20_portal --type StakeERC20Portal --out ./bindings/StakeERC20Portal/StakeERC20Portal.go
+	abigen --abi ./bindings/StakeNativePortal/stakenativeportal_abi.json --pkg stake_native_portal --type StakeNativePortal --out ./bindings/StakeNativePortal/StakeNativePortal.go
 
 ## Runs go test for all packages except the solidity bindings
 test:
