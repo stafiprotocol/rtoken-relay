@@ -25,14 +25,10 @@ import (
 )
 
 var (
-	goerliHttpEndPoint      = "https://mainnet.infura.io/v3/86f8d5ba0d524274bce7780a83dbc0a4"
-	goerliMultisendContract = common.HexToAddress("0x747e29a783a9EE438bD25ac32bB341f12c827217")
-	goerliErc20Token        = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
+	goerliErc20Token = common.HexToAddress("0x7c338c09fcdb43db9877032d06eea43a254c6a28")
 
-	owner        = common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
-	receiver1    = common.HexToAddress("0xaD0bf51f7fc89e262edBbdF53C260088B024D857")
-	receiver2    = common.HexToAddress("0x1Bf32E717FfeD95c5629bd9628e6F11E380e096B")
-	defaultValue = big.NewInt(0)
+	owner     = common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6")
+	receiver1 = common.HexToAddress("0xaD0bf51f7fc89e262edBbdF53C260088B024D857")
 )
 
 func TestTransferCallData(t *testing.T) {
@@ -246,7 +242,7 @@ func TestVerify(t *testing.T) {
 	}
 
 	client := NewGoerliClient()
-	reason, err := client.TransferVerify(a, goerliErc20Token)
+	reason, err := client.TransferVerifyERC20(a, goerliErc20Token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,33 +252,33 @@ func TestVerify(t *testing.T) {
 	wrongBh, _ := hexutil.Decode("0x64c375983dbf3f1680c252684695a17a8f58d7f84ce71e406bebd1d9de67304f")
 	a.Blockhash = wrongBh
 
-	reason, err = client.TransferVerify(a, goerliErc20Token)
+	reason, err = client.TransferVerifyERC20(a, goerliErc20Token)
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.BlockhashUnmatch, reason)
 	a.Blockhash = bh
 
 	wrongTh, _ := hexutil.Decode("0x165bc1fc1cea7d0f6df6fc33fa0e838a5dc15bb460603f170de384b85afc878a")
 	a.Txhash = wrongTh
-	reason, err = client.TransferVerify(a, goerliErc20Token)
+	reason, err = client.TransferVerifyERC20(a, goerliErc20Token)
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.BlockhashUnmatch, reason)
 	a.Txhash = th
 
 	a.Pubkey = pool
-	reason, err = client.TransferVerify(a, goerliErc20Token)
+	reason, err = client.TransferVerifyERC20(a, goerliErc20Token)
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.PubkeyUnmatch, reason)
 	a.Pubkey = pk
 
 	a.Pool = pk
-	reason, err = client.TransferVerify(a, goerliErc20Token)
+	reason, err = client.TransferVerifyERC20(a, goerliErc20Token)
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.PoolUnmatch, reason)
 	a.Pool = pool
 
 	wrongAmt := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(50))
 	a.Amount = types.NewU128(*wrongAmt)
-	reason, err = client.TransferVerify(a, goerliErc20Token)
+	reason, err = client.TransferVerifyERC20(a, goerliErc20Token)
 	assert.NoError(t, err)
 	assert.Equal(t, submodel.AmountUnmatch, reason)
 }
@@ -304,7 +300,7 @@ func TestVerify1(t *testing.T) {
 	}
 
 	client := NewGoerliClient()
-	reason, err := client.TransferVerify(a, goerliErc20Token)
+	reason, err := client.TransferVerifyERC20(a, goerliErc20Token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -607,7 +603,7 @@ func TestVerify2(t *testing.T) {
 	t.Log("receipt.BlockHash", receipt.BlockHash)
 	t.Log("receipt.BlockNumber", receipt.BlockNumber)
 
-	reason, err := client.TransferVerify(a, goerliMaticToken)
+	reason, err := client.TransferVerifyERC20(a, goerliMaticToken)
 	if err != nil {
 		t.Fatal(err)
 	}

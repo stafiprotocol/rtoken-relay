@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
@@ -76,17 +74,12 @@ func NewClient(endpoint string, kp *secp256k1.Keypair, log core.Logger, gasLimit
 // Connect starts the ethereum WS connection
 func (c *Client) Connect() error {
 	c.log.Info("Connecting to ethereum chain...", "url", c.endpoint)
-	var rpcClient *rpc.Client
-	var err error
-	if strings.HasPrefix(c.endpoint, "http") {
-		rpcClient, err = rpc.DialHTTP(c.endpoint)
-	} else {
-		rpcClient, err = rpc.DialWebsocket(context.Background(), c.endpoint, "/ws")
-	}
+	client, err := ethclient.Dial(c.endpoint)
 	if err != nil {
 		return err
 	}
-	c.conn = ethclient.NewClient(rpcClient)
+
+	c.conn = client
 
 	var chainId *big.Int
 	retry := 0
@@ -264,7 +257,7 @@ func (c *Client) WaitForBlock(block, extra *big.Int) error {
 	}
 }
 
-func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (submodel.BondReason, error) {
+func (c *Client) TransferVerifyERC20(r *submodel.BondRecord, token common.Address) (submodel.BondReason, error) {
 	blkHash := common.BytesToHash(r.Blockhash)
 	txHash := common.BytesToHash(r.Txhash)
 
@@ -329,7 +322,7 @@ func (c *Client) TransferVerify(r *submodel.BondRecord, token common.Address) (s
 	return submodel.BlockhashUnmatch, nil
 }
 
-func (c *Client) BnbTransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
+func (c *Client) TransferVerifyNative(r *submodel.BondRecord) (submodel.BondReason, error) {
 	blkHash := common.BytesToHash(r.Blockhash)
 	txHash := common.BytesToHash(r.Txhash)
 

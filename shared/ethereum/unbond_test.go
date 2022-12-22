@@ -46,6 +46,9 @@ func TestMultisigUnbond(t *testing.T) {
 	}
 
 	cd, err := ValidatorShareAbi.Pack("sellVoucher_new", unbondAmount, unbondAmount)
+	if err != nil {
+		t.Fatal(err)
+	}
 	manager, err := StakeManager.NewStakeManager(goerliStakeManagerContract, client.Client())
 	if err != nil {
 		t.Fatal(err)

@@ -617,7 +617,7 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 		return report()
 	}
 
-	eraSignerFlag := w.conn.IsEraSigner(era, subAccounts)
+	eraSignerFlag := w.conn.IsSubmitterOfEra(era, subAccounts)
 	if !eraSignerFlag {
 		w.log.Info("processSignatureEnough", "eraSignerFlag", eraSignerFlag, "era", era, "len(subAccounts)", len(subAccounts), "txHash", txHash)
 		err = w.conn.WaitTxHashSuccess(txHash, poolAddr, sigs.TxType)

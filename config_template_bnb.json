@@ -9,7 +9,6 @@
       "accounts": [
         "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
       ],
-      "latestBlockFlag": false,
       "opts": {
         "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
         "startBlock": "1",
@@ -30,9 +29,11 @@
       "accounts": [
         "0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"
       ],
-      "latestBlockFlag": false,
       "opts": {
-        "eraBlockCfg": "300",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
+        "eraSeconds": "100",
+        "eraOffset": "-100",
+        "startBlock": "8065258",
         "StakePortalContract": "0x0000000000000000000000000000000000001004",
         "MultiSigContracts": [
           "0xa75d7499ca9ac8fE46DCCe5ab9288B0Fe59ea46E"

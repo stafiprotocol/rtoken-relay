@@ -98,7 +98,7 @@ func TestBnbTransferVerify(t *testing.T) {
 	}
 
 	client := newBscTestClient()
-	reason, err := client.BnbTransferVerify(r)
+	reason, err := client.TransferVerifyNative(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestBnbTransferVerify(t *testing.T) {
 	wrongBh, _ := hexutil.Decode("0x7144512dbd193241ca6c518526599c760df161a620a696116b01cde815cd8349")
 	r.Blockhash = wrongBh
 
-	reason, err = client.BnbTransferVerify(r)
+	reason, err = client.TransferVerifyNative(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongTh, _ := hexutil.Decode("0x49c61f50df6cf784a5021d9e4b532a83c9e728e6c3824b08376a2a1a6941a602")
 	r.Txhash = wrongTh
-	reason, err = client.BnbTransferVerify(r)
+	reason, err = client.TransferVerifyNative(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongFrom := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6").Bytes()
 	r.Pubkey = wrongFrom
-	reason, err = client.BnbTransferVerify(r)
+	reason, err = client.TransferVerifyNative(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongTo := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6").Bytes()
 	r.Pool = wrongTo
-	reason, err = client.BnbTransferVerify(r)
+	reason, err = client.TransferVerifyNative(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongAmt := subtypes.NewU128(*big.NewInt(28e16))
 	r.Amount = wrongAmt
-	reason, err = client.BnbTransferVerify(r)
+	reason, err = client.TransferVerifyNative(r)
 	if err != nil {
 		t.Fatal(err)
 	}

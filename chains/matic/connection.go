@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -47,18 +48,18 @@ const (
 type Connection struct {
 	url    string
 	symbol core.RSymbol
-	conn   *ethereum.Client
-	keys   []*secp256k1.Keypair
-	addrs  [][]byte
+	conn   *ethereum.Client     // submitter's client
+	keys   []*secp256k1.Keypair // key of signer or submitter
+	addrs  [][]byte             // address of signer or submitter
 	log    core.Logger
 	stop   <-chan int
 
-	stakeManager         *StakeManager.StakeManager
 	stateManagerContract common.Address
 	maticTokenContract   common.Address
-	maticToken           *MaticToken.MaticToken
 	multiSendContract    common.Address
 
+	stakeManager        *StakeManager.StakeManager
+	maticToken          *MaticToken.MaticToken
 	stakePortalContract *stake_portal.StakeERC20Portal
 }
 
@@ -82,6 +83,7 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		keys = append(keys, kp)
 		addrs = append(addrs, kp.CommonAddress().Bytes())
 
+		// use the last one as submitter
 		if i == acSize-1 {
 			key = kp
 		}
@@ -91,27 +93,28 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, errors.New("no keys")
 	}
 
+	client, err := ethclient.Dial(cfg.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+
 	conn := ethereum.NewClient(cfg.Endpoint, key, log, big.NewInt(0), big.NewInt(0))
 	if err := conn.Connect(); err != nil {
 		return nil, err
 	}
-
-	stakeManager, stateManagerContract, err := initStakeManager(cfg.Opts["StakeManagerContract"], conn.Client())
+	stakeManager, stateManagerContract, err := initStakeManager(cfg.Opts["StakeManagerContract"], client)
 	if err != nil {
 		return nil, err
 	}
-
-	matic, maticAddr, err := initMaticToken(cfg.Opts["MaticTokenContract"], conn.Client())
+	matic, maticAddr, err := initMaticToken(cfg.Opts["MaticTokenContract"], client)
 	if err != nil {
 		return nil, err
 	}
-
-	multiSendAddr, err := initMultisend(cfg.Opts["MultiSendContract"], conn.Client())
+	multiSendAddr, err := initMultisend(cfg.Opts["MultiSendContract"], client)
 	if err != nil {
 		return nil, err
 	}
-
-	stakePortal, err := initStakePortal(cfg.Opts["StakePortalContract"], conn.Client())
+	stakePortal, err := initStakePortal(cfg.Opts["StakePortalContract"], client)
 	if err != nil {
 		return nil, err
 	}
@@ -133,10 +136,6 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	}, nil
 }
 
-func (c *Connection) ReConnect() error {
-	return c.conn.Connect()
-}
-
 // LatestBlock returns the latest block from the current chain
 func (c *Connection) LatestBlock() (uint64, error) {
 	blk, err := c.conn.LatestBlock()
@@ -156,10 +155,6 @@ func (c *Connection) LatestBlockTimestamp() (uint64, error) {
 	return blkTime, nil
 }
 
-func (c *Connection) Address() string {
-	return c.conn.Keypair().Address()
-}
-
 // use conn address as blockstore use address
 func (c *Connection) BlockStoreUseAddress() string {
 	return c.conn.Keypair().Address()
@@ -167,7 +162,7 @@ func (c *Connection) BlockStoreUseAddress() string {
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
 	for i := 0; i < 10; i++ {
-		result, err = c.conn.TransferVerify(r, c.maticTokenContract)
+		result, err = c.conn.TransferVerifyERC20(r, c.maticTokenContract)
 		if err != nil {
 			return
 		}
@@ -380,7 +375,8 @@ func (c *Connection) MessageToSign(tx *ethmodel.MultiTransaction, pool common.Ad
 	return tx.MessageToSign(txHash, pool)
 }
 
-func (c *Connection) IsEraSigner(era uint32, subAccounts []types.Bytes) bool {
+// selector one to submit signature
+func (c *Connection) IsSubmitterOfEra(era uint32, subAccounts []types.Bytes) bool {
 	len := uint32(len(subAccounts))
 	index := era % len
 	acc := subAccounts[index]

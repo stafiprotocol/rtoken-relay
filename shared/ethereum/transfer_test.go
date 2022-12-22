@@ -46,6 +46,9 @@ func TestMultisigTransfer(t *testing.T) {
 	}
 
 	cd, err := maticTokenAbi.Pack("transfer", transferDst, transferAmount)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mt := &ethmodel.MultiTransaction{
 		To:        goerliMaticToken,
 		Value:     big.NewInt(0),

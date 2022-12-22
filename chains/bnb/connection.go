@@ -16,6 +16,7 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	multisig_onchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeNativePortal"
+	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
@@ -33,33 +34,24 @@ var (
 
 const (
 	TxRetryLimit = 10
-
-	bondFee     = int64(20000)
-	unbondFee   = int64(40000)
-	transferFee = int64(7500)
-
-	CoinSymbol = "BNB"
-)
-
-type BcActionType int
-
-const (
-	BcBondAction   = BcActionType(0)
-	BcUnbondAction = BcActionType(1)
-	BcSwapAction   = BcActionType(2)
+	CoinSymbol   = "BNB"
 )
 
 type Connection struct {
 	url         string
 	symbol      core.RSymbol
-	bscClient   *ethereum.Client                    // for query
-	bscClients  map[common.Address]*ethereum.Client // pool -> clients
-	rpcEndpoint string
+	queryClient *ethereum.Client // first pool's bsc client used for query
 	log         core.Logger
 	stop        <-chan int
 
-	multisigOnchains    map[common.Address]*multisig_onchain.MultisigOnchain // pool -> multisigOnchain
+	pools               map[common.Address]*Pool // pool address => pool
 	stakePortalContract *stake_portal.StakeNativePortal
+	stakingContract     *staking.Staking
+}
+
+type Pool struct {
+	bscClient       *ethereum.Client
+	multisigOnchain *multisig_onchain.MultisigOnchain
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
@@ -88,8 +80,7 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	}
 
 	var bscClient *ethereum.Client
-	bscClients := make(map[common.Address]*ethereum.Client)
-	multisigs := make(map[common.Address]*multisig_onchain.MultisigOnchain)
+	var pools = make(map[common.Address]*Pool)
 	acSize := len(cfg.Accounts)
 	if acSize == 0 {
 		return nil, fmt.Errorf("account empty")
@@ -109,22 +100,33 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		}
 		kp, _ := kpI.(*secp256k1.Keypair)
 
-		conn := ethereum.NewClient(cfg.Endpoint, kp, log, big.NewInt(0), big.NewInt(0))
-		if err := conn.Connect(); err != nil {
+		client := ethereum.NewClient(cfg.Endpoint, kp, log, big.NewInt(0), big.NewInt(0))
+		if err := client.Connect(); err != nil {
 			return nil, err
 		}
-		bscClients[multisigContracts[i]] = conn
 
-		multisigs[multisigContracts[i]], err = multisig_onchain.NewMultisigOnchain(multisigContracts[i], ethClient)
+		multisigOnchain, err := multisig_onchain.NewMultisigOnchain(multisigContracts[i], ethClient)
 		if err != nil {
 			return nil, err
 		}
-		if i == 0 {
-			bscClient = conn
+		pool := Pool{
+			bscClient:       client,
+			multisigOnchain: multisigOnchain,
 		}
+		pools[multisigContracts[i]] = &pool
+
+		if i == 0 {
+			bscClient = client
+		}
+
 	}
 
-	stakePortal, err := initStakePortal(cfg.Opts["StakePortalContract"], bscClient.Client())
+	stakePortal, err := initStakePortal(cfg.Opts["StakePortalContract"], ethClient)
+	if err != nil {
+		return nil, err
+	}
+
+	staking, err := initStaking(ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -132,17 +134,13 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	return &Connection{
 		url:                 cfg.Endpoint,
 		symbol:              cfg.Symbol,
-		bscClient:           bscClient,
-		rpcEndpoint:         rpcEndpoint,
+		queryClient:           bscClient,
 		log:                 log,
 		stop:                stop,
-		multisigOnchains:    multisigs,
+		pools:               pools,
 		stakePortalContract: stakePortal,
+		stakingContract:     staking,
 	}, nil
-}
-
-func (c *Connection) ReConnect() error {
-	return c.bscClient.Connect()
 }
 
 func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stake_portal.StakeNativePortal, error) {
@@ -158,9 +156,18 @@ func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stak
 	return stakePortal, nil
 }
 
+func initStaking(conn *ethclient.Client) (*staking.Staking, error) {
+	staking, err := staking.NewStaking(common.HexToAddress("0x0000000000000000000000000000000000002001"), conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return staking, nil
+}
+
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
 	for i := 0; i < 5; i++ {
-		result, err = c.bscClient.BnbTransferVerify(r)
+		result, err = c.queryClient.TransferVerifyNative(r)
 		if err != nil {
 			return
 		}
@@ -175,7 +182,12 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.Bon
 }
 
 func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
-	return c.multisigOnchains[pool] != nil
+	return c.pools[pool] != nil
+}
+
+// use conn address as blockstore use address
+func (c *Connection) BlockStoreUseAddress() string {
+	return c.queryClient.Keypair().Address()
 }
 
 func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.BondAction, int64) {
@@ -294,13 +306,13 @@ func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.B
 // }
 
 func (c *Connection) Close() {
-	for _, c := range c.bscClients {
-		c.Close()
+	for _, c := range c.pools {
+		c.bscClient.Close()
 	}
 }
 
 func (c *Connection) LatestBlockTimestamp() (uint64, error) {
-	blkTime, err := c.bscClient.LatestBlockTimestamp()
+	blkTime, err := c.queryClient.LatestBlockTimestamp()
 	if err != nil {
 		return 0, err
 	}
@@ -309,7 +321,7 @@ func (c *Connection) LatestBlockTimestamp() (uint64, error) {
 }
 
 func (c *Connection) LatestBlock() (uint64, error) {
-	blk, err := c.bscClient.LatestBlock()
+	blk, err := c.queryClient.LatestBlock()
 	if err != nil {
 		return 0, err
 	}

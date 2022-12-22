@@ -48,7 +48,7 @@ type listener struct {
 }
 
 // NewListener creates and returns a listener
-func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
+func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, bs blockstore.Blockstorer, startBlk uint64, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
 
 	eraSeconds := opts["eraSeconds"]
 	eraSecondsStr, ok := eraSeconds.(string)
@@ -79,6 +79,8 @@ func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, 
 		eraSeconds: eraSecondsBig.Uint64(),
 		eraOffset:  eraOffsetBig.Int64(),
 		conn:       conn,
+		startBlock: startBlk,
+		blockstore: bs,
 		log:        log,
 		stop:       stop,
 		sysErr:     sysErr,
@@ -249,7 +251,7 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 	}
 
 	for recoverStakeIterator.Next() {
-		oldTx, err := l.conn.bscClient.TransactionReceipt(recoverStakeIterator.Event.TxHash)
+		oldTx, err := l.conn.queryClient.TransactionReceipt(recoverStakeIterator.Event.TxHash)
 		if err != nil {
 			return err
 		}
@@ -267,12 +269,12 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 		recoverBlockHash := recoverStakeIterator.Event.Raw.BlockHash
 		recoverTxhash := recoverStakeIterator.Event.Raw.TxHash
 		recoverTxIndex := recoverStakeIterator.Event.Raw.TxIndex
-		recoverTx, _, err := l.conn.bscClient.TransactionByHash(context.Background(), recoverTxhash)
+		recoverTx, _, err := l.conn.queryClient.TransactionByHash(context.Background(), recoverTxhash)
 		if err != nil {
 			return err
 		}
 
-		recoverTxSender, err := l.conn.bscClient.TransactionSender(context.Background(), recoverTx, recoverBlockHash, recoverTxIndex)
+		recoverTxSender, err := l.conn.queryClient.TransactionSender(context.Background(), recoverTx, recoverBlockHash, recoverTxIndex)
 		if err != nil {
 			return err
 		}
