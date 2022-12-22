@@ -5,20 +5,16 @@ package bnb
 
 import (
 	"fmt"
-	"math/big"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
-	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 type writer struct {
@@ -32,9 +28,6 @@ type writer struct {
 	bondedPoolsMtx  sync.RWMutex
 	bondedPools     map[string]bool
 	stop            <-chan int
-	swapRecord      string
-	swapHistory     string
-	unbondables     string
 }
 
 const (
@@ -42,41 +35,6 @@ const (
 )
 
 func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connection, log core.Logger, sysErr chan<- error, stop <-chan int) *writer {
-	record, ok := opts["SwapRecord"].(string)
-	if !ok {
-		panic("no filepath to save SwapRecord")
-	}
-
-	history, ok := opts["SwapHistory"].(string)
-	if !ok {
-		panic("no filepath to save SwapRecord history")
-	}
-
-	unbondables, ok := opts["Unbondables"].(string)
-	if !ok {
-		panic("no filepath to save unbondables")
-	}
-
-	if _, err := os.Stat(record); os.IsNotExist(err) {
-		err = utils.WriteCSV(record, [][]string{})
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	if _, err := os.Stat(history); os.IsNotExist(err) {
-		err = utils.WriteCSV(history, [][]string{})
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	if _, err := os.Stat(unbondables); os.IsNotExist(err) {
-		err = utils.WriteCSV(unbondables, [][]string{})
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	return &writer{
 		symbol:          symbol,
@@ -87,9 +45,6 @@ func NewWriter(symbol core.RSymbol, opts map[string]interface{}, conn *Connectio
 		currentChainEra: 0,
 		bondedPools:     make(map[string]bool),
 		stop:            stop,
-		swapRecord:      record,
-		swapHistory:     history,
-		unbondables:     unbondables,
 	}
 }
 
@@ -191,119 +146,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 		return true
 	}
 
-	validatorId, ok := mef.ValidatorId.(bncCmnTypes.ValAddress)
-	if !ok {
-		w.log.Error("processEraPoolUpdated validatorId not ValAddress")
-		return false
-	}
-
-	w.log.Info("processEraPoolUpdated infos", "pool", poolAddr, "validator", validatorId)
-	unbondable, err := w.conn.Unbondable(poolAddr, validatorId)
-	if err != nil {
-		w.log.Error("processEraPoolUpdated Unbondable error", "error", err)
-		return false
-	}
-
-	bond := snap.Bond.Int64()
-	unbond := snap.Unbond.Int64()
-	diff := bond - unbond
-	least := flow.LeastBond.Int64()
-	flow.BondCall = &submodel.BondCall{ReportType: submodel.NewBondReport}
-	action, amount := w.conn.BondOrUnbondCall(bond, unbond, least)
-
-	lastSwapEra := LastBscSwapEra(w.swapHistory) - 1
-	lastEra := int64(snap.Era - 1)
-	eraBlock := int64(w.conn.EraBlock())
-	lastHeight := lastSwapEra * eraBlock
-	curHeight := lastEra * eraBlock
-	reward, err := w.conn.Reward(poolAddr, curHeight, lastHeight)
-	if err != nil {
-		w.log.Error("processEraPoolUpdated last era reward error", "err", err)
-		return false
-	}
-
-	w.log.Info("processEraPoolUpdated", "action", action, "symbol", snap.Symbol, "era", snap.Era, "reward", reward)
-
-	if bond > 0 && bond > reward && (diff <= 0 || diff >= least) {
-		swap := &Swap{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era), From: FromBsc}
-		historied := IsSwapExist(w.swapHistory, swap)
-		recorded := IsSwapExist(w.swapRecord, swap)
-		w.log.Info("processEraPoolUpdated", "historied", historied, "recorded", recorded)
-
-		swapFun := func() bool {
-			futureBal, err := w.conn.TransferFromBscToBc(poolAddr, bond-reward)
-			if err != nil {
-				w.log.Error("processEraPoolUpdated swap error", "error", err)
-				return false
-			}
-
-			if err := DeleteSwap(w.swapRecord, swap); err != nil {
-				w.log.Error("processEraPoolUpdated delete swap error", "error", err)
-				return false
-			}
-
-			if err := w.conn.CheckBcBalance(poolAddr, futureBal); err != nil {
-				w.log.Info("CheckBcBalance error", "err", err)
-				return false
-			}
-
-			return true
-		}
-
-		if !historied {
-			err = CreateSwap(w.swapRecord, swap)
-			if err != nil {
-				w.log.Error("processEraPoolUpdated: create swap record err", "err", err, "swap", *swap)
-				return false
-			}
-
-			err = CreateSwap(w.swapHistory, swap)
-			if err != nil {
-				w.log.Error("processEraPoolUpdated: create swap history err", "err", err, "swap", *swap)
-				return false
-			}
-
-			if !swapFun() {
-				return false
-			}
-		} else if recorded {
-			if !swapFun() {
-				return false
-			}
-		}
-	}
-
-	switch action {
-	case submodel.BondOnly:
-		if err = w.conn.ExecuteBond(poolAddr, validatorId, amount); err != nil {
-			w.log.Error("ExecuteBond error", "error", err)
-			return false
-		}
-
-		flow.BondCall.Action = submodel.BothBondUnbond
-	case submodel.UnbondOnly:
-		if unbondable {
-			err = w.conn.ExecuteUnbond(poolAddr, validatorId, amount)
-			if err != nil {
-				w.log.Error("ExecuteUnbond error", "error", err)
-				return false
-			}
-
-			flow.BondCall.Action = submodel.BothBondUnbond
-		} else {
-			u := &Unbondable{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era)}
-			err = CreateUnbondable(w.unbondables, u)
-			if err != nil {
-				w.log.Error("processEraPoolUpdated: create unbondable err", "err", err, "unbondable", *u)
-				return false
-			}
-			flow.BondCall.Action = submodel.InterDeduct
-		}
-	case submodel.BothBondUnbond, submodel.EitherBondUnbond, submodel.InterDeduct:
-		w.log.Info("processEraPoolUpdated: no need to bond or unbond")
-		flow.BondCall.Action = action
-	}
-
 	return w.informChain(m.Destination, m.Source, mef)
 }
 
@@ -321,58 +163,7 @@ func (w *writer) processBondReported(m *core.Message) bool {
 		return true
 	}
 
-	validatorId, ok := flow.ValidatorId.(bncCmnTypes.ValAddress)
-	if !ok {
-		w.log.Error("processBondReported validatorId not ValAddress")
-		return false
-	}
-
-	eraBlock := w.conn.EraBlock()
-	lastHeight := int64(0)
-	if flow.LastEra != 0 {
-		lastHeight = int64(flow.LastEra) * int64(eraBlock)
-	}
-	curHeight := int64(snap.Era) * int64(eraBlock)
-	w.log.Info("processBondReported reward", "pool", poolAddr, "validator", validatorId.String(), "curHeight", curHeight, "lastHeight", lastHeight)
-
-	var reward int64
-	staked, err := w.conn.Staked(poolAddr, validatorId)
-	if err != nil {
-		if err.Error() != NoBondError.Error() {
-			w.log.Error("processBondReported Staked error", "err", err)
-			return false
-		}
-		reward = 0
-	} else {
-		reward, err = w.conn.Reward(poolAddr, curHeight, lastHeight)
-		if err != nil {
-			w.log.Error("processBondReported reward error", "err", err)
-			return false
-		}
-	}
-
-	bond := snap.Bond.Int64()
-	unbond := snap.Unbond.Int64()
-	if bond > unbond {
-		diff := bond - unbond
-		if diff < flow.LeastBond.Int64() {
-			staked += diff
-		}
-	} else if unbond > bond {
-		diff := unbond - bond
-		u := &Unbondable{Symbol: string(flow.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(flow.Snap.Era)}
-		if IsUnbondableExist(w.unbondables, u) || diff < flow.LeastBond.Int64() {
-			staked -= diff
-		}
-	}
-
-	flow.Snap.Active = types.NewU128(*big.NewInt(staked))
-	flow.Unstaked = types.NewU128(*big.NewInt(reward))
-	flow.NewActiveReportFlag = true
-	w.log.Info("queryAndReportActive", "pool", poolAddr, "active", staked, "unstaked", reward)
-
-	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.ActiveReport, Content: flow}
-	return w.submitMessage(result)
+	return w.submitMessage(nil)
 }
 
 func (w *writer) processActiveReported(m *core.Message) bool {
@@ -389,71 +180,12 @@ func (w *writer) processActiveReported(m *core.Message) bool {
 	}
 
 	snap := flow.Snap
-	total := flow.TotalAmount.Int64()
 	poolAddr := common.BytesToAddress(snap.Pool)
 	if !w.conn.IsPoolKeyExist(poolAddr) {
 		w.log.Info("has no pool key, will ignore", "pool", poolAddr)
 		return true
 	}
 
-	swap := &Swap{Symbol: string(snap.Symbol), Pool: poolAddr.Hex(), Era: fmt.Sprint(snap.Era), From: FromBc}
-	historied := IsSwapExist(w.swapHistory, swap)
-	recorded := IsSwapExist(w.swapRecord, swap)
-	w.log.Info("processActiveReported prepare to swap", "pool", poolAddr, "total", total, "historied", historied, "recorded", recorded)
-
-	var err error
-	swapFun := func() bool {
-		err = w.conn.CheckTransfer(poolAddr, total)
-		if err != nil {
-			w.log.Error("processActiveReported unable to transfer", "error", err)
-			return false
-		}
-
-		err = w.conn.TransferFromBcToBsc(poolAddr, total)
-		if err != nil {
-			w.log.Error("processActiveReported TransferFromBcToBsc error", "error", err)
-			return false
-		}
-
-		err = DeleteSwap(w.swapRecord, swap)
-		if err != nil {
-			w.log.Error("processActiveReported delete swap error", "error", err)
-			return false
-		}
-
-		return true
-	}
-
-	if !historied {
-		err = CreateSwap(w.swapRecord, swap)
-		if err != nil {
-			w.log.Error("processActiveReported: create swap record err", "err", err, "swap", *swap)
-			return false
-		}
-
-		err = CreateSwap(w.swapHistory, swap)
-		if err != nil {
-			w.log.Error("processActiveReported: create swap history err", "err", err, "swap", *swap)
-			return false
-		}
-
-		if !swapFun() {
-			return false
-		}
-	} else if recorded {
-		if !swapFun() {
-			return false
-		}
-	}
-
-	transformedTotal := big.NewInt(0).Mul(flow.TotalAmount.Int, big.NewInt(1e10))
-	txHash, err := w.conn.BatchTransfer(poolAddr, flow.Receives, transformedTotal)
-	if err != nil {
-		w.log.Error("processActiveReported BatchTransfer error", "error", err)
-		return false
-	}
-
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: txHash.Hex()}}
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
 }

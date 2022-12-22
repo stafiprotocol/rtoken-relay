@@ -41,9 +41,10 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	wg := sync.WaitGroup{}
 	for i := 746800; i <= 746824; i++ {
 		t.Log("i", i)
+		j := i
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
-			_, err := sc.GetEvents(uint64(i))
+			_, err := sc.GetEvents(uint64(j))
 			if err != nil {
 				time.Sleep(time.Second)
 				t.Log(err)
@@ -113,6 +114,9 @@ func TestSarpcClient_GetExtrinsics1(t *testing.T) {
 		}
 
 		bh, err := sc.GetBlockHash(uint64(i))
+		if err != nil {
+			t.Fatal(err)
+		}
 		exts, err := sc.GetExtrinsics(bh)
 		if err != nil {
 			t.Fatal(err)

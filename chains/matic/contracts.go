@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
-	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
+	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 )
 
 func initStakeManager(stakeManagerCfg interface{}, conn *ethclient.Client) (*StakeManager.StakeManager, common.Address, error) {
