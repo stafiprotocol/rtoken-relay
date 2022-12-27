@@ -66,12 +66,8 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 		return w.processBondedPools(m)
 	case core.EraPoolUpdatedEvent:
 		return w.processEraPoolUpdated(m)
-	case core.BondReportedEvent:
-		return w.processBondReported(m)
 	case core.ActiveReportedEvent:
 		return w.processActiveReported(m)
-	// case core.ValidatorUpdatedEvent:
-	// 	return w.processValidatorUpdatedEvent(m)
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return true
@@ -126,6 +122,73 @@ func (w *writer) processBondedPools(m *core.Message) bool {
 	return true
 }
 
+/*
+targetHeight = heightOfEra(currentEra)
+pendingReward += newRewardOnBc
+if rewardOnBsc > 0:
+
+	reward = claimReward()
+	pendingReward -= reward
+	pendingStake += reward
+	targetHeight = claimRewardTxHeight
+
+if undelegatedAmountOnBsc > 0:
+
+	claimUndelegated()
+	targetHeight = claimUndelegatedTxHeight
+
+poolBalance = balanceOfHeight(targetHeight)
+
+willDelegateAmount = 0
+willUnDelegateAmount = 0
+bondAction = bondBondUnbond
+switch {
+case bond > unbond:
+
+	diff = bond-unbond
+	pendingStake += diff
+	if (pendingStake > leastBond) && (poolBalance > leastBond):
+		willDelegateAmount = min(pendingStake, poolBalance)
+		pendingStake -= willDelegateAmount
+
+case bond < unbond:
+
+	diff = unbond - bond
+	if pendingStake >= diff:
+		pendingStake -= diff
+		if (pendingStake > leastBond) && (poolBalance > leastBond):
+			willDelegateAmount = min(pendingStake, poolBalance)
+			pendingStake -= willDelegateAmount
+	else:
+		if unBondable:
+			willUnDelegateAmount = ceil((diff - pendingStake)/leastBond) * leastBond
+			pendingStake = pendingStake + willUnDelegateAmount - diff
+		else:
+			bondAction = eitherBondUnbond
+
+case bond == unbond:
+
+	if (pendingStake > leastBond) && (poolBalance > leastBond):
+		willDelegateAmount = min(pendingStake, poolBalance)
+		pendingStake -= willDelegateAmount
+
+}
+
+if willDelegateAmount > 0:
+
+	delegate(willDelegateAmount)
+
+if willUnDelegateAmount > 0:
+
+	unDelegate(willUnDelegateAmount)
+
+active = staked + pendingStake + pendingReward
+if action == eitherBondUnbond:
+
+	active -= diff
+
+return bond_and_active_report_with_pending_value(action, active, pendingStake, pendingReward)
+*/
 func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
@@ -147,23 +210,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) bool {
 	}
 
 	return w.informChain(m.Destination, m.Source, mef)
-}
-
-func (w *writer) processBondReported(m *core.Message) bool {
-	flow, ok := m.Content.(*submodel.BondReportedFlow)
-	if !ok {
-		w.printContentError(m)
-		return false
-	}
-
-	snap := flow.Snap
-	poolAddr := common.BytesToAddress(snap.Pool)
-	if !w.conn.IsPoolKeyExist(poolAddr) {
-		w.log.Info("has no pool key, will ignore", "pool", poolAddr)
-		return true
-	}
-
-	return w.submitMessage(nil)
 }
 
 func (w *writer) processActiveReported(m *core.Message) bool {
