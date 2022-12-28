@@ -19,7 +19,6 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
-	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 // Frequency of polling for a new block
@@ -48,36 +47,13 @@ type listener struct {
 }
 
 // NewListener creates and returns a listener
-func NewListener(name string, symbol core.RSymbol, opts map[string]interface{}, conn *Connection, bs blockstore.Blockstorer, startBlk uint64, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
-
-	eraSeconds := opts["eraSeconds"]
-	eraSecondsStr, ok := eraSeconds.(string)
-	if !ok {
-		panic("eraSeconds not string")
-	}
-	eraSecondsBig, ok := utils.StringToBigint(eraSecondsStr)
-	if !ok {
-		panic("eraSeconds is not digital string")
-	}
-	if eraSecondsBig.Sign() <= 0 {
-		panic(fmt.Sprintf("wrong erablock: %s", eraSecondsBig))
-	}
-
-	eraOffset := opts["eraOffset"]
-	eraOffsetStr, ok := eraOffset.(string)
-	if !ok {
-		panic("eraOffset not string")
-	}
-	eraOffsetBig, ok := utils.StringToBigint(eraOffsetStr)
-	if !ok {
-		panic("eraOffset is not digital string")
-	}
+func NewListener(name string, symbol core.RSymbol, conn *Connection, bs blockstore.Blockstorer, startBlk uint64, eraSeconds uint64, eraOffset int64, log core.Logger, stop <-chan int, sysErr chan<- error) *listener {
 
 	return &listener{
 		name:       name,
 		symbol:     symbol,
-		eraSeconds: eraSecondsBig.Uint64(),
-		eraOffset:  eraOffsetBig.Int64(),
+		eraSeconds: eraSeconds,
+		eraOffset:  eraOffset,
 		conn:       conn,
 		startBlock: startBlk,
 		blockstore: bs,

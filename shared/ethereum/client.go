@@ -42,7 +42,6 @@ type Client struct {
 	maxGasPrice *big.Int
 	conn        *ethclient.Client
 	opts        *bind.TransactOpts
-	callOpts    *bind.CallOpts
 	nonce       uint64
 	optsLock    sync.Mutex
 	log         core.Logger
@@ -104,7 +103,6 @@ func (c *Client) Connect() error {
 	}
 	c.opts = opts
 	c.nonce = 0
-	c.callOpts = &bind.CallOpts{From: c.kp.CommonAddress()}
 	return nil
 }
 
@@ -143,10 +141,6 @@ func (c *Client) Opts() *bind.TransactOpts {
 	return c.opts
 }
 
-func (c *Client) CallOpts() *bind.CallOpts {
-	return c.callOpts
-}
-
 func (c *Client) SafeEstimateGas(ctx context.Context) (*big.Int, error) {
 	gasPrice, err := c.conn.SuggestGasPrice(context.TODO())
 	if err != nil {
@@ -168,7 +162,7 @@ func (c *Client) SafeEstimateGas(ctx context.Context) (*big.Int, error) {
 
 // LockAndUpdateOpts acquires a lock on the opts before updating the nonce
 // and gas price.
-func (c *Client) LockAndUpdateOpts(limit, value *big.Int) error {
+func (c *Client) LockAndUpdateOpts(gasLimit, value *big.Int) error {
 	c.optsLock.Lock()
 
 	gasPrice, err := c.SafeEstimateGas(context.TODO())
@@ -185,10 +179,10 @@ func (c *Client) LockAndUpdateOpts(limit, value *big.Int) error {
 	}
 	c.opts.Nonce.SetUint64(nonce)
 
-	if limit.Uint64() == 0 {
+	if gasLimit.Uint64() == 0 {
 		c.opts.GasLimit = DefaultGasLimit.Uint64()
 	} else {
-		c.opts.GasLimit = big.NewInt(0).Add(limit, DefaultExtraGasLimit).Uint64()
+		c.opts.GasLimit = new(big.Int).Add(gasLimit, DefaultExtraGasLimit).Uint64()
 	}
 
 	c.opts.Value = value
@@ -218,6 +212,15 @@ func (c *Client) LatestBlockTimestamp() (uint64, error) {
 	}
 
 	return header.Time, nil
+}
+
+func (c *Client) LatestBlockAndTimestamp() (uint64, uint64, error) {
+	header, err := c.conn.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return header.Number.Uint64(), header.Time, nil
 }
 
 // EnsureHasBytecode asserts if contract code exists at the specified address
@@ -268,6 +271,9 @@ func (c *Client) TransferVerifyERC20(r *submodel.BondRecord, token common.Addres
 
 	if !bytes.Equal(receipt.BlockHash.Bytes(), r.Blockhash) {
 		return submodel.BlockhashUnmatch, nil
+	}
+	if receipt.Status != 1 {
+		return submodel.TxhashUnmatch, nil
 	}
 
 	latestBlk, err := c.LatestBlock()
@@ -329,6 +335,9 @@ func (c *Client) TransferVerifyNative(r *submodel.BondRecord) (submodel.BondReas
 	receipt, err := c.TransactionReceipt(txHash)
 	if err != nil {
 		return submodel.BondReasonDefault, err
+	}
+	if receipt.Status != 1 {
+		return submodel.TxhashUnmatch, nil
 	}
 
 	if !bytes.Equal(receipt.BlockHash.Bytes(), r.Blockhash) {

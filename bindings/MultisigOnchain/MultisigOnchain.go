@@ -30,7 +30,7 @@ var (
 
 // MultisigOnchainMetaData contains all meta data concerning the MultisigOnchain contract.
 var MultisigOnchainMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"addSubAccount\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_newThreshold\",\"type\":\"uint256\"}],\"name\":\"changeThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_transactions\",\"type\":\"bytes\"}],\"name\":\"execTransactions\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"getSubAccountIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_initialSubAccounts\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_initialThreshold\",\"type\":\"uint256\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"proposals\",\"outputs\":[{\"internalType\":\"enumMultisigOnchain.ProposalStatus\",\"name\":\"_status\",\"type\":\"uint8\"},{\"internalType\":\"uint16\",\"name\":\"_yesVotes\",\"type\":\"uint16\"},{\"internalType\":\"uint8\",\"name\":\"_yesVotesTotal\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"removeSubAccount\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"threshold\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}]",
+	ABI: "[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"proposalId\",\"type\":\"bytes32\"}],\"name\":\"ProposalExecuted\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"addSubAccount\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_newThreshold\",\"type\":\"uint256\"}],\"name\":\"changeThreshold\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_proposalId\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"_transactions\",\"type\":\"bytes\"}],\"name\":\"execTransactions\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"getSubAccountIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_proposalId\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"hasVoted\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_initialSubAccounts\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"_initialThreshold\",\"type\":\"uint256\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"proposals\",\"outputs\":[{\"internalType\":\"enumMultisigOnchain.ProposalStatus\",\"name\":\"_status\",\"type\":\"uint8\"},{\"internalType\":\"uint16\",\"name\":\"_yesVotes\",\"type\":\"uint16\"},{\"internalType\":\"uint8\",\"name\":\"_yesVotesTotal\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_subAccount\",\"type\":\"address\"}],\"name\":\"removeSubAccount\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"threshold\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}]",
 }
 
 // MultisigOnchainABI is the input ABI used to generate the binding from.
@@ -210,6 +210,37 @@ func (_MultisigOnchain *MultisigOnchainCallerSession) GetSubAccountIndex(_subAcc
 	return _MultisigOnchain.Contract.GetSubAccountIndex(&_MultisigOnchain.CallOpts, _subAccount)
 }
 
+// HasVoted is a free data retrieval call binding the contract method 0xaadc3b72.
+//
+// Solidity: function hasVoted(bytes32 _proposalId, address _subAccount) view returns(bool)
+func (_MultisigOnchain *MultisigOnchainCaller) HasVoted(opts *bind.CallOpts, _proposalId [32]byte, _subAccount common.Address) (bool, error) {
+	var out []interface{}
+	err := _MultisigOnchain.contract.Call(opts, &out, "hasVoted", _proposalId, _subAccount)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// HasVoted is a free data retrieval call binding the contract method 0xaadc3b72.
+//
+// Solidity: function hasVoted(bytes32 _proposalId, address _subAccount) view returns(bool)
+func (_MultisigOnchain *MultisigOnchainSession) HasVoted(_proposalId [32]byte, _subAccount common.Address) (bool, error) {
+	return _MultisigOnchain.Contract.HasVoted(&_MultisigOnchain.CallOpts, _proposalId, _subAccount)
+}
+
+// HasVoted is a free data retrieval call binding the contract method 0xaadc3b72.
+//
+// Solidity: function hasVoted(bytes32 _proposalId, address _subAccount) view returns(bool)
+func (_MultisigOnchain *MultisigOnchainCallerSession) HasVoted(_proposalId [32]byte, _subAccount common.Address) (bool, error) {
+	return _MultisigOnchain.Contract.HasVoted(&_MultisigOnchain.CallOpts, _proposalId, _subAccount)
+}
+
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
 // Solidity: function owner() view returns(address)
@@ -364,25 +395,25 @@ func (_MultisigOnchain *MultisigOnchainTransactorSession) ChangeThreshold(_newTh
 	return _MultisigOnchain.Contract.ChangeThreshold(&_MultisigOnchain.TransactOpts, _newThreshold)
 }
 
-// ExecTransactions is a paid mutator transaction binding the contract method 0x636effb8.
+// ExecTransactions is a paid mutator transaction binding the contract method 0x3a9a317b.
 //
-// Solidity: function execTransactions(bytes _transactions) returns()
-func (_MultisigOnchain *MultisigOnchainTransactor) ExecTransactions(opts *bind.TransactOpts, _transactions []byte) (*types.Transaction, error) {
-	return _MultisigOnchain.contract.Transact(opts, "execTransactions", _transactions)
+// Solidity: function execTransactions(bytes32 _proposalId, bytes _transactions) returns()
+func (_MultisigOnchain *MultisigOnchainTransactor) ExecTransactions(opts *bind.TransactOpts, _proposalId [32]byte, _transactions []byte) (*types.Transaction, error) {
+	return _MultisigOnchain.contract.Transact(opts, "execTransactions", _proposalId, _transactions)
 }
 
-// ExecTransactions is a paid mutator transaction binding the contract method 0x636effb8.
+// ExecTransactions is a paid mutator transaction binding the contract method 0x3a9a317b.
 //
-// Solidity: function execTransactions(bytes _transactions) returns()
-func (_MultisigOnchain *MultisigOnchainSession) ExecTransactions(_transactions []byte) (*types.Transaction, error) {
-	return _MultisigOnchain.Contract.ExecTransactions(&_MultisigOnchain.TransactOpts, _transactions)
+// Solidity: function execTransactions(bytes32 _proposalId, bytes _transactions) returns()
+func (_MultisigOnchain *MultisigOnchainSession) ExecTransactions(_proposalId [32]byte, _transactions []byte) (*types.Transaction, error) {
+	return _MultisigOnchain.Contract.ExecTransactions(&_MultisigOnchain.TransactOpts, _proposalId, _transactions)
 }
 
-// ExecTransactions is a paid mutator transaction binding the contract method 0x636effb8.
+// ExecTransactions is a paid mutator transaction binding the contract method 0x3a9a317b.
 //
-// Solidity: function execTransactions(bytes _transactions) returns()
-func (_MultisigOnchain *MultisigOnchainTransactorSession) ExecTransactions(_transactions []byte) (*types.Transaction, error) {
-	return _MultisigOnchain.Contract.ExecTransactions(&_MultisigOnchain.TransactOpts, _transactions)
+// Solidity: function execTransactions(bytes32 _proposalId, bytes _transactions) returns()
+func (_MultisigOnchain *MultisigOnchainTransactorSession) ExecTransactions(_proposalId [32]byte, _transactions []byte) (*types.Transaction, error) {
+	return _MultisigOnchain.Contract.ExecTransactions(&_MultisigOnchain.TransactOpts, _proposalId, _transactions)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0x60b5bb3f.
@@ -467,4 +498,138 @@ func (_MultisigOnchain *MultisigOnchainSession) Receive() (*types.Transaction, e
 // Solidity: receive() payable returns()
 func (_MultisigOnchain *MultisigOnchainTransactorSession) Receive() (*types.Transaction, error) {
 	return _MultisigOnchain.Contract.Receive(&_MultisigOnchain.TransactOpts)
+}
+
+// MultisigOnchainProposalExecutedIterator is returned from FilterProposalExecuted and is used to iterate over the raw logs and unpacked data for ProposalExecuted events raised by the MultisigOnchain contract.
+type MultisigOnchainProposalExecutedIterator struct {
+	Event *MultisigOnchainProposalExecuted // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *MultisigOnchainProposalExecutedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(MultisigOnchainProposalExecuted)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(MultisigOnchainProposalExecuted)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *MultisigOnchainProposalExecutedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *MultisigOnchainProposalExecutedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// MultisigOnchainProposalExecuted represents a ProposalExecuted event raised by the MultisigOnchain contract.
+type MultisigOnchainProposalExecuted struct {
+	ProposalId [32]byte
+	Raw        types.Log // Blockchain specific contextual infos
+}
+
+// FilterProposalExecuted is a free log retrieval operation binding the contract event 0x7b1bcf1ccf901a11589afff5504d59fd0a53780eed2a952adade0348985139e0.
+//
+// Solidity: event ProposalExecuted(bytes32 proposalId)
+func (_MultisigOnchain *MultisigOnchainFilterer) FilterProposalExecuted(opts *bind.FilterOpts) (*MultisigOnchainProposalExecutedIterator, error) {
+
+	logs, sub, err := _MultisigOnchain.contract.FilterLogs(opts, "ProposalExecuted")
+	if err != nil {
+		return nil, err
+	}
+	return &MultisigOnchainProposalExecutedIterator{contract: _MultisigOnchain.contract, event: "ProposalExecuted", logs: logs, sub: sub}, nil
+}
+
+// WatchProposalExecuted is a free log subscription operation binding the contract event 0x7b1bcf1ccf901a11589afff5504d59fd0a53780eed2a952adade0348985139e0.
+//
+// Solidity: event ProposalExecuted(bytes32 proposalId)
+func (_MultisigOnchain *MultisigOnchainFilterer) WatchProposalExecuted(opts *bind.WatchOpts, sink chan<- *MultisigOnchainProposalExecuted) (event.Subscription, error) {
+
+	logs, sub, err := _MultisigOnchain.contract.WatchLogs(opts, "ProposalExecuted")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(MultisigOnchainProposalExecuted)
+				if err := _MultisigOnchain.contract.UnpackLog(event, "ProposalExecuted", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseProposalExecuted is a log parse operation binding the contract event 0x7b1bcf1ccf901a11589afff5504d59fd0a53780eed2a952adade0348985139e0.
+//
+// Solidity: event ProposalExecuted(bytes32 proposalId)
+func (_MultisigOnchain *MultisigOnchainFilterer) ParseProposalExecuted(log types.Log) (*MultisigOnchainProposalExecuted, error) {
+	event := new(MultisigOnchainProposalExecuted)
+	if err := _MultisigOnchain.contract.UnpackLog(event, "ProposalExecuted", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }

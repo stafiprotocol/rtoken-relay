@@ -119,13 +119,30 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 
 	var validatorId interface{}
 	var leastBond *big.Int
-	if data.Symbol == core.RMATIC || data.Symbol == core.RBNB {
+	var pendingStake *big.Int
+	var pendingReward *big.Int
+	switch data.Symbol {
+	case core.RMATIC:
 		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
 
 		leastBond, err = l.leastBond(snap.Symbol)
+		if err != nil {
+			return nil, err
+		}
+
+	case core.RBNB:
+		leastBond, err = l.leastBond(snap.Symbol)
+		if err != nil {
+			return nil, err
+		}
+		pendingStake, err = l.pendingStake(snap.Symbol)
+		if err != nil {
+			return nil, err
+		}
+		pendingReward, err = l.pendingReward(snap.Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -139,6 +156,8 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	data.LastVoterFlag = l.conn.IsLastVoter(selectedVoter)
 	data.Snap = snap
 	data.LeastBond = leastBond
+	data.PendingStake = pendingStake
+	data.PendingReward = pendingReward
 
 	return &submodel.MultiEventFlow{
 		EventId:     config.EraPoolUpdatedEventId,
@@ -766,4 +785,41 @@ func (l *listener) eraSnapShots(symbol core.RSymbol, lastEra uint32) ([]types.Ha
 
 	return ids, nil
 
+}
+
+func (l *listener) pendingStake(symbol core.RSymbol) (*big.Int, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	var least types.U128
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePendingStake, symBz, nil, &least)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return big.NewInt(0), nil
+	}
+
+	return least.Int, nil
+}
+func (l *listener) pendingReward(symbol core.RSymbol) (*big.Int, error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	var least types.U128
+	exist, err := l.conn.QueryStorage(config.RTokenLedgerModuleId, config.StoragePendingReward, symBz, nil, &least)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return big.NewInt(0), nil
+	}
+
+	return least.Int, nil
 }

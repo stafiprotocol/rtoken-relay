@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	"github.com/stafiprotocol/rtoken-relay/config"
@@ -59,7 +60,7 @@ func TestConnection(t *testing.T) {
 	t.Log(blk)
 
 	valId := big.NewInt(9)
-	valFlag, err := conn.stakeManager.IsValidator(conn.conn.CallOpts(), valId)
+	valFlag, err := conn.stakeManager.IsValidator(&bind.CallOpts{}, valId)
 	if err != nil {
 		t.Fatal(err)
 	}

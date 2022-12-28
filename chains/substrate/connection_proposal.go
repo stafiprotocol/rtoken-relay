@@ -132,6 +132,30 @@ func (c *Connection) BondAndReportActiveProposal(flow *submodel.EraPoolUpdatedFl
 	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
 }
 
+func (c *Connection) BondAndReportActiveWithPendingValueProposal(flow *submodel.EraPoolUpdatedFlow) (*submodel.Proposal, error) {
+	method := config.MethodBondAndReportActiveWithPendingValue
+	ci, err := c.sc.FindCallIndex(method)
+	if err != nil {
+		return nil, err
+	}
+
+	call, err := types.NewCallWithCallIndex(
+		ci,
+		method,
+		flow.Symbol,
+		flow.ShotId,
+		flow.BondCall.Action,
+		types.NewU128(*flow.Active),
+		types.NewU128(*flow.PendingStake),
+		types.NewU128(*flow.PendingReward),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &submodel.Proposal{Call: call, Symbol: flow.Symbol, BondId: flow.ShotId, MethodName: method}, nil
+}
+
 func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*submodel.Proposal, error) {
 	method := config.MethodActiveReport
 	ci, err := c.sc.FindCallIndex(method)

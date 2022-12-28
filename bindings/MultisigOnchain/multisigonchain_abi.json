@@ -5,6 +5,19 @@
         "type": "constructor"
     },
     {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "proposalId",
+                "type": "bytes32"
+            }
+        ],
+        "name": "ProposalExecuted",
+        "type": "event"
+    },
+    {
         "inputs": [
             {
                 "internalType": "address",
@@ -33,6 +46,11 @@
     {
         "inputs": [
             {
+                "internalType": "bytes32",
+                "name": "_proposalId",
+                "type": "bytes32"
+            },
+            {
                 "internalType": "bytes",
                 "name": "_transactions",
                 "type": "bytes"
@@ -57,6 +75,30 @@
                 "internalType": "uint256",
                 "name": "",
                 "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "_proposalId",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "address",
+                "name": "_subAccount",
+                "type": "address"
+            }
+        ],
+        "name": "hasVoted",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
             }
         ],
         "stateMutability": "view",

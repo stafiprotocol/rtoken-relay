@@ -263,10 +263,10 @@ func (w *writer) processInformChain(m *core.Message) bool {
 			}
 		case core.RBNB:
 			switch call.ReportType {
-			case submodel.NewBondReport:
-				prop, err = w.conn.NewBondReportProposal(data)
+			case submodel.BondAndReportActiveWithPendingValue:
+				prop, err = w.conn.BondAndReportActiveWithPendingValueProposal(data)
 				if err != nil {
-					w.log.Error("MethodNewBondReportProposal", "error", err)
+					w.log.Error("BondAndReportActiveWithPendingValueProposal", "error", err)
 					return false
 				}
 			default:

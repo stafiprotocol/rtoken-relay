@@ -303,8 +303,9 @@ type PoolSnapshot struct {
 type BondReportType uint8
 
 const (
-	NewBondReport       = BondReportType(0)
-	BondAndReportActive = BondReportType(1)
+	NewBondReport                       = BondReportType(0)
+	BondAndReportActive                 = BondReportType(1)
+	BondAndReportActiveWithPendingValue = BondReportType(2)
 )
 
 type BondCall struct {
@@ -323,6 +324,8 @@ type EraPoolUpdatedFlow struct {
 	BondCall      *BondCall
 	Active        *big.Int
 	Reward        *big.Int
+	PendingStake  *big.Int // rBNB use
+	PendingReward *big.Int // rBNB use
 }
 
 type BondReportedFlow struct {

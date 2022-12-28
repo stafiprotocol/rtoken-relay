@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -421,7 +422,7 @@ func (c *Connection) VerifySigs(msg []byte, sigs [][]byte, pool common.Address) 
 }
 
 func (c *Connection) BalanceOf(owner common.Address) (*big.Int, error) {
-	return c.maticToken.BalanceOf(c.conn.CallOpts(), owner)
+	return c.maticToken.BalanceOf(&bind.CallOpts{}, owner)
 }
 
 func (c *Connection) TotalStaked(share, staker common.Address) (*big.Int, error) {

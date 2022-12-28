@@ -4,6 +4,7 @@
 package bnb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
@@ -18,6 +20,7 @@ import (
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeNativePortal"
 	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/core"
+	"github.com/stafiprotocol/rtoken-relay/models/bnc"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
@@ -38,9 +41,10 @@ const (
 )
 
 type Connection struct {
-	url         string
 	symbol      core.RSymbol
 	queryClient *ethereum.Client // first pool's bsc client used for query
+	apiEndpint  string
+	sideChainId string
 	log         core.Logger
 	stop        <-chan int
 
@@ -132,9 +136,8 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	}
 
 	return &Connection{
-		url:                 cfg.Endpoint,
 		symbol:              cfg.Symbol,
-		queryClient:           bscClient,
+		queryClient:         bscClient,
 		log:                 log,
 		stop:                stop,
 		pools:               pools,
@@ -181,39 +184,14 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.Bon
 	return
 }
 
-func (c *Connection) IsPoolKeyExist(pool common.Address) bool {
-	return c.pools[pool] != nil
+func (c *Connection) GetPool(pool common.Address) (*Pool, bool) {
+	p, exist := c.pools[pool]
+	return p, exist
 }
 
 // use conn address as blockstore use address
 func (c *Connection) BlockStoreUseAddress() string {
 	return c.queryClient.Keypair().Address()
-}
-
-func (c *Connection) BondOrUnbondCall(bond, unbond, leastBond int64) (submodel.BondAction, int64) {
-	c.log.Info("BondOrUnbondCall", "bond", bond, "unbond", unbond, "leastBond", leastBond)
-
-	if bond < unbond {
-		diff := unbond - bond
-		if diff < leastBond {
-			c.log.Info("bond is smaller than unbond while diff is smaller than leastBond, InterDeduct")
-			return submodel.InterDeduct, 0
-		}
-		return submodel.UnbondOnly, diff
-	} else if bond > unbond {
-		diff := bond - unbond
-		if diff < leastBond {
-			c.log.Info("unbond is smaller than bond while diff is smaller than leastBond, InterDeduct")
-			return submodel.InterDeduct, 0
-		}
-		return submodel.BondOnly, diff
-	} else {
-		c.log.Info("bond is equal to unbond, NoCall")
-		if bond == 0 {
-			return submodel.EitherBondUnbond, 0
-		}
-		return submodel.BothBondUnbond, 0
-	}
 }
 
 // func (c *Connection) BatchTransfer(pool common.Address, receives []*submodel.Receive, total *big.Int) (common.Hash, error) {
@@ -327,4 +305,194 @@ func (c *Connection) LatestBlock() (uint64, error) {
 	}
 
 	return blk.Uint64(), nil
+}
+
+func (c *Connection) QueryBlock(number int64) (*types.Block, error) {
+	blk, err := c.queryClient.Client().BlockByNumber(context.Background(), big.NewInt(number))
+	if err != nil {
+		return nil, err
+	}
+
+	return blk, nil
+}
+
+func (c *Connection) GetHeightByEra(era uint32, eraSeconds, offset int64) (int64, error) {
+	if int64(era) < offset {
+		return 0, fmt.Errorf("era: %d is less than offset: %d", era, offset)
+	}
+	targetTimestamp := (int64(era) - offset) * eraSeconds
+	return c.GetHeightByTimestamp(targetTimestamp)
+}
+
+func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) {
+	c.log.Trace("GetHeightByTimestamp", "targetTimestamp", targetTimestamp)
+
+	blockNumber, timestamp, err := c.queryClient.LatestBlockAndTimestamp()
+	if err != nil {
+		return 0, err
+	}
+	seconds := int64(timestamp) - targetTimestamp
+	if seconds < 0 {
+		// return if over 20 minutes
+		if seconds < -60*20 {
+			return 0, fmt.Errorf("latest block timestamp: %d is less than targetTimestamp: %d", timestamp, targetTimestamp)
+		}
+
+		retry := 0
+		for {
+			if retry > BlockRetryLimit {
+				return 0, fmt.Errorf("latest block timestamp: %d is less than targetTimestamp: %d", timestamp, targetTimestamp)
+			}
+
+			blockNumber, timestamp, err = c.queryClient.LatestBlockAndTimestamp()
+			if err != nil {
+				return 0, err
+			}
+			if int64(timestamp) < targetTimestamp {
+				c.log.Warn(fmt.Sprintf("latest block timestamp: %d is less than targetTimestamp: %d, will wait...", timestamp, targetTimestamp))
+
+				time.Sleep(WaitInterval)
+				retry++
+
+				continue
+			}
+
+			seconds = int64(timestamp) - targetTimestamp
+			break
+		}
+	}
+
+	tmpTargetBlock := int64(blockNumber) - seconds/7
+	if tmpTargetBlock <= 0 {
+		tmpTargetBlock = 1
+	}
+
+	block, err := c.QueryBlock(tmpTargetBlock)
+	if err != nil {
+		return 0, err
+	}
+
+	// return after blocknumber
+	var afterBlockNumber int64
+	var preBlockNumber int64
+	if int64(block.Time()) > targetTimestamp {
+		afterBlockNumber = block.Number().Int64()
+		for {
+			c.log.Trace("afterBlock", "block", afterBlockNumber)
+			if afterBlockNumber <= 2 {
+				return 1, nil
+			}
+			block, err := c.QueryBlock(afterBlockNumber - 1)
+			if err != nil {
+				return 0, err
+			}
+			if int64(block.Time()) > targetTimestamp {
+				afterBlockNumber = block.Number().Int64()
+				continue
+			}
+
+			break
+		}
+
+	} else {
+		preBlockNumber = block.Number().Int64()
+		for {
+			c.log.Trace("preBlock", "block", preBlockNumber)
+			block, err := c.QueryBlock(preBlockNumber + 1)
+			if err != nil {
+				return 0, err
+			}
+			if int64(block.Time()) > targetTimestamp {
+				afterBlockNumber = block.Number().Int64()
+				break
+			} else {
+				preBlockNumber = block.Number().Int64()
+			}
+		}
+	}
+
+	return afterBlockNumber, nil
+}
+
+func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64) (int64, error) {
+	delegator := ""
+
+	for i := 0; i < TxRetryLimit; i++ {
+		total, height, err := c.totalAndLastHeight(delegator)
+		if err != nil {
+			c.log.Error("totalAndLastHeight error", "err", err)
+			if i+1 == TxRetryLimit {
+				return 0, err
+			}
+			continue
+		}
+
+		if height < lastHeight {
+			return 0, nil
+		}
+
+		rewardSum, err := c.stakingReward(delegator, total, curHeight, lastHeight)
+		if err != nil {
+			c.log.Error("stakingReward error", "err", err)
+			if i+1 == TxRetryLimit {
+				return 0, err
+			}
+			continue
+		}
+
+		return rewardSum, nil
+	}
+
+	return 0, fmt.Errorf("Reward failed")
+}
+
+func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) {
+	api := c.rewardApi(delegator, 1, 0)
+	c.log.Info("totalAndLastHeight rewardApi", "rewardApi", api)
+	sr, err := bnc.GetStakingReward(api)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if len(sr.RewardDetails) == 0 {
+		return 0, 0, nil
+	}
+
+	return sr.Total, sr.RewardDetails[0].Height, nil
+}
+
+func (c *Connection) stakingReward(delegator string, total, curHeight, lastHeight int64) (int64, error) {
+	offset := int64(0)
+	rewardSum := int64(0)
+
+OUT:
+	for i := total; i > 0; i -= 100 {
+		api := c.rewardApi(delegator, 100, offset)
+
+		sr, err := bnc.GetStakingReward(api)
+		if err != nil {
+			c.log.Info("stakingReward GetStakingReward error", "err", err)
+			return 0, err
+		}
+
+		for _, rd := range sr.RewardDetails {
+			if rd.Height > curHeight {
+				continue
+			}
+
+			if rd.Height <= lastHeight {
+				break OUT
+			}
+
+			rewardSum += int64(rd.Reward * 1e8)
+		}
+
+		offset += 100
+	}
+
+	return rewardSum, nil
+}
+
+func (c *Connection) rewardApi(delegator string, limit, offset int64) string {
+	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", c.apiEndpint, c.sideChainId, delegator, limit, offset)
 }
