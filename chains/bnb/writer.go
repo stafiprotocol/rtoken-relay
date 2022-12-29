@@ -284,6 +284,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		pendingRewardDeci = pendingRewardDeci.Sub(realRewardOnBscDeci)
 		pendingStakeDeci = pendingStakeDeci.Add(realRewardOnBscDeci)
 
+		// pool balance change at this height
 		targetHeight = int64(claimRewardTxHeight)
 	}
 
@@ -322,6 +323,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 				return errors.Wrap(err, "findRealRewardClaimed")
 			}
 
+			// pool balance change at this height
 			targetHeight = int64(undelegatedClaimTxHeight)
 		}
 	}
@@ -391,16 +393,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	// ----- delegate
 	if willDelegateAmountDeci.IsPositive() {
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "delegate", 0)
+		proposalBts, distributedValidators, err := w.getDelegateProposal(willDelegateAmountDeci, relayerFeeDeci, leastBondDeci, poolAddr, mef.BnbValidators, targetHeight)
+		if err != nil {
+			return errors.Wrap(err, "getDelegateProposal")
+		}
 		needSend, err := needSendProposal(pool, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "needSendProposal")
 		}
 		if needSend {
-			proposalBts, err := w.getDelegateProposal(willDelegateAmountDeci, relayerFeeDeci, leastBondDeci, poolAddr, mef.BnbValidators, targetHeight)
-			if err != nil {
-				return errors.Wrap(err, "getDelegateProposal")
-			}
-
 			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
@@ -411,7 +412,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		if err != nil {
 			return errors.Wrap(err, "waitProposalExecuted")
 		}
-		err = w.waitDelegateCrossChainOk(pool, proposalId)
+		err = w.waitDelegateCrossChainOk(pool, proposalId, uint64(targetHeight), distributedValidators)
 		if err != nil {
 			return errors.Wrap(err, "waitDelegateCrossChainOk")
 		}
@@ -420,16 +421,16 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	// ----- unDelegate
 	if willUnDelegateAmountDeci.IsPositive() {
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "unDelegate", 0)
+		proposalBts, selectedValidator, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
+		if err != nil {
+			return errors.Wrap(err, "getUnDelegateProposal")
+		}
 		needSend, err := needSendProposal(pool, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "needSendProposal")
 		}
-		if needSend {
-			proposalBts, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
-			if err != nil {
-				return errors.Wrap(err, "getUnDelegateProposal")
-			}
 
+		if needSend {
 			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
@@ -440,7 +441,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		if err != nil {
 			return errors.Wrap(err, "waitProposalExecuted")
 		}
-		err = w.waitUnDelegateCrossChainOk(pool, proposalId)
+		err = w.waitUnDelegateCrossChainOk(pool, proposalId, uint64(targetHeight), selectedValidator)
 		if err != nil {
 			return errors.Wrap(err, "waitUnDelegateCrossChainOk")
 		}
@@ -504,12 +505,12 @@ func (w *writer) processActiveReported(m *core.Message) error {
 	if err != nil {
 		return errors.Wrap(err, "needSendProposal")
 	}
-	if needSend {
-		proposalBts, totalAmount, err := w.getTransferProposal(poolAddr, flow.Receives)
-		if err != nil {
-			return errors.Wrap(err, "getTransferProposal")
-		}
+	proposalBts, totalAmount, err := w.getTransferProposal(poolAddr, flow.Receives)
+	if err != nil {
+		return errors.Wrap(err, "getTransferProposal")
+	}
 
+	if needSend {
 		for {
 			poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
 			if err != nil {
@@ -518,6 +519,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 			poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
 
 			if poolBalanceDeci.LessThanOrEqual(totalAmount) {
+				// check again
 				needSend, err = needSendProposal(pool, proposalId)
 				if err != nil {
 					return errors.Wrap(err, "needSendProposal")
@@ -531,15 +533,15 @@ func (w *writer) processActiveReported(m *core.Message) error {
 			}
 			break
 		}
+
 		err = w.submitProposal(pool, proposalId, proposalBts)
 		if err != nil {
 			return errors.Wrap(err, "submitProposal")
 		}
-		err = w.waitProposalExecuted(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "waitProposalExecuted")
-		}
-
+	}
+	err = w.waitProposalExecuted(pool, proposalId)
+	if err != nil {
+		return errors.Wrap(err, "waitProposalExecuted")
 	}
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}

@@ -73,14 +73,17 @@ func (w *writer) getClaimUndelegatedProposal() ([]byte, error) {
 	return bt.Encode(), nil
 }
 
-func (w *writer) getDelegateProposal(totalAmount, relayerFee, leastBond decimal.Decimal, poolAddr common.Address, validators []common.Address, targetBlock int64) ([]byte, error) {
+func (w *writer) getDelegateProposal(totalAmount, relayerFee, leastBond decimal.Decimal, poolAddr common.Address, validators []common.Address, targetBlock int64) ([]byte, []common.Address, error) {
 	if len(validators) == 0 {
-		return nil, fmt.Errorf("validators empty")
+		return nil, nil, fmt.Errorf("validators empty")
+	}
+	if totalAmount.LessThan(leastBond) {
+		return nil, nil, fmt.Errorf("totalAmount %s less than leastBond %s", totalAmount, leastBond)
 	}
 
 	delegator := poolAddr
 
-	validatorDelegated := make(map[common.Address]decimal.Decimal)
+	validatorDelegatedAmount := make(map[common.Address]decimal.Decimal)
 	for _, v := range validators {
 		delegatedAmount, err := w.conn.stakingContract.GetDelegated(&bind.CallOpts{
 			From:        poolAddr,
@@ -88,38 +91,45 @@ func (w *writer) getDelegateProposal(totalAmount, relayerFee, leastBond decimal.
 			Context:     context.Background(),
 		}, delegator, v)
 		if err != nil {
-			return nil, errors.Wrap(err, "stakingContract.GetDelegated")
+			return nil, nil, errors.Wrap(err, "stakingContract.GetDelegated")
 		}
-		validatorDelegated[v] = decimal.NewFromBigInt(delegatedAmount, 0)
+		validatorDelegatedAmount[v] = decimal.NewFromBigInt(delegatedAmount, 0)
 	}
+	// sort by delegated amount asc
 	sort.SliceStable(validators, func(i, j int) bool {
-		return validatorDelegated[validators[i]].LessThan(validatorDelegated[validators[j]])
+		return validatorDelegatedAmount[validators[i]].LessThan(validatorDelegatedAmount[validators[j]])
 	})
 
-	dispachedValidatorAmount := make(map[common.Address]decimal.Decimal)
+	distributedValidatorAmount := make(map[common.Address]decimal.Decimal)
 out:
 	for {
 		for _, v := range validators {
 			if totalAmount.GreaterThanOrEqual(leastBond) {
-				dispachedValidatorAmount[v] = dispachedValidatorAmount[v].Add(leastBond)
+				distributedValidatorAmount[v] = distributedValidatorAmount[v].Add(leastBond)
 				totalAmount = totalAmount.Sub(leastBond)
 			} else {
-				dispachedValidatorAmount[v] = dispachedValidatorAmount[v].Add(totalAmount)
+				distributedValidatorAmount[v] = distributedValidatorAmount[v].Add(totalAmount)
 				break out
 			}
 		}
 	}
 
-	sort.SliceStable(validators, func(i, j int) bool {
-		return dispachedValidatorAmount[validators[i]].GreaterThan(dispachedValidatorAmount[validators[j]])
+	distributedValidators := make([]common.Address, 0)
+	for val := range distributedValidatorAmount {
+		distributedValidators = append(distributedValidators, val)
+	}
+
+	// sort distributed validators by distributed amount desc
+	sort.SliceStable(distributedValidators, func(i, j int) bool {
+		return distributedValidatorAmount[validators[i]].GreaterThan(distributedValidatorAmount[validators[j]])
 	})
 
 	txs := make(ethmodel.BatchTransactions, 0)
-	for _, val := range validators {
-		amount := dispachedValidatorAmount[val]
+	for _, val := range distributedValidators {
+		amount := distributedValidatorAmount[val]
 		inputData, err := StakingAbi.Pack("delegate", val, amount.BigInt())
 		if err != nil {
-			return nil, errors.Wrap(err, "staking abi pack failed")
+			return nil, nil, errors.Wrap(err, "staking abi pack failed")
 		}
 
 		tx := &ethmodel.BatchTransaction{
@@ -132,19 +142,22 @@ out:
 		txs = append(txs, tx)
 	}
 
-	return txs.Encode(), nil
+	return txs.Encode(), distributedValidators, nil
 }
 
-func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) ([]byte, error) {
+func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) ([]byte, []common.Address, error) {
 	if len(validators) == 0 {
-		return nil, fmt.Errorf("validators empty")
+		return nil, nil, fmt.Errorf("validators empty")
+	}
+	if totalAmount.LessThan(leastBond) {
+		return nil, nil, fmt.Errorf("totalAmount %s less than leastBond %s", totalAmount, leastBond)
 	}
 
 	delegator := poolAddr
 
 	block, err := w.conn.QueryBlock(targetBlock)
 	if err != nil {
-		return nil, errors.Wrap(err, "QueryBlock")
+		return nil, nil, errors.Wrap(err, "QueryBlock")
 	}
 
 	validatorDelegated := make(map[common.Address]decimal.Decimal)
@@ -155,7 +168,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 			Context:     context.Background(),
 		}, delegator, v)
 		if err != nil {
-			return nil, errors.Wrap(err, "stakingContract.GetPendingUndelegateTime")
+			return nil, nil, errors.Wrap(err, "stakingContract.GetPendingUndelegateTime")
 		}
 
 		if block.Time() < undelegateTime.Uint64() {
@@ -168,7 +181,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 			Context:     context.Background(),
 		}, delegator, v)
 		if err != nil {
-			return nil, errors.Wrap(err, "stakingContract.GetDelegated")
+			return nil, nil, errors.Wrap(err, "stakingContract.GetDelegated")
 		}
 		validatorDelegated[v] = decimal.NewFromBigInt(delegatedAmount, 0)
 	}
@@ -192,13 +205,14 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 		}
 	}
 	if !selectedAmount.Equal(totalAmount) {
-		return nil, ErrNoAvailableValsForUnDelegate
+		return nil, nil, ErrNoAvailableValsForUnDelegate
 	}
 
 	for v := range selectedValidatorsAmount {
 		selectedValidators = append(selectedValidators, v)
 	}
 
+	// sort by amount asc
 	sort.Slice(selectedValidators, func(i, j int) bool {
 		return selectedValidatorsAmount[selectedValidators[i]].GreaterThan(selectedValidatorsAmount[selectedValidators[j]])
 	})
@@ -208,7 +222,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 		amount := selectedValidatorsAmount[val]
 		inputData, err := StakingAbi.Pack("undelegate", val, amount.BigInt())
 		if err != nil {
-			return nil, errors.Wrap(err, "staking abi pack failed")
+			return nil, nil, errors.Wrap(err, "staking abi pack failed")
 		}
 
 		tx := &ethmodel.BatchTransaction{
@@ -221,7 +235,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 		txs = append(txs, tx)
 	}
 
-	return txs.Encode(), nil
+	return txs.Encode(), selectedValidators, nil
 }
 
 func (w *writer) getTransferProposal(poolAddr common.Address, receives []*submodel.Receive) ([]byte, decimal.Decimal, error) {
@@ -246,7 +260,7 @@ func (w *writer) getTransferProposal(poolAddr common.Address, receives []*submod
 }
 
 func (w *writer) unbondable(totalAmount, relayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) (bool, error) {
-	_, err := w.getUnDelegateProposal(totalAmount, relayerFee, leastBond, validators, poolAddr, targetBlock)
+	_, _, err := w.getUnDelegateProposal(totalAmount, relayerFee, leastBond, validators, poolAddr, targetBlock)
 	if err != nil {
 		if err == ErrNoAvailableValsForUnDelegate {
 			return false, nil
@@ -401,10 +415,16 @@ func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
 	}
 }
 
-// request[0] = delegateInFly[delegator];
-// request[1] = undelegateInFly[delegator];
-// request[2] = redelegateInFly[delegator];
-func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte) error {
+// bsc staking contract:
+//
+//	function getRequestInFly(address delegator) override external view returns(uint256[3] memory) {
+//	    uint256[3] memory request;
+//	    request[0] = delegateInFly[delegator];
+//	    request[1] = undelegateInFly[delegator];
+//	    request[2] = redelegateInFly[delegator];
+//	    return request;
+//	}
+func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targetHeight uint64, validators []common.Address) error {
 
 	delegator := pool.poolAddress
 	retry := 0
@@ -430,11 +450,30 @@ func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte) error
 			continue
 		}
 
+		delegateSucessIterator, err := w.conn.stakingContract.FilterDelegateSuccess(&bind.FilterOpts{
+			Start:   targetHeight,
+			Context: context.Background(),
+		}, []common.Address{delegator}, validators)
+
+		if err != nil {
+			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		successCount := 0
+		for delegateSucessIterator.Next() {
+			successCount++
+		}
+		if successCount != len(validators) {
+			return fmt.Errorf("some validators delegate failed, pool: %s", pool.poolAddress.String())
+		}
+
 		return nil
 	}
 }
 
-func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte) error {
+func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targetHeight uint64, validators []common.Address) error {
 
 	delegator := pool.poolAddress
 	retry := 0
@@ -458,6 +497,25 @@ func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte) err
 			time.Sleep(WaitInterval)
 			retry++
 			continue
+		}
+
+		undelegateSucessIterator, err := w.conn.stakingContract.FilterUndelegateSuccess(&bind.FilterOpts{
+			Start:   targetHeight,
+			Context: context.Background(),
+		}, []common.Address{delegator}, validators)
+
+		if err != nil {
+			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		successCount := 0
+		for undelegateSucessIterator.Next() {
+			successCount++
+		}
+		if successCount != len(validators) {
+			return fmt.Errorf("some validators undelegate failed, pool: %s", pool.poolAddress.String())
 		}
 
 		return nil

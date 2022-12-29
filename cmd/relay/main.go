@@ -27,11 +27,6 @@ var generateFlags = []cli.Flag{
 	config.NetworkFlag,
 }
 
-var bncGenerateFlags = []cli.Flag{
-	config.KeystorePathFlag,
-	config.BncNetwork,
-}
-
 var accountCommand = cli.Command{
 	Name:  "accounts",
 	Usage: "manage reth keystore",
