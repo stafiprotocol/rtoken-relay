@@ -340,7 +340,7 @@ type BondReportedFlow struct {
 	SubAccounts         []types.Bytes
 	Threshold           uint32
 	Stashes             []types.AccountID
-	ValidatorId         interface{}
+	MaticValidatorId    *big.Int
 	MultiTransaction    *ethmodel.MultiTransaction
 	NewActiveReportFlag bool
 	LeastBond           *big.Int
@@ -416,7 +416,8 @@ type MultiEventFlow struct {
 	PaymentInfo      *rpc.PaymentQueryInfo
 	NewMulCallHashs  map[string]bool
 	MulExeCallHashs  map[string]bool
-	ValidatorId      interface{}
+	MaticValidatorId *big.Int         // rmaitic use
+	BnbValidators    []common.Address // rbnb use
 	MultiTransaction *ethmodel.MultiTransaction
 }
 

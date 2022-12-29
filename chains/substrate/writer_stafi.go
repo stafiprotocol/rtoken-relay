@@ -221,6 +221,9 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	return result
 }
 
+// - bondReport/newBondReport/bondAndReportActive/bondAndReportActiveWithPendingValue
+// - withdrawReport
+// - transferReport
 func (w *writer) processInformChain(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"os"
@@ -40,16 +40,6 @@ var (
 	testLogger   = newTestLogger("test")
 	AliceKp      = keystore.TestKeyRing.EthereumKeys[keystore.AliceKey]
 )
-
-//func TestLoadKeyStore(t *testing.T) {
-//	keystore := "/Users/fwj/Go/stafi/rtoken-relay/keys/"
-//
-//	addr := "tbnb12h62xhn5klt6xug4e9hjhz3dkwav78wz8u72ha"
-//
-//	file := keystore + addr + ".key"
-//
-//
-//}
 
 func TestVerifyBNBTransfer(t *testing.T) {
 	client := newBscTestClient()
@@ -94,11 +84,11 @@ func TestBnbTransferVerify(t *testing.T) {
 		Pool:      pool,
 		Blockhash: bh,
 		Txhash:    th,
-		Amount:    subtypes.NewU128(*big.NewInt(28e17)),
+		Amount:    subtypes.NewU128(*big.NewInt(28e7)),
 	}
 
 	client := newBscTestClient()
-	reason, err := client.TransferVerifyNative(r)
+	reason, err := client.TransferVerifyBNB(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +97,7 @@ func TestBnbTransferVerify(t *testing.T) {
 	wrongBh, _ := hexutil.Decode("0x7144512dbd193241ca6c518526599c760df161a620a696116b01cde815cd8349")
 	r.Blockhash = wrongBh
 
-	reason, err = client.TransferVerifyNative(r)
+	reason, err = client.TransferVerifyBNB(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +106,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongTh, _ := hexutil.Decode("0x49c61f50df6cf784a5021d9e4b532a83c9e728e6c3824b08376a2a1a6941a602")
 	r.Txhash = wrongTh
-	reason, err = client.TransferVerifyNative(r)
+	reason, err = client.TransferVerifyBNB(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +115,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongFrom := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6").Bytes()
 	r.Pubkey = wrongFrom
-	reason, err = client.TransferVerifyNative(r)
+	reason, err = client.TransferVerifyBNB(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +124,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongTo := common.HexToAddress("0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6").Bytes()
 	r.Pool = wrongTo
-	reason, err = client.TransferVerifyNative(r)
+	reason, err = client.TransferVerifyBNB(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +133,7 @@ func TestBnbTransferVerify(t *testing.T) {
 
 	wrongAmt := subtypes.NewU128(*big.NewInt(28e16))
 	r.Amount = wrongAmt
-	reason, err = client.TransferVerifyNative(r)
+	reason, err = client.TransferVerifyBNB(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +269,7 @@ func TestStakingReward(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +401,7 @@ func TestBcTxhash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
 	}

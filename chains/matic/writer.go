@@ -153,10 +153,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return fmt.Errorf("processEraPoolUpdated no keys symbol %s", core.RMATIC)
 	}
 
-	validatorId, ok := mef.ValidatorId.(*big.Int)
-	if !ok {
-		return fmt.Errorf("processEraPoolUpdated validatorId not bigint")
-	}
+	validatorId := mef.MaticValidatorId
 
 	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
@@ -250,10 +247,7 @@ func (w *writer) processBondReported(m *core.Message) error {
 		return fmt.Errorf("processBondReported no keys symbol: %s", m.Destination)
 	}
 
-	validatorId, ok := flow.ValidatorId.(*big.Int)
-	if !ok {
-		return fmt.Errorf("processBondReported validatorId not bigint")
-	}
+	validatorId := flow.MaticValidatorId
 
 	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {
@@ -333,10 +327,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 		return fmt.Errorf("processActiveReported no keys symbol %s", m.Destination)
 	}
 
-	validatorId, ok := mef.ValidatorId.(*big.Int)
-	if !ok {
-		return fmt.Errorf("processActiveReported validatorId not bigint")
-	}
+	validatorId := mef.MaticValidatorId
 
 	shareAddr, err := w.conn.GetValidator(validatorId)
 	if err != nil {

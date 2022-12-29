@@ -328,7 +328,7 @@ func (c *Client) TransferVerifyERC20(r *submodel.BondRecord, token common.Addres
 	return submodel.BlockhashUnmatch, nil
 }
 
-func (c *Client) TransferVerifyNative(r *submodel.BondRecord) (submodel.BondReason, error) {
+func (c *Client) TransferVerifyBNB(r *submodel.BondRecord) (submodel.BondReason, error) {
 	blkHash := common.BytesToHash(r.Blockhash)
 	txHash := common.BytesToHash(r.Txhash)
 
@@ -381,7 +381,8 @@ func (c *Client) TransferVerifyNative(r *submodel.BondRecord) (submodel.BondReas
 			return submodel.PoolUnmatch, nil
 		}
 
-		value := big.NewInt(0).Div(tx.Value(), big.NewInt(1e10))
+		//  decimals 18 on bsc, 8 on bc
+		value := new(big.Int).Div(tx.Value(), big.NewInt(1e10))
 		if value.Cmp(r.Amount.Int) != 0 {
 			c.log.Warn("BnbTransferVerify: amount not equal", "value", tx.Value(), "amount", r.Amount.Int)
 			return submodel.AmountUnmatch, nil

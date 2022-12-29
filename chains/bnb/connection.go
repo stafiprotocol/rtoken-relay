@@ -26,10 +26,6 @@ import (
 )
 
 var (
-	DefaultValue   = big.NewInt(0)
-	ErrNonceTooLow = errors.New("nonce too low")
-	NoBondError    = errors.New("Staked found no bond")
-
 	TxRetryInterval  = time.Second * 2
 	ErrTxUnderpriced = errors.New("replacement transaction underpriced")
 	ZeroAddress      = common.HexToAddress("0x0000000000000000000000000000000000000000")
@@ -54,6 +50,7 @@ type Connection struct {
 }
 
 type Pool struct {
+	poolAddress     common.Address
 	bscClient       *ethereum.Client
 	multisigOnchain *multisig_onchain.MultisigOnchain
 }
@@ -114,6 +111,7 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 			return nil, err
 		}
 		pool := Pool{
+			poolAddress:     multisigContracts[i],
 			bscClient:       client,
 			multisigOnchain: multisigOnchain,
 		}
@@ -160,7 +158,7 @@ func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stak
 }
 
 func initStaking(conn *ethclient.Client) (*staking.Staking, error) {
-	staking, err := staking.NewStaking(common.HexToAddress("0x0000000000000000000000000000000000002001"), conn)
+	staking, err := staking.NewStaking(StakingContractAddr, conn)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +168,7 @@ func initStaking(conn *ethclient.Client) (*staking.Staking, error) {
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
 	for i := 0; i < 5; i++ {
-		result, err = c.queryClient.TransferVerifyNative(r)
+		result, err = c.queryClient.TransferVerifyBNB(r)
 		if err != nil {
 			return
 		}
@@ -443,7 +441,7 @@ func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64
 		return rewardSum, nil
 	}
 
-	return 0, fmt.Errorf("Reward failed")
+	return 0, fmt.Errorf("get reward failed")
 }
 
 func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) {

@@ -131,7 +131,7 @@ func (w *writer) ResolveMessage(m *core.Message) bool {
 	case core.ExeLiquidityBondAndSwap:
 		return w.processExeLiquidityBondAndSwap(m)
 
-	// get state handle by stafi chain
+	// get state, handle by stafi chain
 	case core.GetEraNominated:
 		go w.processGetEraNominated(m)
 		return true

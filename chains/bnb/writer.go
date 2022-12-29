@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/itering/scale.go/utiles"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -21,6 +20,10 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+)
+
+var (
+	tenDecimals = decimal.NewFromInt(1e10)
 )
 
 type writer struct {
@@ -198,9 +201,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
+
 	var pool *Pool
 	var exist bool
-
 	if pool, exist = w.conn.GetPool(poolAddr); !exist {
 		return fmt.Errorf("has no pool key, will ignore")
 	}
@@ -214,16 +217,25 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return errors.Wrap(err, "GetHeightByEra")
 	}
 
-	pendingStakeDeci := decimal.NewFromBigInt(flow.PendingStake, 0)
-	pendingRewardDeci := decimal.NewFromBigInt(flow.PendingStake, 0)
-	bondDeci := decimal.NewFromBigInt(snap.Bond.Int, 0)
-	unbondDeci := decimal.NewFromBigInt(snap.Unbond.Int, 0)
-	leastBondDeci := decimal.NewFromBigInt(flow.LeastBond, 0)
+	minDelegation, err := w.conn.stakingContract.GetMinDelegation(&bind.CallOpts{
+		From:        poolAddr,
+		BlockNumber: big.NewInt(targetHeight),
+		Context:     context.Background(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "GetMinDelegation")
+	}
 
 	newRewadOnBc, err := w.conn.RewardOnBc(poolAddr, targetHeight, lastEraHeight)
 	if err != nil {
 		return errors.Wrap(err, "RewardOnBc")
 	}
+
+	pendingStakeDeci := decimal.NewFromBigInt(flow.PendingStake, 0)
+	pendingRewardDeci := decimal.NewFromBigInt(flow.PendingStake, 0)
+	bondDeci := decimal.NewFromBigInt(snap.Bond.Int, 0).Mul(tenDecimals) // decimals is 8 on bc and 18 on bsc
+	unbondDeci := decimal.NewFromBigInt(snap.Unbond.Int, 0).Mul(tenDecimals)
+	leastBondDeci := decimal.NewFromBigInt(minDelegation, 0)
 	pendingRewardDeci = pendingRewardDeci.Add(decimal.NewFromInt(newRewadOnBc))
 
 	//-------- claim reward on bsc
@@ -237,15 +249,19 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	if rewardOnBsc.Sign() > 0 {
-		proposalId := crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-processEraPoolUpdated-claimReward", snap.Era)))
+
+		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "claimReward", 0)
 
 		needSend, err := needSendProposal(pool, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "needSendProposal")
 		}
 		if needSend {
-			proposalBts := []byte{}
-			err := w.submitProposal(pool, proposalId, proposalBts)
+			proposalBts, err := w.getClaimRewardProposal()
+			if err != nil {
+				return errors.Wrap(err, "getClaimRewardProposal")
+			}
+			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
 			}
@@ -253,7 +269,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			if err != nil {
 				return errors.Wrap(err, "waitProposalExecuted")
 			}
-			realRewardClaimed, claimRewardTxHeight, err := w.findRealRewardClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
+			realRewardClaimed, claimRewardTxHeight, err := w.findRealRewardAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
 			if err != nil {
 				return errors.Wrap(err, "findRealRewardClaimed")
 			}
@@ -276,15 +292,19 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return errors.Wrap(err, "stakingContract.GetUndelegated")
 	}
 	if undelegatedAmount.Sign() > 0 {
-		proposalId := crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-processEraPoolUpdated-claimUndelegated", snap.Era)))
+		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "claimUndelegated", 0)
 
 		needSend, err := needSendProposal(pool, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "needSendProposal")
 		}
 		if needSend {
-			proposalBts := []byte{}
-			err := w.submitProposal(pool, proposalId, proposalBts)
+			proposalBts, err := w.getClaimUndelegatedProposal()
+			if err != nil {
+				return errors.Wrap(err, "getClaimUndelegatedProposal")
+			}
+
+			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
 			}
@@ -292,7 +312,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			if err != nil {
 				return errors.Wrap(err, "waitProposalExecuted")
 			}
-			_, undelegatedClaimTxHeight, err := w.findRealUndelegatedClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
+			_, undelegatedClaimTxHeight, err := w.findRealUndelegatedAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
 			if err != nil {
 				return errors.Wrap(err, "findRealRewardClaimed")
 			}
@@ -300,13 +320,25 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			targetHeight = int64(undelegatedClaimTxHeight)
 		}
 	}
+
 	//------ balance of pool on target height
 	poolBalance, err := pool.bscClient.Client().BalanceAt(context.Background(), poolAddr, big.NewInt(targetHeight))
 	if err != nil {
 		return errors.Wrap(err, "pool balance get failed")
 	}
 	poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
-	//------- switch
+
+	relayerFee, err := w.conn.stakingContract.GetRelayerFee(&bind.CallOpts{
+		From:        poolAddr,
+		BlockNumber: big.NewInt(targetHeight),
+		Context:     context.Background(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "stakingContract.GetRelayerFee")
+	}
+	relayerFeeDeci := decimal.NewFromBigInt(relayerFee, 0)
+
+	//------- switch cal
 	willDelegateAmountDeci := decimal.Zero
 	willUnDelegateAmountDeci := decimal.Zero
 	diffDeci := decimal.Zero
@@ -328,12 +360,13 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 				pendingStakeDeci = pendingStakeDeci.Sub(willDelegateAmountDeci)
 			}
 		} else {
-			unbondable, err := w.unbondable(pool)
+			tempUnDelegateAmountDeci := diffDeci.Sub(pendingStakeDeci).Div(leastBondDeci).Ceil().Mul(leastBondDeci)
+			unbondable, err := w.unbondable(tempUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
 			if err != nil {
 				return errors.Wrap(err, "unbondable")
 			}
 			if unbondable {
-				willUnDelegateAmountDeci = diffDeci.Sub(pendingStakeDeci).Div(leastBondDeci).Ceil().Mul(leastBondDeci)
+				willUnDelegateAmountDeci = tempUnDelegateAmountDeci
 				pendingStakeDeci = pendingStakeDeci.Add(willUnDelegateAmountDeci).Sub(diffDeci)
 			} else {
 				bondAction = submodel.EitherBondUnbond
@@ -349,35 +382,57 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	default:
 		return fmt.Errorf("unknown cmp result")
 	}
+
 	// ----- delegate
 	if willDelegateAmountDeci.IsPositive() {
-		proposalId := crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-processEraPoolUpdated-delegate", snap.Era)))
-		proposalBts := []byte{}
-		err := w.submitProposal(pool, proposalId, proposalBts)
+		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "delegate", 0)
+		needSend, err := needSendProposal(pool, proposalId)
 		if err != nil {
-			return errors.Wrap(err, "submitProposal")
+			return errors.Wrap(err, "needSendProposal")
 		}
-		err = w.waitProposalExecuted(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "waitProposalExecuted")
+		if needSend {
+			proposalBts, err := w.getDelegateProposal(willDelegateAmountDeci, relayerFeeDeci, leastBondDeci, poolAddr, mef.BnbValidators, targetHeight)
+			if err != nil {
+				return errors.Wrap(err, "getDelegateProposal")
+			}
+
+			err = w.submitProposal(pool, proposalId, proposalBts)
+			if err != nil {
+				return errors.Wrap(err, "submitProposal")
+			}
+			err = w.waitProposalExecuted(pool, proposalId)
+			if err != nil {
+				return errors.Wrap(err, "waitProposalExecuted")
+			}
 		}
 	}
+
 	// ----- unDelegate
 	if willUnDelegateAmountDeci.IsPositive() {
-		proposalId := crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-processEraPoolUpdated-unDelegate", snap.Era)))
-		proposalBts := []byte{}
-		err := w.submitProposal(pool, proposalId, proposalBts)
+		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "unDelegate", 0)
+		needSend, err := needSendProposal(pool, proposalId)
 		if err != nil {
-			return errors.Wrap(err, "submitProposal")
+			return errors.Wrap(err, "needSendProposal")
 		}
-		err = w.waitProposalExecuted(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "waitProposalExecuted")
+		if needSend {
+			proposalBts, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
+			if err != nil {
+				return errors.Wrap(err, "getUnDelegateProposal")
+			}
+
+			err = w.submitProposal(pool, proposalId, proposalBts)
+			if err != nil {
+				return errors.Wrap(err, "submitProposal")
+			}
+			err = w.waitProposalExecuted(pool, proposalId)
+			if err != nil {
+				return errors.Wrap(err, "waitProposalExecuted")
+			}
 		}
 	}
 
 	// ----- bond and active report with pending value
-	staked, err := w.staked(pool)
+	staked, err := w.staked(pool, poolAddr)
 	if err != nil {
 		return errors.Wrap(err, "get total staked failed")
 	}
@@ -386,161 +441,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	if bondAction == submodel.EitherBondUnbond {
 		activeDeci = activeDeci.Sub(diffDeci)
 	}
-	flow.Active = activeDeci.BigInt()
-	flow.PendingStake = pendingStakeDeci.BigInt()
-	flow.PendingReward = pendingRewardDeci.BigInt()
+	flow.Active = activeDeci.Div(tenDecimals).BigInt() // decimals 8
+	flow.PendingStake = pendingStakeDeci.BigInt()      // decimals 18
+	flow.PendingReward = pendingRewardDeci.BigInt()    // decimals 18
 	flow.BondCall = &submodel.BondCall{
 		ReportType: submodel.BondAndReportActiveWithPendingValue,
 		Action:     bondAction,
 	}
 
 	return w.informChain(m.Destination, m.Source, mef)
-}
-
-func needSendProposal(pool *Pool, proposalId [32]byte) (bool, error) {
-	proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
-	if err != nil {
-		return false, errors.Wrap(err, "multisigOnchain.Proposals")
-	}
-	needSend := false
-	switch proposal.Status {
-	case 0:
-		needSend = true
-	case 1:
-		voted, err := pool.multisigOnchain.HasVoted(&bind.CallOpts{}, proposalId, pool.bscClient.Opts().From)
-		if err != nil {
-			return false, errors.Wrap(err, "multisigOnchain.HasVoted")
-		}
-		if !voted {
-			needSend = true
-		}
-	case 2:
-	default:
-		return false, fmt.Errorf("unknown proposal status: %d", proposal.Status)
-	}
-	return needSend, nil
-}
-
-func (w *writer) unbondable(pool *Pool) (bool, error) {
-	// w.conn.stakingContract.GetPendingUndelegateTime()
-	return false, nil
-}
-
-func (w *writer) staked(pool *Pool) (*big.Int, error) {
-	return nil, nil
-}
-
-func (w *writer) findRealRewardClaimed(pool *Pool, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
-	proposalExectedIterator, err := pool.multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
-		Start:   targetHeight,
-		Context: context.Background(),
-	})
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
-	}
-	for proposalExectedIterator.Next() {
-		if proposalExectedIterator.Event.ProposalId == proposalId {
-			rewardClaimedIterator, err := w.conn.stakingContract.FilterRewardClaimed(&bind.FilterOpts{
-				Start:   proposalExectedIterator.Event.Raw.BlockNumber,
-				End:     &proposalExectedIterator.Event.Raw.BlockNumber,
-				Context: context.Background(),
-			}, []common.Address{poolAddr})
-			if err != nil {
-				return nil, 0, errors.Wrap(err, "stakingContract.FilterRewardClaimed")
-			}
-			for rewardClaimedIterator.Next() {
-				if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
-					return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
-				}
-			}
-		}
-	}
-	return nil, 0, fmt.Errorf("not find reward claim event")
-}
-
-func (w *writer) findRealUndelegatedClaimed(pool *Pool, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
-	proposalExectedIterator, err := pool.multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
-		Start:   targetHeight,
-		Context: context.Background(),
-	})
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
-	}
-	for proposalExectedIterator.Next() {
-		if proposalExectedIterator.Event.ProposalId == proposalId {
-			rewardClaimedIterator, err := w.conn.stakingContract.FilterUndelegatedClaimed(&bind.FilterOpts{
-				Start:   proposalExectedIterator.Event.Raw.BlockNumber,
-				End:     &proposalExectedIterator.Event.Raw.BlockNumber,
-				Context: context.Background(),
-			}, []common.Address{poolAddr})
-			if err != nil {
-				return nil, 0, errors.Wrap(err, "stakingContract.FilterUndelegatedClaimed")
-			}
-			for rewardClaimedIterator.Next() {
-				if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
-					return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
-				}
-			}
-		}
-	}
-	return nil, 0, fmt.Errorf("not find undelegated claim event")
-}
-
-func (w *writer) submitProposal(pool *Pool, proposalId [32]byte, proposalBts []byte) error {
-	err := pool.bscClient.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
-	if err != nil {
-		return errors.Wrap(err, "LockAndUpdateOpts")
-	}
-	defer pool.bscClient.UnlockOpts()
-
-	tx, err := pool.multisigOnchain.ExecTransactions(pool.bscClient.Opts(), proposalId, proposalBts)
-	if err != nil {
-		return errors.Wrap(err, "multisigOnchain.ExecTransactions")
-	}
-	retry := 0
-	for {
-		if retry > GetRetryLimit*2 {
-			return fmt.Errorf("multisigOnchain.ExecTransactions tx reach retry limit")
-		}
-		_, pending, err := pool.bscClient.Client().TransactionByHash(context.Background(), tx.Hash())
-		if err == nil && !pending {
-			break
-		} else {
-			if err != nil {
-				w.log.Warn("tx status", "hash", tx.Hash(), "err", err.Error())
-			} else {
-				w.log.Warn("tx status", "hash", tx.Hash(), "status", "pending")
-			}
-			time.Sleep(WaitInterval)
-			retry++
-			continue
-		}
-	}
-	return nil
-}
-
-func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
-	retry := 0
-	for {
-		if retry > GetRetryLimit*6 {
-			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
-		}
-
-		proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
-		if err != nil {
-			w.log.Warn("get proposal failed, will retry", "err", err.Error(), "proposalId", proposalId)
-			time.Sleep(WaitInterval)
-			retry++
-			continue
-		}
-		if proposal.Status != 2 {
-			w.log.Warn("proposals not exexted, will wait", "proposalId", proposalId)
-			time.Sleep(WaitInterval)
-			retry++
-			continue
-		}
-	}
-	return nil
 }
 
 func (w *writer) processActiveReported(m *core.Message) error {
@@ -562,7 +471,48 @@ func (w *writer) processActiveReported(m *core.Message) error {
 	if pool, exist = w.conn.GetPool(poolAddr); !exist {
 		return fmt.Errorf("has no pool key, will ignore pool: %s", poolAddr)
 	}
-	_ = pool
+	proposalId := getProposalId(snap.Era, "processActiveReported", "transfer", 0)
+	needSend, err := needSendProposal(pool, proposalId)
+	if err != nil {
+		return errors.Wrap(err, "needSendProposal")
+	}
+	if needSend {
+		proposalBts, totalAmount, err := w.getTransferProposal(poolAddr, flow.Receives)
+		if err != nil {
+			return errors.Wrap(err, "getTransferProposal")
+		}
+
+		for {
+			poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
+			if err != nil {
+				return errors.Wrap(err, "BalanceAt")
+			}
+			poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
+
+			if poolBalanceDeci.LessThanOrEqual(totalAmount) {
+				needSend, err = needSendProposal(pool, proposalId)
+				if err != nil {
+					return errors.Wrap(err, "needSendProposal")
+				}
+				if needSend {
+					time.Sleep(WaitInterval)
+					w.log.Warn("pool balance not enough will wait", "pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmount)
+					continue
+				}
+				break
+			}
+			break
+		}
+		err = w.submitProposal(pool, proposalId, proposalBts)
+		if err != nil {
+			return errors.Wrap(err, "submitProposal")
+		}
+		err = w.waitProposalExecuted(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitProposalExecuted")
+		}
+
+	}
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)

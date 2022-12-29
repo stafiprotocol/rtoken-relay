@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"math/big"
 	"sort"
-	"sync"
 	"testing"
 
 	"github.com/JFJun/go-substrate-crypto/ss58"
@@ -266,9 +265,7 @@ func TestSortAddr(t *testing.T) {
 
 func TestEraContinuable(t *testing.T) {
 	conn := Connection{sc: sc, log: tlog, symbol: core.RKSM, stop: make(chan int)}
-	wg := sync.WaitGroup{}
 	go func() {
-		wg.Add(1)
 		for {
 			continuable, err := conn.EraContinuable(core.RMATIC)
 			if err != nil {
@@ -279,7 +276,6 @@ func TestEraContinuable(t *testing.T) {
 	}()
 
 	for {
-		wg.Add(1)
 		for i := 746800; i <= 746824; i++ {
 			t.Log(i)
 			_, err := conn.GetEvents(uint64(i))
@@ -288,8 +284,5 @@ func TestEraContinuable(t *testing.T) {
 			}
 
 		}
-		wg.Done()
 	}
-
-	wg.Wait()
 }

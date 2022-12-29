@@ -74,7 +74,6 @@ func (r *Router) MsgHandler() {
 	if rfis == nil {
 		panic("RFIS writer not exist")
 	}
-	rmatic := r.registry[RMATIC]
 	r.lock.Unlock()
 
 out:
@@ -85,13 +84,10 @@ out:
 			break out
 		case msg := <-r.msgChan:
 			switch msg.Destination {
-			case RMATIC:
-				if rmatic == nil {
-					panic("RMATIC writer not exist")
-				}
-				rmatic.ResolveMessage(msg)
-			default:
+			case RFIS:
 				rfis.ResolveMessage(msg)
+			default:
+				r.log.Error("queueMsg unsupported destination", "destination", msg.Destination)
 			}
 		}
 	}

@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -117,16 +117,18 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	var validatorId interface{}
+	var validatorId *big.Int
+	var validators []common.Address
 	var leastBond *big.Int
 	var pendingStake *big.Int
 	var pendingReward *big.Int
 	switch data.Symbol {
 	case core.RMATIC:
-		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		nominated, err := l.nominated(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
+		validatorId = new(big.Int).SetBytes(nominated[0])
 
 		leastBond, err = l.leastBond(snap.Symbol)
 		if err != nil {
@@ -134,6 +136,14 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		}
 
 	case core.RBNB:
+		nominated, err := l.nominated(snap.Symbol, snap.Pool)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range nominated {
+			validators = append(validators, common.BytesToAddress(n))
+		}
+
 		leastBond, err = l.leastBond(snap.Symbol)
 		if err != nil {
 			return nil, err
@@ -160,12 +170,13 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	data.PendingReward = pendingReward
 
 	return &submodel.MultiEventFlow{
-		EventId:     config.EraPoolUpdatedEventId,
-		Symbol:      snap.Symbol,
-		EventData:   data,
-		Threshold:   th,
-		SubAccounts: sub,
-		ValidatorId: validatorId,
+		EventId:          config.EraPoolUpdatedEventId,
+		Symbol:           snap.Symbol,
+		EventData:        data,
+		Threshold:        th,
+		SubAccounts:      sub,
+		MaticValidatorId: validatorId,
+		BnbValidators:    validators,
 	}, nil
 }
 
@@ -210,13 +221,14 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 		return nil, err
 	}
 
-	var validatorId interface{}
+	var validatorId *big.Int
 	var leastBond *big.Int
-	if snap.Symbol == core.RMATIC || snap.Symbol == core.RBNB {
-		validatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+	if snap.Symbol == core.RMATIC {
+		nominated, err := l.nominated(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
+		validatorId = new(big.Int).SetBytes(nominated[0])
 
 		leastBond, err = l.leastBond(snap.Symbol)
 		if err != nil {
@@ -244,7 +256,7 @@ func (l *listener) processBondReportedEvt(evt *submodel.ChainEvent) (*submodel.B
 	flow.Snap = snap
 	flow.SubAccounts = sub
 	flow.Threshold = uint32(th)
-	flow.ValidatorId = validatorId
+	flow.MaticValidatorId = validatorId
 	flow.LeastBond = leastBond
 
 	return flow, nil
@@ -295,12 +307,13 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		return nil, err
 	}
 
-	var valdatorId interface{}
+	var validatorId *big.Int
 	if snap.Symbol == core.RMATIC {
-		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		nominated, err := l.nominated(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
+		validatorId = new(big.Int).SetBytes(nominated[0])
 	}
 
 	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
@@ -312,12 +325,12 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	flow.Snap = snap
 
 	return &submodel.MultiEventFlow{
-		EventId:     config.ActiveReportedEventId,
-		Symbol:      snap.Symbol,
-		EventData:   flow,
-		Threshold:   th,
-		SubAccounts: sub,
-		ValidatorId: valdatorId,
+		EventId:          config.ActiveReportedEventId,
+		Symbol:           snap.Symbol,
+		EventData:        flow,
+		Threshold:        th,
+		SubAccounts:      sub,
+		MaticValidatorId: validatorId,
 	}, nil
 }
 
@@ -426,12 +439,13 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 		return nil, err
 	}
 
-	var valdatorId interface{}
+	var validatorId *big.Int
 	if snap.Symbol == core.RMATIC {
-		valdatorId, err = l.validatorId(snap.Symbol, snap.Pool)
+		nominated, err := l.nominated(snap.Symbol, snap.Pool)
 		if err != nil {
 			return nil, err
 		}
+		validatorId = new(big.Int).SetBytes(nominated[0])
 	}
 
 	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
@@ -445,12 +459,12 @@ func (l *listener) processWithdrawReportedEvt(evt *submodel.ChainEvent) (*submod
 	flow.TotalAmount = total
 
 	return &submodel.MultiEventFlow{
-		EventId:     config.WithdrawReportedEventId,
-		Symbol:      snap.Symbol,
-		EventData:   flow,
-		Threshold:   th,
-		SubAccounts: sub,
-		ValidatorId: valdatorId,
+		EventId:          config.WithdrawReportedEventId,
+		Symbol:           snap.Symbol,
+		EventData:        flow,
+		Threshold:        th,
+		SubAccounts:      sub,
+		MaticValidatorId: validatorId,
 	}, nil
 }
 
@@ -704,7 +718,7 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 	return receives, total, nil
 }
 
-func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (interface{}, error) {
+func (l *listener) nominated(symbol core.RSymbol, pool []byte) ([]types.Bytes, error) {
 	poolBz, err := types.EncodeToBytes(pool)
 	if err != nil {
 		return nil, err
@@ -714,8 +728,8 @@ func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (interface{}, e
 		return nil, err
 	}
 
-	validatorIds := make([]types.Bytes, 0)
-	exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageNominated, symBz, poolBz, &validatorIds)
+	nominated := make([]types.Bytes, 0)
+	exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageNominated, symBz, poolBz, &nominated)
 	if err != nil {
 		return nil, err
 	}
@@ -723,24 +737,24 @@ func (l *listener) validatorId(symbol core.RSymbol, pool []byte) (interface{}, e
 		return nil, fmt.Errorf("validatorId of symbol: %s, pool: %s not exist", symbol, hexutil.Encode(pool))
 	}
 
-	if len(validatorIds) == 0 {
+	if len(nominated) == 0 {
 		return nil, fmt.Errorf("no available validatorId, symbol: %s, pool: %s", symbol, hexutil.Encode(pool))
 	}
 
-	l.log.Info("get validatorId", "id", hexutil.Encode(validatorIds[0]), "symbol", symbol, "pool", hexutil.Encode(pool))
-
-	switch symbol {
-	case core.RMATIC:
-		return big.NewInt(0).SetBytes(validatorIds[0]), nil
-	case core.RBNB:
-		addr, err := bncCmnTypes.ValAddressFromBech32(string(validatorIds[0]))
-		if err != nil {
-			return nil, err
-		}
-		return addr, nil
-	default:
-		return nil, fmt.Errorf("validatorId: symbol %s not supported", symbol)
-	}
+	l.log.Info("get nominated", "symbol", symbol, "pool", hexutil.Encode(pool), "nominated", nominated)
+	return nominated, nil
+	// switch symbol {
+	// case core.RMATIC:
+	// 	return big.NewInt(0).SetBytes(validatorIds[0]), nil
+	// case core.RBNB:
+	// 	addr, err := bncCmnTypes.ValAddressFromBech32(string(validatorIds[0]))
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return addr, nil
+	// default:
+	// 	return nil, fmt.Errorf("validatorId: symbol %s not supported", symbol)
+	// }
 }
 
 func (l *listener) leastBond(symbol core.RSymbol) (*big.Int, error) {

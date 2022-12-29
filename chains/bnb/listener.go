@@ -281,20 +281,21 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakeNativePort
 			}
 		}
 
-		l.log.Info("find stake event", "stafiRecipient", hex.EncodeToString(willUseStafiRecipient[:]), "pool", stakeIterator.Event.StakePool.String(), "staker", stakeIterator.Event.Staker.String())
-
-		// check stafi recipient ?
+		// decimals: 18 on bsc, 8 on bc
+		willUseAmount := new(big.Int).Div(stakeIterator.Event.Amount, big.NewInt(1e10))
 		flow := submodel.ExeLiquidityBondAndSwapFlow{
 			Pool:           types.NewBytes(stakeIterator.Event.StakePool.Bytes()),
 			Blockhash:      types.NewBytes(stakeIterator.Event.Raw.BlockHash.Bytes()),
 			Txhash:         types.NewBytes(stakeIterator.Event.Raw.TxHash.Bytes()),
-			Amount:         types.NewU128(*stakeIterator.Event.Amount),
+			Amount:         types.NewU128(*willUseAmount),
 			Symbol:         core.RBNB,
 			StafiRecipient: types.NewAccountID(willUseStafiRecipient[:]),
 			DestRecipient:  types.NewBytes(stakeIterator.Event.DestRecipient[:]),
 			DestId:         types.U8(stakeIterator.Event.ChainId),
 			Reason:         submodel.Pass,
 		}
+		
+		l.log.Info("find stake event", "stafiRecipient", hex.EncodeToString(willUseStafiRecipient[:]), "pool", stakeIterator.Event.StakePool.String(), "staker", stakeIterator.Event.Staker.String(), "amount", willUseAmount.String())
 
 		err := l.processExeLiquidityBondAndSwap(&flow)
 		if err != nil {
