@@ -56,13 +56,6 @@ var accountCommand = cli.Command{
 			Flags:       generateFlags,
 			Description: "The generate subcommand is used to generate the ethereum keystore.",
 		},
-		{
-			Action:      handleGenerateBcCmd,
-			Name:        "genbc",
-			Usage:       "generate bc chain keystore",
-			Flags:       bncGenerateFlags,
-			Description: "The generate subcommand is used to generate the bc chain keystore.",
-		},
 	},
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/bnc"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var (
@@ -413,7 +414,7 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 }
 
 func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64) (int64, error) {
-	delegator := ""
+	delegator := utils.GetDelegaterAddressOnBc(pool[:]).String()
 
 	for i := 0; i < TxRetryLimit; i++ {
 		total, height, err := c.totalAndLastHeight(delegator)

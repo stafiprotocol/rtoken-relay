@@ -108,7 +108,6 @@ func (w *writer) processLiquidityBond(m *core.Message) error {
 func (w *writer) processBondedPools(m *core.Message) error {
 	pools, ok := m.Content.([]types.Bytes)
 	if !ok {
-		w.printContentError(m)
 		return fmt.Errorf("content cast failed")
 	}
 
@@ -226,17 +225,22 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return errors.Wrap(err, "GetMinDelegation")
 	}
 
+	// get reward form lastera to this era
 	newRewadOnBc, err := w.conn.RewardOnBc(poolAddr, targetHeight, lastEraHeight)
 	if err != nil {
 		return errors.Wrap(err, "RewardOnBc")
 	}
 
-	pendingStakeDeci := decimal.NewFromBigInt(flow.PendingStake, 0)
-	pendingRewardDeci := decimal.NewFromBigInt(flow.PendingStake, 0)
-	bondDeci := decimal.NewFromBigInt(snap.Bond.Int, 0).Mul(tenDecimals) // decimals is 8 on bc and 18 on bsc
+	pendingStakeDeci := decimal.NewFromBigInt(flow.PendingStake, 0)   // decimals 18
+	pendingRewardDeci := decimal.NewFromBigInt(flow.PendingReward, 0) // decimals 18
+	leastBondDeci := decimal.NewFromBigInt(minDelegation, 0)          // decimals 18
+
+	// decimals is 8 on bc and 18 on bsc
+	bondDeci := decimal.NewFromBigInt(snap.Bond.Int, 0).Mul(tenDecimals)
 	unbondDeci := decimal.NewFromBigInt(snap.Unbond.Int, 0).Mul(tenDecimals)
-	leastBondDeci := decimal.NewFromBigInt(minDelegation, 0)
-	pendingRewardDeci = pendingRewardDeci.Add(decimal.NewFromInt(newRewadOnBc))
+	newRewadOnBcDeci := decimal.NewFromBigInt(big.NewInt(newRewadOnBc), 0).Mul(tenDecimals)
+
+	pendingRewardDeci = pendingRewardDeci.Add(newRewadOnBcDeci)
 
 	//-------- claim reward on bsc
 	rewardOnBsc, err := w.conn.stakingContract.GetDistributedReward(&bind.CallOpts{
@@ -265,21 +269,22 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
 			}
-			err = w.waitProposalExecuted(pool, proposalId)
-			if err != nil {
-				return errors.Wrap(err, "waitProposalExecuted")
-			}
-			realRewardClaimed, claimRewardTxHeight, err := w.findRealRewardAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
-			if err != nil {
-				return errors.Wrap(err, "findRealRewardClaimed")
-			}
-
-			realRewardOnBscDeci := decimal.NewFromBigInt(realRewardClaimed, 0)
-			pendingRewardDeci = pendingRewardDeci.Sub(realRewardOnBscDeci)
-			pendingStakeDeci = pendingStakeDeci.Add(realRewardOnBscDeci)
-
-			targetHeight = int64(claimRewardTxHeight)
 		}
+
+		err = w.waitProposalExecuted(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitProposalExecuted")
+		}
+		realRewardClaimed, claimRewardTxHeight, err := w.findRealRewardAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
+		if err != nil {
+			return errors.Wrap(err, "findRealRewardClaimed")
+		}
+
+		realRewardOnBscDeci := decimal.NewFromBigInt(realRewardClaimed, 0)
+		pendingRewardDeci = pendingRewardDeci.Sub(realRewardOnBscDeci)
+		pendingStakeDeci = pendingStakeDeci.Add(realRewardOnBscDeci)
+
+		targetHeight = int64(claimRewardTxHeight)
 	}
 
 	//---- claim undelegated
@@ -400,10 +405,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
 			}
-			err = w.waitProposalExecuted(pool, proposalId)
-			if err != nil {
-				return errors.Wrap(err, "waitProposalExecuted")
-			}
+		}
+
+		err = w.waitProposalExecuted(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitProposalExecuted")
+		}
+		err = w.waitDelegateCrossChainOk(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitDelegateCrossChainOk")
 		}
 	}
 
@@ -424,23 +434,42 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			if err != nil {
 				return errors.Wrap(err, "submitProposal")
 			}
-			err = w.waitProposalExecuted(pool, proposalId)
-			if err != nil {
-				return errors.Wrap(err, "waitProposalExecuted")
-			}
+		}
+
+		err = w.waitProposalExecuted(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitProposalExecuted")
+		}
+		err = w.waitUnDelegateCrossChainOk(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitUnDelegateCrossChainOk")
 		}
 	}
 
 	// ----- bond and active report with pending value
-	staked, err := w.staked(pool, poolAddr)
+	staked, err := w.staked(pool)
 	if err != nil {
 		return errors.Wrap(err, "get total staked failed")
 	}
 	stakedDeci := decimal.NewFromBigInt(staked, 0)
+	if stakedDeci.IsNegative() {
+		stakedDeci = decimal.Zero
+	}
+	if pendingStakeDeci.IsNegative() {
+		pendingStakeDeci = decimal.Zero
+	}
+	if pendingRewardDeci.IsNegative() {
+		pendingRewardDeci = decimal.Zero
+	}
+
 	activeDeci := stakedDeci.Add(pendingStakeDeci).Add(pendingRewardDeci)
 	if bondAction == submodel.EitherBondUnbond {
 		activeDeci = activeDeci.Sub(diffDeci)
 	}
+	if activeDeci.IsNegative() {
+		activeDeci = decimal.Zero
+	}
+
 	flow.Active = activeDeci.Div(tenDecimals).BigInt() // decimals 8
 	flow.PendingStake = pendingStakeDeci.BigInt()      // decimals 18
 	flow.PendingReward = pendingRewardDeci.BigInt()    // decimals 18
@@ -455,7 +484,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 func (w *writer) processActiveReported(m *core.Message) error {
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
-		w.printContentError(m)
 		return fmt.Errorf("content cast failed")
 	}
 
@@ -516,10 +544,6 @@ func (w *writer) processActiveReported(m *core.Message) error {
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
-}
-
-func (w *writer) printContentError(m *core.Message) {
-	w.log.Error("msg resolve failed", "source", m.Source, "dest", m.Destination, "reason", m.Reason)
 }
 
 // submitMessage inserts the chainId into the msg and sends it to the router

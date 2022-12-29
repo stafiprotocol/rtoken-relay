@@ -78,7 +78,7 @@ func (w *writer) getDelegateProposal(totalAmount, relayerFee, leastBond decimal.
 		return nil, fmt.Errorf("validators empty")
 	}
 
-	delegator := common.Address{}
+	delegator := poolAddr
 
 	validatorDelegated := make(map[common.Address]decimal.Decimal)
 	for _, v := range validators {
@@ -140,7 +140,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 		return nil, fmt.Errorf("validators empty")
 	}
 
-	delegator := common.Address{}
+	delegator := poolAddr
 
 	block, err := w.conn.QueryBlock(targetBlock)
 	if err != nil {
@@ -256,10 +256,10 @@ func (w *writer) unbondable(totalAmount, relayerFee, leastBond decimal.Decimal, 
 	return true, nil
 }
 
-func (w *writer) staked(pool *Pool, poolAddr common.Address) (*big.Int, error) {
-	delegator := common.Address{}
+func (w *writer) staked(pool *Pool) (*big.Int, error) {
+	delegator := pool.poolAddress
 	return w.conn.stakingContract.GetTotalDelegated(&bind.CallOpts{
-		From:    poolAddr,
+		From:    delegator,
 		Context: context.Background(),
 	}, delegator)
 }
@@ -381,7 +381,7 @@ func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
 	retry := 0
 	for {
 		if retry > GetRetryLimit*6 {
-			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
+			return fmt.Errorf("waitProposalExecuted reach retry limit")
 		}
 
 		proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
@@ -397,6 +397,69 @@ func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
 			retry++
 			continue
 		}
+		return nil
+	}
+}
+
+// request[0] = delegateInFly[delegator];
+// request[1] = undelegateInFly[delegator];
+// request[2] = redelegateInFly[delegator];
+func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte) error {
+
+	delegator := pool.poolAddress
+	retry := 0
+	for {
+		if retry > GetRetryLimit*6 {
+			return fmt.Errorf("waitDelegateCrossChainOk reach retry limit")
+		}
+		inFlys, err := w.conn.stakingContract.GetRequestInFly(&bind.CallOpts{
+			From:    delegator,
+			Context: context.Background(),
+		}, delegator)
+
+		if err != nil {
+			w.log.Warn("GetRequestInFly failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		if inFlys[0].Sign() != 0 {
+			w.log.Warn("delegate is in fly, will retry", "proposalId", proposalId)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		return nil
+	}
+}
+
+func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte) error {
+
+	delegator := pool.poolAddress
+	retry := 0
+	for {
+		if retry > GetRetryLimit*6 {
+			return fmt.Errorf("waitDelegateCrossChainOk reach retry limit")
+		}
+		inFlys, err := w.conn.stakingContract.GetRequestInFly(&bind.CallOpts{
+			From:    delegator,
+			Context: context.Background(),
+		}, delegator)
+
+		if err != nil {
+			w.log.Warn("GetRequestInFly failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		if inFlys[1].Sign() != 0 {
+			w.log.Warn("undelegate is in fly, will retry", "proposalId", proposalId)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
 		return nil
 	}
 }

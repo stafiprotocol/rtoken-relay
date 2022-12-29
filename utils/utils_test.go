@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"testing"
 
+	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,4 +36,16 @@ func TestWriteAndReadeCSV1(t *testing.T) {
 
 	lines := ReadCSV(csvFile)
 	t.Log(lines)
+}
+
+func TestGetStakeCAoB(t *testing.T) {
+	exp, err := bncCmnTypes.AccAddressFromHex("91D7deA99716Cbb247E81F1cfB692009164a967E")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stakeCAoB := GetStakeCAoB(exp.Bytes(), DelegateCAoBSalt)
+	fmt.Println(stakeCAoB.String())
+	if delAddr := GetStakeCAoB(stakeCAoB.Bytes(), DelegateCAoBSalt); delAddr.String() != exp.String() {
+		t.Fatal()
+	}
 }

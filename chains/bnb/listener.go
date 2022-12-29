@@ -294,7 +294,7 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakeNativePort
 			DestId:         types.U8(stakeIterator.Event.ChainId),
 			Reason:         submodel.Pass,
 		}
-		
+
 		l.log.Info("find stake event", "stafiRecipient", hex.EncodeToString(willUseStafiRecipient[:]), "pool", stakeIterator.Event.StakePool.String(), "staker", stakeIterator.Event.Staker.String(), "amount", willUseAmount.String())
 
 		err := l.processExeLiquidityBondAndSwap(&flow)
