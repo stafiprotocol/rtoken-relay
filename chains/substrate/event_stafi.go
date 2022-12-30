@@ -741,20 +741,8 @@ func (l *listener) nominated(symbol core.RSymbol, pool []byte) ([]types.Bytes, e
 		return nil, fmt.Errorf("no available validatorId, symbol: %s, pool: %s", symbol, hexutil.Encode(pool))
 	}
 
-	l.log.Info("get nominated", "symbol", symbol, "pool", hexutil.Encode(pool), "nominated", nominated)
+	l.log.Trace("get nominated", "symbol", symbol, "pool", hexutil.Encode(pool), "nominated", nominated)
 	return nominated, nil
-	// switch symbol {
-	// case core.RMATIC:
-	// 	return big.NewInt(0).SetBytes(validatorIds[0]), nil
-	// case core.RBNB:
-	// 	addr, err := bncCmnTypes.ValAddressFromBech32(string(validatorIds[0]))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return addr, nil
-	// default:
-	// 	return nil, fmt.Errorf("validatorId: symbol %s not supported", symbol)
-	// }
 }
 
 func (l *listener) leastBond(symbol core.RSymbol) (*big.Int, error) {

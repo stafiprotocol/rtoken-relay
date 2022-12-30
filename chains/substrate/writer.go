@@ -91,7 +91,13 @@ func (w *writer) setRouter(r chains.Router) {
 	w.router = r
 }
 
-func (w *writer) ResolveMessage(m *core.Message) bool {
+func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
+	defer func() {
+		if !processOk {
+			w.sysErr <- fmt.Errorf("ResolveMessage failed, message: %+v", m)
+		}
+	}()
+
 	switch m.Reason {
 	// handle by substrate
 	case core.LiquidityBondEvent:

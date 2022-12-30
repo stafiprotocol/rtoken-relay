@@ -2,9 +2,12 @@ package utils
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,4 +51,16 @@ func TestGetStakeCAoB(t *testing.T) {
 	if delAddr := GetStakeCAoB(stakeCAoB.Bytes(), DelegateCAoBSalt); delAddr.String() != exp.String() {
 		t.Fatal()
 	}
+}
+
+func TestStrRecieves(t *testing.T) {
+	receives := []*submodel.Receive{&submodel.Receive{
+		Recipient: []byte{9, 3, 4, 4, 3},
+		Value:     types.NewUCompact(big.NewInt(1)),
+	}, &submodel.Receive{
+		Recipient: []byte{13, 3, 4, 5},
+		Value:     types.NewUCompact(big.NewInt(1)),
+	}}
+
+	t.Log(StrReceives(receives))
 }

@@ -2,6 +2,7 @@ package bnb
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -360,11 +361,14 @@ func (w *writer) submitProposal(pool *Pool, proposalId [32]byte, proposalBts []b
 			continue
 		}
 	}
+	w.log.Info("submitProposal ok", "pool", pool.poolAddress, "proposalId", hex.EncodeToString(proposalId[:]), "txHash", tx.Hash())
 	return nil
 }
 
 func needSendProposal(pool *Pool, proposalId [32]byte) (bool, error) {
-	proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
+	proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{
+		Context: context.Background(),
+	}, proposalId)
 	if err != nil {
 		return false, errors.Wrap(err, "multisigOnchain.Proposals")
 	}
@@ -373,7 +377,9 @@ func needSendProposal(pool *Pool, proposalId [32]byte) (bool, error) {
 	case 0:
 		needSend = true
 	case 1:
-		voted, err := pool.multisigOnchain.HasVoted(&bind.CallOpts{}, proposalId, pool.bscClient.Opts().From)
+		voted, err := pool.multisigOnchain.HasVoted(&bind.CallOpts{
+			Context: context.Background(),
+		}, proposalId, pool.bscClient.Opts().From)
 		if err != nil {
 			return false, errors.Wrap(err, "multisigOnchain.HasVoted")
 		}

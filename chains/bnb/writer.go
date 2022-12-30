@@ -5,6 +5,7 @@ package bnb
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var (
@@ -247,7 +249,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	pendingRewardDeci = pendingRewardDeci.Add(newRewadOnBcDeci)
 
 	//-------- claim reward on bsc
-	w.log.Debug("claim reward on bsc")
+	w.log.Debug("claim reward on bsc", "leastBond", leastBondDeci.StringFixed(0))
 	rewardOnBsc, err := w.conn.stakingContract.GetDistributedReward(&bind.CallOpts{
 		From:        poolAddr,
 		BlockNumber: big.NewInt(targetHeight),
@@ -489,7 +491,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		ReportType: submodel.BondAndReportActiveWithPendingValue,
 		Action:     bondAction,
 	}
-	w.log.Info("will informChain", "reportType", "BondAndReportActiveWithPendingValue", "action", bondAction,
+	w.log.Info("will informChain", "reportType", "BondAndReportActiveWithPendingValue", "action", bondAction, "pool", poolAddr.String(),
 		"active", flow.Active, "pendingStake", flow.PendingStake, "pendingReward", flow.PendingReward)
 
 	return w.informChain(m.Destination, m.Source, mef)
@@ -519,11 +521,12 @@ func (w *writer) processActiveReported(m *core.Message) error {
 	if err != nil {
 		return errors.Wrap(err, "needSendProposal")
 	}
-	proposalBts, totalAmount, err := w.getTransferProposal(poolAddr, flow.Receives)
+	proposalBts, totalAmountDeci, err := w.getTransferProposal(poolAddr, flow.Receives)
 	if err != nil {
 		return errors.Wrap(err, "getTransferProposal")
 	}
-
+	w.log.Info("processActiveReported detail", "poolAddr", poolAddr, "proposalId", hex.EncodeToString(proposalId[:]),
+		"totalAmount", totalAmountDeci.StringFixed(0), "receives", utils.StrReceives(flow.Receives), "needSend", needSend)
 	if needSend {
 		for {
 			poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
@@ -532,7 +535,8 @@ func (w *writer) processActiveReported(m *core.Message) error {
 			}
 			poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
 
-			if poolBalanceDeci.LessThanOrEqual(totalAmount) {
+			w.log.Debug("needSendProposal", "totalAmount", totalAmountDeci.StringFixed(0), "poolBalance", poolBalanceDeci.StringFixed(0))
+			if poolBalanceDeci.LessThanOrEqual(totalAmountDeci) {
 				// check again
 				needSend, err = needSendProposal(pool, proposalId)
 				if err != nil {
@@ -540,7 +544,8 @@ func (w *writer) processActiveReported(m *core.Message) error {
 				}
 				if needSend {
 					time.Sleep(WaitInterval)
-					w.log.Warn("pool balance not enough will wait", "pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmount)
+					w.log.Warn("pool balance not enough will wait",
+						"pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmountDeci.StringFixed(0))
 					continue
 				}
 				break
@@ -557,6 +562,8 @@ func (w *writer) processActiveReported(m *core.Message) error {
 	if err != nil {
 		return errors.Wrap(err, "waitProposalExecuted")
 	}
+
+	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: hexutil.Encode(proposalId[:])}}
 
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)

@@ -232,7 +232,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	}
 
 	if flow.EventData == nil {
-		w.sysErr <- fmt.Errorf("the headflow is nil: %s", flow.EventId)
+		w.log.Error("flow.EventDate is nil")
 		return false
 	}
 
@@ -245,6 +245,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		return true
 	case *submodel.EraPoolUpdatedFlow:
 		call := data.BondCall
+		method := ""
 		switch data.Symbol {
 		case core.RMATIC:
 			switch call.ReportType {
@@ -254,12 +255,14 @@ func (w *writer) processInformChain(m *core.Message) bool {
 					w.log.Error("MethodNewBondReportProposal", "error", err)
 					return false
 				}
+				method = "NewBondReportProposal"
 			case submodel.BondAndReportActive:
 				prop, err = w.conn.BondAndReportActiveProposal(data)
 				if err != nil {
 					w.log.Error("MethodBondAndReportActiveProposal", "error", err)
 					return false
 				}
+				method = "BondAndReportActiveProposal"
 			default:
 				w.log.Error("processInformChain: ReportType not supported", "ReportType", call.ReportType)
 				return false
@@ -272,6 +275,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 					w.log.Error("BondAndReportActiveWithPendingValueProposal", "error", err)
 					return false
 				}
+				method = "BondAndReportActiveWithPendingValueProposal"
 			default:
 				w.log.Error("processInformChain: ReportType not supported", "ReportType", call.ReportType)
 				return false
@@ -282,10 +286,11 @@ func (w *writer) processInformChain(m *core.Message) bool {
 				w.log.Error("MethodBondReportProposal", "error", err)
 				return false
 			}
+			method = "CommonReportProposal"
 		}
 
 		result := w.conn.resolveProposal(prop, true)
-		w.log.Info("MethodBondReportProposal resolveProposal", "result", result)
+		w.log.Info(fmt.Sprintf("%s resolveProposal", method), "result", result)
 		return result
 	case *submodel.ActiveReportedFlow:
 		callhash := flow.OpaqueCalls[0].CallHash
