@@ -25,7 +25,7 @@ import (
 var (
 	BlockDelay         = uint64(10)
 	BlockRetryInterval = time.Second * 10
-	EraInterval        = time.Minute * 5
+	EraInterval        = time.Second * 30
 	BlockRetryLimit    = 30
 	GetRetryLimit      = 50
 	WaitInterval       = time.Second * 6
@@ -146,7 +146,7 @@ func (l *listener) pollBlocks() error {
 }
 
 func (l *listener) pollEras() error {
-	l.log.Info("start polling eras...")
+	l.log.Info("Polling eras...")
 	var retry = BlockRetryLimit
 	for {
 		select {
@@ -283,6 +283,11 @@ func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakeNativePort
 
 		// decimals: 18 on bsc, 8 on bc
 		willUseAmount := new(big.Int).Div(stakeIterator.Event.Amount, big.NewInt(1e10))
+		if willUseAmount.Sign() <= 0 {
+			l.log.Warn("find stake event, but amount too small will skip", "stafiRecipient", hex.EncodeToString(willUseStafiRecipient[:]), "pool", stakeIterator.Event.StakePool.String(), "staker", stakeIterator.Event.Staker.String(), "amount", willUseAmount.String())
+			continue
+		}
+
 		flow := submodel.ExeLiquidityBondAndSwapFlow{
 			Pool:           types.NewBytes(stakeIterator.Event.StakePool.Bytes()),
 			Blockhash:      types.NewBytes(stakeIterator.Event.Raw.BlockHash.Bytes()),

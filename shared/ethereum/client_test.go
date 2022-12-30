@@ -10,6 +10,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -17,6 +18,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
+	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -397,6 +399,27 @@ func NewGoerliClient() *Client {
 	}
 
 	return client
+}
+func TestStaking(t *testing.T) {
+	client := NewClient("https://rpc.ankr.com/bsc_testnet_chapel", AliceKp, testLogger, big.NewInt(0), big.NewInt(0))
+	err := client.Connect()
+	if err != nil {
+		panic(err)
+	}
+	staking, err := staking.NewStaking(common.HexToAddress("0x0000000000000000000000000000000000002001"), client.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	min, err := staking.GetMinDelegation(&bind.CallOpts{
+		BlockNumber: big.NewInt(25883683),
+		Context:     context.Background(),
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(min)
 }
 
 func TestGasPrice(t *testing.T) {

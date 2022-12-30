@@ -254,7 +254,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB {
 						eraPoolUpdatedFlow, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow)
 						if !ok {
 							return fmt.Errorf("cast err")
@@ -296,7 +296,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB {
 						// here we wait until snapshot's bondstate change to another
 						// so we can continuely process this event when restart
 						for {
@@ -356,6 +356,29 @@ func (l *listener) processEvents(blockNum uint64) error {
 						}
 
 					}
+					if flow.Symbol == core.RBNB {
+						withdrawReportedFlow, ok := flow.EventData.(*submodel.WithdrawReportedFlow)
+						if !ok {
+							return fmt.Errorf("cast err")
+						}
+						// here we wait until snapshot's bondstate change to another
+						// so we can continuely process this event when restart
+						for {
+							snap, err := l.snapshot(withdrawReportedFlow.Symbol, withdrawReportedFlow.ShotId)
+							if err != nil {
+								l.log.Warn("l.snapshot", err, err)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							if snap.BondState == submodel.ActiveReported {
+								l.log.Debug("bondstate not change will wait", "bondState", snap.BondState)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							break
+						}
+
+					}
 				}
 			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.WithdrawReportedEventId:
 				l.log.Trace("Handling WithdrawReportedEvent", "block", blockNum)
@@ -374,7 +397,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB {
 						withdrawReportedFlow, ok := flow.EventData.(*submodel.WithdrawReportedFlow)
 						if !ok {
 							return fmt.Errorf("cast err")

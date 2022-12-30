@@ -187,7 +187,7 @@ if action == eitherBondUnbond:
 return bond_and_active_report_with_pending_value(action, active, pendingStake, pendingReward)
 */
 func (w *writer) processEraPoolUpdated(m *core.Message) error {
-	w.log.Info("processEraPoolUpdated")
+	w.log.Info("processEraPoolUpdated start")
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		return fmt.Errorf("content cast failed")
@@ -201,12 +201,15 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
 
+	w.log.Info("processEraPoolUpdated detail", "era", flow.Snap.Era, "pool", poolAddr.String(), "snapshot", fmt.Sprintf("%+v", snap))
+
 	var pool *Pool
 	var exist bool
 	if pool, exist = w.conn.GetPool(poolAddr); !exist {
 		return fmt.Errorf("has no pool key, will ignore")
 	}
 
+	w.log.Debug("GetHeightByEra")
 	targetHeight, err := w.conn.GetHeightByEra(snap.Era, int64(w.eraSeconds), w.eraOffset)
 	if err != nil {
 		return errors.Wrap(err, "GetHeightByEra")
@@ -226,6 +229,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	// get reward form lastera to this era
+	w.log.Debug("get reward form lastera to this era")
 	newRewadOnBc, err := w.conn.RewardOnBc(poolAddr, targetHeight, lastEraHeight)
 	if err != nil {
 		return errors.Wrap(err, "RewardOnBc")
@@ -243,6 +247,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	pendingRewardDeci = pendingRewardDeci.Add(newRewadOnBcDeci)
 
 	//-------- claim reward on bsc
+	w.log.Debug("claim reward on bsc")
 	rewardOnBsc, err := w.conn.stakingContract.GetDistributedReward(&bind.CallOpts{
 		From:        poolAddr,
 		BlockNumber: big.NewInt(targetHeight),
@@ -289,6 +294,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	//---- claim undelegated
+	w.log.Debug("claim undelegated")
 	undelegatedAmount, err := w.conn.stakingContract.GetUndelegated(&bind.CallOpts{
 		From:        poolAddr,
 		BlockNumber: big.NewInt(targetHeight),
@@ -329,6 +335,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	//------ balance of pool on target height
+	w.log.Debug("balance of pool on target height")
 	poolBalance, err := pool.bscClient.Client().BalanceAt(context.Background(), poolAddr, big.NewInt(targetHeight))
 	if err != nil {
 		return errors.Wrap(err, "pool balance get failed")
@@ -346,6 +353,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	relayerFeeDeci := decimal.NewFromBigInt(relayerFee, 0)
 
 	//------- switch cal
+	w.log.Debug("switch cal")
 	willDelegateAmountDeci := decimal.Zero
 	willUnDelegateAmountDeci := decimal.Zero
 	diffDeci := decimal.Zero
@@ -391,6 +399,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	// ----- delegate
+	w.log.Debug("delegate")
 	if willDelegateAmountDeci.IsPositive() {
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "delegate", 0)
 		proposalBts, distributedValidators, err := w.getDelegateProposal(willDelegateAmountDeci, relayerFeeDeci, leastBondDeci, poolAddr, mef.BnbValidators, targetHeight)
@@ -419,6 +428,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	// ----- unDelegate
+	w.log.Debug("undelegate")
 	if willUnDelegateAmountDeci.IsPositive() {
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "unDelegate", 0)
 		proposalBts, selectedValidator, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
@@ -448,6 +458,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	// ----- bond and active report with pending value
+	w.log.Debug("bond and active report with pending value")
 	staked, err := w.staked(pool)
 	if err != nil {
 		return errors.Wrap(err, "get total staked failed")
@@ -478,11 +489,14 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		ReportType: submodel.BondAndReportActiveWithPendingValue,
 		Action:     bondAction,
 	}
+	w.log.Info("will informChain", "reportType", "BondAndReportActiveWithPendingValue", "action", bondAction,
+		"active", flow.Active, "pendingStake", flow.PendingStake, "pendingReward", flow.PendingReward)
 
 	return w.informChain(m.Destination, m.Source, mef)
 }
 
 func (w *writer) processActiveReported(m *core.Message) error {
+	w.log.Info("processActiveReported start")
 	mef, ok := m.Content.(*submodel.MultiEventFlow)
 	if !ok {
 		return fmt.Errorf("content cast failed")

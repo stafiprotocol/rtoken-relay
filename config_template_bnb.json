@@ -5,14 +5,14 @@
       "type": "substrate",
       "rsymbol": "RFIS",
       "endpoint": "ws://127.0.0.1:9944",
-      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys/stafi",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "31yavGB5CVb8EwpqKQaS9XY7JZcfbK6QpWPn5kkweHVpqcov"
+        "33xzQzUk75cAxt7i3hHb2XWwJNFqzcSULfoCRsAkiCG4jh5d"
       ],
       "opts": {
-        "typesPath": "/Users/fwj/Go/stafi/rtoken-relay/network/stafi.json",
+        "typesPath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/network/stafi.json",
         "startBlock": "1",
-        "blockstorePath": "/Users/fwj/Go/stafi/rtoken-relay/blockstore",
+        "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
         "addressType": "AccountId",
         "chainType": "stafi",
         "cares": [
@@ -24,19 +24,21 @@
       "name": "bnb",
       "type": "bnb",
       "rsymbol": "RBNB",
-      "endpoint": "https://data-seed-prebsc-2-s3.binance.org:8545",
-      "keystorePath": "/Users/fwj/Go/stafi/rtoken-relay/keys/bnctest",
+      "endpoint": "https://rpc.ankr.com/bsc_testnet_chapel",
+      "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
       "accounts": [
-        "0xBca9567A9e8D5F6F58C419d32aF6190F74C880e6"
+        "0x7e7a38868A176894Bd44f668179209710ECd8052"
       ],
       "opts": {
         "blockstorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/blockstore",
-        "eraSeconds": "100",
+        "eraSeconds": "600",
         "eraOffset": "-100",
-        "startBlock": "8065258",
-        "StakePortalContract": "0x0000000000000000000000000000000000001004",
+        "startBlock": "25883866",
+        "bcEndpoint": "https://testnet-api.binance.org",
+        "bscSideChainId": "chapel",
+        "StakePortalContract": "0x167f02611aFeFB1e7a61aE90c7a1bd9848173e14",
         "MultiSigContracts": [
-          "0xa75d7499ca9ac8fE46DCCe5ab9288B0Fe59ea46E"
+          "0x301b6bf74FeF297E118dDeb3E9d855A38Fd74d51"
         ]
       }
     }

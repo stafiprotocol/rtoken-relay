@@ -282,24 +282,22 @@ func (w *writer) findRealRewardAmountClaimed(pool *Pool, proposalId [32]byte, po
 	proposalExectedIterator, err := pool.multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
 		Start:   targetHeight,
 		Context: context.Background(),
-	})
+	}, [][32]byte{proposalId})
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
 	}
 	for proposalExectedIterator.Next() {
-		if proposalExectedIterator.Event.ProposalId == proposalId {
-			rewardClaimedIterator, err := w.conn.stakingContract.FilterRewardClaimed(&bind.FilterOpts{
-				Start:   proposalExectedIterator.Event.Raw.BlockNumber,
-				End:     &proposalExectedIterator.Event.Raw.BlockNumber,
-				Context: context.Background(),
-			}, []common.Address{poolAddr})
-			if err != nil {
-				return nil, 0, errors.Wrap(err, "stakingContract.FilterRewardClaimed")
-			}
-			for rewardClaimedIterator.Next() {
-				if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
-					return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
-				}
+		rewardClaimedIterator, err := w.conn.stakingContract.FilterRewardClaimed(&bind.FilterOpts{
+			Start:   proposalExectedIterator.Event.Raw.BlockNumber,
+			End:     &proposalExectedIterator.Event.Raw.BlockNumber,
+			Context: context.Background(),
+		}, []common.Address{poolAddr})
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "stakingContract.FilterRewardClaimed")
+		}
+		for rewardClaimedIterator.Next() {
+			if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
+				return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
 			}
 		}
 	}
@@ -310,24 +308,22 @@ func (w *writer) findRealUndelegatedAmountClaimed(pool *Pool, proposalId [32]byt
 	proposalExectedIterator, err := pool.multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
 		Start:   targetHeight,
 		Context: context.Background(),
-	})
+	}, [][32]byte{proposalId})
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
 	}
 	for proposalExectedIterator.Next() {
-		if proposalExectedIterator.Event.ProposalId == proposalId {
-			rewardClaimedIterator, err := w.conn.stakingContract.FilterUndelegatedClaimed(&bind.FilterOpts{
-				Start:   proposalExectedIterator.Event.Raw.BlockNumber,
-				End:     &proposalExectedIterator.Event.Raw.BlockNumber,
-				Context: context.Background(),
-			}, []common.Address{poolAddr})
-			if err != nil {
-				return nil, 0, errors.Wrap(err, "stakingContract.FilterUndelegatedClaimed")
-			}
-			for rewardClaimedIterator.Next() {
-				if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
-					return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
-				}
+		rewardClaimedIterator, err := w.conn.stakingContract.FilterUndelegatedClaimed(&bind.FilterOpts{
+			Start:   proposalExectedIterator.Event.Raw.BlockNumber,
+			End:     &proposalExectedIterator.Event.Raw.BlockNumber,
+			Context: context.Background(),
+		}, []common.Address{poolAddr})
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "stakingContract.FilterUndelegatedClaimed")
+		}
+		for rewardClaimedIterator.Next() {
+			if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
+				return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
 			}
 		}
 	}

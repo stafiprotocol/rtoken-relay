@@ -6,7 +6,6 @@ package bnb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/pkg/errors"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	multisig_onchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
@@ -34,16 +34,15 @@ var (
 
 const (
 	TxRetryLimit = 10
-	CoinSymbol   = "BNB"
 )
 
 type Connection struct {
-	symbol      core.RSymbol
-	queryClient *ethereum.Client // first pool's bsc client used for query
-	apiEndpint  string
-	sideChainId string
-	log         core.Logger
-	stop        <-chan int
+	symbol         core.RSymbol
+	queryClient    *ethereum.Client // first pool's bsc client used for query
+	bcApiEndpoint  string
+	bscSideChainId string
+	log            core.Logger
+	stop           <-chan int
 
 	pools               map[common.Address]*Pool // pool address => pool
 	stakePortalContract *stake_portal.StakeNativePortal
@@ -59,13 +58,19 @@ type Pool struct {
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewClient", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint)
 
-	rpcEndpointCfg := cfg.Opts["rpcEndpoint"]
-	rpcEndpoint, ok := rpcEndpointCfg.(string)
+	bcEndpoint := cfg.Opts["bcEndpoint"]
+	bcEndpointStr, ok := bcEndpoint.(string)
 	if !ok {
-		return nil, errors.New("rpcEndpoint not exist")
+		return nil, errors.New("bcEndpoint not exist")
 	}
 
-	ethClient, err := ethclient.Dial(rpcEndpoint)
+	bscSideChainId := cfg.Opts["bscSideChainId"]
+	bscSideChainIdStr, ok := bscSideChainId.(string)
+	if !ok {
+		return nil, errors.New("bscSideChainId not exist")
+	}
+
+	ethClient, err := ethclient.Dial(cfg.Endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +142,8 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	return &Connection{
 		symbol:              cfg.Symbol,
 		queryClient:         bscClient,
+		bcApiEndpoint:       bcEndpointStr,
+		bscSideChainId:      bscSideChainIdStr,
 		log:                 log,
 		stop:                stop,
 		pools:               pools,
@@ -272,7 +279,7 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 		}
 	}
 
-	tmpTargetBlock := int64(blockNumber) - seconds/7
+	tmpTargetBlock := int64(blockNumber) - seconds/3
 	if tmpTargetBlock <= 0 {
 		tmpTargetBlock = 1
 	}
@@ -358,7 +365,7 @@ func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64
 
 func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) {
 	api := c.rewardApi(delegator, 1, 0)
-	c.log.Info("totalAndLastHeight rewardApi", "rewardApi", api)
+	c.log.Trace("totalAndLastHeight rewardApi", "rewardApi", api)
 	sr, err := bnc.GetStakingReward(api)
 	if err != nil {
 		return 0, 0, err
@@ -381,8 +388,7 @@ OUT:
 
 		sr, err := bnc.GetStakingReward(api)
 		if err != nil {
-			c.log.Info("stakingReward GetStakingReward error", "err", err)
-			return 0, err
+			return 0, errors.Wrap(err, "bnc.GetStakingReward")
 		}
 
 		for _, rd := range sr.RewardDetails {
@@ -404,5 +410,5 @@ OUT:
 }
 
 func (c *Connection) rewardApi(delegator string, limit, offset int64) string {
-	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", c.apiEndpint, c.sideChainId, delegator, limit, offset)
+	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", c.bcApiEndpoint, c.bscSideChainId, delegator, limit, offset)
 }
