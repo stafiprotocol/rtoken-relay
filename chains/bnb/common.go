@@ -2,7 +2,6 @@ package bnb
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -12,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -22,7 +22,6 @@ import (
 
 var (
 	StakingAbi                      abi.ABI
-	StakingContractAddr             = common.HexToAddress("0x0000000000000000000000000000000000002001")
 	ErrNoAvailableValsForUnDelegate = errors.New("ErrNoAvailableValsForUnDelegate")
 )
 
@@ -48,7 +47,7 @@ func (w *writer) getClaimRewardProposal() ([]byte, error) {
 
 	bt := &ethmodel.BatchTransaction{
 		Operation:  uint8(ethmodel.Call),
-		To:         StakingContractAddr,
+		To:         w.conn.GetStakingContractAddress(),
 		Value:      big.NewInt(0),
 		DataLength: big.NewInt(int64(len(inputData))),
 		Data:       inputData,
@@ -65,7 +64,7 @@ func (w *writer) getClaimUndelegatedProposal() ([]byte, error) {
 
 	bt := &ethmodel.BatchTransaction{
 		Operation:  uint8(ethmodel.Call),
-		To:         StakingContractAddr,
+		To:         w.conn.GetStakingContractAddress(),
 		Value:      big.NewInt(0),
 		DataLength: big.NewInt(int64(len(inputData))),
 		Data:       inputData,
@@ -135,7 +134,7 @@ out:
 
 		tx := &ethmodel.BatchTransaction{
 			Operation:  uint8(ethmodel.Call),
-			To:         StakingContractAddr,
+			To:         w.conn.GetStakingContractAddress(),
 			Value:      amount.Add(relayerFee).BigInt(),
 			DataLength: big.NewInt(int64(len(inputData))),
 			Data:       inputData,
@@ -228,7 +227,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 
 		tx := &ethmodel.BatchTransaction{
 			Operation:  uint8(ethmodel.Call),
-			To:         StakingContractAddr,
+			To:         w.conn.GetStakingContractAddress(),
 			Value:      relayerFee.BigInt(),
 			DataLength: big.NewInt(int64(len(inputData))),
 			Data:       inputData,
@@ -361,7 +360,7 @@ func (w *writer) submitProposal(pool *Pool, proposalId [32]byte, proposalBts []b
 			continue
 		}
 	}
-	w.log.Info("submitProposal ok", "pool", pool.poolAddress, "proposalId", hex.EncodeToString(proposalId[:]), "txHash", tx.Hash())
+	w.log.Info("submitProposal ok", "pool", pool.poolAddress, "proposalId", hexutil.Encode(proposalId[:]), "txHash", tx.Hash())
 	return nil
 }
 
@@ -402,13 +401,13 @@ func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
 
 		proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
 		if err != nil {
-			w.log.Warn("get proposal failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			w.log.Warn("get proposal failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
 		}
 		if proposal.Status != 2 {
-			w.log.Warn("proposals not exexted, will wait", "proposalId", proposalId)
+			w.log.Warn("proposals not executed, will wait", "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
@@ -440,13 +439,13 @@ func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targe
 		}, delegator)
 
 		if err != nil {
-			w.log.Warn("GetRequestInFly failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			w.log.Warn("GetRequestInFly failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
 		}
 		if inFlys[0].Sign() != 0 {
-			w.log.Warn("delegate is in fly, will retry", "proposalId", proposalId)
+			w.log.Warn("delegate is in fly, will retry", "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
@@ -458,7 +457,7 @@ func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targe
 		}, []common.Address{delegator}, validators)
 
 		if err != nil {
-			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
@@ -489,13 +488,13 @@ func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte, tar
 		}, delegator)
 
 		if err != nil {
-			w.log.Warn("GetRequestInFly failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			w.log.Warn("GetRequestInFly failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
 		}
 		if inFlys[1].Sign() != 0 {
-			w.log.Warn("undelegate is in fly, will retry", "proposalId", proposalId)
+			w.log.Warn("undelegate is in fly, will retry", "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue
@@ -507,7 +506,7 @@ func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte, tar
 		}, []common.Address{delegator}, validators)
 
 		if err != nil {
-			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", proposalId)
+			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
 			retry++
 			continue

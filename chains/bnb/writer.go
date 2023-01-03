@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -249,7 +250,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	pendingRewardDeci = pendingRewardDeci.Add(newRewadOnBcDeci)
 
 	//-------- claim reward on bsc
-	w.log.Debug("claim reward on bsc", "leastBond", leastBondDeci.StringFixed(0))
+	w.log.Debug("claim reward on bsc", "staking-contract-minDelegate", leastBondDeci.StringFixed(0))
 	rewardOnBsc, err := w.conn.stakingContract.GetDistributedReward(&bind.CallOpts{
 		From:        poolAddr,
 		BlockNumber: big.NewInt(targetHeight),
@@ -274,7 +275,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			}
 			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
-				return errors.Wrap(err, "submitProposal")
+				if !strings.Contains(err.Error(), "proposal already executed") {
+					return errors.Wrap(err, "submitProposal")
+				}
 			}
 		}
 
@@ -320,20 +323,23 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
-				return errors.Wrap(err, "submitProposal")
+				if !strings.Contains(err.Error(), "proposal already executed") {
+					return errors.Wrap(err, "submitProposal")
+				}
 			}
-			err = w.waitProposalExecuted(pool, proposalId)
-			if err != nil {
-				return errors.Wrap(err, "waitProposalExecuted")
-			}
-			_, undelegatedClaimTxHeight, err := w.findRealUndelegatedAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
-			if err != nil {
-				return errors.Wrap(err, "findRealRewardClaimed")
-			}
-
-			// pool balance change at this height
-			targetHeight = int64(undelegatedClaimTxHeight)
 		}
+
+		err = w.waitProposalExecuted(pool, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitProposalExecuted")
+		}
+		_, undelegatedClaimTxHeight, err := w.findRealUndelegatedAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
+		if err != nil {
+			return errors.Wrap(err, "findRealRewardClaimed")
+		}
+
+		// pool balance change at this height
+		targetHeight = int64(undelegatedClaimTxHeight)
 	}
 
 	//------ balance of pool on target height
@@ -401,8 +407,8 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	// ----- delegate
-	w.log.Debug("delegate")
 	if willDelegateAmountDeci.IsPositive() {
+		w.log.Info("will delegate", "amount", willDelegateAmountDeci.StringFixed(0), "pool", poolAddr.String())
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "delegate", 0)
 		proposalBts, distributedValidators, err := w.getDelegateProposal(willDelegateAmountDeci, relayerFeeDeci, leastBondDeci, poolAddr, mef.BnbValidators, targetHeight)
 		if err != nil {
@@ -415,7 +421,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		if needSend {
 			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
-				return errors.Wrap(err, "submitProposal")
+				if !strings.Contains(err.Error(), "proposal already executed") {
+					return errors.Wrap(err, "submitProposal")
+				}
 			}
 		}
 
@@ -430,8 +438,8 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	// ----- unDelegate
-	w.log.Debug("undelegate")
 	if willUnDelegateAmountDeci.IsPositive() {
+		w.log.Info("will undelegate", "amount", willUnDelegateAmountDeci.StringFixed(0), "pool", poolAddr.String())
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "unDelegate", 0)
 		proposalBts, selectedValidator, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
 		if err != nil {
@@ -445,7 +453,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		if needSend {
 			err = w.submitProposal(pool, proposalId, proposalBts)
 			if err != nil {
-				return errors.Wrap(err, "submitProposal")
+				if !strings.Contains(err.Error(), "proposal already executed") {
+					return errors.Wrap(err, "submitProposal")
+				}
 			}
 		}
 

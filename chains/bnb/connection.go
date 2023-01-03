@@ -44,9 +44,10 @@ type Connection struct {
 	log            core.Logger
 	stop           <-chan int
 
-	pools               map[common.Address]*Pool // pool address => pool
-	stakePortalContract *stake_portal.StakeNativePortal
-	stakingContract     *staking.Staking
+	pools                  map[common.Address]*Pool // pool address => pool
+	stakePortalContract    *stake_portal.StakeNativePortal
+	stakingContract        *staking.Staking
+	stakingContractAddress common.Address
 }
 
 type Pool struct {
@@ -134,28 +135,32 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, err
 	}
 
-	staking, err := initStaking(ethClient)
+	staking, stakingAddr, err := initStaking(ethClient, cfg.Opts["StakingContract"])
 	if err != nil {
 		return nil, err
 	}
 
 	return &Connection{
-		symbol:              cfg.Symbol,
-		queryClient:         bscClient,
-		bcApiEndpoint:       bcEndpointStr,
-		bscSideChainId:      bscSideChainIdStr,
-		log:                 log,
-		stop:                stop,
-		pools:               pools,
-		stakePortalContract: stakePortal,
-		stakingContract:     staking,
+		symbol:                 cfg.Symbol,
+		queryClient:            bscClient,
+		bcApiEndpoint:          bcEndpointStr,
+		bscSideChainId:         bscSideChainIdStr,
+		log:                    log,
+		stop:                   stop,
+		pools:                  pools,
+		stakePortalContract:    stakePortal,
+		stakingContract:        staking,
+		stakingContractAddress: stakingAddr,
 	}, nil
 }
 
-func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stake_portal.StakeNativePortal, error) {
-	stakePortalAddr, ok := stakeManagerCfg.(string)
+func initStakePortal(stakePortalCfg interface{}, conn *ethclient.Client) (*stake_portal.StakeNativePortal, error) {
+	stakePortalAddr, ok := stakePortalCfg.(string)
 	if !ok {
-		return nil, errors.New("StakeManagerContract not ok")
+		return nil, errors.New("stakePortalCfg not ok")
+	}
+	if !common.IsHexAddress(stakePortalAddr) {
+		return nil, errors.New("stakePortalCfg not hex string")
 	}
 	stakePortal, err := stake_portal.NewStakeNativePortal(common.HexToAddress(stakePortalAddr), conn)
 	if err != nil {
@@ -165,13 +170,22 @@ func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stak
 	return stakePortal, nil
 }
 
-func initStaking(conn *ethclient.Client) (*staking.Staking, error) {
-	staking, err := staking.NewStaking(StakingContractAddr, conn)
-	if err != nil {
-		return nil, err
+func initStaking(conn *ethclient.Client, stakingContractCfg interface{}) (*staking.Staking, common.Address, error) {
+	stakingContractStr, ok := stakingContractCfg.(string)
+	if !ok {
+		return nil, common.Address{}, errors.New("stakingContractCfg not ok")
+	}
+	if !common.IsHexAddress(stakingContractStr) {
+		return nil, common.Address{}, errors.New("stakingContractCfg not hex string")
 	}
 
-	return staking, nil
+	addr := common.HexToAddress(stakingContractStr)
+	staking, err := staking.NewStaking(addr, conn)
+	if err != nil {
+		return nil, common.Address{}, err
+	}
+
+	return staking, addr, nil
 }
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.BondReason, err error) {
@@ -213,6 +227,10 @@ func (c *Connection) LatestBlockTimestamp() (uint64, error) {
 	}
 
 	return blkTime, nil
+}
+
+func (c *Connection) GetStakingContractAddress() common.Address {
+	return c.stakingContractAddress
 }
 
 func (c *Connection) LatestBlock() (uint64, error) {
@@ -337,7 +355,7 @@ func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64
 	for i := 0; i < TxRetryLimit; i++ {
 		total, height, err := c.totalAndLastHeight(delegator)
 		if err != nil {
-			c.log.Error("totalAndLastHeight error", "err", err)
+			c.log.Warn("totalAndLastHeight error", "err", err)
 			if i+1 == TxRetryLimit {
 				return 0, err
 			}

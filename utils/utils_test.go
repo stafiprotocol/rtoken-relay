@@ -54,10 +54,10 @@ func TestGetStakeCAoB(t *testing.T) {
 }
 
 func TestStrRecieves(t *testing.T) {
-	receives := []*submodel.Receive{&submodel.Receive{
+	receives := []*submodel.Receive{{
 		Recipient: []byte{9, 3, 4, 4, 3},
 		Value:     types.NewUCompact(big.NewInt(1)),
-	}, &submodel.Receive{
+	}, {
 		Recipient: []byte{13, 3, 4, 5},
 		Value:     types.NewUCompact(big.NewInt(1)),
 	}}
