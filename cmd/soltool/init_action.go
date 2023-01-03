@@ -255,7 +255,7 @@ func initAction(ctx *cli.Context) error {
 			MultisigTxBaseAccount.PublicKey,
 			MultisigProgramId,
 			account.PublicKey,
-			0)
+			1)
 		validatorPubkey := stakeBaseStrToValidator[stakeAccoountStr]
 		stakeInstruction := stakeprog.DelegateStake(account.PublicKey, multisignerPubkey, validatorPubkey)
 
