@@ -122,6 +122,13 @@ func handleDelegateBnb(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	lvl := ctx.String(config.VerbosityFlag.Name)
+
+	level, err := logrus.ParseLevel(lvl)
+	if err != nil {
+		return err
+	}
+	logrus.SetLevel(level)
 
 	client, err := ethclient.Dial(cfg.Endpoint)
 	if err != nil {
@@ -204,16 +211,16 @@ func submitProposal(pool *Pool, proposalId [32]byte, proposalBts []byte) error {
 			break
 		} else {
 			if err != nil {
-				fmt.Printf("tx status", "hash", tx.Hash(), "err", err.Error())
+				logrus.Warn("tx status ", " hash ", tx.Hash(), " err ", err.Error())
 			} else {
-				fmt.Printf("tx status", "hash", tx.Hash(), "status", "pending")
+				logrus.Warn("tx status ", " hash ", tx.Hash(), " status ", "pending")
 			}
 			time.Sleep(time.Second * 3)
 			retry++
 			continue
 		}
 	}
-	fmt.Printf("submitProposal ok", "pool", pool.poolAddress, "proposalId", hexutil.Encode(proposalId[:]), "txHash", tx.Hash())
+	logrus.Warn("submitProposal ok ", " pool ", pool.poolAddress, " proposalId ", hexutil.Encode(proposalId[:]), " txHash ", tx.Hash())
 	return nil
 }
 
