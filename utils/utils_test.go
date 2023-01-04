@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/shopspring/decimal"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -70,4 +71,31 @@ func TestDecimal(t *testing.T) {
 	t.Log(decimal.NewFromInt(5).Div(decimal.NewFromInt(100)).String())
 	t.Log(decimal.NewFromInt(5).Div(decimal.NewFromInt(100)).Ceil().BigInt().Int64())
 	t.Log(decimal.NewFromInt(0).Div(decimal.NewFromInt(100)).Ceil().BigInt().Int64())
+}
+
+func TestBnbVal(t *testing.T) {
+	addr, err := BnbValAddressFromHex("0x13D0fC20edb23021e8675ead7676301ce9B748Ee")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(addr.String())
+
+	hexStr, err := BnbValAddressFromBech32("bva1ztxu7lg58ph8ry2zc0zmzhtutuxhjr9hjy8ugt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(hexutil.Encode(hexStr))
+
+	bts, err := hexutil.Decode("0x627661317a306730636738646b67637a7236723874366b6876613373726e356d776a387735746c753768")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr2, err := BnbValAddressFromBech32(string(bts))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(addr2.String())
+
 }

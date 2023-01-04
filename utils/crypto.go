@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
@@ -57,4 +58,17 @@ func XOR(a, b []byte) []byte {
 		c[i] = a[i] ^ b[i]
 	}
 	return c
+}
+
+func BnbValAddressFromHex(hexStr string) (bncCmnTypes.ValAddress, error) {
+	bts, err := hexutil.Decode(hexStr)
+	if err != nil {
+		return nil, err
+	}
+	addr := bncCmnTypes.ValAddress(bts)
+	return addr, nil
+}
+
+func BnbValAddressFromBech32(bnbAddress string) (bncCmnTypes.ValAddress, error) {
+	return bncCmnTypes.ValAddressFromBech32(bnbAddress)
 }

@@ -118,7 +118,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 	}
 
 	var validatorId *big.Int
-	var validators []common.Address
+	var bnbValidators []common.Address
 	var leastBond *big.Int
 	var pendingStake *big.Int
 	var pendingReward *big.Int
@@ -141,7 +141,13 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 			return nil, err
 		}
 		for _, n := range nominated {
-			validators = append(validators, common.BytesToAddress(n))
+			// decode bech32 bnb val address
+			valAddress, err := utils.BnbValAddressFromBech32(string(n))
+			if err != nil {
+				return nil, err
+			}
+
+			bnbValidators = append(bnbValidators, common.BytesToAddress(valAddress))
 		}
 
 		leastBond, err = l.leastBond(snap.Symbol)
@@ -176,7 +182,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		Threshold:        th,
 		SubAccounts:      sub,
 		MaticValidatorId: validatorId,
-		BnbValidators:    validators,
+		BnbValidators:    bnbValidators,
 	}, nil
 }
 
