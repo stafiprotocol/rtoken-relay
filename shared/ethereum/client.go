@@ -115,18 +115,17 @@ func (c *Client) newTransactOpts(value, gasLimit, gasPrice *big.Int, chainId *bi
 	if err != nil {
 		return nil, 0, err
 	}
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainId)
+	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, chainId)
 	if err != nil {
 		return nil, 0, err
 	}
-	// auth := bind.NewKeyedTransactor(privateKey)
-	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = value
-	auth.GasLimit = uint64(gasLimit.Int64())
-	auth.GasPrice = gasPrice
-	auth.Context = context.Background()
+	opts.Nonce = big.NewInt(int64(nonce))
+	opts.Value = value
+	opts.GasLimit = uint64(gasLimit.Int64())
+	opts.GasPrice = gasPrice
+	opts.Context = context.Background()
 
-	return auth, nonce, nil
+	return opts, nonce, nil
 }
 
 func (c *Client) Keypair() *secp256k1.Keypair {

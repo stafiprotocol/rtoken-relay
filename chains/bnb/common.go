@@ -15,9 +15,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
+	multisig_onchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
 	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 )
 
 var (
@@ -279,16 +281,16 @@ func (w *writer) unbondable(totalAmount, relayerFee, bscRelayerFee, leastBond de
 	return true, nil
 }
 
-func (w *writer) staked(pool *Pool) (*big.Int, error) {
-	delegator := pool.poolAddress
+func (w *writer) staked(poolAddr common.Address) (*big.Int, error) {
+	delegator := poolAddr
 	return w.conn.stakingContract.GetTotalDelegated(&bind.CallOpts{
 		From:    delegator,
 		Context: context.Background(),
 	}, delegator)
 }
 
-func (w *writer) findRealRewardAmountClaimed(pool *Pool, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
-	proposalExectedIterator, err := pool.multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
+func (w *writer) findRealRewardAmountClaimed(multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
+	proposalExectedIterator, err := multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
 		Start:   targetHeight,
 		Context: context.Background(),
 	}, [][32]byte{proposalId})
@@ -313,8 +315,8 @@ func (w *writer) findRealRewardAmountClaimed(pool *Pool, proposalId [32]byte, po
 	return nil, 0, fmt.Errorf("not find reward claim event")
 }
 
-func (w *writer) findRealUndelegatedAmountClaimed(pool *Pool, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
-	proposalExectedIterator, err := pool.multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
+func (w *writer) findRealUndelegatedAmountClaimed(multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
+	proposalExectedIterator, err := multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
 		Start:   targetHeight,
 		Context: context.Background(),
 	}, [][32]byte{proposalId})
@@ -339,14 +341,14 @@ func (w *writer) findRealUndelegatedAmountClaimed(pool *Pool, proposalId [32]byt
 	return nil, 0, fmt.Errorf("not find undelegated claim event")
 }
 
-func (w *writer) submitProposal(pool *Pool, proposalId [32]byte, proposalBts []byte) error {
-	err := pool.bscClient.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
+func (w *writer) submitProposal(client *ethereum.Client, multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, proposalBts []byte) error {
+	err := client.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
 	if err != nil {
 		return errors.Wrap(err, "LockAndUpdateOpts")
 	}
-	defer pool.bscClient.UnlockOpts()
+	defer client.UnlockOpts()
 
-	tx, err := pool.multisigOnchain.ExecTransactions(pool.bscClient.Opts(), proposalId, proposalBts)
+	tx, err := multisigOnchain.ExecTransactions(client.Opts(), proposalId, proposalBts)
 	if err != nil {
 		return errors.Wrap(err, "multisigOnchain.ExecTransactions")
 	}
@@ -355,7 +357,7 @@ func (w *writer) submitProposal(pool *Pool, proposalId [32]byte, proposalBts []b
 		if retry > GetRetryLimit*2 {
 			return fmt.Errorf("multisigOnchain.ExecTransactions tx reach retry limit")
 		}
-		_, pending, err := pool.bscClient.Client().TransactionByHash(context.Background(), tx.Hash())
+		_, pending, err := client.Client().TransactionByHash(context.Background(), tx.Hash())
 		if err == nil && !pending {
 			break
 		} else {
@@ -369,12 +371,12 @@ func (w *writer) submitProposal(pool *Pool, proposalId [32]byte, proposalBts []b
 			continue
 		}
 	}
-	w.log.Info("submitProposal ok", "pool", pool.poolAddress, "proposalId", hexutil.Encode(proposalId[:]), "txHash", tx.Hash())
+	w.log.Info("submitProposal ok", "account", client.Opts().From, "proposalId", hexutil.Encode(proposalId[:]), "txHash", tx.Hash())
 	return nil
 }
 
-func needSendProposal(pool *Pool, proposalId [32]byte) (bool, error) {
-	proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{
+func needSendProposal(client *ethereum.Client, multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte) (bool, error) {
+	proposal, err := multisigOnchain.Proposals(&bind.CallOpts{
 		Context: context.Background(),
 	}, proposalId)
 	if err != nil {
@@ -385,9 +387,9 @@ func needSendProposal(pool *Pool, proposalId [32]byte) (bool, error) {
 	case 0:
 		needSend = true
 	case 1:
-		voted, err := pool.multisigOnchain.HasVoted(&bind.CallOpts{
+		voted, err := multisigOnchain.HasVoted(&bind.CallOpts{
 			Context: context.Background(),
-		}, proposalId, pool.bscClient.Opts().From)
+		}, proposalId, client.Opts().From)
 		if err != nil {
 			return false, errors.Wrap(err, "multisigOnchain.HasVoted")
 		}
@@ -401,14 +403,14 @@ func needSendProposal(pool *Pool, proposalId [32]byte) (bool, error) {
 	return needSend, nil
 }
 
-func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
+func (w *writer) waitProposalExecuted(multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte) error {
 	retry := 0
 	for {
 		if retry > GetRetryLimit*6 {
 			return fmt.Errorf("waitProposalExecuted reach retry limit")
 		}
 
-		proposal, err := pool.multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
+		proposal, err := multisigOnchain.Proposals(&bind.CallOpts{}, proposalId)
 		if err != nil {
 			w.log.Warn("get proposal failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
 			time.Sleep(WaitInterval)
@@ -434,9 +436,9 @@ func (w *writer) waitProposalExecuted(pool *Pool, proposalId [32]byte) error {
 //	    request[2] = redelegateInFly[delegator];
 //	    return request;
 //	}
-func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targetHeight uint64, validators []common.Address) error {
+func (w *writer) waitDelegateCrossChainOk(poolAddr common.Address, proposalId [32]byte, targetHeight uint64, validators []common.Address) error {
 
-	delegator := pool.poolAddress
+	delegator := poolAddr
 	retry := 0
 	for {
 		if retry > GetRetryLimit*6 {
@@ -476,16 +478,16 @@ func (w *writer) waitDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targe
 			successCount++
 		}
 		if successCount != len(validators) {
-			return fmt.Errorf("some validators delegate failed, pool: %s", pool.poolAddress.String())
+			return fmt.Errorf("some validators delegate failed, pool: %s", poolAddr.String())
 		}
 
 		return nil
 	}
 }
 
-func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte, targetHeight uint64, validators []common.Address) error {
+func (w *writer) waitUnDelegateCrossChainOk(poolAddr common.Address, proposalId [32]byte, targetHeight uint64, validators []common.Address) error {
 
-	delegator := pool.poolAddress
+	delegator := poolAddr
 	retry := 0
 	for {
 		if retry > GetRetryLimit*6 {
@@ -525,7 +527,7 @@ func (w *writer) waitUnDelegateCrossChainOk(pool *Pool, proposalId [32]byte, tar
 			successCount++
 		}
 		if successCount != len(validators) {
-			return fmt.Errorf("some validators undelegate failed, pool: %s", pool.poolAddress.String())
+			return fmt.Errorf("some validators undelegate failed, pool: %s", poolAddr.String())
 		}
 
 		return nil

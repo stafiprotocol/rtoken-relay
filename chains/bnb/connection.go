@@ -5,7 +5,6 @@ package bnb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
-	multisig_onchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeNativePortal"
 	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -44,16 +42,10 @@ type Connection struct {
 	log            core.Logger
 	stop           <-chan int
 
-	pools                  map[common.Address]*Pool // pool address => pool
+	accountClients         map[common.Address]*ethereum.Client // account address => client
 	stakePortalContract    *stake_portal.StakeNativePortal
 	stakingContract        *staking.Staking
 	stakingContractAddress common.Address
-}
-
-type Pool struct {
-	poolAddress     common.Address
-	bscClient       *ethereum.Client
-	multisigOnchain *multisig_onchain.MultisigOnchain
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
@@ -76,58 +68,35 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, err
 	}
 
-	multisigContractsCfg := []string{}
-
-	bts, err := json.Marshal(cfg.Opts["MultiSigContracts"])
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(bts, &multisigContractsCfg)
-	if err != nil {
-		return nil, err
-	}
-
 	var bscClient *ethereum.Client
-	var pools = make(map[common.Address]*Pool)
 	acSize := len(cfg.Accounts)
 	if acSize == 0 {
 		return nil, fmt.Errorf("account empty")
 	}
-	if acSize != len(multisigContractsCfg) {
-		return nil, fmt.Errorf("account size should equal multisig contracts size")
-	}
-	multisigContracts := make([]common.Address, 0)
-	for _, addr := range multisigContractsCfg {
-		multisigContracts = append(multisigContracts, common.HexToAddress(addr))
-	}
-
+	accounts := make(map[common.Address]*ethereum.Client)
 	for i := 0; i < acSize; i++ {
+		if !common.IsHexAddress(cfg.Accounts[i]) {
+			return nil, fmt.Errorf("account not hex address, index: %d", i)
+		}
+		accountAddress := common.HexToAddress(cfg.Accounts[i])
+
 		kpI, err := keystore.KeypairFromAddress(cfg.Accounts[i], keystore.EthChain, cfg.KeystorePath, cfg.Insecure)
 		if err != nil {
 			return nil, err
 		}
-		kp, _ := kpI.(*secp256k1.Keypair)
+		kp, ok := kpI.(*secp256k1.Keypair)
+		if !ok {
+			return nil, fmt.Errorf("secp256k1.Keypair cast failed")
+		}
 
 		client := ethereum.NewClient(cfg.Endpoint, kp, log, big.NewInt(0), big.NewInt(0))
 		if err := client.Connect(); err != nil {
 			return nil, err
 		}
-
-		multisigOnchain, err := multisig_onchain.NewMultisigOnchain(multisigContracts[i], ethClient)
-		if err != nil {
-			return nil, err
-		}
-		pool := Pool{
-			poolAddress:     multisigContracts[i],
-			bscClient:       client,
-			multisigOnchain: multisigOnchain,
-		}
-		pools[multisigContracts[i]] = &pool
-
+		accounts[accountAddress] = client
 		if i == 0 {
 			bscClient = client
 		}
-
 	}
 
 	stakePortal, err := initStakePortal(cfg.Opts["StakePortalContract"], ethClient)
@@ -147,10 +116,10 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		bscSideChainId:         bscSideChainIdStr,
 		log:                    log,
 		stop:                   stop,
-		pools:                  pools,
 		stakePortalContract:    stakePortal,
 		stakingContract:        staking,
 		stakingContractAddress: stakingAddr,
+		accountClients:         accounts,
 	}, nil
 }
 
@@ -204,9 +173,14 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.Bon
 	return
 }
 
-func (c *Connection) GetPool(pool common.Address) (*Pool, bool) {
-	p, exist := c.pools[pool]
-	return p, exist
+func (c *Connection) GetAccountClients(accounts []common.Address) []*ethereum.Client {
+	ret := make([]*ethereum.Client, 0)
+	for _, a := range accounts {
+		if p, exist := c.accountClients[a]; exist {
+			ret = append(ret, p)
+		}
+	}
+	return ret
 }
 
 // use conn address as blockstore use address
@@ -215,8 +189,8 @@ func (c *Connection) BlockStoreUseAddress() string {
 }
 
 func (c *Connection) Close() {
-	for _, c := range c.pools {
-		c.bscClient.Close()
+	for _, c := range c.accountClients {
+		c.Close()
 	}
 }
 

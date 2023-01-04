@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	multisigOnchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -203,13 +204,21 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
+	subAccounts := make([]common.Address, len(mef.SubAccounts))
+	for i, a := range mef.SubAccounts {
+		subAccounts[i] = common.BytesToAddress(a)
+	}
 
 	w.log.Info("processEraPoolUpdated detail", "era", flow.Snap.Era, "pool", poolAddr.String(), "snapshot", fmt.Sprintf("%+v", snap))
 
-	var pool *Pool
-	var exist bool
-	if pool, exist = w.conn.GetPool(poolAddr); !exist {
-		return fmt.Errorf("has no pool key, will ignore")
+	multisigOnchainContract, err := multisigOnchain.NewMultisigOnchain(poolAddr, w.conn.queryClient.Client())
+	if err != nil {
+		return errors.Wrap(err, "multisigOnchain.NewMultisigOnchain")
+	}
+
+	localAccountClients := w.conn.GetAccountClients(subAccounts)
+	if len(localAccountClients) == 0 {
+		return fmt.Errorf("subAccounts not exist")
 	}
 
 	w.log.Debug("GetHeightByEra")
@@ -263,29 +272,30 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	if rewardOnBsc.Sign() > 0 {
 
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "claimReward", 0)
-
-		needSend, err := needSendProposal(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "needSendProposal")
-		}
-		if needSend {
-			proposalBts, err := w.getClaimRewardProposal()
+		for _, client := range localAccountClients {
+			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
 			if err != nil {
-				return errors.Wrap(err, "getClaimRewardProposal")
+				return errors.Wrap(err, "needSendProposal")
 			}
-			err = w.submitProposal(pool, proposalId, proposalBts)
-			if err != nil {
-				if !strings.Contains(err.Error(), "proposal already executed") {
-					return errors.Wrap(err, "submitProposal")
+			if needSend {
+				proposalBts, err := w.getClaimRewardProposal()
+				if err != nil {
+					return errors.Wrap(err, "getClaimRewardProposal")
+				}
+				err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
+				if err != nil {
+					if !strings.Contains(err.Error(), "proposal already executed") {
+						return errors.Wrap(err, "submitProposal")
+					}
 				}
 			}
 		}
 
-		err = w.waitProposalExecuted(pool, proposalId)
+		err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "waitProposalExecuted")
 		}
-		realRewardClaimed, claimRewardTxHeight, err := w.findRealRewardAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
+		realRewardClaimed, claimRewardTxHeight, err := w.findRealRewardAmountClaimed(multisigOnchainContract, proposalId, poolAddr, uint64(targetHeight))
 		if err != nil {
 			return errors.Wrap(err, "findRealRewardClaimed")
 		}
@@ -311,29 +321,32 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	if undelegatedAmount.Sign() > 0 {
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "claimUndelegated", 0)
 
-		needSend, err := needSendProposal(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "needSendProposal")
-		}
-		if needSend {
-			proposalBts, err := w.getClaimUndelegatedProposal()
-			if err != nil {
-				return errors.Wrap(err, "getClaimUndelegatedProposal")
-			}
+		for _, client := range localAccountClients {
 
-			err = w.submitProposal(pool, proposalId, proposalBts)
+			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
 			if err != nil {
-				if !strings.Contains(err.Error(), "proposal already executed") {
-					return errors.Wrap(err, "submitProposal")
+				return errors.Wrap(err, "needSendProposal")
+			}
+			if needSend {
+				proposalBts, err := w.getClaimUndelegatedProposal()
+				if err != nil {
+					return errors.Wrap(err, "getClaimUndelegatedProposal")
+				}
+
+				err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
+				if err != nil {
+					if !strings.Contains(err.Error(), "proposal already executed") {
+						return errors.Wrap(err, "submitProposal")
+					}
 				}
 			}
 		}
 
-		err = w.waitProposalExecuted(pool, proposalId)
+		err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "waitProposalExecuted")
 		}
-		_, undelegatedClaimTxHeight, err := w.findRealUndelegatedAmountClaimed(pool, proposalId, poolAddr, uint64(targetHeight))
+		_, undelegatedClaimTxHeight, err := w.findRealUndelegatedAmountClaimed(multisigOnchainContract, proposalId, poolAddr, uint64(targetHeight))
 		if err != nil {
 			return errors.Wrap(err, "findRealRewardClaimed")
 		}
@@ -344,7 +357,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	//------ balance of pool on target height
 	w.log.Debug("balance of pool on target height")
-	poolBalance, err := pool.bscClient.Client().BalanceAt(context.Background(), poolAddr, big.NewInt(targetHeight))
+	poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, big.NewInt(targetHeight))
 	if err != nil {
 		return errors.Wrap(err, "pool balance get failed")
 	}
@@ -424,24 +437,27 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		if err != nil {
 			return errors.Wrap(err, "getDelegateProposal")
 		}
-		needSend, err := needSendProposal(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "needSendProposal")
-		}
-		if needSend {
-			err = w.submitProposal(pool, proposalId, proposalBts)
+		for _, client := range localAccountClients {
+
+			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
 			if err != nil {
-				if !strings.Contains(err.Error(), "proposal already executed") {
-					return errors.Wrap(err, "submitProposal")
+				return errors.Wrap(err, "needSendProposal")
+			}
+			if needSend {
+				err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
+				if err != nil {
+					if !strings.Contains(err.Error(), "proposal already executed") {
+						return errors.Wrap(err, "submitProposal")
+					}
 				}
 			}
 		}
 
-		err = w.waitProposalExecuted(pool, proposalId)
+		err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "waitProposalExecuted")
 		}
-		err = w.waitDelegateCrossChainOk(pool, proposalId, uint64(targetHeight), distributedValidators)
+		err = w.waitDelegateCrossChainOk(poolAddr, proposalId, uint64(targetHeight), distributedValidators)
 		if err != nil {
 			return errors.Wrap(err, "waitDelegateCrossChainOk")
 		}
@@ -455,25 +471,28 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		if err != nil {
 			return errors.Wrap(err, "getUnDelegateProposal")
 		}
-		needSend, err := needSendProposal(pool, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "needSendProposal")
-		}
 
-		if needSend {
-			err = w.submitProposal(pool, proposalId, proposalBts)
+		for _, client := range localAccountClients {
+			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
 			if err != nil {
-				if !strings.Contains(err.Error(), "proposal already executed") {
-					return errors.Wrap(err, "submitProposal")
+				return errors.Wrap(err, "needSendProposal")
+			}
+
+			if needSend {
+				err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
+				if err != nil {
+					if !strings.Contains(err.Error(), "proposal already executed") {
+						return errors.Wrap(err, "submitProposal")
+					}
 				}
 			}
 		}
 
-		err = w.waitProposalExecuted(pool, proposalId)
+		err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
 		if err != nil {
 			return errors.Wrap(err, "waitProposalExecuted")
 		}
-		err = w.waitUnDelegateCrossChainOk(pool, proposalId, uint64(targetHeight), selectedValidator)
+		err = w.waitUnDelegateCrossChainOk(poolAddr, proposalId, uint64(targetHeight), selectedValidator)
 		if err != nil {
 			return errors.Wrap(err, "waitUnDelegateCrossChainOk")
 		}
@@ -481,7 +500,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	// ----- bond and active report with pending value
 	w.log.Debug("bond and active report with pending value")
-	staked, err := w.staked(pool)
+	staked, err := w.staked(poolAddr)
 	if err != nil {
 		return errors.Wrap(err, "get total staked failed")
 	}
@@ -531,54 +550,66 @@ func (w *writer) processActiveReported(m *core.Message) error {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
-	var pool *Pool
-	var exist bool
-	if pool, exist = w.conn.GetPool(poolAddr); !exist {
-		return fmt.Errorf("has no pool key, will ignore pool: %s", poolAddr)
+	subAccounts := make([]common.Address, len(mef.SubAccounts))
+	for i, a := range mef.SubAccounts {
+		subAccounts[i] = common.BytesToAddress(a)
 	}
-	proposalId := getProposalId(snap.Era, "processActiveReported", "transfer", 0)
-	needSend, err := needSendProposal(pool, proposalId)
-	if err != nil {
-		return errors.Wrap(err, "needSendProposal")
+	localAccountClients := w.conn.GetAccountClients(subAccounts)
+	if len(localAccountClients) == 0 {
+		return fmt.Errorf("subAccounts not exist")
 	}
-	proposalBts, totalAmountDeci, err := w.getTransferProposal(poolAddr, flow.Receives)
-	if err != nil {
-		return errors.Wrap(err, "getTransferProposal")
-	}
-	w.log.Info("processActiveReported detail", "poolAddr", poolAddr, "proposalId", hex.EncodeToString(proposalId[:]),
-		"totalAmount", totalAmountDeci.StringFixed(0), "receives", utils.StrReceives(flow.Receives), "needSend", needSend)
-	if needSend {
-		for {
-			poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
-			if err != nil {
-				return errors.Wrap(err, "BalanceAt")
-			}
-			poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
 
-			w.log.Debug("needSendProposal", "totalAmount", totalAmountDeci.StringFixed(0), "poolBalance", poolBalanceDeci.StringFixed(0))
-			if poolBalanceDeci.LessThanOrEqual(totalAmountDeci) {
-				// check again
-				needSend, err = needSendProposal(pool, proposalId)
+	multisigOnchainContract, err := multisigOnchain.NewMultisigOnchain(poolAddr, w.conn.queryClient.Client())
+	if err != nil {
+		return errors.Wrap(err, "multisigOnchain.NewMultisigOnchain")
+	}
+
+	proposalId := getProposalId(snap.Era, "processActiveReported", "transfer", 0)
+	for _, client := range localAccountClients {
+
+		needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "needSendProposal")
+		}
+		proposalBts, totalAmountDeci, err := w.getTransferProposal(poolAddr, flow.Receives)
+		if err != nil {
+			return errors.Wrap(err, "getTransferProposal")
+		}
+		w.log.Info("processActiveReported detail", "poolAddr", poolAddr, "proposalId", hex.EncodeToString(proposalId[:]),
+			"totalAmount", totalAmountDeci.StringFixed(0), "receives", utils.StrReceives(flow.Receives), "needSend", needSend)
+		if needSend {
+			for {
+				poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
 				if err != nil {
-					return errors.Wrap(err, "needSendProposal")
+					return errors.Wrap(err, "BalanceAt")
 				}
-				if needSend {
-					time.Sleep(WaitInterval)
-					w.log.Warn("pool balance not enough will wait",
-						"pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmountDeci.StringFixed(0))
-					continue
+				poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
+
+				w.log.Debug("needSendProposal", "totalAmount", totalAmountDeci.StringFixed(0), "poolBalance", poolBalanceDeci.StringFixed(0))
+				if poolBalanceDeci.LessThanOrEqual(totalAmountDeci) {
+					// check again
+					needSend, err = needSendProposal(client, multisigOnchainContract, proposalId)
+					if err != nil {
+						return errors.Wrap(err, "needSendProposal")
+					}
+					if needSend {
+						time.Sleep(WaitInterval)
+						w.log.Warn("pool balance not enough will wait",
+							"pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmountDeci.StringFixed(0))
+						continue
+					}
+					break
 				}
 				break
 			}
-			break
-		}
 
-		err = w.submitProposal(pool, proposalId, proposalBts)
-		if err != nil {
-			return errors.Wrap(err, "submitProposal")
+			err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
+			if err != nil {
+				return errors.Wrap(err, "submitProposal")
+			}
 		}
 	}
-	err = w.waitProposalExecuted(pool, proposalId)
+	err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
 	if err != nil {
 		return errors.Wrap(err, "waitProposalExecuted")
 	}
