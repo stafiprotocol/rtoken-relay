@@ -360,6 +360,16 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 	relayerFeeDeci := decimal.NewFromBigInt(relayerFee, 0)
 
+	bscRelayerFee, err := w.conn.stakingContract.BSCRelayerFee((&bind.CallOpts{
+		From:        poolAddr,
+		BlockNumber: big.NewInt(targetHeight),
+		Context:     context.Background(),
+	}))
+	if err != nil {
+		return errors.Wrap(err, "stakingContract.BSCRelayerFee")
+	}
+	bscRelayerFeeDeci := decimal.NewFromBigInt(bscRelayerFee, 0)
+
 	//------- switch cal
 	w.log.Debug("switch cal")
 	willDelegateAmountDeci := decimal.Zero
@@ -384,7 +394,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			}
 		} else {
 			tempUnDelegateAmountDeci := diffDeci.Sub(pendingStakeDeci).Div(leastBondDeci).Ceil().Mul(leastBondDeci)
-			unbondable, err := w.unbondable(tempUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
+			unbondable, err := w.unbondable(tempUnDelegateAmountDeci, relayerFeeDeci, bscRelayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
 			if err != nil {
 				return errors.Wrap(err, "unbondable")
 			}
@@ -441,7 +451,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	if willUnDelegateAmountDeci.IsPositive() {
 		w.log.Info("will undelegate", "amount", willUnDelegateAmountDeci.StringFixed(0), "pool", poolAddr.String())
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "unDelegate", 0)
-		proposalBts, selectedValidator, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
+		proposalBts, selectedValidator, err := w.getUnDelegateProposal(willUnDelegateAmountDeci, relayerFeeDeci, bscRelayerFeeDeci, leastBondDeci, mef.BnbValidators, poolAddr, targetHeight)
 		if err != nil {
 			return errors.Wrap(err, "getUnDelegateProposal")
 		}

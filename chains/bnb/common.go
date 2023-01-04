@@ -145,7 +145,7 @@ out:
 	return txs.Encode(), distributedValidators, nil
 }
 
-func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) ([]byte, []common.Address, error) {
+func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, bscRelayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) ([]byte, []common.Address, error) {
 	if len(validators) == 0 {
 		return nil, nil, fmt.Errorf("validators empty")
 	}
@@ -196,8 +196,17 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, leastBond decima
 	for _, val := range validators {
 		for {
 			if validatorDelegated[val].GreaterThanOrEqual(leastBond) && selectedAmount.LessThan(totalAmount) {
+				leftBalance := validatorDelegated[val].Sub(leastBond)
+				// staking contract limit:
+				// if (remainBalance != 0) {
+				// 	require(remainBalance > bSCRelayerFee, "insufficient balance after undelegate");
+				// }
+				if !leftBalance.IsZero() && leftBalance.LessThanOrEqual(bscRelayerFee) {
+					break
+				}
 				selectedValidatorsAmount[val] = selectedValidatorsAmount[val].Add(leastBond)
-				validatorDelegated[val] = validatorDelegated[val].Sub(leastBond)
+				validatorDelegated[val] = leftBalance
+
 				selectedAmount = selectedAmount.Add(leastBond)
 				continue
 			}
@@ -259,8 +268,8 @@ func (w *writer) getTransferProposal(poolAddr common.Address, receives []*submod
 	return txs.Encode(), totalAmount, nil
 }
 
-func (w *writer) unbondable(totalAmount, relayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) (bool, error) {
-	_, _, err := w.getUnDelegateProposal(totalAmount, relayerFee, leastBond, validators, poolAddr, targetBlock)
+func (w *writer) unbondable(totalAmount, relayerFee, bscRelayerFee, leastBond decimal.Decimal, validators []common.Address, poolAddr common.Address, targetBlock int64) (bool, error) {
+	_, _, err := w.getUnDelegateProposal(totalAmount, relayerFee, bscRelayerFee, leastBond, validators, poolAddr, targetBlock)
 	if err != nil {
 		if err == ErrNoAvailableValsForUnDelegate {
 			return false, nil

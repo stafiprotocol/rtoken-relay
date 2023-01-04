@@ -1,20 +1,17 @@
 {
     "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys/solana-vault.json",
-    "feeAccount": "D2Qux8umtJ6VAaBuLfDPi9VyHBHhiEB1dKhPKFocKg6q",
+    "feeAccount": "FYGTHNAXBqb6hA19k5cJpGRGXwYb6TAAJLPHNaXtwDzw",
     "stakeBaseAccountToValidator": {
-        "DSjuiD1JjE8iUEsoNkPfTkxHWWeFV6UMGSaDPwNLsuP7": "vgcDar2pryHvMgPkKaZfh8pQy4BJxv7SpwUG7zinWjG",
-        "BmHZVLMTGdt9nHrdmpXXW2G9MJ9vfngazryDj6WL2ufF": "i7NyKBMJCA9bLM2nsGyAGCKHECuR2L5eh4GqFciuwNT",
-        "8MMLQC81fBgpy6otutGxjyz3nyjPUemsNTxDP3Ep1HmH": "23AoPQc3EPkfLWb14cKiWNahh1H9rtb3UBk8gWseohjF",
-        "6i2acixUhnvXtHSw7SiZe3yara1tCAzRJpudGVqaPhVK": "5ZWgXcyqrrNpQHCme5SdC5hCeYb2o3fEJhF7Gok3bTVN",
-        "J6L2EyHooCuRLKR17ABFmLmCD9Uq9xwDuboJUpZ5wdH7": "3NZ1Wa2spvK6dpbVBhgTh2qfjzNA6wxEAdXMsJJQCDQG"
+        "46mwFiAY8BLYYESAWwBB8NseGu6JxVWLE824FB9LUYnR": "ESvfbJRscBdENmpTTDQ7G3ERHVxEqQ7kJKpnc5FuJF1W",
+        "58uunMdEF48uKSXrtjD9JWXowDThzNXmnHB8xCEAxC7f": "ESvfbJRscBdENmpTTDQ7G3ERHVxEqQ7kJKpnc5FuJF1W",
+        "DwSfNBWbFVTYBTJSBH4vHvm29cE44gnr2sVVw9fAEztM": "ESvfbJRscBdENmpTTDQ7G3ERHVxEqQ7kJKpnc5FuJF1W"
     },
-    "multisigTxBaseAccount": "4nyVLK53qrTDyvedPpikckNKfANrYTdAta9wjJr3Q6fY",
-    "multisigInfoPubkey": "EL56ZS43MXghYvvjvk9wXqEWZeA9eJ8gpmGPLnrB81Nk",
-    "multisigProgramId": "G6ZS2HHHG8sbzTgx6QxbXLLmDLRXvAZuxi5vz8PQ9HF4",
-    "endpoint": "https://api.devnet.solana.com",
+    "multisigTxBaseAccount": "cvvvWpLPbt3zojfeZHFw5fYnZtJLaNDCVsEzduF1Afe",
+    "multisigInfoPubkey": "4jPHxNPuaMJpBtLDmk9KQejEkhtLLDCSCjTqsn2UHy9t",
+    "multisigProgramId": "8iTJYP5kXsEzy4azTjRwVUU2XC1E8Grwd742QQXfmAkZ",
+    "endpoint": "https://solana-dev-rpc.stafi.io",
     "otherFeeAccount": [
-        "9t2Lcij5eGjKN6xPnJkvvM87tyT7QXQ2P5EJyQF7t4jP",
-        "H92d4fR7Jdcxag7JCUAhBKAhnxiS6sWcKhxADLk4dERU"
+        "BsY6WCo55GdRfnusYRUJz3R83RP5JbAQqRLuan6eWfjh"
     ],
-    "threshold": 2
+    "threshold": 1
 }

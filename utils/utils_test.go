@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	bncCmnTypes "github.com/stafiprotocol/go-sdk/common/types"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -63,4 +64,10 @@ func TestStrRecieves(t *testing.T) {
 	}}
 
 	t.Log(StrReceives(receives))
+}
+
+func TestDecimal(t *testing.T) {
+	t.Log(decimal.NewFromInt(5).Div(decimal.NewFromInt(100)).String())
+	t.Log(decimal.NewFromInt(5).Div(decimal.NewFromInt(100)).Ceil().BigInt().Int64())
+	t.Log(decimal.NewFromInt(0).Div(decimal.NewFromInt(100)).Ceil().BigInt().Int64())
 }
