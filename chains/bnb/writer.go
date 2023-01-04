@@ -204,10 +204,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
-	subAccounts := make([]common.Address, len(mef.SubAccounts))
-	for i, a := range mef.SubAccounts {
-		subAccounts[i] = common.BytesToAddress(a)
-	}
 
 	w.log.Info("processEraPoolUpdated detail", "era", flow.Snap.Era, "pool", poolAddr.String(), "snapshot", fmt.Sprintf("%+v", snap))
 
@@ -216,7 +212,10 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return errors.Wrap(err, "multisigOnchain.NewMultisigOnchain")
 	}
 
-	localAccountClients := w.conn.GetAccountClients(subAccounts)
+	localAccountClients, err := w.conn.GetAccountClients(multisigOnchainContract)
+	if err != nil {
+		return errors.Wrap(err, "GetAccountClients")
+	}
 	if len(localAccountClients) == 0 {
 		return fmt.Errorf("subAccounts not exist")
 	}
@@ -550,18 +549,17 @@ func (w *writer) processActiveReported(m *core.Message) error {
 
 	snap := flow.Snap
 	poolAddr := common.BytesToAddress(snap.Pool)
-	subAccounts := make([]common.Address, len(mef.SubAccounts))
-	for i, a := range mef.SubAccounts {
-		subAccounts[i] = common.BytesToAddress(a)
-	}
-	localAccountClients := w.conn.GetAccountClients(subAccounts)
-	if len(localAccountClients) == 0 {
-		return fmt.Errorf("subAccounts not exist")
-	}
 
 	multisigOnchainContract, err := multisigOnchain.NewMultisigOnchain(poolAddr, w.conn.queryClient.Client())
 	if err != nil {
 		return errors.Wrap(err, "multisigOnchain.NewMultisigOnchain")
+	}
+	localAccountClients, err := w.conn.GetAccountClients(multisigOnchainContract)
+	if err != nil {
+		return errors.Wrap(err, "GetAccountClients")
+	}
+	if len(localAccountClients) == 0 {
+		return fmt.Errorf("subAccounts not exist")
 	}
 
 	proposalId := getProposalId(snap.Era, "processActiveReported", "transfer", 0)

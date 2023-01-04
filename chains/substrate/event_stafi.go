@@ -150,10 +150,6 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 			bnbValidators = append(bnbValidators, common.BytesToAddress(valAddress))
 		}
 
-		leastBond, err = l.leastBond(snap.Symbol)
-		if err != nil {
-			return nil, err
-		}
 		pendingStake, err = l.pendingStake(snap.Symbol)
 		if err != nil {
 			return nil, err

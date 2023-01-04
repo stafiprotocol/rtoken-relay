@@ -9,12 +9,14 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 	"github.com/stafiprotocol/chainbridge/utils/crypto/secp256k1"
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
+	multisig_onchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeNativePortal"
 	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -173,14 +175,21 @@ func (c *Connection) TransferVerify(r *submodel.BondRecord) (result submodel.Bon
 	return
 }
 
-func (c *Connection) GetAccountClients(accounts []common.Address) []*ethereum.Client {
+func (c *Connection) GetAccountClients(multisigContract *multisig_onchain.MultisigOnchain) ([]*ethereum.Client, error) {
 	ret := make([]*ethereum.Client, 0)
-	for _, a := range accounts {
-		if p, exist := c.accountClients[a]; exist {
-			ret = append(ret, p)
+	for account, client := range c.accountClients {
+		index, err := multisigContract.GetSubAccountIndex(&bind.CallOpts{
+			Context: context.Background(),
+		}, account)
+		if err != nil {
+			return nil, err
+		}
+		if index.Int64() > 0 {
+			ret = append(ret, client)
 		}
 	}
-	return ret
+
+	return ret, nil
 }
 
 // use conn address as blockstore use address
