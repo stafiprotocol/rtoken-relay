@@ -18,6 +18,8 @@ import (
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 )
 
+const MaxBase58SignatureLen = 88
+
 type Connection struct {
 	endpoint    string
 	queryClient *solClient.Client
@@ -133,7 +135,9 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 
 func (c *Connection) TransferVerify(r *submodel.BondRecord) (submodel.BondReason, error) {
 	hashBase58Str := base58.Encode(r.Txhash)
-
+	if len(hashBase58Str) > MaxBase58SignatureLen {
+		return submodel.TxhashUnmatch, nil
+	}
 	//check tx hash
 	tx, err := c.queryClient.GetTransactionV2(context.Background(), hashBase58Str)
 	if err != nil {

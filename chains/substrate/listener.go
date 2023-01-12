@@ -8,7 +8,9 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/chainbridge/utils/blockstore"
+	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -235,6 +237,41 @@ func (l *listener) processEvents(blockNum uint64) error {
 					if err != nil {
 						return err
 					}
+
+					// here we wait until bondstate change to another
+					// so we can continuely process this event when restart
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB || flow.Symbol == core.RSOL {
+						symBz, err := types.EncodeToBytes(flow.Symbol)
+						if err != nil {
+							return err
+						}
+						bsk := submodel.BondStateKey{BlockHash: flow.Record.Blockhash, TxHash: flow.Record.Txhash}
+						bskBz, err := types.EncodeToBytes(bsk)
+						if err != nil {
+							return err
+						}
+
+						for {
+							var bs submodel.BondState
+							exist, err := l.conn.QueryStorage(config.RTokenSeriesModuleId, config.StorageBondStates, symBz, bskBz, &bs)
+							if err != nil || !exist {
+								info := fmt.Sprintf("failed to get liquidity bondstate, symbol: %s, bondId: %s, BlockHash: %s, TxHash: %s",
+									flow.Symbol, flow.BondId.Hex(), hexutil.Encode(flow.Record.Blockhash), hexutil.Encode(flow.Record.Txhash))
+
+								l.log.Warn("get liquidity bondstate faile, will wait", "err", err, "liquidityBondInfo", info)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+
+							if bs == submodel.Dealing || bs == submodel.Default {
+								l.log.Debug("liquidity bondstate not change will wait", "bondState", bs)
+								time.Sleep(BlockRetryInterval)
+								continue
+							}
+							break
+						}
+
+					}
 				}
 			case evt.ModuleId == config.RTokenLedgerModuleId && evt.EventId == config.EraPoolUpdatedEventId:
 				l.log.Trace("Handling EraPoolUpdatedEvent", "block", blockNum)
@@ -254,7 +291,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB || flow.Symbol == core.RSOL {
 						eraPoolUpdatedFlow, ok := flow.EventData.(*submodel.EraPoolUpdatedFlow)
 						if !ok {
 							return fmt.Errorf("cast err")
@@ -264,7 +301,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						for {
 							snap, err := l.snapshot(eraPoolUpdatedFlow.Symbol, eraPoolUpdatedFlow.ShotId)
 							if err != nil {
-								l.log.Warn("l.snapshot", err, err)
+								l.log.Warn("l.snapshot", "err", err)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -296,13 +333,13 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB || flow.Symbol == core.RSOL {
 						// here we wait until snapshot's bondstate change to another
 						// so we can continuely process this event when restart
 						for {
 							snap, err := l.snapshot(flow.Symbol, flow.ShotId)
 							if err != nil {
-								l.log.Warn("l.snapshot", err, err)
+								l.log.Warn("l.snapshot", "err", err)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -333,7 +370,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RSOL {
 						activeReportedFlow, ok := flow.EventData.(*submodel.ActiveReportedFlow)
 						if !ok {
 							return fmt.Errorf("cast err")
@@ -343,7 +380,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						for {
 							snap, err := l.snapshot(activeReportedFlow.Symbol, activeReportedFlow.ShotId)
 							if err != nil {
-								l.log.Warn("l.snapshot", err, err)
+								l.log.Warn("l.snapshot", "err", err)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -366,7 +403,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						for {
 							snap, err := l.snapshot(withdrawReportedFlow.Symbol, withdrawReportedFlow.ShotId)
 							if err != nil {
-								l.log.Warn("l.snapshot", err, err)
+								l.log.Warn("l.snapshot", "err", err)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
@@ -397,7 +434,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						return err
 					}
 
-					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB {
+					if flow.Symbol == core.RMATIC || flow.Symbol == core.RBNB || flow.Symbol == core.RSOL {
 						withdrawReportedFlow, ok := flow.EventData.(*submodel.WithdrawReportedFlow)
 						if !ok {
 							return fmt.Errorf("cast err")
@@ -407,7 +444,7 @@ func (l *listener) processEvents(blockNum uint64) error {
 						for {
 							snap, err := l.snapshot(withdrawReportedFlow.Symbol, withdrawReportedFlow.ShotId)
 							if err != nil {
-								l.log.Warn("l.snapshot", err, err)
+								l.log.Warn("l.snapshot", "err", err)
 								time.Sleep(BlockRetryInterval)
 								continue
 							}
