@@ -45,9 +45,9 @@ func init() {
 	logrus.SetLevel(logrus.TraceLevel)
 	var err error
 	stop := make(chan int)
-	// sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
 	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
 	}

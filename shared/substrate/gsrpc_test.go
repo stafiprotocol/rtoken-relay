@@ -630,8 +630,12 @@ func Test_KSM_GsrpcClient_Multisig_bond(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-rpc2.stafi.io", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://public-rpc.pinknode.io/polkadot", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://1rpc.io/dot", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.dotters.network/polkadot", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,8 +656,8 @@ func Test_KSM_GsrpcClient_Multisig_bond(t *testing.T) {
 	//	fmt.Println(hexutil.Encode(oth[:]))
 	//}
 
-	bond, _ := utils.StringToBigint("1000000000000")
-	unbond := big.NewInt(0)
+	unbond, _ := utils.StringToBigint("1000000000000")
+	bond := big.NewInt(0)
 
 	ext, err := sc.BondOrUnbondExtrinsic(bond, unbond)
 	if err != nil {
