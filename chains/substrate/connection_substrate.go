@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -315,15 +316,15 @@ func (c *Connection) KeyIndex(key *signature.KeyringPair) *substrate.SarpcClient
 	return c.scs[key]
 }
 
-func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.MultiOpaqueCall, error) {
+func (c *Connection) BondOrUnbondCall(snap *submodel.PoolSnapshot) (*submodel.RunTimeCall, error) {
 	return c.sc.BondOrUnbondCall(snap.Bond.Int, snap.Unbond.Int)
 }
 
-func (c *Connection) WithdrawCall() (*submodel.MultiOpaqueCall, error) {
+func (c *Connection) WithdrawCall() (*submodel.RunTimeCall, error) {
 	return c.sc.WithdrawCall()
 }
 
-func (c *Connection) TransferCall(recipient []byte, value types.UCompact) (*submodel.MultiOpaqueCall, error) {
+func (c *Connection) TransferCall(recipient []byte, value types.UCompact) (*submodel.RunTimeCall, error) {
 	return c.sc.TransferCall(recipient, value)
 }
 
@@ -331,7 +332,7 @@ func (c *Connection) LastKey() *signature.KeyringPair {
 	return c.lastKey
 }
 
-func (c *Connection) NominateCall(validators []types.Bytes) (*submodel.MultiOpaqueCall, error) {
+func (c *Connection) NominateCall(validators []types.Bytes) (*submodel.RunTimeCall, error) {
 	return c.sc.NominateCall(validators)
 }
 
@@ -369,10 +370,14 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 		panic(fmt.Sprintf("key disappear: %s, symbol: %s", hexutil.Encode(flow.Key.PublicKey), c.symbol))
 	}
 
-	l := len(flow.OpaqueCalls)
+	l := len(flow.RunTimeCalls)
 	if l == 1 {
-		moc := flow.OpaqueCalls[0]
-		ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, moc.TimePoint, moc.Opaque, false, flow.PaymentInfo.Weight)
+		runtimeCall := flow.RunTimeCalls[0]
+		weightV2 := submodel.WeightV2{
+			RefTime:   types.NewUCompact(big.NewInt(flow.PaymentInfo.Weight)),
+			ProofSize: types.NewUCompact(big.NewInt(0)),
+		}
+		ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, runtimeCall.TimePoint, runtimeCall.Call, weightV2)
 		if err != nil {
 			return err
 		}
@@ -381,16 +386,24 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	}
 
 	calls := make([]types.Call, 0)
-	for _, oc := range flow.OpaqueCalls {
-		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, oc.TimePoint, oc.Opaque, false, flow.PaymentInfo.Weight)
+	for _, runtimeCall := range flow.RunTimeCalls {
+		weightV2 := submodel.WeightV2{
+			RefTime:   types.NewUCompact(big.NewInt(flow.PaymentInfo.Weight)),
+			ProofSize: types.NewUCompact(big.NewInt(0)),
+		}
+
+		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, runtimeCall.TimePoint, runtimeCall.Call, weightV2)
 		if err != nil {
 			return err
 		}
 
-		if xt, ok := ext.(*types.Extrinsic); ok {
+		switch xt := ext.(type) {
+		case *types.Extrinsic:
 			calls = append(calls, xt.Method)
-		} else if xt, ok := ext.(*types.ExtrinsicMulti); ok {
+		case *types.ExtrinsicMulti:
 			calls = append(calls, xt.Method)
+		default:
+			return errors.New("not supported extrinsic")
 		}
 	}
 

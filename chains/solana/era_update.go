@@ -79,7 +79,7 @@ func (w *writer) processEraPoolUpdatedEvt(m *core.Message) bool {
 
 	//bond report
 	callHash := utils.BlakeTwo256([]byte{})
-	mFlow.OpaqueCalls = []*submodel.MultiOpaqueCall{
+	mFlow.RunTimeCalls = []*submodel.RunTimeCall{
 		{CallHash: hexutil.Encode(callHash[:])}}
 	return w.informChain(m.Destination, m.Source, mFlow)
 }
@@ -148,7 +148,6 @@ func (w *writer) processUnStake(snap *submodel.PoolSnapshot) bool {
 
 			choosedStakeBaseAccount = append(choosedStakeBaseAccount, baseAccount)
 			choosedAmount[baseAccount] = willUseChoosedAmount
-			selectedAmount = selectedAmount + willUseChoosedAmount
 			break
 		}
 

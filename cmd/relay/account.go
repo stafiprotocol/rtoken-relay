@@ -23,7 +23,7 @@ func handleGenerateSubCmd(ctx *cli.Context) error {
 	log.Info("Generating substrate keyfile by rawseed...")
 	path := ctx.String(config.KeystorePathFlag.Name)
 	networkStr := ctx.String(config.NetworkFlag.Name)
-	network := uint16(42)
+	var network uint16
 	switch networkStr {
 	case "stafi":
 		network = uint16(20)

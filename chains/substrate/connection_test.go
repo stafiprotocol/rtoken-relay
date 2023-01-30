@@ -45,9 +45,9 @@ func init() {
 	logrus.SetLevel(logrus.TraceLevel)
 	var err error
 	stop := make(chan int)
-	// sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
 	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
 	}
@@ -260,29 +260,5 @@ func TestSortAddr(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Log(addrHexStr, addrSs58Str)
-	}
-}
-
-func TestEraContinuable(t *testing.T) {
-	conn := Connection{sc: sc, log: tlog, symbol: core.RKSM, stop: make(chan int)}
-	go func() {
-		for {
-			continuable, err := conn.EraContinuable(core.RMATIC)
-			if err != nil {
-				t.Log(err)
-			}
-			t.Log(continuable)
-		}
-	}()
-
-	for {
-		for i := 746800; i <= 746824; i++ {
-			t.Log(i)
-			_, err := conn.GetEvents(uint64(i))
-			if err != nil {
-				t.Log(err)
-			}
-
-		}
 	}
 }

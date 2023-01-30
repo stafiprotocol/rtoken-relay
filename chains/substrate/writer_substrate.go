@@ -106,7 +106,7 @@ func (w *writer) processEraPoolUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
+	mef.RunTimeCalls = []*submodel.RunTimeCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
@@ -120,7 +120,7 @@ func (w *writer) processEraPoolUpdatedEvent(m *core.Message) bool {
 			w.log.Error("AsMulti error", "err", err, "callHash", callhash)
 			return false
 		}
-		w.log.Error("AsMulti success", "callHash", callhash)
+		w.log.Info("AsMulti success", "callHash", callhash)
 		return true
 	}
 
@@ -179,7 +179,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 		return false
 	}
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
+	mef.RunTimeCalls = []*submodel.RunTimeCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
@@ -272,7 +272,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		return false
 	}
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
+	mef.RunTimeCalls = []*submodel.RunTimeCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
@@ -432,7 +432,7 @@ func (w *writer) processNominationUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 	mef.PaymentInfo = info
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{call}
+	mef.RunTimeCalls = []*submodel.RunTimeCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
 	mef.MulExeCallHashs = map[string]bool{callhash: true}
@@ -497,7 +497,7 @@ func (w *writer) processNewMultisig(m *core.Message) bool {
 		}
 	}
 
-	for _, call := range evt.OpaqueCalls {
+	for _, call := range evt.RunTimeCalls {
 		if call.CallHash == flow.CallHashStr {
 			call.TimePoint = flow.TimePoint
 			delete(evt.NewMulCallHashs, flow.CallHashStr)

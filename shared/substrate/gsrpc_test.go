@@ -170,6 +170,45 @@ func TestActive1(t *testing.T) {
 	t.Log(types.NewU128(big.Int(ledger.Active)))
 }
 
+//func TestGsrpcClient_Multisig1(t *testing.T) {
+//	password := "123456"
+//	os.Setenv(keystore.EnvPassword, password)
+//
+//	kp, err := keystore.KeypairFromAddress(Wen, keystore.SubChain, KeystorePath, false)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+//	stop := make(chan int)
+//	gc, err := NewGsrpcClient("wss://kusama-test-rpc.stafi.io", AddressTypeMultiAddress, krp, tlog, stop)
+//	assert.NoError(t, err)
+//
+//	//pool, err := hexutil.Decode("0xac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c")
+//	//assert.NoError(t, err)
+//
+//	wen, _ := types.NewMultiAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
+//	//less, _ := types.NewAddressFromHexAccountID("0x3673009bdb664a3f3b6d9f69c9dd37fc0473551a249aa48542408b016ec62b2e")
+//
+//	//bond, _ := utils.StringToBigint("10000000000000")
+//	//unbond := big.NewInt(0)
+//	//
+//	//call, err := gc.BondOrUnbondCall(bond, unbond)
+//
+//	amount, _ := utils.StringToBigint("10000000000000")
+//	call, err := gc.TransferCall(wen.AsID[:], types.NewUCompact(amount))
+//	assert.NoError(t, err)
+//	fmt.Println(call)
+//
+//	fmt.Println("callHash", call.Extrinsic)
+//
+//	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-test-rpc.stafi.io", polkaTypesFile, tlog)
+//	assert.NoError(t, err)
+//	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+//	assert.NoError(t, err)
+//	fmt.Println(info)
+//}
+
 func TestHash(t *testing.T) {
 	h, _ := types.NewHashFromHexString("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
 	a, _ := types.EncodeToBytes(h)
@@ -184,24 +223,9 @@ func TestPool(t *testing.T) {
 	fmt.Println(pool)
 	fmt.Println(pbz)
 
-	//stop := make(chan int)
-	//gc, err := NewGsrpcClient("wss://stafi-seiya.stafi.io", AddressTypeAccountId, AliceKey, tlog, stop)
-	//assert.NoError(t, err)
-	//
-	//
-	////poolBz, err := types.EncodeToBytes(pool)
-	//symBz, err := types.EncodeToBytes(core.RKSM)
-	//assert.NoError(t, err)
-	//
-	//var threshold uint16
-	//exist, err := gc.QueryStorage(config.RTokenLedgerModuleId, config.StorageMultiThresholds, symBz, pbz, &threshold)
-	//assert.NoError(t, err)
-	//fmt.Println(exist)
-	//fmt.Println()
-
 }
 
-func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
+func Test_KSM_GsrpcClient_Multisig_bond(t *testing.T) {
 
 	logrus.SetLevel(logrus.TraceLevel)
 
@@ -215,7 +239,12 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-rpc2.stafi.io", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://public-rpc.pinknode.io/polkadot", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://1rpc.io/dot", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.dotters.network/polkadot", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,20 +265,40 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 	//	fmt.Println(hexutil.Encode(oth[:]))
 	//}
 
-	bond, _ := utils.StringToBigint("1000000000000")
-	unbond := big.NewInt(0)
+	unbond, _ := utils.StringToBigint("1000000000000")
+	bond := big.NewInt(0)
 
-	call, err := sc.BondOrUnbondCall(bond, unbond)
+	ext, err := sc.BondOrUnbondExtrinsic(bond, unbond)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	h := utils.BlakeTwo256(call.Opaque)
-	t.Log("Extrinsic", call.Extrinsic)
-	t.Log("Opaque", hexutil.Encode(call.Opaque))
-	t.Log("callHash", hexutil.Encode(h[:]))
+	var cal types.Call
+	switch ext := ext.(type) {
+	case *types.Extrinsic:
+		cal = ext.Method
+	case *types.ExtrinsicMulti:
+		cal = ext.Method
+	default:
+		t.Fatal("ext unsupported")
+	}
+	_ = cal
+	// h := utils.BlakeTwo256(call.Opaque)
 
-	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	// t.Log("Extrinsic", call.Extrinsic)
+	// t.Log("Opaque", hexutil.Encode(call.Opaque))
+	// t.Log("callHash", hexutil.Encode(h[:]))
+	// calBts,err:=types.EncodeToBytes(cal)
+	// if err!=nil{
+	// 	t.Fatal(err)
+	// }
+	// t.Log(hexutil.Encode(calBts))
+
+	extBz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,14 +306,176 @@ func Test_KSM_GsrpcClient_Multisig(t *testing.T) {
 
 	//optp := types.TimePoint{Height: 1964877, Index: 1}
 	//tp := submodel.NewOptionTimePoint(optp)
+	// opaque, err := types.EncodeToBytes(cal)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
 	tp := submodel.NewOptionTimePointEmpty()
-	ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, info.Weight)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = sc.SignAndSubmitTx(ext)
+	err = sc.SignAndSubmitTx(multiExt)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_KSM_GsrpcClient_Multisig_transfer(t *testing.T) {
+
+	logrus.SetLevel(logrus.TraceLevel)
+
+	password := "tpkeeper"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(relay1, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	threshold := uint16(2)
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+
+	others := []types.AccountID{
+		relay2.AsID,
+	}
+
+	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var cal types.Call
+	switch ext := ext.(type) {
+	case *types.Extrinsic:
+		cal = ext.Method
+	case *types.ExtrinsicMulti:
+		cal = ext.Method
+	default:
+		t.Fatal("ext unsupported")
+	}
+	_ = cal
+	// h := utils.BlakeTwo256(call.Opaque)
+
+	// t.Log("Extrinsic", call.Extrinsic)
+	// t.Log("Opaque", hexutil.Encode(call.Opaque))
+	// t.Log("callHash", hexutil.Encode(h[:]))
+	// calBts,err:=types.EncodeToBytes(cal)
+	// if err!=nil{
+	// 	t.Fatal(err)
+	// }
+	// t.Log(hexutil.Encode(calBts))
+
+	extBz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("info", info.Class, info.PartialFee, info.Weight)
+	weight := submodel.WeightV2{
+		RefTime:   types.NewUCompact(big.NewInt(info.Weight)),
+		ProofSize: types.NewUCompact(big.NewInt(0)),
+	}
+	//optp := types.TimePoint{Height: 1964877, Index: 1}
+	//tp := submodel.NewOptionTimePoint(optp)
+	// opaque, err := types.EncodeToBytes(cal)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	tp := submodel.NewOptionTimePointEmpty()
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, weight)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sc.SignAndSubmitTx(multiExt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_AsMulti_transfer(t *testing.T) {
+
+	logrus.SetLevel(logrus.TraceLevel)
+
+	password := "tpkeeper"
+	os.Setenv(keystore.EnvPassword, password)
+
+	kp, err := keystore.KeypairFromAddress(relay1, keystore.SubChain, KeystorePath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	stop := make(chan int)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", polkaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	threshold := uint16(2)
+	relay1, _ := types.NewMultiAddressFromHexAccountID("0x8e7750f4276116f8f089a5a4b24ca6577a13c7a1bcfe15868291b563336a7729")
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+
+	others := []types.AccountID{
+		relay1.AsID,
+	}
+
+	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var cal types.Call
+	switch ext := ext.(type) {
+	case *types.Extrinsic:
+		cal = ext.Method
+	case *types.ExtrinsicMulti:
+		cal = ext.Method
+	default:
+		t.Fatal("ext unsupported")
+	}
+	_ = cal
+
+	extBz, err := types.EncodeToBytes(ext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("info", info.Class, info.PartialFee, info.Weight)
+	weight := submodel.WeightV2{
+		RefTime:   types.NewUCompact(big.NewInt(info.Weight)),
+		ProofSize: types.NewUCompact(big.NewInt(0)),
+	}
+	optp := types.TimePoint{Height: types.NewU32(1122), Index: 2}
+	tp := submodel.NewOptionTimePoint(optp)
+
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, weight)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sc.SignAndSubmitTx(multiExt)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,64 +494,20 @@ func Test_KSM_GsrpcClient_transfer(t *testing.T) {
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 	stop := make(chan int)
+
 	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-test-rpc.stafi.io", kusamaTypesFile, AddressTypeAccountId, krp, tlog, stop)
 	sc, err := NewSarpcClient(ChainTypePolkadot, "ws://127.0.0.1:9944", kusamaTypesFile, AddressTypeMultiAddress, krp, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	//pool, err := hexutil.Decode("ac0df419ce0dc61b092a5cfa06a28e40cd82bc9de7e8c1e5591169360d66ba3c")
-	//assert.NoError(t, err)
-
-	// threshold := uint16(2)
-	//wen, _ := types.NewAddressFromHexAccountID("0x26db25c52b007221331a844e5335e59874e45b03e81c3d76ff007377c2c17965")
-	// jun, _ := types.NewAddressFromHexAccountID("0x765f3681fcc33aba624a09833455a3fd971d6791a8f2c57440626cd119530860")
 	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 
-	// others := []types.AccountID{
-	// 	relay2.AsAccountID,
-	// }
-
-	//for _, oth := range others {
-	//	fmt.Println(hexutil.Encode(oth[:]))
-	//}
-
-	// bond, _ := utils.StringToBigint("1000000000000")
-	// unbond := big.NewInt(0)
-
-	// call,err:=sc.TransferCall(relay2.AsAccountID[:],types.NewUCompact(big.NewInt(1000000)))
-	// if err!=nil{
-	// 	t.Fatal(err)
-	// }
-	ext, err := sc.NewUnsignedExtrinsic(config.MethodTransfer, relay2, types.NewUCompact(big.NewInt(1e10)))
+	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1e10)))
+	// ext, err := sc.NewUnsignedExtrinsic(config.MethodTransfer, relay2, types.NewUCompact(big.NewInt(1e10)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// call, err := sc.BondOrUnbondCall(bond, unbond)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// h := utils.BlakeTwo256(call.Opaque)
-	// t.Log("Extrinsic", call.Extrinsic)
-	// t.Log("Opaque", hexutil.Encode(call.Opaque))
-	// t.Log("callHash", hexutil.Encode(h[:]))
-
-	// info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// t.Log("info", info.Class, info.PartialFee, info.Weight)
-
-	//optp := types.TimePoint{Height: 1964877, Index: 1}
-	//tp := submodel.NewOptionTimePoint(optp)
-
-	// tp := submodel.NewOptionTimePointEmpty()
-	// ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Opaque, false, info.Weight)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 	err = sc.SignAndSubmitTx(ext)
 	if err != nil {
 		t.Fatal(err)

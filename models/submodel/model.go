@@ -412,7 +412,7 @@ type MultiEventFlow struct {
 	SubAccounts      []types.Bytes
 	Key              *signature.KeyringPair
 	Others           []types.AccountID
-	OpaqueCalls      []*MultiOpaqueCall
+	RunTimeCalls     []*RunTimeCall
 	PaymentInfo      *rpc.PaymentQueryInfo
 	NewMulCallHashs  map[string]bool
 	MulExeCallHashs  map[string]bool
@@ -512,9 +512,16 @@ type UnlockChunk struct {
 	Era   types.UCompact
 }
 
-type MultiOpaqueCall struct {
+// type MultiOpaqueCall struct {
+// 	Extrinsic string
+// 	Opaque    []byte
+// 	CallHash  string
+// 	TimePoint *OptionTimePoint
+// }
+
+type RunTimeCall struct {
 	Extrinsic string
-	Opaque    []byte
+	Call      types.Call
 	CallHash  string
 	TimePoint *OptionTimePoint
 }
@@ -695,4 +702,12 @@ type ExeLiquidityBondAndSwapFlow struct {
 	DestRecipient  types.Bytes
 	DestId         types.U8
 	Reason         BondReason
+}
+
+// as_multi params, after runtime 9320
+type WeightV2 struct {
+	/// The weight of computational time used based on some reference hardware.
+	RefTime types.UCompact
+	/// The weight of storage space used by proof of validity.
+	ProofSize types.UCompact
 }

@@ -612,8 +612,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 		return errors.Wrap(err, "waitProposalExecuted")
 	}
 
-	mef.OpaqueCalls = []*submodel.MultiOpaqueCall{{CallHash: hexutil.Encode(proposalId[:])}}
-
+	mef.RunTimeCalls = []*submodel.RunTimeCall{{CallHash: hexutil.Encode(proposalId[:])}}
 	result := &core.Message{Source: m.Destination, Destination: m.Source, Reason: core.InformChain, Content: mef}
 	return w.submitMessage(result)
 }
