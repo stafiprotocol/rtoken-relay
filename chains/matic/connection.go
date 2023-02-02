@@ -5,6 +5,7 @@ package matic
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -63,6 +64,7 @@ type Connection struct {
 	stakeManager        *StakeManager.StakeManager
 	maticToken          *MaticToken.MaticToken
 	stakePortalContract *stake_portal.StakeERC20Portal
+	isMainnet           bool
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
@@ -121,6 +123,18 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, err
 	}
 
+	chainId, err := conn.Client().ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	var isMainnet bool
+	if chainId.Int64() == 1 {
+		isMainnet = true
+	} else {
+		isMainnet = false
+	}
+
 	return &Connection{
 		url:                  cfg.Endpoint,
 		symbol:               cfg.Symbol,
@@ -135,6 +149,7 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		maticToken:           matic,
 		multiSendContract:    multiSendAddr,
 		stakePortalContract:  stakePortal,
+		isMainnet:            isMainnet,
 	}, nil
 }
 
@@ -644,6 +659,10 @@ func (c *Connection) RewardByTransactionHash(hash common.Hash, pool common.Addre
 	}
 
 	return big.NewInt(0), nil
+}
+
+func (c *Connection) IsMainnet() bool {
+	return c.isMainnet
 }
 
 func (c *Connection) Close() {

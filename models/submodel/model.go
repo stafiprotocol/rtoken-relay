@@ -405,20 +405,21 @@ type GetBondStateFlow struct {
 }
 
 type MultiEventFlow struct {
-	EventId          string
-	Symbol           core.RSymbol
-	EventData        interface{}
-	Threshold        uint16
-	SubAccounts      []types.Bytes
-	Key              *signature.KeyringPair
-	Others           []types.AccountID
-	RunTimeCalls     []*RunTimeCall
-	PaymentInfo      *rpc.PaymentQueryInfo
-	NewMulCallHashs  map[string]bool
-	MulExeCallHashs  map[string]bool
-	MaticValidatorId *big.Int         // rmaitic use
-	BnbValidators    []common.Address // rbnb use
-	MultiTransaction *ethmodel.MultiTransaction
+	EventId           string
+	Symbol            core.RSymbol
+	EventData         interface{}
+	Threshold         uint16
+	SubAccounts       []types.Bytes
+	Key               *signature.KeyringPair
+	Others            []types.AccountID
+	RunTimeCalls      []*RunTimeCall
+	PaymentInfo       *rpc.PaymentQueryInfo
+	NewMulCallHashs   map[string]bool
+	MulExeCallHashs   map[string]bool
+	MaticValidatorId  *big.Int         // rmaitic use
+	BnbValidators     []common.Address // rbnb use
+	MultiTransaction  *ethmodel.MultiTransaction
+	TotalUnbondAmount *big.Int // ramtic testnet use
 }
 
 type EventNewMultisig struct {

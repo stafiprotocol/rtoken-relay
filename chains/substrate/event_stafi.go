@@ -2,6 +2,7 @@ package substrate
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -14,6 +15,8 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
+
+var ErrPoolUnbondNotExist = errors.New("pool unbonds not exist")
 
 func (l *listener) processLiquidityBondEvent(evt *submodel.ChainEvent) (*submodel.BondFlow, error) {
 	data, err := submodel.LiquidityBondEventData(evt)
@@ -318,6 +321,21 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 		validatorId = new(big.Int).SetBytes(nominated[0])
 	}
 
+	// only for rmatic testnet
+	var totalUnbondAmount *big.Int
+	if snap.Symbol == core.RMATIC {
+		_, total, err := l.unbondings(snap.Symbol, snap.Pool, snap.Era)
+		if err != nil {
+			if err == ErrPoolUnbondNotExist {
+				totalUnbondAmount = big.NewInt(0)
+			} else {
+				return nil, err
+			}
+		} else {
+			totalUnbondAmount = total.Int
+		}
+	}
+
 	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
 	if err != nil {
 		return nil, err
@@ -327,12 +345,13 @@ func (l *listener) processActiveReportedEvt(evt *submodel.ChainEvent) (*submodel
 	flow.Snap = snap
 
 	return &submodel.MultiEventFlow{
-		EventId:          config.ActiveReportedEventId,
-		Symbol:           snap.Symbol,
-		EventData:        flow,
-		Threshold:        th,
-		SubAccounts:      sub,
-		MaticValidatorId: validatorId,
+		EventId:           config.ActiveReportedEventId,
+		Symbol:            snap.Symbol,
+		EventData:         flow,
+		Threshold:         th,
+		SubAccounts:       sub,
+		MaticValidatorId:  validatorId,
+		TotalUnbondAmount: totalUnbondAmount,
 	}, nil
 }
 
@@ -690,7 +709,8 @@ func (l *listener) unbondings(symbol core.RSymbol, pool []byte, era uint32) ([]*
 		return nil, types.U128{}, err
 	}
 	if !exist {
-		return nil, types.U128{}, fmt.Errorf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era)
+		l.log.Info(fmt.Sprintf("pool unbonds not exist, symbol: %s, pool: %s, era: %d", symbol, hexutil.Encode(pool), era))
+		return nil, types.U128{}, ErrPoolUnbondNotExist
 	}
 
 	amounts := make(map[string]types.U128)

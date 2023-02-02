@@ -351,6 +351,21 @@ func (w *writer) processActiveReported(m *core.Message) error {
 		nonce, err = w.conn.WithdrawNonce(shareAddr, poolAddr)
 		if err != nil {
 			if err == ErrWithdrawEpochNotMatch {
+
+				// check balance on test net, if balance > total unbond, will skip withdraw call
+				if !w.conn.IsMainnet() {
+					balance, err := w.conn.BalanceOf(poolAddr)
+					if err != nil {
+						return err
+					}
+					if balance.Cmp(mef.TotalUnbondAmount) > 0 {
+						w.log.Info("withdrawn", "shareAddr", shareAddr, "poolAddr", poolAddr)
+						mef.RunTimeCalls = []*submodel.RunTimeCall{{CallHash: txHash.Hex()}}
+						return w.informChain(m.Destination, m.Source, mef)
+					}
+				}
+
+				// will wait
 				w.log.Warn(fmt.Sprintf("WithdrawNonce failed:%s, will wait. shareAddr %s poolAddr %s", err, shareAddr, poolAddr))
 				time.Sleep(time.Minute * 2)
 				continue
