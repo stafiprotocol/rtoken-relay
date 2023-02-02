@@ -346,9 +346,19 @@ func (w *writer) processActiveReported(m *core.Message) error {
 		return fmt.Errorf("processActiveReported EncodeToHash error %s", err)
 	}
 
-	nonce, err := w.conn.WithdrawNonce(shareAddr, poolAddr)
-	if err != nil {
-		return fmt.Errorf("WithdrawNonce error %s shareAddr %s poolAddr %s", err, shareAddr, poolAddr)
+	var nonce *big.Int
+	for {
+		nonce, err = w.conn.WithdrawNonce(shareAddr, poolAddr)
+		if err != nil {
+			if err == ErrWithdrawEpochNotMatch {
+				w.log.Warn(fmt.Sprintf("WithdrawNonce failed:%s, will wait. shareAddr %s poolAddr %s", err, shareAddr, poolAddr))
+				time.Sleep(time.Minute * 2)
+				continue
+			} else {
+				return fmt.Errorf("WithdrawNonce failed:%s, shareAddr %s poolAddr %s", err, shareAddr, poolAddr)
+			}
+		}
+		break
 	}
 
 	if nonce.Uint64() == 0 {

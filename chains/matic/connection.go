@@ -31,13 +31,14 @@ import (
 )
 
 var (
-	DefaultValue      = big.NewInt(0)
-	TxRetryInterval   = time.Second * 2
-	WaitInterval      = time.Second * 6
-	TxHashLogInterval = time.Second * 10
-	ErrNonceTooLow    = errors.New("nonce too low")
-	ErrTxUnderpriced  = errors.New("replacement transaction underpriced")
-	ZeroAddress       = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	DefaultValue             = big.NewInt(0)
+	TxRetryInterval          = time.Second * 2
+	WaitInterval             = time.Second * 6
+	TxHashLogInterval        = time.Second * 10
+	ErrNonceTooLow           = errors.New("nonce too low")
+	ErrWithdrawEpochNotMatch = errors.New("found nonce but unable to withdraw")
+	ErrTxUnderpriced         = errors.New("replacement transaction underpriced")
+	ZeroAddress              = common.HexToAddress("0x0000000000000000000000000000000000000000")
 )
 
 const (
@@ -350,7 +351,8 @@ func (c *Connection) WithdrawNonce(share, pool common.Address) (*big.Int, error)
 	}
 
 	if ableIdx == 0 && unableIdx != 0 {
-		return nil, fmt.Errorf("found nonce but unable to withdraw, ableIdx: %d, unableIdx: %d", ableIdx, unableIdx)
+		c.log.Debug(fmt.Sprintf("found nonce but unable to withdraw, ableIdx: %d, unableIdx: %d", ableIdx, unableIdx))
+		return nil, ErrWithdrawEpochNotMatch
 	}
 
 	return big.NewInt(int64(ableIdx)), nil
