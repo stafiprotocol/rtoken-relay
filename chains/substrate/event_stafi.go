@@ -122,6 +122,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 
 	var validatorId *big.Int
 	var bnbValidators []common.Address
+	var bnbReceives []*submodel.Receive
 	var leastBond *big.Int
 	var pendingStake *big.Int
 	var pendingReward *big.Int
@@ -161,6 +162,20 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		if err != nil {
 			return nil, err
 		}
+
+		// used for rbnb during migrate
+		if snap.Era == 1363 || snap.Era == 1368 || snap.Era == 1369 {
+			oldPool, err := hex.DecodeString("0x32f5bb3e3b8ebfab88489011f31933dfaccdd903")
+			if err != nil {
+				return nil, err
+			}
+			receives, _, err := l.unbondings(snap.Symbol, oldPool, snap.Era)
+			if err != nil {
+				return nil, err
+			}
+
+			bnbReceives = receives
+		}
 	}
 
 	selectedVoter, err := l.conn.GetSelectedVoters(snap.Symbol, snap.Era)
@@ -182,6 +197,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		SubAccounts:      sub,
 		MaticValidatorId: validatorId,
 		BnbValidators:    bnbValidators,
+		BnbReceives:      bnbReceives,
 	}, nil
 }
 

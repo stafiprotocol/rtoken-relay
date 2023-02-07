@@ -496,6 +496,60 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			return errors.Wrap(err, "waitUnDelegateCrossChainOk")
 		}
 	}
+	// deal unbond of old pool during migrate
+	if snap.Era == 1363 || snap.Era == 1368 || snap.Era == 1369 {
+		if len(mef.BnbReceives) == 0 {
+			return errors.New("receives from old pool empty")
+		}
+		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "migrate", 0)
+		for _, client := range localAccountClients {
+			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
+			if err != nil {
+				return errors.Wrap(err, "needSendProposal")
+			}
+			proposalBts, totalAmountDeci, err := w.getTransferProposal(poolAddr, mef.BnbReceives)
+			if err != nil {
+				return errors.Wrap(err, "getTransferProposal")
+			}
+			w.log.Info("processEraPoolUpdated old pool unbond receives detail", "poolAddr", poolAddr, "proposalId", hex.EncodeToString(proposalId[:]),
+				"totalAmount", totalAmountDeci.StringFixed(0), "receives", utils.StrReceives(mef.BnbReceives), "needSend", needSend)
+			if needSend {
+				for {
+					poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
+					if err != nil {
+						return errors.Wrap(err, "BalanceAt")
+					}
+					poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
+
+					w.log.Debug("needSendProposal", "totalAmount", totalAmountDeci.StringFixed(0), "poolBalance", poolBalanceDeci.StringFixed(0))
+					if poolBalanceDeci.LessThanOrEqual(totalAmountDeci) {
+						// check again
+						needSend, err = needSendProposal(client, multisigOnchainContract, proposalId)
+						if err != nil {
+							return errors.Wrap(err, "needSendProposal")
+						}
+						if needSend {
+							time.Sleep(WaitInterval)
+							w.log.Warn("pool balance not enough will wait",
+								"pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmountDeci.StringFixed(0))
+							continue
+						}
+						break
+					}
+					break
+				}
+
+				err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
+				if err != nil {
+					return errors.Wrap(err, "submitProposal")
+				}
+			}
+		}
+		err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
+		if err != nil {
+			return errors.Wrap(err, "waitProposalExecuted")
+		}
+	}
 
 	// ----- bond and active report with pending value
 	w.log.Debug("bond and active report with pending value")

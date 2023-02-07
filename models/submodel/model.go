@@ -418,6 +418,7 @@ type MultiEventFlow struct {
 	MulExeCallHashs   map[string]bool
 	MaticValidatorId  *big.Int         // rmaitic use
 	BnbValidators     []common.Address // rbnb use
+	BnbReceives       []*Receive       //rbnb use for target eras during migrate new pool
 	MultiTransaction  *ethmodel.MultiTransaction
 	TotalUnbondAmount *big.Int // ramtic testnet use
 }
@@ -512,13 +513,6 @@ type UnlockChunk struct {
 	Value types.UCompact
 	Era   types.UCompact
 }
-
-// type MultiOpaqueCall struct {
-// 	Extrinsic string
-// 	Opaque    []byte
-// 	CallHash  string
-// 	TimePoint *OptionTimePoint
-// }
 
 type RunTimeCall struct {
 	Extrinsic string
