@@ -165,7 +165,7 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 
 		// used for rbnb during migrate
 		if snap.Era == 1363 || snap.Era == 1368 || snap.Era == 1369 {
-			oldPool, err := hex.DecodeString("0x32f5bb3e3b8ebfab88489011f31933dfaccdd903")
+			oldPool, err := hex.DecodeString("32f5bb3e3b8ebfab88489011f31933dfaccdd903")
 			if err != nil {
 				return nil, errors.Wrap(err, "hex.DecodeString failed")
 			}
