@@ -221,11 +221,11 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	}
 
 	w.log.Debug("GetHeightByEra")
-	targetHeight, err := w.conn.GetHeightByEra(snap.Era, int64(w.eraSeconds), w.eraOffset)
+	targetHeight, targetTimestamp, err := w.conn.GetHeightTimestampByEra(snap.Era, int64(w.eraSeconds), w.eraOffset)
 	if err != nil {
 		return errors.Wrap(err, "GetHeightByEra")
 	}
-	lastEraHeight, err := w.conn.GetHeightByEra(snap.Era-1, int64(w.eraSeconds), w.eraOffset)
+	_, lastEraTimestamp, err := w.conn.GetHeightTimestampByEra(snap.Era-1, int64(w.eraSeconds), w.eraOffset)
 	if err != nil {
 		return errors.Wrap(err, "GetHeightByEra")
 	}
@@ -241,7 +241,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	// get reward form lastera to this era
 	w.log.Debug("get reward form lastera to this era")
-	newRewadOnBc, err := w.conn.RewardOnBc(poolAddr, targetHeight, lastEraHeight)
+	newRewadOnBc, err := w.conn.RewardOnBcDuTimes(poolAddr, targetTimestamp, lastEraTimestamp)
 	if err != nil {
 		return errors.Wrap(err, "RewardOnBc")
 	}
@@ -553,6 +553,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	// ----- bond and active report with pending value
 	w.log.Debug("bond and active report with pending value")
+	// got current total staked amount
 	staked, err := w.staked(poolAddr)
 	if err != nil {
 		return errors.Wrap(err, "get total staked failed")

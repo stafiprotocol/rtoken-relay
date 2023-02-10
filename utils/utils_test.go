@@ -74,11 +74,12 @@ func TestDecimal(t *testing.T) {
 }
 
 func TestBnbVal(t *testing.T) {
-	addr, err := BnbValAddressFromHex("0x13D0fC20edb23021e8675ead7676301ce9B748Ee")
+	addr, err := BnbValAddressFromHex("0xaabfcf13c725951c373c937842a0e80183e37e2e")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(addr.String())
+	assert.Equal(t, "bva142lu7y78yk23cdeujduy9g8gqxp7xl3wrz4ska", addr.String())
 
 	hexStr, err := BnbValAddressFromBech32("bva142lu7y78yk23cdeujduy9g8gqxp7xl3wrz4ska")
 	if err != nil {
@@ -86,8 +87,9 @@ func TestBnbVal(t *testing.T) {
 	}
 
 	t.Log(hexutil.Encode(hexStr))
+	assert.Equal(t, "0xaabfcf13c725951c373c937842a0e80183e37e2e", hexutil.Encode(hexStr))
 
-	bts, err := hexutil.Decode("0x627661317a306730636738646b67637a7236723874366b6876613373726e356d776a387735746c753768")
+	bts, err := hexutil.Decode("0x6276613134326c7537793738796b3233636465756a6475793967386771787037786c3377727a34736b61")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,5 +99,12 @@ func TestBnbVal(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(addr2.String())
+	assert.Equal(t, "bva142lu7y78yk23cdeujduy9g8gqxp7xl3wrz4ska", addr2.String())
 
+	hexStr2, err := BnbValAddressFromBech32("bva18w9m90ksmcnsw6rd2kwpd74m4l5agkc68su3et")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(hexutil.Encode(hexStr2))
 }

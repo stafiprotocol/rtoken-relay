@@ -97,12 +97,14 @@ func (c *Client) Connect() error {
 	}
 
 	// Construct tx opts, call opts, and nonce mechanism
-	opts, _, err := c.newTransactOpts(big.NewInt(0), c.gasLimit, c.maxGasPrice, chainId)
-	if err != nil {
-		return err
+	if c.kp != nil {
+		opts, _, err := c.newTransactOpts(big.NewInt(0), c.gasLimit, c.maxGasPrice, chainId)
+		if err != nil {
+			return err
+		}
+		c.opts = opts
+		c.nonce = 0
 	}
-	c.opts = opts
-	c.nonce = 0
 	return nil
 }
 

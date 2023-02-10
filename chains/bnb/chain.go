@@ -20,7 +20,7 @@ func InitializeChain(cfg *core.ChainConfig, logger core.Logger, sysErr chan<- er
 	logger.Info("InitializeChain", "type", "bnb", "symbol", cfg.Symbol)
 
 	stop := make(chan int)
-	conn, err := NewConnection(cfg, logger, stop)
+	conn, err := NewConnection(cfg, logger, stop, false)
 	if err != nil {
 		return nil, err
 	}

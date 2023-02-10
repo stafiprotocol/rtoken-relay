@@ -50,7 +50,7 @@ type Connection struct {
 	stakingContractAddress common.Address
 }
 
-func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
+func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int, forTest bool) (*Connection, error) {
 	log.Info("NewClient", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint)
 
 	bcEndpoint := cfg.Opts["bcEndpoint"]
@@ -69,10 +69,13 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	if err != nil {
 		return nil, err
 	}
+	bscClient := ethereum.NewClient(cfg.Endpoint, nil, log, big.NewInt(0), big.NewInt(0))
+	if err := bscClient.Connect(); err != nil {
+		return nil, err
+	}
 
-	var bscClient *ethereum.Client
 	acSize := len(cfg.Accounts)
-	if acSize == 0 {
+	if acSize == 0 && !forTest {
 		return nil, fmt.Errorf("account empty")
 	}
 	accounts := make(map[common.Address]*ethereum.Client)
@@ -234,12 +237,16 @@ func (c *Connection) QueryBlock(number int64) (*types.Block, error) {
 	return blk, nil
 }
 
-func (c *Connection) GetHeightByEra(era uint32, eraSeconds, offset int64) (int64, error) {
+func (c *Connection) GetHeightTimestampByEra(era uint32, eraSeconds, offset int64) (int64, int64, error) {
 	if int64(era) < offset {
-		return 0, fmt.Errorf("era: %d is less than offset: %d", era, offset)
+		return 0, 0, fmt.Errorf("era: %d is less than offset: %d", era, offset)
 	}
 	targetTimestamp := (int64(era) - offset) * eraSeconds
-	return c.GetHeightByTimestamp(targetTimestamp)
+	height, err := c.GetHeightByTimestamp(targetTimestamp)
+	if err != nil {
+		return 0, 0, err
+	}
+	return height, targetTimestamp, nil
 }
 
 func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) {
@@ -285,9 +292,18 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 		tmpTargetBlock = 1
 	}
 
-	block, err := c.QueryBlock(tmpTargetBlock)
-	if err != nil {
-		return 0, err
+	var block *types.Block
+	for {
+		block, err = c.QueryBlock(tmpTargetBlock)
+		if err != nil {
+			return 0, errors.Wrap(err, "loop queryBlock")
+		}
+		du := int64(block.Time()) - targetTimestamp
+		tmpTargetBlock = block.Number().Int64() - du/3
+		if du < 20 && du > -20 {
+			break
+		}
+		c.log.Trace("loop block", "block", block.Number().Int64(), "time", block.Time(), "tempBlock", tmpTargetBlock)
 	}
 
 	// return after blocknumber
@@ -296,7 +312,6 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 	if int64(block.Time()) > targetTimestamp {
 		afterBlockNumber = block.Number().Int64()
 		for {
-			c.log.Trace("afterBlock", "block", afterBlockNumber)
 			if afterBlockNumber <= 2 {
 				return 1, nil
 			}
@@ -304,6 +319,7 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 			if err != nil {
 				return 0, err
 			}
+			c.log.Trace("afterBlock", "block", block.Number().Int64(), "time", block.Time())
 			if int64(block.Time()) > targetTimestamp {
 				afterBlockNumber = block.Number().Int64()
 				continue
@@ -315,11 +331,11 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 	} else {
 		preBlockNumber = block.Number().Int64()
 		for {
-			c.log.Trace("preBlock", "block", preBlockNumber)
 			block, err := c.QueryBlock(preBlockNumber + 1)
 			if err != nil {
 				return 0, err
 			}
+			c.log.Trace("preBlock", "block", block.Number().Int64(), "time", block.Time())
 			if int64(block.Time()) > targetTimestamp {
 				afterBlockNumber = block.Number().Int64()
 				break
@@ -332,11 +348,12 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 	return afterBlockNumber, nil
 }
 
-func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64) (int64, error) {
+// return reward decimals 8
+func (c *Connection) RewardOnBcDuTimes(pool common.Address, targetTimestamp, lastEraTimestamp int64) (int64, error) {
 	delegator := utils.GetDelegaterAddressOnBc(pool[:]).String()
 
 	for i := 0; i < TxRetryLimit; i++ {
-		total, height, err := c.totalAndLastHeight(delegator)
+		total, lastRewardTimestamp, err := c.RewardTotalTimesAndLastRewardTimestamp(delegator)
 		if err != nil {
 			c.log.Warn("totalAndLastHeight error", "err", err)
 			if i+1 == TxRetryLimit {
@@ -344,12 +361,12 @@ func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64
 			}
 			continue
 		}
-
-		if height < lastHeight {
+		c.log.Trace("RewardOnBcDuTimes", "total", total, "lastRewardTimestamp", lastRewardTimestamp, "delegator", delegator)
+		if lastRewardTimestamp < lastEraTimestamp {
 			return 0, nil
 		}
 
-		rewardSum, err := c.stakingReward(delegator, total, curHeight, lastHeight)
+		rewardSum, err := c.stakingReward(delegator, total, targetTimestamp, lastEraTimestamp)
 		if err != nil {
 			c.log.Error("stakingReward error", "err", err)
 			if i+1 == TxRetryLimit {
@@ -364,7 +381,7 @@ func (c *Connection) RewardOnBc(pool common.Address, curHeight, lastHeight int64
 	return 0, fmt.Errorf("get reward failed")
 }
 
-func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) {
+func (c *Connection) RewardTotalTimesAndLastRewardTimestamp(delegator string) (int64, int64, error) {
 	api := c.rewardApi(delegator, 1, 0)
 	c.log.Trace("totalAndLastHeight rewardApi", "rewardApi", api)
 	sr, err := bnc.GetStakingReward(api)
@@ -376,10 +393,15 @@ func (c *Connection) totalAndLastHeight(delegator string) (int64, int64, error) 
 		return 0, 0, nil
 	}
 
-	return sr.Total, sr.RewardDetails[0].Height, nil
+	rewardTime, err := time.Parse(time.RFC3339, sr.RewardDetails[0].RewardTime)
+	if err != nil {
+		return 0, 0, err
+	}
+	return sr.Total, rewardTime.Unix(), nil
 }
 
-func (c *Connection) stakingReward(delegator string, total, curHeight, lastHeight int64) (int64, error) {
+func (c *Connection) stakingReward(delegator string, total, targetTimestamp, lastEraTimestamp int64) (int64, error) {
+	c.log.Trace("stakingReward", "delegator", delegator, "total", total, "targetTimestamp", targetTimestamp, "lastEraTimestamp", lastEraTimestamp)
 	offset := int64(0)
 	rewardSum := int64(0)
 
@@ -393,15 +415,20 @@ OUT:
 		}
 
 		for _, rd := range sr.RewardDetails {
-			if rd.Height > curHeight {
+			rewardTime, err := time.Parse(time.RFC3339, rd.RewardTime)
+			if err != nil {
+				return 0, err
+			}
+			if rewardTime.Unix() > targetTimestamp {
 				continue
 			}
 
-			if rd.Height <= lastHeight {
+			if rewardTime.Unix() <= lastEraTimestamp {
 				break OUT
 			}
 
 			rewardSum += int64(rd.Reward * 1e8)
+			c.log.Trace("stakingReward", "add", rd.Reward, "height", rd.Height)
 		}
 
 		offset += 100
@@ -412,4 +439,12 @@ OUT:
 
 func (c *Connection) rewardApi(delegator string, limit, offset int64) string {
 	return fmt.Sprintf("%s/v1/staking/chains/%s/delegators/%s/rewards?limit=%d&offset=%d", c.bcApiEndpoint, c.bscSideChainId, delegator, limit, offset)
+}
+
+func (c *Connection) GetStakingContract() *staking.Staking {
+	return c.stakingContract
+}
+
+func (c *Connection) GetQueryClient() *ethereum.Client {
+	return c.queryClient
 }
