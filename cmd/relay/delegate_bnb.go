@@ -214,6 +214,25 @@ func getDelegateProposal(totalAmount, relayerFee decimal.Decimal, stakingAddress
 	return txs.Encode(), nil
 }
 
+func getClaimUndelegateProposal(stakingAddress common.Address) ([]byte, error) {
+	txs := make(ethmodel.BatchTransactions, 0)
+	inputData, err := StakingAbi.Pack("claimUndelegated")
+	if err != nil {
+		return nil, errors.Wrap(err, "staking abi pack failed")
+	}
+
+	tx := &ethmodel.BatchTransaction{
+		Operation:  uint8(ethmodel.Call),
+		To:         stakingAddress,
+		Value:      big.NewInt(0),
+		DataLength: big.NewInt(int64(len(inputData))),
+		Data:       inputData,
+	}
+	txs = append(txs, tx)
+
+	return txs.Encode(), nil
+}
+
 func loadConfig(file string, config *DelegateBnbConfig) (err error) {
 	ext := filepath.Ext(file)
 	fp, err := filepath.Abs(file)

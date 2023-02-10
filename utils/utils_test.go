@@ -80,7 +80,7 @@ func TestBnbVal(t *testing.T) {
 	}
 	t.Log(addr.String())
 
-	hexStr, err := BnbValAddressFromBech32("bva1ztxu7lg58ph8ry2zc0zmzhtutuxhjr9hjy8ugt")
+	hexStr, err := BnbValAddressFromBech32("bva142lu7y78yk23cdeujduy9g8gqxp7xl3wrz4ska")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -66,6 +66,7 @@ func init() {
 	app.Commands = []*cli.Command{
 		&accountCommand,
 		&delegateBnbCommand,
+		&claimUndelegateCommand,
 	}
 
 	app.Flags = append(app.Flags, mainFlags...)
