@@ -2,8 +2,8 @@ package substrate
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"math/big"
 	"sort"
 
@@ -167,11 +167,11 @@ func (l *listener) processEraPoolUpdatedEvt(evt *submodel.ChainEvent) (*submodel
 		if snap.Era == 1363 || snap.Era == 1368 || snap.Era == 1369 {
 			oldPool, err := hex.DecodeString("0x32f5bb3e3b8ebfab88489011f31933dfaccdd903")
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "hex.DecodeString failed")
 			}
 			receives, _, err := l.unbondings(snap.Symbol, oldPool, snap.Era)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "get unbondings")
 			}
 
 			bnbReceives = receives
