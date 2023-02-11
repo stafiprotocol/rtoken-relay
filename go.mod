@@ -7,7 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.23
 	github.com/gorilla/websocket v1.5.0
 	github.com/huandu/xstrings v1.3.2
-	github.com/itering/scale.go v1.5.7
+	github.com/itering/scale.go v1.5.8
 	github.com/itering/substrate-api-rpc v0.4.15
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/mr-tron/base58 v1.2.0
