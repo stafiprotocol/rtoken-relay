@@ -84,7 +84,7 @@ func (w *writer) processBondReportEvent(m *core.Message) bool {
 
 	}
 
-	flow.Snap.Active = substrateTypes.NewU128(*big.NewInt(activeTotal))
+	flow.ReportActive = substrateTypes.NewU128(*big.NewInt(activeTotal))
 
 	w.log.Info("active report", "pool address", poolAddrBase58Str,
 		"era", flow.Snap.Era, "active", activeTotal, "symbol", flow.Symbol)

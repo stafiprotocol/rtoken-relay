@@ -320,12 +320,12 @@ type EraPoolUpdatedFlow struct {
 	LastVoter     types.AccountID
 	LastVoterFlag bool
 	Snap          *PoolSnapshot
-	LeastBond     *big.Int
+	LeastBond     *big.Int // used for rMATIC
 	BondCall      *BondCall
 	Active        *big.Int
 	Reward        *big.Int
-	PendingStake  *big.Int // rBNB use
-	PendingReward *big.Int // rBNB use
+	PendingStake  *big.Int // used for rBNB
+	PendingReward *big.Int // used for rBNB
 }
 
 type BondReportedFlow struct {
@@ -336,14 +336,15 @@ type BondReportedFlow struct {
 	Snap                *PoolSnapshot
 	LastEra             uint32
 	EraBlock            uint64
-	Unstaked            types.U128
 	SubAccounts         []types.Bytes
 	Threshold           uint32
 	Stashes             []types.AccountID
-	MaticValidatorId    *big.Int
 	MultiTransaction    *ethmodel.MultiTransaction
 	NewActiveReportFlag bool
-	LeastBond           *big.Int
+	MaticValidatorId    *big.Int // used for rmatic
+	LeastBond           *big.Int // used for rmatic
+	Unstaked            types.U128
+	ReportActive        types.U128 // report active
 }
 
 type ActiveReportedFlow struct {

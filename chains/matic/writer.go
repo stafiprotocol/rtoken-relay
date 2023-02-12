@@ -613,9 +613,9 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 					active = active.Add(active, diff)
 				}
 			}
-			bondFlow.Snap.Active = types.NewU128(*active)
+			bondFlow.ReportActive = types.NewU128(*active)
 			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "active", active, "txHash", txHash)
-			return w.reportBondReportedResult(txHash, bondFlow)
+			return w.activeReport(txHash, bondFlow)
 		case submodel.OriginalWithdrawUnbond, submodel.OriginalTransfer:
 			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "txHash", txHash)
 			return w.reportMultiEventResult(txHash, mef)
@@ -661,7 +661,7 @@ func (w *writer) reportMultiEventResult(txHash common.Hash, mef *submodel.MultiE
 	return w.informChain(core.RMATIC, core.RFIS, mef)
 }
 
-func (w *writer) reportBondReportedResult(txHash common.Hash, flow *submodel.BondReportedFlow) error {
+func (w *writer) activeReport(txHash common.Hash, flow *submodel.BondReportedFlow) error {
 	msg := &core.Message{Source: core.RMATIC, Destination: core.RFIS, Reason: core.ActiveReport, Content: flow}
 	return w.submitMessage(msg)
 }

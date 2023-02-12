@@ -5,6 +5,7 @@ package substrate
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/itering/scale.go/utiles"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -221,6 +222,7 @@ func (w *writer) processNewEra(m *core.Message) bool {
 	return result
 }
 
+// Will deal:
 // - bondReport/newBondReport/bondAndReportActive/bondAndReportActiveWithPendingValue
 // - withdrawReport
 // - transferReport
@@ -244,7 +246,7 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		w.log.Info("NominationUpdated", "symbol", data.Symbol, "era", data.Era)
 		return true
 	case *submodel.EraPoolUpdatedFlow:
-		call := data.BondCall
+		call := data.BondCall // total 4 case(bond_report/new_bond_report/bond_and_report_active/bond_and_report_active_with_pending_value)
 		method := ""
 		switch data.Symbol {
 		case core.RMATIC:
@@ -257,6 +259,17 @@ func (w *writer) processInformChain(m *core.Message) bool {
 				}
 				method = "NewBondReportProposal"
 			case submodel.BondAndReportActive:
+				reportActive := new(big.Int).Add(data.Active, data.Reward)
+				ok, err := w.checkActive(data.Snap.Symbol, data.Snap.Active, types.NewU128(*reportActive))
+				if err != nil {
+					w.log.Error("checkActive", "error", err)
+					return false
+				}
+				if !ok {
+					w.log.Error("checkActive failed", "snapActive", data.Snap.Active, "reportActive", reportActive)
+					return false
+				}
+
 				prop, err = w.conn.BondAndReportActiveProposal(data)
 				if err != nil {
 					w.log.Error("MethodBondAndReportActiveProposal", "error", err)
@@ -270,6 +283,16 @@ func (w *writer) processInformChain(m *core.Message) bool {
 		case core.RBNB:
 			switch call.ReportType {
 			case submodel.BondAndReportActiveWithPendingValue:
+				ok, err := w.checkActive(data.Snap.Symbol, data.Snap.Active, types.NewU128(*data.Active))
+				if err != nil {
+					w.log.Error("checkActive", "error", err)
+					return false
+				}
+				if !ok {
+					w.log.Error("checkActive failed", "snapActive", data.Snap.Active, "reportActive", data.Active)
+					return false
+				}
+
 				prop, err = w.conn.BondAndReportActiveWithPendingValueProposal(data)
 				if err != nil {
 					w.log.Error("BondAndReportActiveWithPendingValueProposal", "error", err)
@@ -330,25 +353,35 @@ func (w *writer) processInformChain(m *core.Message) bool {
 	}
 }
 
+// Will deal:
+// - activeReport/newActiveReport
 func (w *writer) processActiveReport(m *core.Message) bool {
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
 		w.printContentError(m)
 		return false
 	}
+	ok, err := w.checkActive(flow.Snap.Symbol, flow.Snap.Active, flow.ReportActive)
+	if err != nil {
+		w.log.Error("checkActive", "error", err)
+		return false
+	}
+	if !ok {
+		w.log.Error("checkActive failed", "snapActive", flow.Snap.Active, "reportActive", flow.ReportActive)
+		return false
+	}
 
 	var prop *submodel.Proposal
-	var err error
-	if !flow.NewActiveReportFlag {
-		prop, err = w.conn.ActiveReportProposal(flow)
-		if err != nil {
-			w.log.Error("ActiveReportProposal", "error", err)
-			return false
-		}
-	} else {
+	if flow.NewActiveReportFlag {
 		prop, err = w.conn.NewActiveReportProposal(flow)
 		if err != nil {
 			w.log.Error("NewActiveReportProposal", "error", err)
+			return false
+		}
+	} else {
+		prop, err = w.conn.ActiveReportProposal(flow)
+		if err != nil {
+			w.log.Error("ActiveReportProposal", "error", err)
 			return false
 		}
 	}
@@ -357,6 +390,40 @@ func (w *writer) processActiveReport(m *core.Message) bool {
 	w.log.Info("ActiveReportProposal resolveProposal", "result", result)
 
 	return result
+}
+
+var perBillBase = big.NewInt(1e9)
+
+func (w *writer) checkActive(symbol core.RSymbol, snapActive, reportActive types.U128) (bool, error) {
+	if snapActive.Cmp(big.NewInt(0)) == 0 {
+		return true, nil
+	}
+	changeRateLimit, err := w.conn.ActiveChangeRateLimit(symbol)
+	if err != nil {
+		if err != ErrorNotExist {
+			return false, err
+		}
+		changeRateLimit = DefaultActiveChangeRateLimit
+	}
+
+	if changeRateLimit == 0 {
+		return true, nil
+	}
+
+	var change *big.Int
+	if snapActive.Cmp(reportActive.Int) > 0 {
+		change = new(big.Int).Sub(snapActive.Int, reportActive.Int)
+	} else {
+		change = new(big.Int).Sub(reportActive.Int, snapActive.Int)
+	}
+	tmp := new(big.Int).Mul(snapActive.Int, big.NewInt(int64(changeRateLimit)))
+	changeLimit := new(big.Int).Div(tmp, perBillBase)
+
+	if change.Cmp(changeLimit) > 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (w *writer) processExeLiquidityBondAndSwap(m *core.Message) bool {

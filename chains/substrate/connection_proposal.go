@@ -168,7 +168,7 @@ func (c *Connection) ActiveReportProposal(flow *submodel.BondReportedFlow) (*sub
 		method,
 		flow.Symbol,
 		flow.ShotId,
-		flow.Snap.Active,
+		flow.ReportActive,
 	)
 	if err != nil {
 		return nil, err
@@ -189,7 +189,7 @@ func (c *Connection) NewActiveReportProposal(flow *submodel.BondReportedFlow) (*
 		method,
 		flow.Symbol,
 		flow.ShotId,
-		flow.Snap.Active,
+		flow.ReportActive,
 		flow.Unstaked,
 	)
 	if err != nil {

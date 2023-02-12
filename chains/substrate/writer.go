@@ -287,7 +287,7 @@ func (w *writer) queryAndReportActive(m *core.Message) {
 		return
 	}
 
-	flow.Snap.Active = types.NewU128(big.Int(ledger.Active))
+	flow.ReportActive = types.NewU128(big.Int(ledger.Active))
 	w.log.Info("queryAndReportActive", "pool", hexutil.Encode(flow.Snap.Pool), "active", flow.Snap.Active)
 	m.Content = flow
 	m.Reason = core.ActiveReport

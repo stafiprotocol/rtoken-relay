@@ -68,6 +68,27 @@ func (c *Connection) RelayerThreshold(symbol core.RSymbol) (uint32, error) {
 	return uint32(th), nil
 }
 
+var DefaultActiveChangeRateLimit = uint32(1e7)
+
+func (c *Connection) ActiveChangeRateLimit(sym core.RSymbol) (uint32, error) {
+	symBz, err := types.EncodeToBytes(sym)
+	if err != nil {
+		return 0, err
+	}
+
+	var PerBill types.U32
+	exists, err := c.QueryStorage(config.RTokenLedgerModuleId, config.StorageActiveChangeRateLimit, symBz, nil, &PerBill)
+	if err != nil {
+		return 0, err
+	}
+
+	if !exists {
+		return 0, ErrorNotExist
+	}
+
+	return uint32(PerBill), nil
+}
+
 func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint32) ([]types.AccountID, error) {
 	symBz, err := types.EncodeToBytes(symbol)
 	if err != nil {

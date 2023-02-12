@@ -21,6 +21,7 @@ const (
 	StorageChainEras                          = "ChainEras"
 	StorageCurrentEraSnapShots                = "CurrentEraSnapShots"
 	StorageRelayerThreshold                   = "RelayerThreshold"
+	StorageActiveChangeRateLimit              = "ActiveChangeRateLimit"
 	StorageEraSnapShots                       = "EraSnapShots"
 	StorageLeastBond                          = "LeastBond"
 	StoragePendingStake                       = "PendingStake"
