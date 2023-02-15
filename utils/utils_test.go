@@ -107,4 +107,7 @@ func TestBnbVal(t *testing.T) {
 	}
 
 	t.Log(hexutil.Encode(hexStr2))
+
+	bts, _ = hexutil.Decode("0x992701c853301b120a6db0e4767aeecc737c515a")
+	t.Log(GetBcRewardAddressFromBsc(bts).String())
 }

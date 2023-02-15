@@ -350,10 +350,10 @@ func (c *Connection) GetHeightByTimestamp(targetTimestamp int64) (int64, error) 
 
 // return reward decimals 8
 func (c *Connection) RewardOnBcDuTimes(pool common.Address, targetTimestamp, lastEraTimestamp int64) (int64, error) {
-	delegator := utils.GetDelegaterAddressOnBc(pool[:]).String()
+	rewardAddress := utils.GetBcRewardAddressFromBsc(pool[:]).String()
 
 	for i := 0; i < TxRetryLimit; i++ {
-		total, lastRewardTimestamp, err := c.RewardTotalTimesAndLastRewardTimestamp(delegator)
+		total, lastRewardTimestamp, err := c.RewardTotalTimesAndLastRewardTimestamp(rewardAddress)
 		if err != nil {
 			c.log.Warn("totalAndLastHeight error", "err", err)
 			if i+1 == TxRetryLimit {
@@ -361,12 +361,12 @@ func (c *Connection) RewardOnBcDuTimes(pool common.Address, targetTimestamp, las
 			}
 			continue
 		}
-		c.log.Trace("RewardOnBcDuTimes", "total", total, "lastRewardTimestamp", lastRewardTimestamp, "delegator", delegator)
+		c.log.Trace("RewardOnBcDuTimes", "total", total, "lastRewardTimestamp", lastRewardTimestamp, "delegator", rewardAddress)
 		if lastRewardTimestamp < lastEraTimestamp {
 			return 0, nil
 		}
 
-		rewardSum, err := c.stakingReward(delegator, total, targetTimestamp, lastEraTimestamp)
+		rewardSum, err := c.stakingReward(rewardAddress, total, targetTimestamp, lastEraTimestamp)
 		if err != nil {
 			c.log.Error("stakingReward error", "err", err)
 			if i+1 == TxRetryLimit {

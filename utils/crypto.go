@@ -34,9 +34,12 @@ func PublicKeyFromKeypair(pair *secp256k1.Keypair) []byte {
 	return crypto.FromECDSAPub(publicKeyECDSA)
 }
 
-func GetDelegaterAddressOnBc(addrBts []byte) bncCmnTypes.AccAddress {
+func GetBcDelegationAddressFromBsc(addrBts []byte) bncCmnTypes.AccAddress {
 	return GetStakeCAoB(addrBts, DelegateCAoBSalt)
+}
 
+func GetBcRewardAddressFromBsc(addrBts []byte) bncCmnTypes.AccAddress {
+	return GetStakeCAoB(GetStakeCAoB(addrBts, DelegateCAoBSalt).Bytes(), RewardCAoBSalt)
 }
 
 func GetStakeCAoB(sourceAddr []byte, salt string) bncCmnTypes.AccAddress {
@@ -46,6 +49,7 @@ func GetStakeCAoB(sourceAddr []byte, salt string) bncCmnTypes.AccAddress {
 
 var TruncatedSize = 20
 var DelegateCAoBSalt string = "Delegate"
+var RewardCAoBSalt string = "Reward"
 
 func SumTruncated(bz []byte) []byte {
 	hash := sha256.Sum256(bz)
