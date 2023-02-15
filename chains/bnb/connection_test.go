@@ -34,13 +34,13 @@ func TestConnection(t *testing.T) {
 	}
 
 	logrus.SetLevel(logrus.TraceLevel)
-	height, timestamp, err := connection.GetHeightTimestampByEra(1358, 86400, -18033)
+	height, timestamp, err := connection.GetHeightTimestampByEra(1370, 86400, -18033)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(height, timestamp)
 
-	_, lastEraTimestamp, err := connection.GetHeightTimestampByEra(1357, 86400, -18033)
+	_, lastEraTimestamp, err := connection.GetHeightTimestampByEra(1367, 86400, -18033)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,6 @@ func TestConnection(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 	// t.Log(total, timestamp)
-
 	reward, err := connection.RewardOnBcDuTimes(poolAddr, timestamp, lastEraTimestamp)
 	if err != nil {
 		t.Fatal(err)

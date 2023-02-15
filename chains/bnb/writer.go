@@ -225,7 +225,13 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	if err != nil {
 		return errors.Wrap(err, "GetHeightByEra")
 	}
-	_, lastEraTimestamp, err := w.conn.GetHeightTimestampByEra(snap.Era-1, int64(w.eraSeconds), w.eraOffset)
+	preEra := snap.Era - 1
+
+	// Should add the rewad of era 1368 1369 1370 during the era of 1371, which were skipped by wrong reward address on bc
+	if snap.Era == 1371 {
+		preEra = 1367
+	}
+	_, preEraTimestamp, err := w.conn.GetHeightTimestampByEra(preEra, int64(w.eraSeconds), w.eraOffset)
 	if err != nil {
 		return errors.Wrap(err, "GetHeightByEra")
 	}
@@ -239,9 +245,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return errors.Wrap(err, "GetMinDelegation")
 	}
 
-	// get reward form lastera to this era
-	w.log.Debug("get reward form lastera to this era")
-	newRewadOnBc, err := w.conn.RewardOnBcDuTimes(poolAddr, targetTimestamp, lastEraTimestamp)
+	// get reward form pre era to this era
+	w.log.Debug("get reward fomr pre era to this era")
+	newRewadOnBc, err := w.conn.RewardOnBcDuTimes(poolAddr, targetTimestamp, preEraTimestamp)
 	if err != nil {
 		return errors.Wrap(err, "RewardOnBc")
 	}
