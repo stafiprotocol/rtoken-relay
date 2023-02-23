@@ -309,6 +309,7 @@ func (c *Client) SignMultiSigRawTx(rawTx []byte, fromSubKey string) (signature [
 	if err != nil {
 		return nil, err
 	}
+
 	err = xAuthClient.SignTxWithSignerAddress(txf, c.clientCtx, c.clientCtx.GetFromAddress(), fromSubKey, txBuilder, true, true)
 	if err != nil {
 		return nil, err
