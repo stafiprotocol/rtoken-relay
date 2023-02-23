@@ -2,6 +2,8 @@ package solana
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -25,10 +27,22 @@ func (w *writer) processLiquidityBond(m *core.Message) bool {
 		return false
 	}
 
-	bondReason, err := w.conn.TransferVerify(flow.Record)
-	if err != nil {
-		w.log.Error("TransferVerify error", "err", err, "bondId", flow.BondId.Hex())
-		return false
+	retry := 0
+	var err error
+	var bondReason submodel.BondReason
+	for {
+		if retry > 600 {
+			w.log.Error(fmt.Sprintf("TransferVerify reach retry limit, err: %s", err))
+			return false
+		}
+		bondReason, err = w.conn.TransferVerify(flow.Record)
+		if err != nil {
+			w.log.Warn("TransferVerify error", "err", err, "bondId", flow.BondId.Hex())
+			retry++
+			time.Sleep(waitTime * 2)
+			continue
+		}
+		break
 	}
 
 	flow.Reason = bondReason
