@@ -863,14 +863,14 @@ func (task *writer) waitTxOk(txHash common.Hash) error {
 		if retry > BlockRetryLimit*3 {
 			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
 		}
-		tx, pending, err := task.conn.conn.TransactionByHash(context.Background(), txHash)
+		_, pending, err := task.conn.conn.TransactionByHash(context.Background(), txHash)
 		if err == nil && !pending {
 			break
 		} else {
 			if err != nil {
-				task.log.Warn("tx status", "hash", tx.Hash(), "err", err.Error())
+				task.log.Warn("tx status", "hash", txHash, "err", err.Error())
 			} else {
-				task.log.Warn("tx status", "hash", tx.Hash(), "status", "pending")
+				task.log.Warn("tx status", "hash", txHash, "status", "pending")
 			}
 			time.Sleep(BlockRetryInterval)
 			retry++
