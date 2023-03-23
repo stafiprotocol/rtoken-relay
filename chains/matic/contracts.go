@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
+	stake_portal_with_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20PortalWithRate"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 )
 
@@ -27,9 +28,22 @@ func initStakeManager(stakeManagerCfg interface{}, conn *ethclient.Client) (*Sta
 func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stake_portal.StakeERC20Portal, error) {
 	stakePortalAddr, ok := stakeManagerCfg.(string)
 	if !ok {
-		return nil, errors.New("StakeManagerContract not ok")
+		return nil, errors.New("StakeERC20Portal not ok")
 	}
 	stakePortal, err := stake_portal.NewStakeERC20Portal(common.HexToAddress(stakePortalAddr), conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return stakePortal, nil
+}
+
+func initStakePortalWithRate(stakeManagerCfg interface{}, conn *ethclient.Client) (*stake_portal_with_rate.StakeERC20PortalWithRate, error) {
+	stakePortalAddr, ok := stakeManagerCfg.(string)
+	if !ok {
+		return nil, errors.New("StakeERC20PortalWithRate not ok")
+	}
+	stakePortal, err := stake_portal_with_rate.NewStakeERC20PortalWithRate(common.HexToAddress(stakePortalAddr), conn)
 	if err != nil {
 		return nil, err
 	}

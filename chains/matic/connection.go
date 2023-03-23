@@ -22,6 +22,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/bindings/MaticToken"
 	"github.com/stafiprotocol/rtoken-relay/bindings/Multisig"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
+	stake_portal_with_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20PortalWithRate"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/core"
@@ -61,10 +62,11 @@ type Connection struct {
 	maticTokenContract   common.Address
 	multiSendContract    common.Address
 
-	stakeManager        *StakeManager.StakeManager
-	maticToken          *MaticToken.MaticToken
-	stakePortalContract *stake_portal.StakeERC20Portal
-	isMainnet           bool
+	stakeManager                *StakeManager.StakeManager
+	maticToken                  *MaticToken.MaticToken
+	stakePortalContract         *stake_portal.StakeERC20Portal
+	stakePortalWithRateContract *stake_portal_with_rate.StakeERC20PortalWithRate
+	isMainnet                   bool
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
@@ -123,6 +125,11 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, err
 	}
 
+	stakePortalWithRate, err := initStakePortalWithRate(cfg.Opts["StakePortalWithRateContract"], client)
+	if err != nil {
+		return nil, err
+	}
+
 	chainId, err := conn.Client().ChainID(context.Background())
 	if err != nil {
 		return nil, err
@@ -136,20 +143,21 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	}
 
 	return &Connection{
-		url:                  cfg.Endpoint,
-		symbol:               cfg.Symbol,
-		conn:                 conn,
-		keys:                 keys,
-		addrs:                addrs,
-		log:                  log,
-		stop:                 stop,
-		stakeManager:         stakeManager,
-		stateManagerContract: stateManagerContract,
-		maticTokenContract:   maticAddr,
-		maticToken:           matic,
-		multiSendContract:    multiSendAddr,
-		stakePortalContract:  stakePortal,
-		isMainnet:            isMainnet,
+		url:                         cfg.Endpoint,
+		symbol:                      cfg.Symbol,
+		conn:                        conn,
+		keys:                        keys,
+		addrs:                       addrs,
+		log:                         log,
+		stop:                        stop,
+		stakeManager:                stakeManager,
+		stateManagerContract:        stateManagerContract,
+		maticTokenContract:          maticAddr,
+		maticToken:                  matic,
+		multiSendContract:           multiSendAddr,
+		stakePortalContract:         stakePortal,
+		stakePortalWithRateContract: stakePortalWithRate,
+		isMainnet:                   isMainnet,
 	}, nil
 }
 

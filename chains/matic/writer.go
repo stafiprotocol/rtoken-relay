@@ -630,14 +630,14 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 
 			evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
 			proposalId := getProposalId(snap.Era, evmRate, 0)
-			proposal, err := w.conn.stakePortalContract.Proposals(&bind.CallOpts{}, proposalId)
+			proposal, err := w.conn.stakePortalWithRateContract.Proposals(&bind.CallOpts{}, proposalId)
 			if err != nil {
 				return fmt.Errorf("processSignatureEnough Proposals error %s shre %s pool %s", err, to, poolAddr)
 			}
 			if proposal.Status == 2 { // success status
 				return nil
 			}
-			hasVoted, err := w.conn.stakePortalContract.HasVoted(&bind.CallOpts{}, proposalId, w.conn.conn.Opts().From)
+			hasVoted, err := w.conn.stakePortalWithRateContract.HasVoted(&bind.CallOpts{}, proposalId, w.conn.conn.Opts().From)
 			if err != nil {
 				return fmt.Errorf("processSignatureEnough HasVoted error %s shre %s pool %s", err, to, poolAddr)
 			}
@@ -650,7 +650,7 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 			if err != nil {
 				return fmt.Errorf("processSignatureEnough LockAndUpdateOpts error %s shre %s pool %s", err, to, poolAddr)
 			}
-			voteTx, err := w.conn.stakePortalContract.VoteRate(w.conn.conn.Opts(), proposalId, evmRate)
+			voteTx, err := w.conn.stakePortalWithRateContract.VoteRate(w.conn.conn.Opts(), proposalId, evmRate)
 			w.conn.conn.UnlockOpts()
 
 			if err != nil {
@@ -889,7 +889,7 @@ func (task *writer) waitRateUpdated(proposalId [32]byte) error {
 			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
 		}
 
-		proposal, err := task.conn.stakePortalContract.Proposals(&bind.CallOpts{}, proposalId)
+		proposal, err := task.conn.stakePortalWithRateContract.Proposals(&bind.CallOpts{}, proposalId)
 		if err != nil {
 			time.Sleep(BlockRetryInterval)
 			retry++

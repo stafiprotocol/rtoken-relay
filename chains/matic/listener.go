@@ -170,7 +170,7 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 		l.log.Debug("processBlockEvents", "blockNum", currentBlock)
 	}
 	// stake event
-	stakeIterator, err := l.conn.stakePortalContract.FilterStakeAndCross(&bind.FilterOpts{
+	stakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
 		Start:   currentBlock,
 		End:     &currentBlock,
 		Context: context.Background(),
@@ -199,11 +199,11 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 		if err != nil {
 			return err
 		}
-		blockNumber := oldTx.BlockNumber.Uint64()
+		oldBlockNumber := oldTx.BlockNumber.Uint64()
 
-		oldStakeIterator, err := l.conn.stakePortalContract.FilterStakeAndCross(&bind.FilterOpts{
-			Start:   blockNumber,
-			End:     &blockNumber,
+		oldStakeIterator, err := l.conn.stakePortalContract.FilterStake(&bind.FilterOpts{
+			Start:   oldBlockNumber,
+			End:     &oldBlockNumber,
 			Context: context.Background(),
 		})
 		if err != nil {
@@ -232,7 +232,7 @@ func (l *listener) processBlockEvents(currentBlock uint64) error {
 	return nil
 }
 
-func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakeERC20PortalStakeAndCrossIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
+func (l *listener) processStakeEvent(stakeIterator *stake_portal.StakeERC20PortalStakeIterator, isRecover bool, stafiRecipient [32]byte, oldTxHash common.Hash, newTxSender common.Address) error {
 
 	for stakeIterator.Next() {
 		willUseStafiRecipient := stakeIterator.Event.StafiRecipient
