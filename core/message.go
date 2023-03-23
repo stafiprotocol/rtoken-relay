@@ -21,6 +21,7 @@ const (
 	GetBondState            = Reason("GetBondState")
 	GetSubmitSignatures     = Reason("GetSubmitSignatures")
 	GetPoolThreshold        = Reason("GetPoolThreshold")
+	GetEraRate              = Reason("GetEraRate")
 
 	// send by stafi
 	BondedPools = Reason("BondedPools")

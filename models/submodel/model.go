@@ -636,6 +636,12 @@ type GetPoolThresholdFlow struct {
 	Threshold chan uint32
 }
 
+type GetEraRateFlow struct {
+	Symbol core.RSymbol
+	Era    types.U32
+	Rate   chan uint64
+}
+
 type SubmitSignatures struct {
 	Symbol     core.RSymbol
 	Era        types.U32

@@ -4,11 +4,13 @@
 package matic
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -615,7 +617,53 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 			}
 			bondFlow.ReportActive = types.NewU128(*active)
 			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "active", active, "txHash", txHash)
-			return w.activeReport(txHash, bondFlow)
+			err = w.activeReport(txHash, bondFlow)
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough activeReport error %s shre %s pool %s", err, to, poolAddr)
+			}
+
+			// report rate on evm
+			rate, err := w.mustGetEraRateFromStafi(snap.Symbol, types.U32(snap.Era))
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough mustGetEraRateFromStafi error %s shre %s pool %s", err, to, poolAddr)
+			}
+
+			evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
+			proposalId := getProposalId(snap.Era, evmRate, 0)
+			proposal, err := w.conn.stakePortalContract.Proposals(&bind.CallOpts{}, proposalId)
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough Proposals error %s shre %s pool %s", err, to, poolAddr)
+			}
+			if proposal.Status == 2 { // success status
+				return nil
+			}
+			hasVoted, err := w.conn.stakePortalContract.HasVoted(&bind.CallOpts{}, proposalId, w.conn.conn.Opts().From)
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough HasVoted error %s shre %s pool %s", err, to, poolAddr)
+			}
+			if hasVoted {
+				return nil
+			}
+
+			// send tx
+			err = w.conn.conn.LockAndUpdateOpts(totalGas, big.NewInt(0))
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough LockAndUpdateOpts error %s shre %s pool %s", err, to, poolAddr)
+			}
+			voteTx, err := w.conn.stakePortalContract.VoteRate(w.conn.conn.Opts(), proposalId, evmRate)
+			w.conn.conn.UnlockOpts()
+
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough VoteRate error %s shre %s pool %s", err, to, poolAddr)
+			}
+
+			err = w.waitTxOk(voteTx.Hash())
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough waitTxOk error %s shre %s pool %s", err, to, poolAddr)
+			}
+
+			return w.waitRateUpdated(proposalId)
+
 		case submodel.OriginalWithdrawUnbond, submodel.OriginalTransfer:
 			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "txHash", txHash)
 			return w.reportMultiEventResult(txHash, mef)
@@ -655,6 +703,10 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 	}
 
 	return report()
+}
+
+func getProposalId(era uint32, rate *big.Int, factor int) common.Hash {
+	return crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-%s-%s-%d", era, "voteRate", rate.String(), factor)))
 }
 
 func (w *writer) reportMultiEventResult(txHash common.Hash, mef *submodel.MultiEventFlow) error {
@@ -756,4 +808,99 @@ func (h *writer) getSignatureFromStafi(param *submodel.GetSubmitSignaturesFlow) 
 	case sigs := <-param.Signatures:
 		return sigs, nil
 	}
+}
+
+func (h *writer) mustGetEraRateFromStafi(symbol core.RSymbol, era types.U32) (rate uint64, err error) {
+	flow := submodel.GetEraRateFlow{
+		Symbol: symbol,
+		Era:    era,
+		Rate:   make(chan uint64, 1),
+	}
+
+	for {
+		sigs, err := h.getEraRateFromStafi(&flow)
+		if err != nil {
+			h.log.Debug("mustGetEraRateFromStafi failed, will retry.", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+		if sigs == 0 {
+			h.log.Debug("mustGetEraRateFromStafi rate zero, will retry.")
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+		return sigs, nil
+	}
+}
+
+func (h *writer) getEraRateFromStafi(param *submodel.GetEraRateFlow) (rate uint64, err error) {
+	msg := core.Message{
+		Source:      h.conn.symbol,
+		Destination: core.RFIS,
+		Reason:      core.GetEraRate,
+		Content:     param,
+	}
+	err = h.router.Send(&msg)
+	if err != nil {
+		return 0, err
+	}
+
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+
+	h.log.Debug("wait getEraRateFromStafi from stafi", "rSymbol", h.conn.symbol)
+	select {
+	case <-timer.C:
+		return 0, fmt.Errorf("get getEraRateFromStafi from stafi timeout")
+	case sigs := <-param.Rate:
+		return sigs, nil
+	}
+}
+
+func (task *writer) waitTxOk(txHash common.Hash) error {
+	retry := 0
+	for {
+		if retry > BlockRetryLimit*3 {
+			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
+		}
+		tx, pending, err := task.conn.conn.TransactionByHash(context.Background(), txHash)
+		if err == nil && !pending {
+			break
+		} else {
+			if err != nil {
+				task.log.Warn("tx status", "hash", tx.Hash(), "err", err.Error())
+			} else {
+				task.log.Warn("tx status", "hash", tx.Hash(), "status", "pending")
+			}
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+
+	}
+	task.log.Info("tx send ok", "tx", txHash.String())
+	return nil
+}
+
+func (task *writer) waitRateUpdated(proposalId [32]byte) error {
+	retry := 0
+	for {
+		if retry > BlockRetryLimit*3 {
+			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
+		}
+
+		proposal, err := task.conn.stakePortalContract.Proposals(&bind.CallOpts{}, proposalId)
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+		if proposal.Status != 2 {
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+		break
+	}
+	return nil
 }

@@ -1,7 +1,6 @@
 package substrate
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -38,21 +37,25 @@ func TestSarpcClient_GetChainEvents(t *testing.T) {
 	//	t.Log(e.EventId)
 	//}
 
-	wg := sync.WaitGroup{}
-	for i := 746800; i <= 746824; i++ {
-		t.Log("i", i)
-		j := i
-		wg.Add(1)
-		go func() {
-			_, err := sc.GetEvents(uint64(j))
-			if err != nil {
-				time.Sleep(time.Second)
-				t.Log(err)
-			}
-			wg.Done()
-		}()
+	// wg := sync.WaitGroup{}
+	for i := 2080998; i <= 2081010; i++ {
+		// t.Log("i", i)
+		// j := i
+		// wg.Add(1)
+		// go func() {
+		events, err := sc.GetEvents(uint64(i))
+		if err != nil {
+			time.Sleep(time.Second)
+			t.Log(err)
+		}
+		for _, e := range events {
+
+			t.Log(i, e)
+		}
+		// 	wg.Done()
+		// }()
 	}
-	wg.Wait()
+	// wg.Wait()
 
 }
 

@@ -112,6 +112,25 @@ func (c *Connection) GetEraNominated(symbol core.RSymbol, pool []byte, era uint3
 	return validators, nil
 }
 
+func (sc *Connection) GetEraRate(symbol core.RSymbol, era types.U32) (rate uint64, err error) {
+	symBz, err := types.EncodeToBytes(symbol)
+	if err != nil {
+		return 0, err
+	}
+	eraIndex, err := types.EncodeToBytes(era)
+	if err != nil {
+		return 0, err
+	}
+	exists, err := sc.QueryStorage(config.RTokenRateModuleId, config.StorageEraRate, symBz, eraIndex, &rate)
+	if err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, ErrorNotExist
+	}
+	return rate, nil
+}
+
 func (c *Connection) CurrentChainEra(sym core.RSymbol) (uint32, error) {
 	symBz, err := types.EncodeToBytes(sym)
 	if err != nil {

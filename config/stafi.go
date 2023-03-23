@@ -2,6 +2,7 @@ package config
 
 const (
 	RTokenSeriesModuleId     = "RTokenSeries"
+	RTokenRateModuleId       = "RTokenRate"
 	LiquidityBondEventId     = "LiquidityBond"
 	NominationUpdatedEventId = "NominationUpdated"
 	ValidatorUpdatedEventId  = "ValidatorUpdated"
@@ -44,6 +45,7 @@ const (
 	StorageBondedPools                        = "BondedPools"
 	StorageSnapshots                          = "Snapshots"
 	StoragePoolUnbonds                        = "PoolUnbonds"
+	StorageEraRate                            = "EraRate"
 	SignaturesEnoughEventId                   = "SignaturesEnough"
 	StorageSignatures                         = "Signatures"
 	SubmitSignatures                          = "RTokenSeries.submit_signatures"

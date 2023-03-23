@@ -98,6 +98,27 @@ func (w *writer) processGetPoolThreshold(m *core.Message) bool {
 	return true
 }
 
+func (w *writer) processGetEraRate(m *core.Message) bool {
+	flow, ok := m.Content.(*submodel.GetEraRateFlow)
+	if !ok {
+		w.printContentError(m)
+		return false
+	}
+
+	rate, err := w.conn.GetEraRate(flow.Symbol, flow.Era)
+	if err != nil {
+		if err.Error() == ErrorNotExist.Error() {
+			flow.Rate <- 0
+			return true
+		}
+		flow.Rate <- 0
+		return false
+	}
+
+	flow.Rate <- rate
+	return true
+}
+
 func (w *writer) processSubmitSignature(m *core.Message) bool {
 	param, ok := m.Content.(submodel.SubmitSignatureParams)
 	if !ok {

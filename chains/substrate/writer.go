@@ -150,6 +150,9 @@ func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
 	case core.GetPoolThreshold:
 		go w.processGetPoolThreshold(m)
 		return true
+	case core.GetEraRate:
+		go w.processGetEraRate(m)
+		return true
 	default:
 		w.log.Warn("message reason unsupported", "reason", m.Reason)
 		return false
