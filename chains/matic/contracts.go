@@ -9,6 +9,7 @@ import (
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
 	stake_portal_with_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20PortalWithRate"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
+	stake_portal_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakePortalRate"
 )
 
 func initStakeManager(stakeManagerCfg interface{}, conn *ethclient.Client) (*StakeManager.StakeManager, common.Address, error) {
@@ -31,6 +32,18 @@ func initStakePortal(stakeManagerCfg interface{}, conn *ethclient.Client) (*stak
 		return nil, errors.New("StakeERC20Portal not ok")
 	}
 	stakePortal, err := stake_portal.NewStakeERC20Portal(common.HexToAddress(stakePortalAddr), conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return stakePortal, nil
+}
+func initPolygonStakePortalRate(stakeManagerCfg interface{}, conn *ethclient.Client) (*stake_portal_rate.StakePortalRate, error) {
+	stakePortalAddr, ok := stakeManagerCfg.(string)
+	if !ok {
+		return nil, errors.New("StakeERC20Portal not ok")
+	}
+	stakePortal, err := stake_portal_rate.NewStakePortalRate(common.HexToAddress(stakePortalAddr), conn)
 	if err != nil {
 		return nil, err
 	}

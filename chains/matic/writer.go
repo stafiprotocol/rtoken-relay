@@ -630,39 +630,24 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 
 			evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
 			proposalId := getProposalId(snap.Era, evmRate, 0)
-			proposal, err := w.conn.stakePortalWithRateContract.Proposals(&bind.CallOpts{}, proposalId)
-			if err != nil {
-				return fmt.Errorf("processSignatureEnough Proposals error %s shre %s pool %s", err, to, poolAddr)
-			}
-			if proposal.Status == 2 { // success status
-				return nil
-			}
-			hasVoted, err := w.conn.stakePortalWithRateContract.HasVoted(&bind.CallOpts{}, proposalId, w.conn.conn.Opts().From)
-			if err != nil {
-				return fmt.Errorf("processSignatureEnough HasVoted error %s shre %s pool %s", err, to, poolAddr)
-			}
-			if hasVoted {
-				return nil
+
+			// evm rate
+			if w.conn.stakePortalWithRateContract != nil {
+				err := w.evmVoteRate(proposalId, evmRate)
+				if err != nil {
+					return err
+				}
 			}
 
-			// send tx
-			err = w.conn.conn.LockAndUpdateOpts(totalGas, big.NewInt(0))
-			if err != nil {
-				return fmt.Errorf("processSignatureEnough LockAndUpdateOpts error %s shre %s pool %s", err, to, poolAddr)
-			}
-			voteTx, err := w.conn.stakePortalWithRateContract.VoteRate(w.conn.conn.Opts(), proposalId, evmRate)
-			w.conn.conn.UnlockOpts()
-
-			if err != nil {
-				return fmt.Errorf("processSignatureEnough VoteRate error %s shre %s pool %s", err, to, poolAddr)
+			// polygon rate
+			if w.conn.polygonStakePortalRateContract != nil {
+				err := w.polygonVoteRate(proposalId, evmRate)
+				if err != nil {
+					return err
+				}
 			}
 
-			err = w.waitTxOk(voteTx.Hash())
-			if err != nil {
-				return fmt.Errorf("processSignatureEnough waitTxOk error %s shre %s pool %s", err, to, poolAddr)
-			}
-
-			return w.waitRateUpdated(proposalId)
+			return nil
 
 		case submodel.OriginalWithdrawUnbond, submodel.OriginalTransfer:
 			w.log.Info("processSignatureEnough ok", "pool", poolAddr, "txHash", txHash)
@@ -703,6 +688,86 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 	}
 
 	return report()
+}
+
+func (w *writer) evmVoteRate(proposalId [32]byte, evmRate *big.Int) error {
+	proposal, err := w.conn.stakePortalWithRateContract.Proposals(&bind.CallOpts{}, proposalId)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough Proposals error %s ", err)
+	}
+	if proposal.Status == 2 { // success status
+		return nil
+	}
+	hasVoted, err := w.conn.stakePortalWithRateContract.HasVoted(&bind.CallOpts{}, proposalId, w.conn.conn.Opts().From)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough HasVoted error %s", err)
+	}
+	if hasVoted {
+		return nil
+	}
+
+	// send tx
+	err = w.conn.conn.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough LockAndUpdateOpts error %s", err)
+	}
+	defer w.conn.conn.UnlockOpts()
+
+	voteTx, err := w.conn.stakePortalWithRateContract.VoteRate(w.conn.conn.Opts(), proposalId, evmRate)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough VoteRate error %s", err)
+	}
+
+	err = w.waitTxOk(voteTx.Hash())
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough waitTxOk error %s", err)
+	}
+
+	err = w.waitRateUpdated(proposalId)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough waitRateUpdated error %s", err)
+	}
+	return nil
+}
+
+func (w *writer) polygonVoteRate(proposalId [32]byte, evmRate *big.Int) error {
+	proposal, err := w.conn.polygonStakePortalRateContract.Proposals(&bind.CallOpts{}, proposalId)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough Proposals error %s ", err)
+	}
+	if proposal.Status == 2 { // success status
+		return nil
+	}
+	hasVoted, err := w.conn.polygonStakePortalRateContract.HasVoted(&bind.CallOpts{}, proposalId, w.conn.polygonConn.Opts().From)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough HasVoted error %s", err)
+	}
+	if hasVoted {
+		return nil
+	}
+
+	// send tx
+	err = w.conn.polygonConn.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough LockAndUpdateOpts error %s", err)
+	}
+	w.conn.polygonConn.UnlockOpts()
+
+	voteTx, err := w.conn.polygonStakePortalRateContract.VoteRate(w.conn.polygonConn.Opts(), proposalId, evmRate)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough VoteRate error %s", err)
+	}
+
+	err = w.waitPolygonTxOk(voteTx.Hash())
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough waitTxOk error %s", err)
+	}
+
+	err = w.waitPolygonRateUpdated(proposalId)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough waitRateUpdated error %s", err)
+	}
+	return nil
 }
 
 func getProposalId(era uint32, rate *big.Int, factor int) common.Hash {
@@ -861,7 +926,7 @@ func (task *writer) waitTxOk(txHash common.Hash) error {
 	retry := 0
 	for {
 		if retry > BlockRetryLimit*3 {
-			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
+			return fmt.Errorf("waitTxOk reach retry limit")
 		}
 		_, pending, err := task.conn.conn.TransactionByHash(context.Background(), txHash)
 		if err == nil && !pending {
@@ -886,10 +951,58 @@ func (task *writer) waitRateUpdated(proposalId [32]byte) error {
 	retry := 0
 	for {
 		if retry > BlockRetryLimit*3 {
-			return fmt.Errorf("networkBalancesContract.SubmitBalances tx reach retry limit")
+			return fmt.Errorf("waitRateUpdated tx reach retry limit")
 		}
 
 		proposal, err := task.conn.stakePortalWithRateContract.Proposals(&bind.CallOpts{}, proposalId)
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+		if proposal.Status != 2 {
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+		break
+	}
+	return nil
+}
+
+func (task *writer) waitPolygonTxOk(txHash common.Hash) error {
+	retry := 0
+	for {
+		if retry > BlockRetryLimit*3 {
+			return fmt.Errorf("waitPolygonTxOk tx reach retry limit")
+		}
+		_, pending, err := task.conn.polygonConn.TransactionByHash(context.Background(), txHash)
+		if err == nil && !pending {
+			break
+		} else {
+			if err != nil {
+				task.log.Warn("tx status", "hash", txHash, "err", err.Error())
+			} else {
+				task.log.Warn("tx status", "hash", txHash, "status", "pending")
+			}
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+
+	}
+	task.log.Info("tx send ok", "tx", txHash.String())
+	return nil
+}
+
+func (task *writer) waitPolygonRateUpdated(proposalId [32]byte) error {
+	retry := 0
+	for {
+		if retry > BlockRetryLimit*3 {
+			return fmt.Errorf("waitPolygonRateUpdated tx reach retry limit")
+		}
+
+		proposal, err := task.conn.polygonStakePortalRateContract.Proposals(&bind.CallOpts{}, proposalId)
 		if err != nil {
 			time.Sleep(BlockRetryInterval)
 			retry++

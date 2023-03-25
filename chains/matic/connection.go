@@ -24,6 +24,7 @@ import (
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20Portal"
 	stake_portal_with_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakeERC20PortalWithRate"
 	"github.com/stafiprotocol/rtoken-relay/bindings/StakeManager"
+	stake_portal_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakePortalRate"
 	"github.com/stafiprotocol/rtoken-relay/bindings/ValidatorShare"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
@@ -58,6 +59,8 @@ type Connection struct {
 	log    core.Logger
 	stop   <-chan int
 
+	polygonConn *ethereum.Client
+
 	stateManagerContract common.Address
 	maticTokenContract   common.Address
 	multiSendContract    common.Address
@@ -66,7 +69,9 @@ type Connection struct {
 	maticToken                  *MaticToken.MaticToken
 	stakePortalContract         *stake_portal.StakeERC20Portal
 	stakePortalWithRateContract *stake_portal_with_rate.StakeERC20PortalWithRate
-	isMainnet                   bool
+
+	polygonStakePortalRateContract *stake_portal_rate.StakePortalRate
+	isMainnet                      bool
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
@@ -108,6 +113,7 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 	if err := conn.Connect(); err != nil {
 		return nil, err
 	}
+
 	stakeManager, stateManagerContract, err := initStakeManager(cfg.Opts["StakeManagerContract"], client)
 	if err != nil {
 		return nil, err
@@ -125,9 +131,12 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, err
 	}
 
-	stakePortalWithRate, err := initStakePortalWithRate(cfg.Opts["StakePortalWithRateContract"], client)
-	if err != nil {
-		return nil, err
+	var stakePortalWithRate *stake_portal_with_rate.StakeERC20PortalWithRate
+	if cfg.Opts["StakePortalWithRateContract"] != nil {
+		stakePortalWithRate, err = initStakePortalWithRate(cfg.Opts["StakePortalWithRateContract"], client)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	chainId, err := conn.Client().ChainID(context.Background())
@@ -142,22 +151,47 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		isMainnet = false
 	}
 
+	// polygon
+	polygonEndpointStr, ok := cfg.Opts["polygonEndpoint"].(string)
+	if !ok {
+		return nil, errors.New("polygonEndpoint not ok")
+	}
+
+	polygonConn := ethereum.NewClient(polygonEndpointStr, key, log, big.NewInt(0), big.NewInt(0))
+	if err := polygonConn.Connect(); err != nil {
+		return nil, err
+	}
+	polygonClient, err := ethclient.Dial(polygonEndpointStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var stakePortalRate *stake_portal_rate.StakePortalRate
+	if cfg.Opts["polygonStakePortalRateContract"] != nil {
+		stakePortalRate, err = initPolygonStakePortalRate(cfg.Opts["polygonStakePortalRateContract"], polygonClient)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Connection{
-		url:                         cfg.Endpoint,
-		symbol:                      cfg.Symbol,
-		conn:                        conn,
-		keys:                        keys,
-		addrs:                       addrs,
-		log:                         log,
-		stop:                        stop,
-		stakeManager:                stakeManager,
-		stateManagerContract:        stateManagerContract,
-		maticTokenContract:          maticAddr,
-		maticToken:                  matic,
-		multiSendContract:           multiSendAddr,
-		stakePortalContract:         stakePortal,
-		stakePortalWithRateContract: stakePortalWithRate,
-		isMainnet:                   isMainnet,
+		url:                            cfg.Endpoint,
+		symbol:                         cfg.Symbol,
+		conn:                           conn,
+		keys:                           keys,
+		addrs:                          addrs,
+		log:                            log,
+		stop:                           stop,
+		stakeManager:                   stakeManager,
+		stateManagerContract:           stateManagerContract,
+		maticTokenContract:             maticAddr,
+		maticToken:                     matic,
+		multiSendContract:              multiSendAddr,
+		stakePortalContract:            stakePortal,
+		stakePortalWithRateContract:    stakePortalWithRate,
+		isMainnet:                      isMainnet,
+		polygonConn:                    polygonConn,
+		polygonStakePortalRateContract: stakePortalRate,
 	}, nil
 }
 
