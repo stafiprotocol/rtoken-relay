@@ -165,6 +165,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	poolAddr := common.BytesToAddress(snap.Pool)
 	txType, tx, err := w.conn.BondOrUnbondCall(shareAddr, snap.Bond.Int, snap.Unbond.Int, flow.LeastBond)
 	if err != nil {
+		// use new bond report
 		if err.Error() == substrate.ErrorBondEqualToUnbond.Error() {
 			w.log.Info("BondOrUnbondCall ErrorBondEqualToUnbond", "symbol", snap.Symbol, "era", snap.Era)
 			flow.BondCall = &submodel.BondCall{
@@ -184,6 +185,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		}
 	}
 
+	// use bond and report active
 	flow.BondCall = &submodel.BondCall{
 		ReportType: submodel.BondAndReportActive,
 		Action:     submodel.BothBondUnbond,
@@ -600,7 +602,39 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 				return fmt.Errorf("processSignatureEnough: RewardByTxHash error %s txHash %s pool %s", err, txHash, poolAddr)
 			}
 			w.log.Info("processSignatureEnough ok", "active", flow.Active, "txHash", txHash, "pool", poolAddr)
-			return w.reportMultiEventResult(txHash, mef)
+			err = w.reportMultiEventResult(txHash, mef)
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough: reportMultiEventResult error %s txHash %s pool %s", err, txHash, poolAddr)
+			}
+
+			// bond and report active case
+			// report rate on evm
+			snap := flow.Snap
+			rate, err := w.mustGetEraRateFromStafi(snap.Symbol, types.U32(snap.Era))
+			if err != nil {
+				return fmt.Errorf("processSignatureEnough mustGetEraRateFromStafi error %s shre %s pool %s", err, to, poolAddr)
+			}
+
+			evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
+			proposalId := getProposalId(snap.Era, evmRate, 0)
+
+			// evm rate
+			if w.conn.stakePortalWithRateContract != nil {
+				err := w.evmVoteRate(proposalId, evmRate)
+				if err != nil {
+					return err
+				}
+			}
+
+			// polygon rate
+			if w.conn.polygonStakePortalRateContract != nil {
+				err := w.polygonVoteRate(proposalId, evmRate)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
 		case submodel.OriginalClaimRewards:
 			active, err := w.conn.TotalStaked(to, poolAddr)
 			if err != nil {
@@ -622,6 +656,7 @@ func (w *writer) processSignatureEnough(sigs *submodel.SubmitSignatures, shareAd
 				return fmt.Errorf("processSignatureEnough activeReport error %s shre %s pool %s", err, to, poolAddr)
 			}
 
+			// new bond report case
 			// report rate on evm
 			rate, err := w.mustGetEraRateFromStafi(snap.Symbol, types.U32(snap.Era))
 			if err != nil {
