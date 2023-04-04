@@ -7,7 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.23
 	github.com/gorilla/websocket v1.5.0
 	github.com/huandu/xstrings v1.3.2
-	github.com/itering/scale.go v1.5.8
+	github.com/itering/scale.go v1.5.11
 	github.com/itering/substrate-api-rpc v0.4.15
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/mr-tron/base58 v1.2.0
@@ -23,8 +23,8 @@ require (
 	github.com/stafiprotocol/solana-go-sdk v1.3.0
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli/v2 v2.10.2
-	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2
-	golang.org/x/term v0.3.0
+	golang.org/x/crypto v0.6.0
+	golang.org/x/term v0.5.0
 )
 
 require (
@@ -117,10 +117,9 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e // indirect
-	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20220805133916-01dd62135a58 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
