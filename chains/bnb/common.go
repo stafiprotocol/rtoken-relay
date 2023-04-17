@@ -2,6 +2,7 @@ package bnb
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -316,29 +317,41 @@ func (w *writer) findRealRewardAmountClaimed(multisigOnchain *multisig_onchain.M
 }
 
 func (w *writer) findRealUndelegatedAmountClaimed(multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
-	proposalExectedIterator, err := multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
-		Start:   targetHeight,
-		Context: context.Background(),
-	}, [][32]byte{proposalId})
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
-	}
-	for proposalExectedIterator.Next() {
-		rewardClaimedIterator, err := w.conn.stakingContract.FilterUndelegatedClaimed(&bind.FilterOpts{
-			Start:   proposalExectedIterator.Event.Raw.BlockNumber,
-			End:     &proposalExectedIterator.Event.Raw.BlockNumber,
-			Context: context.Background(),
-		}, []common.Address{poolAddr})
-		if err != nil {
-			return nil, 0, errors.Wrap(err, "stakingContract.FilterUndelegatedClaimed")
+
+	retry := 0
+	for {
+		if retry > GetRetryLimit {
+			return nil, 0, fmt.Errorf("findRealUndelegatedAmountClaimed reach retry limit")
 		}
-		for rewardClaimedIterator.Next() {
-			if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
-				return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
+
+		proposalExectedIterator, err := multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
+			Start:   targetHeight,
+			Context: context.Background(),
+		}, [][32]byte{proposalId})
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
+		}
+		for proposalExectedIterator.Next() {
+			rewardClaimedIterator, err := w.conn.stakingContract.FilterUndelegatedClaimed(&bind.FilterOpts{
+				Start:   proposalExectedIterator.Event.Raw.BlockNumber,
+				End:     &proposalExectedIterator.Event.Raw.BlockNumber,
+				Context: context.Background(),
+			}, []common.Address{poolAddr})
+			if err != nil {
+				return nil, 0, errors.Wrap(err, "stakingContract.FilterUndelegatedClaimed")
+			}
+			for rewardClaimedIterator.Next() {
+				if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
+					return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
+				}
 			}
 		}
+
+		w.log.Warn("not find undelegated claim event, will retry", "prosposalId", hex.EncodeToString(proposalId[:]))
+		time.Sleep(WaitInterval)
+		retry++
+		continue
 	}
-	return nil, 0, fmt.Errorf("not find undelegated claim event")
 }
 
 func (w *writer) submitProposal(client *ethereum.Client, multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, proposalBts []byte) error {
