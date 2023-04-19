@@ -560,9 +560,9 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	// ----- bond and active report with pending value
 	w.log.Debug("bond and active report with pending value")
 	// got current total staked amount
-	staked, err := w.staked(poolAddr)
+	staked, err := w.stakedAndCheck(poolAddr, willDelegateAmountDeci.BigInt(), willUnDelegateAmountDeci.BigInt(), targetHeight)
 	if err != nil {
-		return errors.Wrap(err, "get total staked failed")
+		return errors.Wrap(err, "stakedAndCheck failed")
 	}
 	stakedDeci := decimal.NewFromBigInt(staked, 0)
 	if stakedDeci.IsNegative() {

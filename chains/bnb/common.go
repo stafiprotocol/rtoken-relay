@@ -282,11 +282,58 @@ func (w *writer) unbondable(totalAmount, relayerFee, bscRelayerFee, leastBond de
 	return true, nil
 }
 
-func (w *writer) staked(poolAddr common.Address) (*big.Int, error) {
+func (w *writer) stakedAndCheck(poolAddr common.Address, willDelegateAmount, willUnDelegateAmount *big.Int, targetHeight int64) (*big.Int, error) {
+	var nowStaked *big.Int
+	var oldStaked *big.Int
+	var err error
+	retry := 0
+	for {
+		if retry > GetRetryLimit*3 {
+			return nil, fmt.Errorf("stakedAndCheck reach retry limit")
+		}
+		nowStaked, err = w.staked(poolAddr, nil)
+		if err != nil {
+			w.log.Warn("get now staked err %s, will retry", err)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		oldStaked, err = w.staked(poolAddr, big.NewInt(targetHeight))
+		if err != nil {
+			w.log.Warn("get old staked err %s, will retry, targetheight: %d", err, targetHeight)
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		if willDelegateAmount.Sign() > 0 {
+			if nowStaked.Cmp(oldStaked) <= 0 {
+				w.log.Warn("now staked should big than old staked, will retry")
+				time.Sleep(WaitInterval)
+				retry++
+				continue
+			}
+		}
+		if willUnDelegateAmount.Sign() > 0 {
+			if oldStaked.Cmp(nowStaked) <= 0 {
+				w.log.Warn("old staked should big than now staked, will retry")
+				time.Sleep(WaitInterval)
+				retry++
+				continue
+			}
+		}
+		break
+	}
+	return nowStaked, nil
+
+}
+
+func (w *writer) staked(poolAddr common.Address, height *big.Int) (*big.Int, error) {
 	delegator := poolAddr
 	return w.conn.stakingContract.GetTotalDelegated(&bind.CallOpts{
-		From:    delegator,
-		Context: context.Background(),
+		From:        delegator,
+		Context:     context.Background(),
+		BlockNumber: height,
 	}, delegator)
 }
 
@@ -475,23 +522,33 @@ func (w *writer) waitDelegateCrossChainOk(poolAddr common.Address, proposalId [3
 			continue
 		}
 
-		delegateSucessIterator, err := w.conn.stakingContract.FilterDelegateSuccess(&bind.FilterOpts{
-			Start:   targetHeight,
-			Context: context.Background(),
-		}, []common.Address{delegator}, validators)
+		subRetry := 0
+		for {
+			if subRetry > GetRetryLimit*2 {
+				return fmt.Errorf("FilterDelegateSuccess reach retry limit")
+			}
+			delegateSucessIterator, err := w.conn.stakingContract.FilterDelegateSuccess(&bind.FilterOpts{
+				Start:   targetHeight,
+				Context: context.Background(),
+			}, []common.Address{delegator}, validators)
 
-		if err != nil {
-			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
-			time.Sleep(WaitInterval)
-			retry++
-			continue
-		}
-		successCount := 0
-		for delegateSucessIterator.Next() {
-			successCount++
-		}
-		if successCount != len(validators) {
-			return fmt.Errorf("some validators delegate failed, pool: %s", poolAddr.String())
+			if err != nil {
+				w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
+				time.Sleep(WaitInterval)
+				subRetry++
+				continue
+			}
+			successCount := 0
+			for delegateSucessIterator.Next() {
+				successCount++
+			}
+			if successCount != len(validators) {
+				w.log.Warn("filter some validators delegate failed,will retry, pool: %s", poolAddr.String())
+				time.Sleep(WaitInterval)
+				subRetry++
+				continue
+			}
+			break
 		}
 
 		return nil
@@ -524,25 +581,36 @@ func (w *writer) waitUnDelegateCrossChainOk(poolAddr common.Address, proposalId 
 			continue
 		}
 
-		undelegateSucessIterator, err := w.conn.stakingContract.FilterUndelegateSuccess(&bind.FilterOpts{
-			Start:   targetHeight,
-			Context: context.Background(),
-		}, []common.Address{delegator}, validators)
+		subRetry := 0
+		for {
+			if subRetry > GetRetryLimit*2 {
+				return fmt.Errorf("FilterUnDelegateSuccess reach retry limit")
+			}
 
-		if err != nil {
-			w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
-			time.Sleep(WaitInterval)
-			retry++
-			continue
-		}
-		successCount := 0
-		for undelegateSucessIterator.Next() {
-			successCount++
-		}
-		if successCount != len(validators) {
-			return fmt.Errorf("some validators undelegate failed, pool: %s", poolAddr.String())
-		}
+			undelegateSucessIterator, err := w.conn.stakingContract.FilterUndelegateSuccess(&bind.FilterOpts{
+				Start:   targetHeight,
+				Context: context.Background(),
+			}, []common.Address{delegator}, validators)
 
+			if err != nil {
+				w.log.Warn("FilterDelegateSuccess failed, will retry", "err", err.Error(), "proposalId", hexutil.Encode(proposalId[:]))
+				time.Sleep(WaitInterval)
+				subRetry++
+				continue
+			}
+			successCount := 0
+			for undelegateSucessIterator.Next() {
+				successCount++
+			}
+
+			if successCount != len(validators) {
+				w.log.Warn("filter some validators undelegate failed,will retry, pool: %s", poolAddr.String())
+				time.Sleep(WaitInterval)
+				subRetry++
+				continue
+			}
+			break
+		}
 		return nil
 	}
 }
