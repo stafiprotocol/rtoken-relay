@@ -423,6 +423,10 @@ func (w *writer) submitProposal(client *ethereum.Client, multisigOnchain *multis
 		} else {
 			if err != nil {
 				w.log.Warn("tx status", "hash", tx.Hash(), "err", err.Error())
+				reTx, err := multisigOnchain.ExecTransactions(client.Opts(), proposalId, proposalBts)
+				if err == nil {
+					tx = reTx
+				}
 			} else {
 				w.log.Warn("tx status", "hash", tx.Hash(), "status", "pending")
 			}
