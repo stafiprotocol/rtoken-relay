@@ -4,7 +4,6 @@
 package bnb
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -12,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
@@ -236,11 +234,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 		return errors.Wrap(err, "GetHeightByEra")
 	}
 
-	minDelegation, err := w.conn.stakingContract.GetMinDelegation(&bind.CallOpts{
-		From:        poolAddr,
-		BlockNumber: big.NewInt(targetHeight),
-		Context:     context.Background(),
-	})
+	minDelegation, err := w.conn.GetMinDelegation(poolAddr, targetHeight)
 	if err != nil {
 		return errors.Wrap(err, "GetMinDelegation")
 	}
@@ -265,17 +259,12 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	//-------- claim reward on bsc
 	w.log.Debug("claim reward on bsc", "staking-contract-minDelegate", leastBondDeci.StringFixed(0))
-	rewardOnBsc, err := w.conn.stakingContract.GetDistributedReward(&bind.CallOpts{
-		From:        poolAddr,
-		BlockNumber: big.NewInt(targetHeight),
-		Context:     context.Background(),
-	}, poolAddr)
+	rewardOnBsc, err := w.conn.GetDistributedReward(poolAddr, targetHeight)
 	if err != nil {
 		return errors.Wrap(err, "stakingContract.GetDistributedReward")
 	}
 
 	if rewardOnBsc.Sign() > 0 {
-
 		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "claimReward", 0)
 		for _, client := range localAccountClients {
 			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
@@ -315,11 +304,7 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	//---- claim undelegated
 	w.log.Debug("claim undelegated")
-	undelegatedAmount, err := w.conn.stakingContract.GetUndelegated(&bind.CallOpts{
-		From:        poolAddr,
-		BlockNumber: big.NewInt(targetHeight),
-		Context:     context.Background(),
-	}, poolAddr)
+	undelegatedAmount, err := w.conn.GetUndelegated(poolAddr, targetHeight)
 	if err != nil {
 		return errors.Wrap(err, "stakingContract.GetUndelegated")
 	}
@@ -362,27 +347,19 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 
 	//------ balance of pool on target height
 	w.log.Debug("balance of pool on target height")
-	poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, big.NewInt(targetHeight))
+	poolBalance, err := w.conn.BalanceAt(poolAddr, big.NewInt(targetHeight))
 	if err != nil {
 		return errors.Wrap(err, "pool balance get failed")
 	}
 	poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
 
-	relayerFee, err := w.conn.stakingContract.GetRelayerFee(&bind.CallOpts{
-		From:        poolAddr,
-		BlockNumber: big.NewInt(targetHeight),
-		Context:     context.Background(),
-	})
+	relayerFee, err := w.conn.GetRelayerFee(poolAddr, targetHeight)
 	if err != nil {
 		return errors.Wrap(err, "stakingContract.GetRelayerFee")
 	}
 	relayerFeeDeci := decimal.NewFromBigInt(relayerFee, 0)
 
-	bscRelayerFee, err := w.conn.stakingContract.BSCRelayerFee((&bind.CallOpts{
-		From:        poolAddr,
-		BlockNumber: big.NewInt(targetHeight),
-		Context:     context.Background(),
-	}))
+	bscRelayerFee, err := w.conn.BSCRelayerFee(poolAddr, targetHeight)
 	if err != nil {
 		return errors.Wrap(err, "stakingContract.BSCRelayerFee")
 	}
@@ -502,60 +479,6 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 			return errors.Wrap(err, "waitUnDelegateCrossChainOk")
 		}
 	}
-	// deal unbond of old pool during migrate
-	if snap.Era == 1363 || snap.Era == 1368 || snap.Era == 1369 {
-		if len(mef.BnbReceives) == 0 {
-			return errors.New("receives from old pool empty")
-		}
-		proposalId := getProposalId(snap.Era, "processEraPoolUpdated", "migrate", 0)
-		for _, client := range localAccountClients {
-			needSend, err := needSendProposal(client, multisigOnchainContract, proposalId)
-			if err != nil {
-				return errors.Wrap(err, "needSendProposal")
-			}
-			proposalBts, totalAmountDeci, err := w.getTransferProposal(poolAddr, mef.BnbReceives)
-			if err != nil {
-				return errors.Wrap(err, "getTransferProposal")
-			}
-			w.log.Info("processEraPoolUpdated old pool unbond receives detail", "poolAddr", poolAddr, "proposalId", hex.EncodeToString(proposalId[:]),
-				"totalAmount", totalAmountDeci.StringFixed(0), "receives", utils.StrReceives(mef.BnbReceives), "needSend", needSend)
-			if needSend {
-				for {
-					poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
-					if err != nil {
-						return errors.Wrap(err, "BalanceAt")
-					}
-					poolBalanceDeci := decimal.NewFromBigInt(poolBalance, 0)
-
-					w.log.Debug("needSendProposal", "totalAmount", totalAmountDeci.StringFixed(0), "poolBalance", poolBalanceDeci.StringFixed(0))
-					if poolBalanceDeci.LessThanOrEqual(totalAmountDeci) {
-						// check again
-						needSend, err = needSendProposal(client, multisigOnchainContract, proposalId)
-						if err != nil {
-							return errors.Wrap(err, "needSendProposal")
-						}
-						if needSend {
-							time.Sleep(WaitInterval)
-							w.log.Warn("pool balance not enough will wait",
-								"pool", poolAddr.String(), "balance", poolBalanceDeci.String(), "totalTransferAmount", totalAmountDeci.StringFixed(0))
-							continue
-						}
-						break
-					}
-					break
-				}
-
-				err = w.submitProposal(client, multisigOnchainContract, proposalId, proposalBts)
-				if err != nil {
-					return errors.Wrap(err, "submitProposal")
-				}
-			}
-		}
-		err = w.waitProposalExecuted(multisigOnchainContract, proposalId)
-		if err != nil {
-			return errors.Wrap(err, "waitProposalExecuted")
-		}
-	}
 
 	// ----- bond and active report with pending value
 	w.log.Debug("bond and active report with pending value")
@@ -638,7 +561,7 @@ func (w *writer) processActiveReported(m *core.Message) error {
 			"totalAmount", totalAmountDeci.StringFixed(0), "receives", utils.StrReceives(flow.Receives), "needSend", needSend)
 		if needSend {
 			for {
-				poolBalance, err := w.conn.queryClient.Client().BalanceAt(context.Background(), poolAddr, nil)
+				poolBalance, err := w.conn.BalanceAt(poolAddr, nil)
 				if err != nil {
 					return errors.Wrap(err, "BalanceAt")
 				}

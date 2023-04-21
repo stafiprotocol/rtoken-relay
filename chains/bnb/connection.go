@@ -229,12 +229,253 @@ func (c *Connection) LatestBlock() (uint64, error) {
 }
 
 func (c *Connection) QueryBlock(number int64) (*types.Block, error) {
-	blk, err := c.queryClient.Client().BlockByNumber(context.Background(), big.NewInt(number))
-	if err != nil {
-		return nil, err
+	retry := 0
+	var err error
+	var blk *types.Block
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("BlockByNumber reach retry limit, err: %s", err.Error())
+		}
+
+		blk, err = c.queryClient.Client().BlockByNumber(context.Background(), big.NewInt(number))
+		if err != nil {
+			c.log.Warn("BlockByNumber failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
 	}
 
 	return blk, nil
+}
+
+func (c *Connection) LatestBlockAndTimestamp() (uint64, uint64, error) {
+	retry := 0
+	var err error
+	var blockNumber uint64
+	var timestamp uint64
+	for {
+		if retry > GetRetryLimit {
+			return 0, 0, fmt.Errorf("LatestBlockAndTimestamp reach retry limit, err: %s", err.Error())
+		}
+
+		blockNumber, timestamp, err = c.queryClient.LatestBlockAndTimestamp()
+		if err != nil {
+			c.log.Warn("LatestBlockAndTimestamp failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return blockNumber, timestamp, nil
+}
+
+func (c *Connection) GetMinDelegation(poolAddr common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var minDelegation *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("GetMinDelegation reach retry limit, err: %s", err.Error())
+		}
+
+		minDelegation, err = c.stakingContract.GetMinDelegation(&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		})
+		if err != nil {
+			c.log.Warn("GetMinDelegation failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return minDelegation, nil
+}
+
+func (c *Connection) GetDistributedReward(poolAddr common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var rewardOnBsc *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("GetDistributedReward reach retry limit, err: %s", err.Error())
+		}
+		rewardOnBsc, err = c.stakingContract.GetDistributedReward(&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		}, poolAddr)
+		if err != nil {
+			c.log.Warn("GetDistributedReward failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return rewardOnBsc, nil
+}
+
+func (c *Connection) GetUndelegated(poolAddr common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var undelegatedAmount *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("GetUndelegated reach retry limit, err: %s", err.Error())
+		}
+		undelegatedAmount, err = c.stakingContract.GetUndelegated(&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		}, poolAddr)
+		if err != nil {
+			c.log.Warn("GetUndelegated failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return undelegatedAmount, nil
+}
+
+func (c *Connection) GetDelegated(poolAddr, delegator, v common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var delegatedAmount *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("GetDelegated reach retry limit, err: %s", err.Error())
+		}
+		delegatedAmount, err = c.stakingContract.GetDelegated(&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		}, delegator, v)
+		if err != nil {
+			c.log.Warn("GetDelegated failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return delegatedAmount, nil
+}
+
+func (c *Connection) GetPendingUndelegateTime(poolAddr, delegator, v common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var undelegateTime *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("GetPendingUndelegateTime reach retry limit, err: %s", err.Error())
+		}
+
+		undelegateTime, err = c.stakingContract.GetPendingUndelegateTime(&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		}, delegator, v)
+		if err != nil {
+			c.log.Warn("GetPendingUndelegateTime failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return undelegateTime, nil
+}
+
+func (c *Connection) BalanceAt(poolAddr common.Address, blockHeight *big.Int) (*big.Int, error) {
+	retry := 0
+	var err error
+	var poolBalance *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("BalanceAt reach retry limit, err: %s", err.Error())
+		}
+		poolBalance, err = c.queryClient.Client().BalanceAt(context.Background(), poolAddr, blockHeight)
+		if err != nil {
+			c.log.Warn("BalanceAt failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		break
+	}
+
+	return poolBalance, nil
+}
+
+func (c *Connection) GetRelayerFee(poolAddr common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var relayerFee *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("GetRelayerFee reach retry limit, err: %s", err.Error())
+		}
+		relayerFee, err = c.stakingContract.GetRelayerFee(&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		})
+		if err != nil {
+			c.log.Warn("GetRelayerFee failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		break
+	}
+
+	return relayerFee, nil
+}
+
+func (c *Connection) BSCRelayerFee(poolAddr common.Address, blockHeight int64) (*big.Int, error) {
+	retry := 0
+	var err error
+	var bscRelayerFee *big.Int
+	for {
+		if retry > GetRetryLimit {
+			return nil, fmt.Errorf("BSCRelayerFee reach retry limit, err: %s", err.Error())
+		}
+		bscRelayerFee, err = c.stakingContract.BSCRelayerFee((&bind.CallOpts{
+			From:        poolAddr,
+			BlockNumber: big.NewInt(blockHeight),
+			Context:     context.Background(),
+		}))
+		if err != nil {
+			c.log.Warn("BSCRelayerFee failed will retry", "err", err.Error())
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+		break
+	}
+	return bscRelayerFee, nil
 }
 
 func (c *Connection) GetHeightTimestampByEra(era uint32, eraSeconds, offset int64) (int64, int64, error) {

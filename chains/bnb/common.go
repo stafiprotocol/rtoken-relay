@@ -165,11 +165,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, bscRelayerFee, l
 
 	validatorDelegated := make(map[common.Address]decimal.Decimal)
 	for _, v := range validators {
-		undelegateTime, err := w.conn.stakingContract.GetPendingUndelegateTime(&bind.CallOpts{
-			From:        poolAddr,
-			BlockNumber: big.NewInt(targetBlock),
-			Context:     context.Background(),
-		}, delegator, v)
+		undelegateTime, err := w.conn.GetPendingUndelegateTime(poolAddr, delegator, v, targetBlock)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "stakingContract.GetPendingUndelegateTime")
 		}
@@ -178,11 +174,7 @@ func (w *writer) getUnDelegateProposal(totalAmount, relayerFee, bscRelayerFee, l
 			continue
 		}
 
-		delegatedAmount, err := w.conn.stakingContract.GetDelegated(&bind.CallOpts{
-			From:        poolAddr,
-			BlockNumber: big.NewInt(targetBlock),
-			Context:     context.Background(),
-		}, delegator, v)
+		delegatedAmount, err := w.conn.GetDelegated(poolAddr, delegator, v, targetBlock)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "stakingContract.GetDelegated")
 		}
@@ -338,29 +330,40 @@ func (w *writer) staked(poolAddr common.Address, height *big.Int) (*big.Int, err
 }
 
 func (w *writer) findRealRewardAmountClaimed(multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
-	proposalExectedIterator, err := multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
-		Start:   targetHeight,
-		Context: context.Background(),
-	}, [][32]byte{proposalId})
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
-	}
-	for proposalExectedIterator.Next() {
-		rewardClaimedIterator, err := w.conn.stakingContract.FilterRewardClaimed(&bind.FilterOpts{
-			Start:   proposalExectedIterator.Event.Raw.BlockNumber,
-			End:     &proposalExectedIterator.Event.Raw.BlockNumber,
-			Context: context.Background(),
-		}, []common.Address{poolAddr})
-		if err != nil {
-			return nil, 0, errors.Wrap(err, "stakingContract.FilterRewardClaimed")
+	retry := 0
+	for {
+		if retry > GetRetryLimit {
+			return nil, 0, fmt.Errorf("findRealRewardAmountClaimed reach retry limit")
 		}
-		for rewardClaimedIterator.Next() {
-			if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
-				return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
+
+		proposalExectedIterator, err := multisigOnchain.FilterProposalExecuted(&bind.FilterOpts{
+			Start:   targetHeight,
+			Context: context.Background(),
+		}, [][32]byte{proposalId})
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "multisigOnchain.FilterProposalExecuted")
+		}
+		for proposalExectedIterator.Next() {
+			rewardClaimedIterator, err := w.conn.stakingContract.FilterRewardClaimed(&bind.FilterOpts{
+				Start:   proposalExectedIterator.Event.Raw.BlockNumber,
+				End:     &proposalExectedIterator.Event.Raw.BlockNumber,
+				Context: context.Background(),
+			}, []common.Address{poolAddr})
+			if err != nil {
+				return nil, 0, errors.Wrap(err, "stakingContract.FilterRewardClaimed")
+			}
+			for rewardClaimedIterator.Next() {
+				if rewardClaimedIterator.Event.Raw.TxHash == proposalExectedIterator.Event.Raw.TxHash {
+					return rewardClaimedIterator.Event.Amount, rewardClaimedIterator.Event.Raw.BlockNumber, nil
+				}
 			}
 		}
+
+		w.log.Warn("not find reward claim event, will retry", "prosposalId", hex.EncodeToString(proposalId[:]))
+		time.Sleep(WaitInterval)
+		retry++
+		continue
 	}
-	return nil, 0, fmt.Errorf("not find reward claim event")
 }
 
 func (w *writer) findRealUndelegatedAmountClaimed(multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte, poolAddr common.Address, targetHeight uint64) (*big.Int, uint64, error) {
@@ -440,14 +443,28 @@ func (w *writer) submitProposal(client *ethereum.Client, multisigOnchain *multis
 }
 
 func needSendProposal(client *ethereum.Client, multisigOnchain *multisig_onchain.MultisigOnchain, proposalId [32]byte) (bool, error) {
-	proposal, err := multisigOnchain.Proposals(&bind.CallOpts{
-		Context: context.Background(),
-	}, proposalId)
-	if err != nil {
-		return false, errors.Wrap(err, "multisigOnchain.Proposals")
+	retry := 0
+	var proposalStatus uint8
+	for {
+		if retry > GetRetryLimit {
+			return false, fmt.Errorf("query Proposals reach retry limit")
+		}
+
+		proposal, err := multisigOnchain.Proposals(&bind.CallOpts{
+			Context: context.Background(),
+		}, proposalId)
+		if err != nil {
+			time.Sleep(WaitInterval)
+			retry++
+			continue
+		}
+
+		proposalStatus = proposal.Status
+		break
 	}
+
 	needSend := false
-	switch proposal.Status {
+	switch proposalStatus {
 	case 0:
 		needSend = true
 	case 1:
@@ -462,7 +479,7 @@ func needSendProposal(client *ethereum.Client, multisigOnchain *multisig_onchain
 		}
 	case 2:
 	default:
-		return false, fmt.Errorf("unknown proposal status: %d", proposal.Status)
+		return false, fmt.Errorf("unknown proposal status: %d", proposalStatus)
 	}
 	return needSend, nil
 }
@@ -487,8 +504,10 @@ func (w *writer) waitProposalExecuted(multisigOnchain *multisig_onchain.Multisig
 			retry++
 			continue
 		}
-		return nil
+
+		break
 	}
+	return nil
 }
 
 // bsc staking contract:
