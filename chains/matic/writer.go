@@ -842,6 +842,61 @@ func (w *writer) setBondedPools(key common.Address, value bool) {
 }
 
 func (w *writer) start() error {
+	// check rate on polygon and evm
+	go func() {
+		retry := 0
+		for {
+			if retry > GetRetryLimit {
+				w.log.Warn("check rate on polygon reach retry limit")
+				return
+			}
+			latestBlockTimestamp, err := w.conn.LatestBlockTimestamp()
+			if err != nil {
+				w.log.Warn("Unable to get latest block", "err", err)
+				time.Sleep(6 * time.Second)
+				retry++
+				continue
+			}
+
+			era := int64(latestBlockTimestamp/w.conn.eraSeconds) + w.conn.eraOffset
+			if era <= 0 {
+				w.log.Error("check rate on polygon", "err", fmt.Errorf("era must > 0: %d", era))
+				time.Sleep(6 * time.Second)
+				retry++
+				continue
+			}
+
+			rate, err := w.mustGetEraRateFromStafi(core.RMATIC, types.U32(era))
+			if era <= 0 {
+				w.log.Error("check rate on polygon", "err", err)
+				time.Sleep(6 * time.Second)
+				retry++
+				continue
+			}
+
+			evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
+			proposalId := getProposalId(uint32(era), evmRate, 0)
+
+			// evm rate
+			if w.conn.stakePortalWithRateContract != nil {
+				err := w.evmVoteRate(proposalId, evmRate)
+				if err != nil {
+					w.log.Error("check rate on evm", "err", err)
+				}
+			}
+
+			// polygon rate
+			if w.conn.polygonStakePortalRateContract != nil {
+				err := w.polygonVoteRate(proposalId, evmRate)
+				if err != nil {
+					w.log.Error("check rate on polygon", "err", err)
+				}
+			}
+
+			break
+		}
+	}()
+
 	go func() {
 		for {
 			select {

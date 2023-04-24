@@ -31,6 +31,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 	"github.com/stafiprotocol/rtoken-relay/shared/substrate"
+	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
 var (
@@ -72,10 +73,35 @@ type Connection struct {
 
 	polygonStakePortalRateContract *stake_portal_rate.StakePortalRate
 	isMainnet                      bool
+
+	eraSeconds uint64
+	eraOffset  int64
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Connection, error) {
 	log.Info("NewClient", "name", cfg.Name, "KeystorePath", cfg.KeystorePath, "Endpoint", cfg.Endpoint)
+	eraSeconds := cfg.Opts["eraSeconds"]
+	eraSecondsStr, ok := eraSeconds.(string)
+	if !ok {
+		panic("eraSeconds not string")
+	}
+	eraSecondsBig, ok := utils.StringToBigint(eraSecondsStr)
+	if !ok {
+		panic("eraSeconds is not digital string")
+	}
+	if eraSecondsBig.Sign() <= 0 {
+		panic(fmt.Sprintf("wrong erablock: %s", eraSecondsBig))
+	}
+
+	eraOffset := cfg.Opts["eraOffset"]
+	eraOffsetStr, ok := eraOffset.(string)
+	if !ok {
+		panic("eraOffset not string")
+	}
+	eraOffsetBig, ok := utils.StringToBigint(eraOffsetStr)
+	if !ok {
+		panic("eraOffset is not digital string")
+	}
 
 	var key *secp256k1.Keypair
 	keys := make([]*secp256k1.Keypair, 0)
@@ -192,6 +218,8 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		isMainnet:                      isMainnet,
 		polygonConn:                    polygonConn,
 		polygonStakePortalRateContract: stakePortalRate,
+		eraSeconds:                     eraSecondsBig.Uint64(),
+		eraOffset:                      eraOffsetBig.Int64(),
 	}, nil
 }
 
