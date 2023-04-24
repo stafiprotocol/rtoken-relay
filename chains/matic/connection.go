@@ -157,7 +157,7 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int) (*Co
 		return nil, errors.New("polygonEndpoint not ok")
 	}
 
-	polygonConn := ethereum.NewClient(polygonEndpointStr, key, log, big.NewInt(0), big.NewInt(0))
+	polygonConn := ethereum.NewClient(polygonEndpointStr, key, log, big.NewInt(0), ethereum.DefaultGasPriceForPolygon)
 	if err := polygonConn.Connect(); err != nil {
 		return nil, err
 	}
