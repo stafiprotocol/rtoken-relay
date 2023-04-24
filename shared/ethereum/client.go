@@ -114,7 +114,7 @@ func (c *Client) newTransactOpts(value, gasLimit, gasPrice *big.Int, chainId *bi
 	privateKey := c.kp.PrivateKey()
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 
-	nonce, err := c.conn.PendingNonceAt(context.Background(), address)
+	nonce, err := c.conn.NonceAt(context.Background(), address, nil)
 	if err != nil {
 		return nil, 0, err
 	}
