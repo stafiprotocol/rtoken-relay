@@ -42,6 +42,10 @@ func getProposalId(era uint32, event, step string, factor int) common.Hash {
 	return crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-%s-%s-%d", era, event, step, factor)))
 }
 
+func getRateProposalId(era uint32, rate *big.Int, factor int) common.Hash {
+	return crypto.Keccak256Hash([]byte(fmt.Sprintf("era-%d-%s-%s-%d", era, "voteRate", rate.String(), factor)))
+}
+
 func (w *writer) getClaimRewardProposal() ([]byte, error) {
 	inputData, err := StakingAbi.Pack("claimReward")
 	if err != nil {

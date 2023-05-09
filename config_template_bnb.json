@@ -37,7 +37,8 @@
         "bcEndpoint": "https://testnet-api.binance.org",
         "bscSideChainId": "chapel",
         "StakePortalContract": "0xe8B820B0ec349268337BCa85a71922F97E3F60a1",
-        "StakingContract": "0x939F13045E053a304115a61A184802fE4Fc6E5fc"
+        "StakingContract": "0x939F13045E053a304115a61A184802fE4Fc6E5fc",
+        "bscStakePortalRateContract": ""
       }
     }
   ]

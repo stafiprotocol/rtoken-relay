@@ -69,7 +69,15 @@ func (c *Chain) SetRouter(r *core.Router) {
 }
 
 func (c *Chain) Start() error {
-	return c.listener.start()
+	err := c.listener.start()
+	if err != nil {
+		return err
+	}
+	err = c.writer.start()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Chain) Rsymbol() core.RSymbol {

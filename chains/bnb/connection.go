@@ -18,6 +18,7 @@ import (
 	"github.com/stafiprotocol/chainbridge/utils/keystore"
 	multisig_onchain "github.com/stafiprotocol/rtoken-relay/bindings/MultisigOnchain"
 	stake_portal "github.com/stafiprotocol/rtoken-relay/bindings/StakeNativePortal"
+	stake_portal_rate "github.com/stafiprotocol/rtoken-relay/bindings/StakePortalRate"
 	staking "github.com/stafiprotocol/rtoken-relay/bindings/Staking"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/bnc"
@@ -48,6 +49,8 @@ type Connection struct {
 	stakePortalContract    *stake_portal.StakeNativePortal
 	stakingContract        *staking.Staking
 	stakingContractAddress common.Address
+
+	bscStakePortalRateContract *stake_portal_rate.StakePortalRate
 }
 
 func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int, forTest bool) (*Connection, error) {
@@ -114,17 +117,26 @@ func NewConnection(cfg *core.ChainConfig, log core.Logger, stop <-chan int, forT
 		return nil, err
 	}
 
+	var stakePortalRate *stake_portal_rate.StakePortalRate
+	if cfg.Opts["bscStakePortalRateContract"] != nil {
+		stakePortalRate, err = initBscStakePortalRate(cfg.Opts["bscStakePortalRateContract"], ethClient)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Connection{
-		symbol:                 cfg.Symbol,
-		queryClient:            bscClient,
-		bcApiEndpoint:          bcEndpointStr,
-		bscSideChainId:         bscSideChainIdStr,
-		log:                    log,
-		stop:                   stop,
-		stakePortalContract:    stakePortal,
-		stakingContract:        staking,
-		stakingContractAddress: stakingAddr,
-		accountClients:         accounts,
+		symbol:                     cfg.Symbol,
+		queryClient:                bscClient,
+		bcApiEndpoint:              bcEndpointStr,
+		bscSideChainId:             bscSideChainIdStr,
+		log:                        log,
+		stop:                       stop,
+		stakePortalContract:        stakePortal,
+		stakingContract:            staking,
+		stakingContractAddress:     stakingAddr,
+		accountClients:             accounts,
+		bscStakePortalRateContract: stakePortalRate,
 	}, nil
 }
 
@@ -137,6 +149,19 @@ func initStakePortal(stakePortalCfg interface{}, conn *ethclient.Client) (*stake
 		return nil, errors.New("stakePortalCfg not hex string")
 	}
 	stakePortal, err := stake_portal.NewStakeNativePortal(common.HexToAddress(stakePortalAddr), conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return stakePortal, nil
+}
+
+func initBscStakePortalRate(stakeManagerCfg interface{}, conn *ethclient.Client) (*stake_portal_rate.StakePortalRate, error) {
+	stakePortalAddr, ok := stakeManagerCfg.(string)
+	if !ok {
+		return nil, errors.New("NewStakePortalRate not ok")
+	}
+	stakePortal, err := stake_portal_rate.NewStakePortalRate(common.HexToAddress(stakePortalAddr), conn)
 	if err != nil {
 		return nil, err
 	}

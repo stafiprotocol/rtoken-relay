@@ -4,6 +4,7 @@
 package bnb
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
@@ -21,6 +23,7 @@ import (
 	"github.com/stafiprotocol/rtoken-relay/chains"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
+	"github.com/stafiprotocol/rtoken-relay/shared/ethereum"
 	"github.com/stafiprotocol/rtoken-relay/utils"
 )
 
@@ -57,6 +60,90 @@ func NewWriter(symbol core.RSymbol, eraSeconds uint64, eraOffset int64, conn *Co
 
 func (w *writer) setRouter(r chains.Router) {
 	w.router = r
+}
+
+func (w *writer) start() error {
+	// check rate on polygon and evm
+	go func() {
+		retry := 0
+		for {
+			if retry > GetRetryLimit {
+				w.log.Warn("check rate on bsc reach retry limit")
+				return
+			}
+			latestBlockTimestamp, err := w.conn.LatestBlockTimestamp()
+			if err != nil {
+				w.log.Warn("Unable to get latest block", "err", err)
+				time.Sleep(6 * time.Second)
+				retry++
+				continue
+			}
+
+			era := int64(latestBlockTimestamp/w.eraSeconds) + w.eraOffset
+			if era <= 0 {
+				w.log.Error("check rate on bsc", "err", fmt.Errorf("era must > 0: %d", era))
+				time.Sleep(6 * time.Second)
+				retry++
+				continue
+			}
+
+			rate, err := w.mustGetEraRateFromStafi(core.RBNB, types.U32(era))
+			if era <= 0 {
+				w.log.Error("check rate on bsc", "err", err)
+				time.Sleep(6 * time.Second)
+				retry++
+				continue
+			}
+
+			evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
+			proposalId := getRateProposalId(uint32(era), evmRate, 0)
+
+			// evm rate
+			if w.conn.bscStakePortalRateContract != nil {
+				poolAddrStr := ""
+				for pool := range w.bondedPools {
+					poolAddrStr = pool
+					break
+				}
+
+				poolAddr := common.HexToAddress(poolAddrStr)
+
+				multisigOnchainContract, err := multisigOnchain.NewMultisigOnchain(poolAddr, w.conn.queryClient.Client())
+				if err != nil {
+					w.log.Error("multisigOnchain.NewMultisigOnchain", "err", err)
+					return
+				}
+
+				localAccountClients, err := w.conn.GetAccountClients(multisigOnchainContract)
+				if err != nil {
+					w.log.Error("GetAccountClients", "err", err)
+					return
+				}
+				if len(localAccountClients) == 0 {
+					w.log.Error("subAccounts not exist", "err", err)
+					return
+				}
+
+				for _, client := range localAccountClients {
+					err := w.bscVoteRate(client, proposalId, evmRate)
+					if err != nil {
+						w.log.Error("check rate on bsc bscVoteRate failed", "err", err)
+						return
+					}
+				}
+
+				err = w.waitBscRateUpdated(proposalId)
+				if err != nil {
+					w.log.Error("check rate on bsc waitBscRateUpdated failed", "err", err)
+					return
+				}
+			}
+
+			break
+		}
+	}()
+
+	return nil
 }
 
 func (w *writer) ResolveMessage(m *core.Message) (processOk bool) {
@@ -516,7 +603,36 @@ func (w *writer) processEraPoolUpdated(m *core.Message) error {
 	w.log.Info("will informChain", "reportType", "BondAndReportActiveWithPendingValue", "action", bondAction, "pool", poolAddr.String(),
 		"active", flow.Active, "pendingStake", flow.PendingStake, "pendingReward", flow.PendingReward)
 
-	return w.informChain(m.Destination, m.Source, mef)
+	err = w.informChain(m.Destination, m.Source, mef)
+	if err != nil {
+		return errors.Wrap(err, "informChain")
+	}
+
+	// report rate on bsc
+	rate, err := w.mustGetEraRateFromStafi(snap.Symbol, types.U32(snap.Era))
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough mustGetEraRateFromStafi error %s pool %s", err, poolAddr)
+	}
+
+	evmRate := new(big.Int).Mul(big.NewInt(int64(rate)), big.NewInt(1e6)) // decimals 12 on stafi, decimals 18 on evm
+	proposalId := getRateProposalId(snap.Era, evmRate, 0)
+
+	// evm rate
+	if w.conn.bscStakePortalRateContract != nil {
+		for _, client := range localAccountClients {
+			err := w.bscVoteRate(client, proposalId, evmRate)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = w.waitBscRateUpdated(proposalId)
+		if err != nil {
+			return fmt.Errorf("waitRateUpdated error %s", err)
+		}
+	}
+
+	return nil
 }
 
 func (w *writer) processActiveReported(m *core.Message) error {
@@ -618,4 +734,136 @@ func (w *writer) setBondedPools(key string, value bool) {
 	w.bondedPoolsMtx.Lock()
 	defer w.bondedPoolsMtx.Unlock()
 	w.bondedPools[key] = value
+}
+
+func (w *writer) bscVoteRate(client *ethereum.Client, proposalId [32]byte, evmRate *big.Int) error {
+	proposal, err := w.conn.bscStakePortalRateContract.Proposals(&bind.CallOpts{}, proposalId)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough Proposals error %s ", err)
+	}
+	if proposal.Status == 2 { // success status
+		return nil
+	}
+	hasVoted, err := w.conn.bscStakePortalRateContract.HasVoted(&bind.CallOpts{}, proposalId, client.Opts().From)
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough HasVoted error %s", err)
+	}
+	if hasVoted {
+		return nil
+	}
+
+	// send tx
+	err = client.LockAndUpdateOpts(big.NewInt(0), big.NewInt(0))
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough LockAndUpdateOpts error %s", err)
+	}
+
+	voteTx, err := w.conn.bscStakePortalRateContract.VoteRate(client.Opts(), proposalId, evmRate)
+	if err != nil {
+		client.UnlockOpts()
+		return fmt.Errorf("processSignatureEnough VoteRate error %s", err)
+	}
+	client.UnlockOpts()
+
+	err = w.waitBscTxOk(voteTx.Hash())
+	if err != nil {
+		return fmt.Errorf("processSignatureEnough waitTxOk error %s", err)
+	}
+
+	return nil
+}
+
+func (task *writer) waitBscTxOk(txHash common.Hash) error {
+	retry := 0
+	for {
+		if retry > BlockRetryLimit*3 {
+			return fmt.Errorf("waitPolygonTxOk tx reach retry limit")
+		}
+		_, pending, err := task.conn.queryClient.TransactionByHash(context.Background(), txHash)
+		if err == nil && !pending {
+			break
+		} else {
+			if err != nil {
+				task.log.Warn("tx status", "hash", txHash, "err", err.Error())
+			} else {
+				task.log.Warn("tx status", "hash", txHash, "status", "pending")
+			}
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+
+	}
+	task.log.Info("tx send ok", "tx", txHash.String())
+	return nil
+}
+
+func (task *writer) waitBscRateUpdated(proposalId [32]byte) error {
+	retry := 0
+	for {
+		if retry > BlockRetryLimit*3 {
+			return fmt.Errorf("waitPolygonRateUpdated tx reach retry limit")
+		}
+
+		proposal, err := task.conn.bscStakePortalRateContract.Proposals(&bind.CallOpts{}, proposalId)
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+		if proposal.Status != 2 {
+			time.Sleep(BlockRetryInterval)
+			retry++
+			continue
+		}
+		break
+	}
+	return nil
+}
+
+func (h *writer) mustGetEraRateFromStafi(symbol core.RSymbol, era types.U32) (rate uint64, err error) {
+	flow := submodel.GetEraRateFlow{
+		Symbol: symbol,
+		Era:    era,
+		Rate:   make(chan uint64, 1),
+	}
+
+	for {
+		sigs, err := h.getEraRateFromStafi(&flow)
+		if err != nil {
+			h.log.Debug("mustGetEraRateFromStafi failed, will retry.", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+		if sigs == 0 {
+			h.log.Debug("mustGetEraRateFromStafi rate zero, will retry.")
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+		return sigs, nil
+	}
+}
+
+func (h *writer) getEraRateFromStafi(param *submodel.GetEraRateFlow) (rate uint64, err error) {
+	msg := core.Message{
+		Source:      h.conn.symbol,
+		Destination: core.RFIS,
+		Reason:      core.GetEraRate,
+		Content:     param,
+	}
+	err = h.router.Send(&msg)
+	if err != nil {
+		return 0, err
+	}
+
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+
+	h.log.Debug("wait getEraRateFromStafi from stafi", "rSymbol", h.conn.symbol)
+	select {
+	case <-timer.C:
+		return 0, fmt.Errorf("get getEraRateFromStafi from stafi timeout")
+	case sigs := <-param.Rate:
+		return sigs, nil
+	}
 }
