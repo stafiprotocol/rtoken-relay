@@ -110,4 +110,22 @@ func TestBnbVal(t *testing.T) {
 
 	bts, _ = hexutil.Decode("0x992701c853301b120a6db0e4767aeecc737c515a")
 	t.Log(GetBcRewardAddressFromBsc(bts).String())
+
+	bncCmnTypes.Network = bncCmnTypes.TestNetwork
+	bts, _ = hexutil.Decode("0x44f95eef755ed4fbdc19e3e8f617773d23e44a5b")
+	t.Log(GetBcRewardAddressFromBsc(bts).String())
+
+	hexStr, err = BnbValAddressFromBech32("bva15vvmregln3skagjcjxq9hshj452a2ppjkhperr")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(hexutil.Encode(hexStr))
+	
+	hexStr, err = BnbValAddressFromBech32("bva15mgzha93ny878kuvjl0pnqmjygwccdad08uecu")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(hexutil.Encode(hexStr))
 }
