@@ -1,0 +1,8 @@
+{
+  "ethEndpoint": "",
+  "polygonEndpoint": "",
+  "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
+  "account": "0x7e7a38868A176894Bd44f668179209710ECd8052",
+  "ethStakeManagerContract": "0x939F13045E053a304115a61A184802fE4Fc6E5fc",
+  "polygonStakePortalRateContract": "0xF61EEeB33a0787006C7497488622901cb5226b2a"
+}

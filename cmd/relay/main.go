@@ -67,6 +67,7 @@ func init() {
 		&accountCommand,
 		&delegateBnbCommand,
 		&claimUndelegateCommand,
+		&syncRMaticRateCommand,
 	}
 
 	app.Flags = append(app.Flags, mainFlags...)

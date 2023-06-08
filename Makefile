@@ -48,6 +48,7 @@ abi:
 	abigen --abi ./bindings/StakeNativePortal/stakenativeportal_abi.json --pkg stake_native_portal --type StakeNativePortal --out ./bindings/StakeNativePortal/StakeNativePortal.go
 	abigen --abi ./bindings/MultisigOnchain/multisigonchain_abi.json --pkg multisig_onchain --type MultisigOnchain --out ./bindings/MultisigOnchain/MultisigOnchain.go
 	abigen --abi ./bindings/Staking/staking_abi.json --pkg staking --type Staking --out ./bindings/Staking/Staking.go
+	abigen --abi ./bindings/RMaticStakeManager/StakeManager_abi.json --pkg rmatic_stake_manager --type RMaticStakeManager --out ./bindings/RMaticStakeManager/RMaticStakeManager.go
 
 ## Runs go test for all packages except the solidity bindings
 test:
