@@ -375,7 +375,7 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 		runtimeCall := flow.RunTimeCalls[0]
 		weightV2 := submodel.WeightV2{
 			RefTime:   types.NewUCompact(big.NewInt(flow.PaymentInfo.Weight)),
-			ProofSize: types.NewUCompact(big.NewInt(8877)),
+			ProofSize: types.NewUCompact(big.NewInt(18877)),
 		}
 		ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, runtimeCall.TimePoint, runtimeCall.Call, weightV2)
 		if err != nil {
@@ -389,7 +389,7 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	for _, runtimeCall := range flow.RunTimeCalls {
 		weightV2 := submodel.WeightV2{
 			RefTime:   types.NewUCompact(big.NewInt(flow.PaymentInfo.Weight)),
-			ProofSize: types.NewUCompact(big.NewInt(8877)),
+			ProofSize: types.NewUCompact(big.NewInt(18877)),
 		}
 
 		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, runtimeCall.TimePoint, runtimeCall.Call, weightV2)
