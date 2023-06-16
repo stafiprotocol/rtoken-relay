@@ -171,7 +171,8 @@ func TestConnection_GetEvents(t *testing.T) {
 
 func TestConnection_GetExtrinsics(t *testing.T) {
 
-	for i := 7111000; i < 7112000; i++ {
+	for i := 15991435; i < 15991437; i++ {
+		t.Log(i)
 		bh, err := sc.GetBlockHash(uint64(i))
 		assert.NoError(t, err)
 		exts, err := sc.GetExtrinsics(bh)

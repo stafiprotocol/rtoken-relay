@@ -121,7 +121,7 @@ func TestBnbVal(t *testing.T) {
 	}
 
 	t.Log(hexutil.Encode(hexStr))
-	
+
 	hexStr, err = BnbValAddressFromBech32("bva15mgzha93ny878kuvjl0pnqmjygwccdad08uecu")
 	if err != nil {
 		t.Fatal(err)

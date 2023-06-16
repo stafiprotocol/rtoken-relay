@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	scale "github.com/itering/scale.go"
+	scalecodec "github.com/itering/scale.go"
 	"github.com/itering/scale.go/source"
 	scaleTypes "github.com/itering/scale.go/types"
 	scaleBytes "github.com/itering/scale.go/types/scaleBytes"
@@ -327,7 +328,7 @@ func (sc *SarpcClient) GetExtrinsics(blockHash string) ([]*submodel.Transaction,
 		for _, raw := range blk.Extrinsics {
 			e.Init(scaleBytes.ScaleBytes{Data: utiles.HexToBytes(raw)}, &option)
 			e.Process()
-			decodeExtrinsic := e.Value.(map[string]interface{})
+			decodeExtrinsic := e.Value.(*scalecodec.GenericExtrinsic)
 			var ce ChainExtrinsic
 			eb, _ := json.Marshal(decodeExtrinsic)
 			_ = json.Unmarshal(eb, &ce)
