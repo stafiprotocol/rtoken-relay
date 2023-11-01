@@ -39,10 +39,6 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		w.log.Error("processWithdrawReportedEvent Receives len is zero")
 		return false
 	}
-	//sort outPuts for the same rawTx from different relayer
-	sort.SliceStable(flow.Receives, func(i, j int) bool {
-		return bytes.Compare(flow.Receives[i].Recipient, flow.Receives[j].Recipient) < 0
-	})
 
 	poolAddrBase58Str := base58.Encode(flow.Snap.Pool)
 	poolClient, err := w.conn.GetPoolClient(poolAddrBase58Str)
@@ -53,6 +49,17 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		return false
 	}
 	rpcClient := poolClient.GetRpcClient()
+
+	// check merge and withdraw
+	ok = w.MergeAndWithdraw(poolClient, poolAddrBase58Str, flow.Snap.Era, flow.ShotId, flow.Snap.Pool)
+	if !ok {
+		return false
+	}
+
+	//sort outPuts for the same rawTx from different relayer
+	sort.SliceStable(flow.Receives, func(i, j int) bool {
+		return bytes.Compare(flow.Receives[i].Recipient, flow.Receives[j].Recipient) < 0
+	})
 
 	for i := 0; i <= len(flow.Receives)/multisigSendMaxNumber; i++ {
 		multisigTxAccountPubkey, multisigTxAccountSeed := GetMultisigTxAccountPubkeyForTransfer(
