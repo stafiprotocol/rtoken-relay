@@ -81,9 +81,22 @@ func migrateStakeAccount(ctx *cli.Context) (err error) {
 	fmt.Println("multiSigner(old pool):", multisignerPubkey.ToBase58())
 	fmt.Println("stakePool(new pool):", StakePool.ToBase58())
 
-	fmt.Println("\ncheck (old pool / new pool) again, then press enter to continue:")
-	var input string
-	fmt.Scanln(&input)
+Out:
+	for {
+		fmt.Println("\ncheck (old pool / new pool) again, then press (y/n) to continue:")
+		var input string
+		fmt.Scanln(&input)
+
+		switch input {
+		case "y":
+			break Out
+		case "n":
+			return nil
+		default:
+			fmt.Println("press `y` or `n`")
+			continue
+		}
+	}
 
 	c := solClient.NewClient([]string{pc.Endpoint})
 
