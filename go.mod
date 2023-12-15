@@ -1,6 +1,6 @@
 module github.com/stafiprotocol/rtoken-relay
 
-go 1.19
+go 1.21
 
 require (
 	github.com/JFJun/go-substrate-crypto v1.0.1
@@ -20,7 +20,7 @@ require (
 	github.com/stafiprotocol/chainbridge v1.1.0
 	github.com/stafiprotocol/go-sdk v1.3.1
 	github.com/stafiprotocol/go-substrate-rpc-client v1.2.1
-	github.com/stafiprotocol/solana-go-sdk v1.3.0
+	github.com/stafiprotocol/solana-go-sdk v1.4.0
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli/v2 v2.10.2
 	golang.org/x/crypto v0.6.0

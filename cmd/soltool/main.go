@@ -32,6 +32,7 @@ func init() {
 	app.EnableBashCompletion = true
 	app.Commands = []*cli.Command{
 		&initCommand,
+		&migrateCommand,
 	}
 
 }
@@ -54,6 +55,13 @@ var initCommand = cli.Command{
 	Flags:       cliFlags,
 }
 
+var migrateCommand = cli.Command{
+	Name:   "migrateStakeAccount",
+	Usage:  "migrate stake account",
+	Action: migrateStakeAccount,
+	Flags:  cliFlags,
+}
+
 type PoolAccounts struct {
 	KeystorePath                string            `json:"keystorePath"`
 	FeeAccount                  string            `json:"feeAccount"`
@@ -66,7 +74,45 @@ type PoolAccounts struct {
 	Threshold                   int64             `json:"threshold"`
 }
 
+type PoolAccountsForMigrate struct {
+	KeystorePath          string   `json:"keystorePath"`
+	FeeAccount            string   `json:"feeAccount"`
+	MultisigTxBaseAccount string   `json:"multisigTxBaseAccount"`
+	MultisigInfoPubkey    string   `json:"multisigInfoPubkey"`
+	MultisigProgramId     string   `json:"multisigProgramId"`
+	Endpoint              string   `json:"endpoint"`
+	OtherFeeAccount       []string `json:"otherFeeAccount"`
+
+	RSolProgramID string `json:"rSolProgramID"`
+	StakeManager  string `json:"stakeManager"`
+	StakePool     string `json:"stakePool"`
+	StakeAccount  string `json:"stakeAccount"`
+}
+
 func loadConfig(file string, config *PoolAccounts) (err error) {
+	ext := filepath.Ext(file)
+	fp, err := filepath.Abs(file)
+	if err != nil {
+		return err
+	}
+
+	core.NewLog().Debug("Loading configuration", "path", filepath.Clean(fp))
+
+	f, err := os.Open(filepath.Clean(fp))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = f.Close()
+	}()
+
+	if ext != ".json" {
+		return fmt.Errorf("unrecognized extention: %s", ext)
+	}
+	return json.NewDecoder(f).Decode(&config)
+}
+
+func loadConfigForMigrate(file string, config *PoolAccountsForMigrate) (err error) {
 	ext := filepath.Ext(file)
 	fp, err := filepath.Abs(file)
 	if err != nil {

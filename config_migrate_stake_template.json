@@ -1,0 +1,15 @@
+{
+    "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys/solana-vault.json",
+    "feeAccount": "9W58qXU6GNveGuJMYKLRPbWXqGvwnVn64uL9sze9FpHg",
+    "multisigTxBaseAccount": "X1DSiRLzQYGYzf6FPHTQcQmodmJctYFMDxpim97SnAk",
+    "multisigInfoPubkey": "FgHzuXrJK8sPNWgdbNAKC87AkC4h93Xxq3Gn5uJscbVC",
+    "multisigProgramId": "8iTJYP5kXsEzy4azTjRwVUU2XC1E8Grwd742QQXfmAkZ",
+    "endpoint": "https://solana-dev-rpc.stafi.io",
+    "otherFeeAccount": [
+        "EoCGyNsZzs8bkdqeo6dE3SPbreRct1xiBK1ii1QQRTKv"
+    ],
+    "rSolProgramID": "",
+    "stakeManager": "",
+    "stakePool": "",
+    "stakeAccount": ""
+}
