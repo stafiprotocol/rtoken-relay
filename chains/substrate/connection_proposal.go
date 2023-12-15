@@ -200,6 +200,9 @@ func (c *Connection) NewActiveReportProposal(flow *submodel.BondReportedFlow) (*
 }
 
 func (c *Connection) resolveProposal(prop *submodel.Proposal, inFavour bool) bool {
+	// fix rsol testnet proposal duplicate
+	prop.BondId = utils.BlakeTwo256(append([]byte("doubleFix"), prop.BondId[:]...))
+
 	for i := 0; i < BlockRetryLimit; i++ {
 		// Ensure we only submit a vote if status of the proposal is Initiated
 		valid, reason, err := c.proposalValid(prop)
