@@ -33,6 +33,8 @@ func init() {
 	app.Commands = []*cli.Command{
 		&initCommand,
 		&migrateCommand,
+		&withdrawCommand,
+		&stakeCommand,
 	}
 
 }
@@ -62,6 +64,20 @@ var migrateCommand = cli.Command{
 	Flags:  cliFlags,
 }
 
+var withdrawCommand = cli.Command{
+	Name:   "withdrawStakeAccount",
+	Usage:  "withdraw stake account",
+	Action: withdrawStakeAccount,
+	Flags:  cliFlags,
+}
+
+var stakeCommand = cli.Command{
+	Name:   "stake",
+	Usage:  "stake to validator",
+	Action: stake,
+	Flags:  cliFlags,
+}
+
 type PoolAccounts struct {
 	KeystorePath                string            `json:"keystorePath"`
 	FeeAccount                  string            `json:"feeAccount"`
@@ -87,6 +103,7 @@ type PoolAccountsForMigrate struct {
 	StakeManager  string `json:"stakeManager"`
 	StakePool     string `json:"stakePool"`
 	StakeAccount  string `json:"stakeAccount"`
+	Validator     string `json:"validator"`
 }
 
 func loadConfig(file string, config *PoolAccounts) (err error) {
