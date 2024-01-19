@@ -12,7 +12,6 @@ import (
 	"github.com/stafiprotocol/solana-go-sdk/multisigprog"
 	"github.com/stafiprotocol/solana-go-sdk/stakeprog"
 	"github.com/stafiprotocol/solana-go-sdk/sysprog"
-	"github.com/stafiprotocol/solana-go-sdk/types"
 	solTypes "github.com/stafiprotocol/solana-go-sdk/types"
 	"github.com/urfave/cli/v2"
 )
@@ -61,15 +60,18 @@ func stake(ctx *cli.Context) (err error) {
 		return fmt.Errorf("RSolProgramID zero")
 	}
 
+	if _, exist := privKeyMap[pc.StakeAccount]; !exist {
+		return fmt.Errorf("StakeAccount not exist")
+	}
 	FeeAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.FeeAccount])
 	MultisigTxBaseAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.MultisigTxBaseAccount])
 	MultisigInfoAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.MultisigInfoPubkey])
+	stakeAccount := solTypes.AccountFromPrivateKeyBytes(privKeyMap[pc.StakeAccount])
 	MultisigProgramId := solCommon.PublicKeyFromString(pc.MultisigProgramId)
 	ValidatorPubkey := solCommon.PublicKeyFromString(pc.Validator)
 	// RSolProgramID := solCommon.PublicKeyFromString(pc.RSolProgramID)
 	// StakeManager := solCommon.PublicKeyFromString(pc.StakeManager)
 	// StakePool := solCommon.PublicKeyFromString(pc.StakePool)
-	// StakeAccount := solCommon.PublicKeyFromString(pc.StakeAccount)
 
 	otherFeeAccount := make([]solTypes.Account, 0)
 	for _, account := range pc.OtherFeeAccount {
@@ -119,11 +121,10 @@ Out:
 	// withdrawInstruction := stakeprog.Withdraw(StakeAccount, multisignerPubkey,
 	// 	multisignerPubkey, 1594321715540, solCommon.PublicKey{})
 
-	stakeAccount := types.NewAccount()
-	fmt.Printf("new stake account: %s,%s", stakeAccount.PublicKey.ToBase58(), hex.EncodeToString(stakeAccount.PrivateKey.Seed()))
+	fmt.Printf("stake account: %s,%s", stakeAccount.PublicKey.ToBase58(), hex.EncodeToString(stakeAccount.PrivateKey.Seed()))
 
-	stakeInstruction := stakeprog.DelegateStake(stakeAccount.PublicKey, multisignerPubkey, ValidatorPubkey)
 	transferInstruction := sysprog.Transfer(multisignerPubkey, stakeAccount.PublicKey, 1594321715540)
+	stakeInstruction := stakeprog.DelegateStake(stakeAccount.PublicKey, multisignerPubkey, ValidatorPubkey)
 
 	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
 		solClient.StakeAccountInfoLengthDefault)
