@@ -163,7 +163,22 @@ Out:
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
 		fmt.Printf("create multisig tx account: %s Transaction txHash: %s\n", multisigTxAccountPubkey.ToBase58(), txHash)
-		time.Sleep(time.Second * 10)
+		retry := 0
+		for {
+			if retry > retryLimit {
+				return err
+			}
+			_, err := c.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+			if err != nil {
+				fmt.Println("GetMultisigTxAccountInfo failed will retry ...", err)
+				retry++
+				time.Sleep(3 * time.Second)
+				continue
+			}
+
+			fmt.Printf("multisig tx Account create success\n\n")
+			break
+		}
 
 	} else {
 		fmt.Printf("multisig tx Account: %s exist on chain and will not create\n", multisigTxAccountPubkey.ToBase58())

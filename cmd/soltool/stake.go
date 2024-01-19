@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -119,8 +120,11 @@ Out:
 	// 	multisignerPubkey, 1594321715540, solCommon.PublicKey{})
 
 	stakeAccount := types.NewAccount()
-	fmt.Printf("new stake account: %s", stakeAccount.PublicKey.ToBase58())
+	fmt.Printf("new stake account: %s,%s", stakeAccount.PublicKey.ToBase58(), hex.EncodeToString(stakeAccount.PrivateKey.Seed()))
+
 	stakeInstruction := stakeprog.DelegateStake(stakeAccount.PublicKey, multisignerPubkey, ValidatorPubkey)
+	transferInstruction := sysprog.Transfer(multisignerPubkey, stakeAccount.PublicKey, 1594321715540)
+
 	stakeAccountMiniMum, err := c.GetMinimumBalanceForRentExemption(context.Background(),
 		solClient.StakeAccountInfoLengthDefault)
 	if err != nil {
@@ -167,9 +171,9 @@ Out:
 				),
 				multisigprog.CreateTransaction(
 					MultisigProgramId,
-					[]solCommon.PublicKey{stakeInstruction.ProgramID},
-					[][]solTypes.AccountMeta{stakeInstruction.Accounts},
-					[][]byte{stakeInstruction.Data},
+					[]solCommon.PublicKey{transferInstruction.ProgramID, stakeInstruction.ProgramID},
+					[][]solTypes.AccountMeta{transferInstruction.Accounts, stakeInstruction.Accounts},
+					[][]byte{transferInstruction.Data, stakeInstruction.Data},
 					MultisigInfoAccount.PublicKey,
 					multisigTxAccountPubkey,
 					FeeAccount.PublicKey,
@@ -189,7 +193,22 @@ Out:
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
 		fmt.Printf("create multisig tx account: %s Transaction txHash: %s\n", multisigTxAccountPubkey.ToBase58(), txHash)
-		time.Sleep(time.Second * 2)
+		retry := 0
+		for {
+			if retry > retryLimit {
+				return err
+			}
+			_, err := c.GetMultisigTxAccountInfo(context.Background(), multisigTxAccountPubkey.ToBase58())
+			if err != nil {
+				fmt.Println("GetMultisigTxAccountInfo failed will retry ...", err)
+				retry++
+				time.Sleep(3 * time.Second)
+				continue
+			}
+
+			fmt.Printf("multisig tx Account create success\n\n")
+			break
+		}
 
 	} else {
 		fmt.Printf("multisig tx Account: %s exist on chain and will not create\n", multisigTxAccountPubkey.ToBase58())
@@ -203,7 +222,7 @@ Out:
 		if err != nil {
 			return fmt.Errorf("get recent block hash error, err: %v", err)
 		}
-		remainingAccounts := multisigprog.GetRemainAccounts([]solTypes.Instruction{stakeInstruction})
+		remainingAccounts := multisigprog.GetRemainAccounts([]solTypes.Instruction{transferInstruction, stakeInstruction})
 		rawTx, err := solTypes.CreateRawTransaction(solTypes.CreateRawTransactionParam{
 			Instructions: []solTypes.Instruction{
 				multisigprog.Approve(
