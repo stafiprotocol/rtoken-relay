@@ -163,7 +163,7 @@ Out:
 			return fmt.Errorf("send tx error, err: %v", err)
 		}
 		fmt.Printf("create multisig tx account: %s Transaction txHash: %s\n", multisigTxAccountPubkey.ToBase58(), txHash)
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 10)
 
 	} else {
 		fmt.Printf("multisig tx Account: %s exist on chain and will not create\n", multisigTxAccountPubkey.ToBase58())
