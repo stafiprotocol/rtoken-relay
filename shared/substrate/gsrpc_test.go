@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	// "encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
@@ -82,6 +83,27 @@ func TestGetConst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// call, err := sc.WithdrawCall()
+	// if err != nil {
+	// 	t.Log(err)
+	// }
+
+	// b, _ := hex.DecodeString("0x7e66f208213f537b383ef2f468ab0f572892ef8cf93618ced06d7ecd2dcac11e")
+	// call, err := sc.TransferCall(b, types.NewUCompact(big.NewInt(1000)))
+	// if err != nil {
+	// 	t.Log(err)
+	// }
+	call, err := sc.BondOrUnbondCall(big.NewInt(1), big.NewInt(2))
+	if err != nil {
+		t.Log(err)
+	}
+
+	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(info)
+	return
 
 	e, err := sc.ExistentialDeposit()
 	if err != nil {
