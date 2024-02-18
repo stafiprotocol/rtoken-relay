@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -374,8 +373,8 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	if l == 1 {
 		runtimeCall := flow.RunTimeCalls[0]
 		weightV2 := submodel.WeightV2{
-			RefTime:   types.NewUCompact(big.NewInt(flow.PaymentInfo.Weight)),
-			ProofSize: types.NewUCompact(big.NewInt(18877)),
+			RefTime:   types.NewUCompact(flow.PaymentInfo.Weight.RefTime.BigInt()),
+			ProofSize: types.NewUCompact(flow.PaymentInfo.Weight.ProofSize.BigInt()),
 		}
 		ext, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, runtimeCall.TimePoint, runtimeCall.Call, weightV2)
 		if err != nil {
@@ -388,8 +387,8 @@ func (c *Connection) asMulti(flow *submodel.MultiEventFlow) error {
 	calls := make([]types.Call, 0)
 	for _, runtimeCall := range flow.RunTimeCalls {
 		weightV2 := submodel.WeightV2{
-			RefTime:   types.NewUCompact(big.NewInt(flow.PaymentInfo.Weight)),
-			ProofSize: types.NewUCompact(big.NewInt(18877)),
+			RefTime:   types.NewUCompact(flow.PaymentInfo.Weight.RefTime.BigInt()),
+			ProofSize: types.NewUCompact(flow.PaymentInfo.Weight.ProofSize.BigInt()),
 		}
 
 		ext, err := c.sc.NewUnsignedExtrinsic(config.MethodAsMulti, flow.Threshold, flow.Others, runtimeCall.TimePoint, runtimeCall.Call, weightV2)

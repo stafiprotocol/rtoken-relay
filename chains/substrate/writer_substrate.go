@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/itering/scale.go/utiles"
-	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
@@ -101,7 +100,7 @@ func (w *writer) processEraPoolUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 
-	info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
+	info, err := w.conn.sc.GetPaymentQueryInfoV2(call.Extrinsic)
 	if err != nil {
 		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return false
@@ -174,7 +173,7 @@ func (w *writer) processActiveReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
+	info, err := w.conn.sc.GetPaymentQueryInfoV2(call.Extrinsic)
 	if err != nil {
 		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return false
@@ -267,13 +266,13 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		return false
 	}
 
-	// info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
-	// if err != nil {
-	// 	w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
-	// 	return false
-	// }
+	info, err := w.conn.sc.GetPaymentQueryInfoV2(call.Extrinsic)
+	if err != nil {
+		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
+		return false
+	}
 
-	mef.PaymentInfo = &rpc.PaymentQueryInfo{Weight: 155732000}
+	mef.PaymentInfo = info
 	mef.RunTimeCalls = []*submodel.RunTimeCall{call}
 	callhash := call.CallHash
 	mef.NewMulCallHashs = map[string]bool{callhash: true}
@@ -428,7 +427,7 @@ func (w *writer) processNominationUpdatedEvent(m *core.Message) bool {
 		return false
 	}
 
-	info, err := w.conn.PaymentQueryInfo(call.Extrinsic)
+	info, err := w.conn.sc.GetPaymentQueryInfoV2(call.Extrinsic)
 	if err != nil {
 		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return false

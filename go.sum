@@ -352,8 +352,8 @@ github.com/inconshreveable/mousetrap v1.0.0 h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NH
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/influxdata/influxdb v1.2.3-0.20180221223340-01288bdb0883/go.mod h1:qZna6X/4elxqT3yI9iZYdZrWWdeFOOprn86kgg4+IzY=
 github.com/itering/scale.go v1.4.2/go.mod h1:Eg8T/07SKybkN9E1LmiEdSN/pLtV4rZDN9zuj486Gbs=
-github.com/itering/scale.go v1.7.3 h1:LNoQp0UOc+C5Irog5X2c8jHhRfdWM+kwUP1wxoOU+Vs=
-github.com/itering/scale.go v1.7.3/go.mod h1:mEyWsfihftdLjhpeAo13wnGEM7XE42ZPvFVpC5Lsgqo=
+github.com/itering/scale.go v1.8.0 h1:CDkv46uwiyrmxWdxx5JIyVF3IzuY+pz6axSaN1cBSNI=
+github.com/itering/scale.go v1.8.0/go.mod h1:mEyWsfihftdLjhpeAo13wnGEM7XE42ZPvFVpC5Lsgqo=
 github.com/itering/substrate-api-rpc v0.4.15 h1:6W3kQ6/Dvv452WLkvN6O/mgX9ednF5hoy/ByY1s/n2o=
 github.com/itering/substrate-api-rpc v0.4.15/go.mod h1:k8MLqMkQqKo663M8S3m32oJNrWrsoNFAuc8O1bCPUXw=
 github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458/go.mod h1:QPH045xvCAeXUZOxsnwmrtiCoxIr9eob+4orBN1SBKc=

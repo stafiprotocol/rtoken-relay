@@ -452,46 +452,40 @@ func Test_AsMulti_transfer(t *testing.T) {
 	}
 
 	threshold := uint16(2)
-	relay1, _ := types.NewMultiAddressFromHexAccountID("0x8e7750f4276116f8f089a5a4b24ca6577a13c7a1bcfe15868291b563336a7729")
+	// relay1, _ := types.NewMultiAddressFromHexAccountID("0x8e7750f4276116f8f089a5a4b24ca6577a13c7a1bcfe15868291b563336a7729")
 	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 
 	others := []types.AccountID{
-		relay1.AsID,
+		relay2.AsID,
 	}
 
-	ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	// ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// ext := "0x040300ba78e259995516a9a57d1f2be6eec479d2864eb57d1683d4a35b91037b9f980d0b00204aa9d101"
+	// 0x0403 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
+	// 0xa8040402 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
+	call, err := sc.TransferCall(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("ext", call.Extrinsic, call.Call.CallIndex, call.Call.Args)
 
-	var cal types.Call
-	switch ext := ext.(type) {
-	case *types.Extrinsic:
-		cal = ext.Method
-	case *types.ExtrinsicMulti:
-		cal = ext.Method
-	default:
-		t.Fatal("ext unsupported")
-	}
-	_ = cal
-
-	extBz, err := types.EncodeToBytes(ext)
-	if err != nil {
-		t.Fatal(err)
-	}
-	info, err := sc.GetPaymentQueryInfo(hexutil.Encode(extBz))
+	info, err := sc.GetPaymentQueryInfoV2(call.Extrinsic)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log("info", info.Class, info.PartialFee, info.Weight)
 	weight := submodel.WeightV2{
-		RefTime:   types.NewUCompact(big.NewInt(info.Weight)),
-		ProofSize: types.NewUCompact(big.NewInt(0)),
+		RefTime:   types.NewUCompact(info.Weight.RefTime.BigInt()),
+		ProofSize: types.NewUCompact(info.Weight.ProofSize.BigInt()),
 	}
-	optp := types.TimePoint{Height: types.NewU32(1122), Index: 2}
-	tp := submodel.NewOptionTimePoint(optp)
+	// optp := types.TimePoint{Height: types.NewU32(1122), Index: 2}
+	// tp := submodel.NewOptionTimePoint(optp)
+	tp := submodel.NewOptionTimePointEmpty()
 
-	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, cal, weight)
+	multiExt, err := sc.NewUnsignedExtrinsic(config.MethodAsMulti, threshold, others, tp, call.Call, weight)
 	if err != nil {
 		t.Fatal(err)
 	}

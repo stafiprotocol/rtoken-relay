@@ -2,13 +2,14 @@ package submodel
 
 import (
 	"fmt"
-	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 	"math/big"
+
+	"github.com/shopspring/decimal"
+	"github.com/stafiprotocol/rtoken-relay/models/ethmodel"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	scalecodec "github.com/itering/scale.go"
-	"github.com/itering/substrate-api-rpc/rpc"
 	"github.com/stafiprotocol/go-substrate-rpc-client/scale"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -404,6 +405,14 @@ type GetBondStateFlow struct {
 	TxHash    types.Bytes
 	BondState chan BondState
 }
+type PaymentQueryInfoV2 struct {
+	Class      string          `json:"class"`
+	PartialFee decimal.Decimal `json:"partialFee"`
+	Weight     struct {
+		ProofSize decimal.Decimal `json:"proof_size"`
+		RefTime   decimal.Decimal `json:"ref_time"`
+	} `json:"weight"`
+}
 
 type MultiEventFlow struct {
 	EventId           string
@@ -414,7 +423,7 @@ type MultiEventFlow struct {
 	Key               *signature.KeyringPair
 	Others            []types.AccountID
 	RunTimeCalls      []*RunTimeCall
-	PaymentInfo       *rpc.PaymentQueryInfo
+	PaymentInfo       *PaymentQueryInfoV2
 	NewMulCallHashs   map[string]bool
 	MulExeCallHashs   map[string]bool
 	MaticValidatorId  *big.Int         // rmaitic use

@@ -182,6 +182,7 @@ func (sc *SarpcClient) NewUnsignedExtrinsic(callMethod string, args ...interface
 	if err != nil {
 		return nil, errors.Wrap(err, "FindCallIndex")
 	}
+	sc.log.Debug("callIndex", "methodIndex", ci.MethodIndex, "sectionIndex", ci.SectionIndex)
 
 	call, err := types.NewCallWithCallIndex(ci, callMethod, args...)
 	if err != nil {
@@ -701,7 +702,13 @@ func (sc *SarpcClient) FindCallIndex(call string) (types.CallIndex, error) {
 			}
 			for ci, f := range mod.Calls {
 				if string(f.Name) == s[1] {
-					return types.CallIndex{SectionIndex: uint8(mod.Index), MethodIndex: uint8(ci)}, nil
+					mIndex := uint8(ci)
+					if strings.EqualFold(mod.Name, "Balances") {
+						if !strings.EqualFold(f.Name, "transfer_allow_death") && !strings.EqualFold(f.Name, "force_transfer") {
+							mIndex++
+						}
+					}
+					return types.CallIndex{SectionIndex: uint8(mod.Index), MethodIndex: mIndex}, nil
 				}
 			}
 			return types.CallIndex{}, fmt.Errorf("method %v not found within module %v for call %v", s[1], mod.Name, call)

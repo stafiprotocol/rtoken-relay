@@ -460,3 +460,31 @@ func (sc *SarpcClient) GetPaymentQueryInfo(encodedExtrinsic string) (paymentInfo
 	}
 	return
 }
+
+func (sc *SarpcClient) GetPaymentQueryInfoV2(encodedExtrinsic string) (paymentInfo *submodel.PaymentQueryInfoV2, err error) {
+	v := &rpc.JsonRpcResult{}
+	if err = sc.sendWsRequest(v, rpc.SystemPaymentQueryInfo(wsId, encodedExtrinsic)); err != nil {
+		return
+	}
+	sc.log.Trace("GetPaymentQueryInfo", "json", fmt.Sprintf("%+v", v))
+
+	if v.Error != nil {
+		return nil, errors.New(v.Error.Message)
+	}
+
+	if (v).Result == nil {
+		return nil, fmt.Errorf("get PaymentQueryInfo error")
+	}
+	result := (v).Result.(map[string]interface{})
+	if len(result) == 0 {
+		return nil, fmt.Errorf("get PaymentQueryInfo error")
+	}
+	value := &submodel.PaymentQueryInfoV2{}
+	marshal, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("get PaymentQueryInfo error")
+	}
+	_ = json.Unmarshal([]byte(marshal), value)
+
+	return value, nil
+}
