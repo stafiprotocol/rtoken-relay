@@ -271,6 +271,7 @@ func (w *writer) processWithdrawReportedEvent(m *core.Message) bool {
 		w.log.Error("PaymentQueryInfo error", "err", err, "callHash", call.CallHash, "Extrinsic", call.Extrinsic)
 		return false
 	}
+	w.log.Info("paymentInfo", "weight", info.Weight, "call extrinsic", call.Extrinsic)
 
 	mef.PaymentInfo = info
 	mef.RunTimeCalls = []*submodel.RunTimeCall{call}

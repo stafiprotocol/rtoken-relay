@@ -83,6 +83,29 @@ func TestGetConst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+
+
+	// ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// ext := "0x040300ba78e259995516a9a57d1f2be6eec479d2864eb57d1683d4a35b91037b9f980d0b00204aa9d101"
+	// 0x0403 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
+	// 0xa8040402 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
+	call, err := sc.TransferCall(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("ext", call.Extrinsic, call.Call.CallIndex, call.Call.Args)
+
+	info, err := sc.GetPaymentQueryInfoV2(call.Extrinsic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(info)
+	return
 	// call, err := sc.WithdrawCall()
 	// if err != nil {
 	// 	t.Log(err)
@@ -93,23 +116,23 @@ func TestGetConst(t *testing.T) {
 	// if err != nil {
 	// 	t.Log(err)
 	// }
-	call, err := sc.BondOrUnbondCall(big.NewInt(1), big.NewInt(2))
-	if err != nil {
-		t.Log(err)
-	}
+	// call, err := sc.BondOrUnbondCall(big.NewInt(1), big.NewInt(2))
+	// if err != nil {
+	// 	t.Log(err)
+	// }
 
-	info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(info)
-	return
+	// info, err := sc.GetPaymentQueryInfo(call.Extrinsic)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// t.Log(info)
+	// return
 
-	e, err := sc.ExistentialDeposit()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println(e)
+	// e, err := sc.ExistentialDeposit()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// fmt.Println(e)
 }
 
 func TestPolkaQueryStorage(t *testing.T) {
