@@ -79,28 +79,29 @@ func TestBatchTransfer(t *testing.T) {
 
 func TestGetConst(t *testing.T) {
 	stop := make(chan int)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.dotters.network/polkadot", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-rpc5.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
+	// relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 
-
-	// ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	// // ext, err := sc.TransferExtrinsic(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
+	// // if err != nil {
+	// // 	t.Fatal(err)
+	// // }
+	// // ext := "0x040300ba78e259995516a9a57d1f2be6eec479d2864eb57d1683d4a35b91037b9f980d0b00204aa9d101"
+	// // 0x0403 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
+	// // 0xa8040402 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
+	// call, err := sc.TransferCall(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
-	// ext := "0x040300ba78e259995516a9a57d1f2be6eec479d2864eb57d1683d4a35b91037b9f980d0b00204aa9d101"
-	// 0x0403 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
-	// 0xa8040402 002afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b070010a5d4e8
-	call, err := sc.TransferCall(relay2.AsID[:], types.NewUCompact(big.NewInt(1000000000000)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("ext", call.Extrinsic, call.Call.CallIndex, call.Call.Args)
+	// t.Log("ext", call.Extrinsic, call.Call.CallIndex, call.Call.Args)
 
-	info, err := sc.GetPaymentQueryInfoV2(call.Extrinsic)
+	info, err := sc.GetPaymentQueryInfoV2("0xa804050300fe65a8bbe8916decdbcf34e9ebed2418672cdf1b66d9103444221e0b28c95f39073d46c31a44")
 	if err != nil {
 		t.Fatal(err)
 	}
