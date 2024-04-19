@@ -486,6 +486,42 @@ func (sc *SarpcClient) AccountInfo(who []byte) (*types.AccountInfo, error) {
 	return ac, nil
 }
 
+func (sc *SarpcClient) ErasStakersOverview(era uint32, who []byte) (*PagedExposureMetadata, bool, error) {
+	eraBz, err := types.EncodeToBytes(era)
+	if err != nil {
+		return nil, false, err
+	}
+	ac := new(PagedExposureMetadata)
+	exist, err := sc.QueryStorage(config.StakingModuleId, config.StorageErasStakersOverview, eraBz, who, ac)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if !exist {
+		return nil, false, nil
+	}
+
+	return ac, true, nil
+}
+
+func (sc *SarpcClient) ClaimedRewards(era uint32, who []byte) ([]uint32, error) {
+	eraBz, err := types.EncodeToBytes(era)
+	if err != nil {
+		return nil, err
+	}
+	ac := new([]uint32)
+	exist, err := sc.QueryStorage(config.StakingModuleId, config.StorageClaimedRewards, eraBz, who, ac)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return *ac, nil
+	}
+
+	return *ac, nil
+}
+
 func (sc *SarpcClient) NewVersionAccountInfo(who []byte) (*submodel.AccountInfo, error) {
 	ac := new(submodel.AccountInfo)
 	exist, err := sc.QueryStorage(config.SystemModuleId, config.StorageAccount, who, nil, ac)

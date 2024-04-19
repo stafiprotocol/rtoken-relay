@@ -79,12 +79,39 @@ func TestBatchTransfer(t *testing.T) {
 
 func TestGetConst(t *testing.T) {
 	stop := make(chan int)
-	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://kusama-rpc.polkadot.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://rpc.dotters.network/polkadot", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
-	sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-rpc5.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
+	// sc, err := NewSarpcClient(ChainTypePolkadot, "wss://polkadot-rpc5.stafi.io", polkaTypesFile, AddressTypeMultiAddress, AliceKey, tlog, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	claimed, err := sc.IsClaimed(types.MustHexDecodeString("0xa6b22600abf82be627b37772606a10d637bf3456157ef79499c133f3d337c976"), types.MustHexDecodeString("0x1c761954d8265833c4b21c7296a314229af2391b34fc090aa76a817b2e79836a"), 6513)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(claimed)
+
+	return
+	// overview, exist, err := sc.ErasStakersOverview(6513, types.MustHexDecodeString("0x1c761954d8265833c4b21c7296a314229af2391b34fc090aa76a817b2e79836a"))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if exist {
+
+	// 	t.Log("%+V", overview)
+	// } else {
+	// 	t.Log(exist)
+	// }
+
+	// rewards, err := sc.ClaimedRewards(6513, types.MustHexDecodeString("0x1c761954d8265833c4b21c7296a314229af2391b34fc090aa76a817b2e79836a"))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// t.Log(rewards)
+
+	return
 
 	// relay2, _ := types.NewMultiAddressFromHexAccountID("0x2afeb305f32a12507a6b211d818218577b0e425692766b08b8bc5d714fccac3b")
 

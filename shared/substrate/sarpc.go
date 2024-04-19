@@ -1,6 +1,7 @@
 package substrate
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/gorilla/websocket"
 	scale "github.com/itering/scale.go"
 	scalecodec "github.com/itering/scale.go"
@@ -21,6 +23,7 @@ import (
 	gsrpcConfig "github.com/stafiprotocol/go-substrate-rpc-client/config"
 	"github.com/stafiprotocol/go-substrate-rpc-client/signature"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
+	"github.com/stafiprotocol/rtoken-relay/config"
 	"github.com/stafiprotocol/rtoken-relay/core"
 	"github.com/stafiprotocol/rtoken-relay/models/submodel"
 	wbskt "github.com/stafiprotocol/rtoken-relay/shared/substrate/websocket"
@@ -487,4 +490,53 @@ func (sc *SarpcClient) GetPaymentQueryInfoV2(encodedExtrinsic string) (paymentIn
 	_ = json.Unmarshal([]byte(marshal), value)
 
 	return value, nil
+}
+
+func (sc *SarpcClient) IsClaimed(controller []byte, validator []byte, lastEra uint32) (bool, error) {
+	ledger := new(submodel.StakingLedger)
+	exist, err := sc.QueryStorage(config.StakingModuleId, config.StorageLedger, controller, nil, ledger)
+	if err != nil {
+		return false, fmt.Errorf("get ledger error: %s, controller: %s, era:%d", err, hexutil.Encode(controller), lastEra)
+	}
+	if !exist {
+		return false, fmt.Errorf("get StorageLedger not exist, controller: %s, era:%d", hexutil.Encode(controller), lastEra)
+	}
+
+	claimed := false
+	for _, claimedEra := range ledger.ClaimedRewards {
+		if lastEra == claimedEra {
+			return true, nil
+		}
+	}
+
+	if !claimed {
+		pageCount := uint32(1)
+		overview, exist, err := sc.ErasStakersOverview(lastEra, validator)
+		if err != nil {
+			return false, fmt.Errorf("ErasStakersOverview failed: %s, validator: %s", err.Error(), hex.EncodeToString(validator))
+		}
+		if exist {
+			if overview.PageCount > 1 {
+				pageCount = overview.PageCount
+			}
+		}
+		rewards, err := sc.ClaimedRewards(lastEra, validator)
+		if err != nil {
+			return false, fmt.Errorf("ClaimedRewards failed: %s, validator: %s", err.Error(), hex.EncodeToString(validator))
+		}
+		rewardsPageExist := make(map[uint32]bool)
+		for _, r := range rewards {
+			rewardsPageExist[r] = true
+		}
+
+		for i := uint32(0); i < pageCount; i++ {
+			if !rewardsPageExist[i] {
+				return false, nil
+			}
+		}
+		return true, nil
+
+	}
+
+	return claimed, nil
 }

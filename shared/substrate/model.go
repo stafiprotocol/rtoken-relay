@@ -3,6 +3,7 @@ package substrate
 import (
 	"errors"
 
+	"github.com/itering/scale.go/types"
 	"github.com/shopspring/decimal"
 )
 
@@ -41,3 +42,14 @@ var (
 	ErrorBondEqualToUnbond    = errors.New("ErrorBondEqualToUnbond")
 	ErrorDiffSmallerThanLeast = errors.New("ErrorDiffSmallerThanLeast")
 )
+
+type PagedExposureMetadata struct {
+	/// The total balance backing this validator.
+	Total types.U128
+	/// The validator's own stash that is exposed.
+	Own types.U128
+	/// Number of nominators backing this validator.
+	NominatorCount uint32
+	/// Number of pages of nominators.
+	PageCount uint32
+}

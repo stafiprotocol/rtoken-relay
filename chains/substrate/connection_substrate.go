@@ -485,7 +485,8 @@ func (c *Connection) SetToPayoutStashes(flow *submodel.BondReportedFlow, validat
 }
 
 func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
-	controllers := make([]types.AccountID, 0)
+	controllersWillUse := make([]types.AccountID, 0)
+	stashesWillUse := make([]types.AccountID, 0)
 
 	idx, client := c.FoundIndexOfSubAccount(flow.SubAccounts)
 	if idx == -1 || client == nil {
@@ -511,29 +512,18 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 		if !exist {
 			return fmt.Errorf("get controller not exist, stash: %s", stashStr)
 		}
-		controllerStr := hexutil.Encode(controller[:])
 
-		ledger := new(submodel.StakingLedger)
-		exist, err = c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller[:], nil, ledger)
+		claimed, err := c.sc.IsClaimed(controller[:], stash[:], flow.LastEra)
 		if err != nil {
-			return fmt.Errorf("get ledger error: %s, stash: %s", err, stashStr)
-		}
-		if !exist {
-			return fmt.Errorf("ledger not exist, stash: %s, controller: %s", stashStr, controllerStr)
+			return err
 		}
 
-		claimed := false
-		for _, claimedEra := range ledger.ClaimedRewards {
-			if flow.LastEra == claimedEra {
-				claimed = true
-				break
-			}
-		}
 		if claimed {
 			c.log.Info("TryPayout already claimed", "stash", stashStr)
 			continue
 		} else {
-			controllers = append(controllers, controller)
+			controllersWillUse = append(controllersWillUse, controller)
+			stashesWillUse = append(stashesWillUse, stash)
 			if idx >= 4 {
 				continue
 			}
@@ -547,7 +537,7 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 			c.log.Info("SignAndSubmitTx result", "err", err)
 		}
 	}
-	for _, con := range controllers {
+	for index, con := range controllersWillUse {
 		conStr := hexutil.Encode(con[:])
 		retry := 0
 		for {
@@ -555,7 +545,7 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 				//reach limit
 				return errors.New("query controller reach limit")
 			}
-			claimed, err := c.IsClaimed(con[:], flow.LastEra)
+			claimed, err := c.sc.IsClaimed(con[:], stashesWillUse[index][:], flow.LastEra)
 			if err != nil {
 				c.log.Debug("query controller claimed err will retry", "controller", conStr, "retry", retry, "err", err)
 				retry++
@@ -573,26 +563,6 @@ func (c *Connection) TryPayout(flow *submodel.BondReportedFlow) error {
 		}
 	}
 	return nil
-}
-
-func (c *Connection) IsClaimed(controller []byte, lastEra uint32) (bool, error) {
-	ledger := new(submodel.StakingLedger)
-	exist, err := c.QueryStorage(config.StakingModuleId, config.StorageLedger, controller, nil, ledger)
-	if err != nil {
-		return false, fmt.Errorf("get ledger error: %s, controller: %s", err, hexutil.Encode(controller))
-	}
-	if !exist {
-		return false, fmt.Errorf("ledger not exist, controller: %s", hexutil.Encode(controller))
-	}
-
-	claimed := false
-	for _, claimedEra := range ledger.ClaimedRewards {
-		if lastEra == claimedEra {
-			claimed = true
-			break
-		}
-	}
-	return claimed, nil
 }
 
 func (c *Connection) NeedMoreSignature(params *submodel.SubmitSignatureParams) (bool, error) {

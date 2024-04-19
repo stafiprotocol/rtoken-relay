@@ -142,6 +142,14 @@ func TestSarpcClient_GetExtrinsics2(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	events, err := sc.GetEvents(22790000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(events)
+
+	return
 	exts, err := sc.GetExtrinsics("0x6157da60a188b3f31d250afe5acb2da786417fec00973f1c7f863504fbca4642")
 	if err != nil {
 		t.Fatal(err)

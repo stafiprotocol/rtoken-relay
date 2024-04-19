@@ -31,7 +31,9 @@ const (
 	SystemModuleId = "System"
 	StorageAccount = "Account"
 
-	MethodBatch = "Utility.batch"
+	StorageErasStakersOverview = "ErasStakersOverview"
+	StorageClaimedRewards      = "ClaimedRewards"
+	MethodBatch                = "Utility.batch"
 
 	ParamDest     = "dest"
 	ParamDestType = "Address"
