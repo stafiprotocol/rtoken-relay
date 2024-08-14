@@ -45,8 +45,8 @@ func init() {
 	logrus.SetLevel(logrus.TraceLevel)
 	var err error
 	stop := make(chan int)
-	sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
-	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
+	// sc, err = substrate.NewSarpcClient(substrate.ChainTypePolkadot, "wss://rpc.polkadot.io", polkaTypesFile, substrate.AddressTypeMultiAddress, AliceKey, tlog, stop)
+	sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://mainnet-rpc.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
 	// sc, err = substrate.NewSarpcClient(substrate.ChainTypeStafi, "wss://stafi-seiya.stafi.io", stafiTypesFile, substrate.AddressTypeAccountId, AliceKey, tlog, stop)
 	if err != nil {
 		panic(err)
@@ -220,12 +220,15 @@ func TestConnection_TransferVerify1(t *testing.T) {
 
 func TestProposalVoters(t *testing.T) {
 	conn := Connection{sc: sc, log: tlog, symbol: core.RFIS, stop: make(chan int)}
-	accounts, err := conn.GetNewChainEraProposalVoters(core.RDOT, 889)
+	accounts, err := conn.GetNewChainEraProposalVoters(core.RDOT, 1513)
 	assert.NoError(t, err)
-	t.Log(accounts)
-	voter, err := conn.GetSelectedVoters(core.RDOT, 889)
+	for i:=0;i<len(accounts);i++{
+
+		t.Log(ss58.Encode(accounts[i][:],ss58.StafiPrefix))
+	}
+	voter, err := conn.GetSelectedVoters(core.RDOT, 1513)
 	assert.NoError(t, err)
-	t.Log(voter)
+	t.Log(ss58.Encode(voter[:],ss58.StafiPrefix))
 
 }
 
