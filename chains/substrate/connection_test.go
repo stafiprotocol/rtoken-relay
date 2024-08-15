@@ -222,13 +222,13 @@ func TestProposalVoters(t *testing.T) {
 	conn := Connection{sc: sc, log: tlog, symbol: core.RFIS, stop: make(chan int)}
 	accounts, err := conn.GetNewChainEraProposalVoters(core.RDOT, 1513)
 	assert.NoError(t, err)
-	for i:=0;i<len(accounts);i++{
+	for i := 0; i < len(accounts); i++ {
 
-		t.Log(ss58.Encode(accounts[i][:],ss58.StafiPrefix))
+		t.Log(ss58.Encode(accounts[i][:], ss58.StafiPrefix))
 	}
 	voter, err := conn.GetSelectedVoters(core.RDOT, 1513)
 	assert.NoError(t, err)
-	t.Log(ss58.Encode(voter[:],ss58.StafiPrefix))
+	t.Log(ss58.Encode(voter[:], ss58.StafiPrefix))
 
 }
 
