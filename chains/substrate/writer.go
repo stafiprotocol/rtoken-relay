@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stafiprotocol/go-substrate-rpc-client/types"
@@ -273,6 +274,8 @@ func (w *writer) informChain(source, dest core.RSymbol, flow *submodel.MultiEven
 }
 
 func (w *writer) queryAndReportActive(m *core.Message) {
+	time.Sleep(time.Second * 18)
+
 	flow, ok := m.Content.(*submodel.BondReportedFlow)
 	if !ok {
 		w.printContentError(m)
@@ -291,7 +294,7 @@ func (w *writer) queryAndReportActive(m *core.Message) {
 	}
 
 	flow.ReportActive = types.NewU128(big.Int(ledger.Active))
-	w.log.Info("queryAndReportActive", "pool", hexutil.Encode(flow.Snap.Pool), "active", flow.Snap.Active)
+	w.log.Info("queryAndReportActive", "pool", hexutil.Encode(flow.Snap.Pool), "active", flow.ReportActive)
 	m.Content = flow
 	m.Reason = core.ActiveReport
 

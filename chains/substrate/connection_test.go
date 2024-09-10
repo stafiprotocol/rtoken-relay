@@ -220,7 +220,7 @@ func TestConnection_TransferVerify1(t *testing.T) {
 
 func TestProposalVoters(t *testing.T) {
 	conn := Connection{sc: sc, log: tlog, symbol: core.RFIS, stop: make(chan int)}
-	accounts, err := conn.GetNewChainEraProposalVoters(core.RDOT, 1513)
+	accounts, err := conn.GetNewChainEraProposalVoters(core.RKSM, 6954)
 	assert.NoError(t, err)
 	for i := 0; i < len(accounts); i++ {
 
