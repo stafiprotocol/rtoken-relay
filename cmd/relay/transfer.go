@@ -110,7 +110,7 @@ func handleTransfer(ctx *cli.Context) error {
 	}
 	nonce := ethClient.Opts().Nonce.Uint64()
 	to := common.HexToAddress(cfg.ToAccount)
-	gasLimit := ethClient.Opts().GasLimit
+	gasLimit := uint64(22000)
 	gasPrice := ethClient.Opts().GasPrice
 	tx := types.NewTransaction(nonce, to, amount.BigInt(), gasLimit, gasPrice, nil)
 	chainId, err := ethClient.Client().ChainID(ctx.Context)
