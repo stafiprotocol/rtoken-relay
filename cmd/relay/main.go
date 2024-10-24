@@ -68,6 +68,7 @@ func init() {
 		&delegateBnbCommand,
 		&claimUndelegateCommand,
 		&syncRMaticRateCommand,
+		&transferCommand,
 	}
 
 	app.Flags = append(app.Flags, mainFlags...)

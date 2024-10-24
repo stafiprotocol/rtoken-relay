@@ -1,0 +1,7 @@
+{
+  "ethEndpoint": "https://data-seed-prebsc-1-s3.binance.org:8545/",
+  "keystorePath": "/Users/tpkeeper/gowork/stafi/rtoken-relay/keys",
+  "fromAccount": "0x7e7a38868A176894Bd44f668179209710ECd8052",
+  "toAccount": "0x7e7a38868A176894Bd44f668179209710ECd8052",
+  "amount": "10000000000000000"
+}
